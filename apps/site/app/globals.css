@@ -1,0 +1,114 @@
+@import "tailwindcss";
+@source "../../../packages/ui/src";
+
+:root {
+  --font-sans: var(--font-geist-sans), Arial, sans-serif;
+  --font-mono: var(--font-geist-mono), "SFMono-Regular", Consolas, monospace;
+
+  --color-canvas: #f8f4ed;
+  --color-surface: #fffaf3;
+  --color-surface-strong: #ffffff;
+  --color-ink: #202530;
+  --color-ink-soft: #4f5663;
+  --color-muted: #777164;
+  --color-border: #e4d7c6;
+  --color-primary: #c24c36;
+  --color-primary-strong: #b94633;
+  --color-secondary: #24675f;
+  --color-accent: #f2c95c;
+  --color-success: #009966;
+  --color-danger: #ba352c;
+
+  --shadow-soft: 0 18px 70px rgb(37 38 31 / 10%);
+  --radius-sm: 8px;
+  --radius-md: 12px;
+  --announcement-h: 32px;
+  --header-h: 76px;
+  --site-header-h: calc(var(--announcement-h) + var(--header-h));
+}
+
+html,
+body {
+  min-height: 100%;
+  max-width: 100vw;
+  overflow-x: hidden;
+}
+
+html {
+  color-scheme: light;
+  scroll-behavior: smooth;
+}
+
+body {
+  color: var(--color-ink);
+  background: var(--color-canvas);
+  font-family: var(--font-sans);
+  text-rendering: geometricprecision;
+}
+
+* {
+  box-sizing: border-box;
+  padding: 0;
+  margin: 0;
+}
+
+a {
+  color: inherit;
+  text-decoration: none;
+}
+
+button,
+input,
+textarea,
+select {
+  font: inherit;
+}
+
+button {
+  color: inherit;
+}
+
+img,
+svg {
+  display: block;
+  max-width: 100%;
+}
+
+::selection {
+  color: var(--color-ink);
+  background: color-mix(in srgb, var(--color-accent) 70%, white);
+}
+
+:focus-visible {
+  outline: 3px solid color-mix(in srgb, var(--color-secondary) 70%, white);
+  outline-offset: 3px;
+}
+
+.home-ticker-track {
+  animation: home-ticker 34s linear infinite;
+}
+
+.home-ticker-track:hover {
+  animation-play-state: paused;
+}
+
+input[type="number"] {
+  appearance: textfield;
+  -moz-appearance: textfield;
+}
+
+input[type="number"]::-webkit-outer-spin-button,
+input[type="number"]::-webkit-inner-spin-button {
+  margin: 0;
+  appearance: none;
+}
+
+@keyframes home-ticker {
+  from {
+    transform: translateX(0);
+  }
+
+  to {
+    transform: translateX(-50%);
+  }
+}

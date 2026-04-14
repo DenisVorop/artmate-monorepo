@@ -1,0 +1,13 @@
+<svg width="156" height="36" viewBox="0 0 156 36" fill="none" xmlns="http://www.w3.org/2000/svg" role="img" aria-labelledby="title">
+  <title id="title">ARTMATE</title>
+  <rect x="1" y="1" width="34" height="34" rx="8" fill="#FFF7E6" stroke="#202530" stroke-width="2"/>
+  <path d="M10 24.5L16.3 10.8C16.9 9.6 18.7 9.6 19.3 10.8L25.8 24.5" stroke="#C24C36" stroke-width="3" stroke-linecap="round" stroke-linejoin="round"/>
+  <path d="M13.2 19.2H22.5" stroke="#24675F" stroke-width="3" stroke-linecap="round"/>
+  <path d="M29 9.5L31.2 7.3" stroke="#F2C95C" stroke-width="3" stroke-linecap="round"/>
+  <path d="M43.5 27V9H48.1L54.2 21.2L60.3 9H64.9V27H61.2V14.8L55.8 25.4H52.5L47.2 14.8V27H43.5Z" fill="#202530"/>
+  <path d="M68.5 27L75.7 9H79.7L86.9 27H82.8L81.4 23.2H74L72.6 27H68.5ZM75.2 19.9H80.2L77.7 13.2L75.2 19.9Z" fill="#202530"/>
+  <path d="M92.7 27V12.4H87.6V9H101.7V12.4H96.6V27H92.7Z" fill="#202530"/>
+  <path d="M105 27V9H117.3V12.3H108.9V16.1H116.5V19.3H108.9V23.7H117.6V27H105Z" fill="#202530"/>
+  <path d="M121.6 27V9H128.9C131 9 132.7 9.5 133.9 10.6C135.1 11.7 135.7 13.1 135.7 15C135.7 16.3 135.4 17.4 134.7 18.3C134.1 19.2 133.1 19.9 131.9 20.3L136.1 27H131.7L128 20.9H125.5V27H121.6ZM125.5 17.8H128.5C130.7 17.8 131.8 16.9 131.8 15.1C131.8 13.3 130.7 12.4 128.5 12.4H125.5V17.8Z" fill="#202530"/>
+  <path d="M139.7 27V9H152V12.3H143.6V16.1H151.2V19.3H143.6V23.7H152.3V27H139.7Z" fill="#202530"/>
+</svg>
