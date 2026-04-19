@@ -1,5 +1,11 @@
+import { HeroSection } from "./ui/hero-section";
+
 export { metadata } from "./metadata";
 
 export function HomePage() {
-  return <main className="h-1250 bg-amber-100">hey</main>;
+  return (
+    <main>
+      <HeroSection className="my-4 md:my-8" />
+    </main>
+  );
 }

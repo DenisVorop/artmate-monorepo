@@ -1,6 +1,6 @@
 export const routes = {
   home: "/",
-  shop: "/shop",
+  catalog: "/catalog",
   blog: "/blog",
   blogPost: (id: string) => `/blog/${id}`,
   gallery: "/gallery",

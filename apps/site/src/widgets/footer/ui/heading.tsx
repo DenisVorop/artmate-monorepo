@@ -5,7 +5,7 @@ export function Heading() {
         <p
           className="mb-5 font-heading leading-[1.1] font-bold text-white"
           style={{
-            fontSize: "clamp(2rem, 4vw, 3.25rem)",
+            fontSize: "clamp(1.5rem, 4vw, 2.7rem)",
           }}
         >
           Твоё время{" "}
