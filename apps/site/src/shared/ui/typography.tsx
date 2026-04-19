@@ -28,7 +28,7 @@ export function SectionTitle({
   return (
     <h2
       className={`font-display leading-tight font-bold text-stone-900 ${className}`}
-      style={{ fontSize: "clamp(1.9rem, 3.5vw, 2.75rem)", ...style }}
+      style={{ fontSize: "clamp(1rem, 3.5vw, 2rem)", ...style }}
       {...rest}
     >
       {children}
