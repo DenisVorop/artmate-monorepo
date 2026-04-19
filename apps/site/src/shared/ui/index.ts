@@ -17,3 +17,4 @@ export {
   DropdownMenuSubTrigger,
   DropdownMenuTrigger,
 } from "./dropdown-menu";
+export { InfiniteCarousel } from "./infinite-carousel";
