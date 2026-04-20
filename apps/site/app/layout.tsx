@@ -1,7 +1,7 @@
 import { RootLayout } from "@/app";
 
 import "./globals.css";
-import { homeMetadata as metadata } from "@/pages";
+import { metadata } from "@/app/metadata";
 
 export { metadata };
 export default RootLayout;

@@ -1,5 +1,6 @@
 import { Link } from "@/shared/ui/link";
 import { ArrowRight } from "lucide-react";
+import { externalLinks, routes } from "@/shared";
 import { LegalDocs } from "./ui/legal-docs";
 import { BgText } from "./ui/bg-text";
 import { Heading } from "./ui/heading";
@@ -38,9 +39,9 @@ export function Footer() {
               </div>
               <ul className="space-y-3">
                 {[
-                  { label: "Каталог", to: "/shop" },
-                  { label: "Ozon", href: "#" },
-                  { label: "Wildberries", href: "#" },
+                  { label: "Каталог", to: routes.catalog },
+                  { label: "Ozon", href: externalLinks.marketplaces.ozon },
+                  { label: "Wildberries", href: externalLinks.marketplaces.wildberries },
                 ].map((l) => (
                   <li key={l.label}>
                     {"to" in l ? (
@@ -54,6 +55,8 @@ export function Footer() {
                     ) : (
                       <a
                         href={l.href}
+                        target="_blank"
+                        rel="noreferrer"
                         className="group flex items-center gap-1.5 text-sm text-stone-500 transition-colors hover:text-white"
                       >
                         <ArrowRight className="-ml-4 h-3 w-3 opacity-0 transition-all duration-200 group-hover:ml-0 group-hover:opacity-100" />

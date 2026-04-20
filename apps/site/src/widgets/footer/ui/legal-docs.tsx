@@ -1,7 +1,7 @@
 import { Link } from "@/shared/ui/link";
 import InstagramSvg from "../assets/instagram.svg";
 import TelegramSvg from "../assets/telegram.svg";
-import { routes } from "@/shared";
+import { externalLinks, routes } from "@/shared";
 
 const legalDocs = [
   {
@@ -58,10 +58,22 @@ export function LegalDocs() {
         <div className="flex items-center gap-6">
           <p className="text-xs text-stone-600">ИНН: XXXXXXXXXX · ОГРН: XXXXXXXXXXXXX</p>
           <div className="flex items-center gap-3">
-            <a href="#" className="text-stone-500 transition-colors hover:text-white">
+            <a
+              href={externalLinks.social.instagram}
+              target="_blank"
+              rel="noreferrer"
+              aria-label="Instagram Artmate"
+              className="text-stone-500 transition-colors hover:text-white"
+            >
               <InstagramSvg className="h-5 w-5" />
             </a>
-            <a href="#" className="text-stone-500 transition-colors hover:text-[#229ED9]">
+            <a
+              href={externalLinks.social.telegram}
+              target="_blank"
+              rel="noreferrer"
+              aria-label="Telegram Artmate"
+              className="text-stone-500 transition-colors hover:text-[#229ED9]"
+            >
               <TelegramSvg className="h-5 w-5" />
             </a>
           </div>
