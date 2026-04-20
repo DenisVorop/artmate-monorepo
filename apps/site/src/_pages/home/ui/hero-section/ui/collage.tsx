@@ -5,9 +5,21 @@ import { Card, CardContent, CardDescription, CardTitle } from "@/shared/ui/card"
 import { Progress } from "@/shared/ui/progress";
 import { Star } from "lucide-react";
 import Image from "next/image";
-import type { ReactNode } from "react";
+import type { CSSProperties, ReactNode } from "react";
 
 type CollageImage = (typeof heroImages)[keyof typeof heroImages];
+
+const frameRingMaskStyle = {
+  WebkitMask: "linear-gradient(#000 0 0) content-box, linear-gradient(#000 0 0)",
+  WebkitMaskComposite: "xor",
+  maskComposite: "exclude",
+} as CSSProperties;
+
+const frameGradients = {
+  workspace: "bg-gradient-to-r from-rose-400 to-amber-400",
+  hands: "bg-gradient-to-r from-amber-400 to-orange-400 p-[2px]",
+  mandala: "bg-gradient-to-r from-violet-400 to-rose-400 p-[2px]",
+} as const;
 
 function CollagePhoto({
   image,
@@ -15,6 +27,7 @@ function CollagePhoto({
   sizes,
   className,
   frameClassName,
+  frameRingClassName,
   children,
 }: {
   image: CollageImage;
@@ -22,11 +35,12 @@ function CollagePhoto({
   sizes: string;
   className?: string;
   frameClassName?: string;
+  frameRingClassName?: string;
   children?: ReactNode;
 }) {
   return (
     <div className={cn("relative", className)}>
-      <AspectRatio ratio={ratio} className={cn("overflow-hidden", frameClassName)}>
+      <AspectRatio ratio={ratio} className={cn("relative overflow-hidden", frameClassName)}>
         <Image
           fill
           preload
@@ -36,6 +50,16 @@ function CollagePhoto({
           className="object-cover"
         />
         {children}
+        {frameRingClassName && (
+          <div
+            aria-hidden
+            className={cn(
+              "pointer-events-none absolute inset-0 rounded-[inherit] p-[3px]",
+              frameRingClassName,
+            )}
+            style={frameRingMaskStyle}
+          />
+        )}
       </AspectRatio>
     </div>
   );
@@ -50,24 +74,27 @@ export function Collage() {
         sizes="(min-width: 1024px) 30vw, (min-width: 640px) 27vw, 58vw"
         className="z-20 w-[58%] rotate-[-2deg] sm:w-[52%] lg:w-[55%]"
         frameClassName="rounded-[2rem] shadow-2xl shadow-stone-300/60"
+        frameRingClassName={frameGradients.workspace}
       >
         <div className="absolute inset-0 bg-gradient-to-t from-stone-900/20 to-transparent" />
       </CollagePhoto>
 
       <CollagePhoto
         image={heroImages.hands}
-        ratio={4 / 5}
+        ratio={3 / 4}
         sizes="(min-width: 1024px) 23vw, (min-width: 640px) 18vw, 38vw"
         className="absolute top-4 right-0 z-30 w-[38%] rotate-[4deg] sm:w-[34%] lg:top-8 lg:-right-4 lg:w-[38%]"
-        frameClassName="rounded-[1.5rem] border-4 border-white shadow-xl shadow-stone-300/50"
+        frameClassName="rounded-[1.5rem] shadow-xl shadow-stone-300/50"
+        frameRingClassName={frameGradients.hands}
       />
 
       <CollagePhoto
         image={heroImages.mandala}
-        ratio={1}
+        ratio={3 / 4}
         sizes="(min-width: 1024px) 20vw, (min-width: 640px) 16vw, 36vw"
         className="absolute bottom-4 left-0 z-10 w-[36%] rotate-[3deg] sm:w-[30%] lg:bottom-6 lg:-left-2"
-        frameClassName="rounded-[1.5rem] border-4 border-white shadow-xl shadow-stone-300/40"
+        frameClassName="rounded-[1.5rem] shadow-xl shadow-stone-300/40"
+        frameRingClassName={frameGradients.mandala}
       />
 
       <Card className="absolute top-8 left-4 z-40 gap-0 rounded-2xl border border-stone-100 bg-white py-0 shadow-lg ring-0 lg:top-20 lg:-left-8">
