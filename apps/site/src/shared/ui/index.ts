@@ -1,5 +1,7 @@
 export { Badge, badgeVariants } from "./badge";
 export { Button, buttonVariants } from "./button";
+export { CtaGradientLink } from "./cta-gradient-link";
+export { DecorDots } from "./decor-dots";
 export {
   DropdownMenu,
   DropdownMenuCheckboxItem,

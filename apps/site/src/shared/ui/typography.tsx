@@ -1,4 +1,5 @@
 import type { ReactNode, HTMLAttributes } from "react";
+import { cn } from "../lib";
 
 // ─── PageTitle ── h1 для страниц ──────────────────────────────────────────────
 export function PageTitle({
@@ -67,13 +68,15 @@ const LABEL_COLORS: Record<string, string> = {
 export function SectionLabel({
   children,
   color = "rose",
+  className,
 }: {
+  className?: string;
   children: ReactNode;
   color?: keyof typeof LABEL_COLORS;
 }) {
   const textColor = LABEL_COLORS[color] ?? "text-rose-400";
   return (
-    <div className={`flex items-center gap-2 ${textColor}`}>
+    <div className={cn(`flex items-center gap-2`, textColor, className)}>
       <span className="h-0.5 w-6 shrink-0 rounded-full bg-current" />
       <span className="text-xs font-bold tracking-widest uppercase">{children}</span>
     </div>

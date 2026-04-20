@@ -3,8 +3,7 @@ import { Subheading } from "./ui/subheading";
 import { Collage } from "./ui/collage";
 import { Reviews } from "./ui/reviews";
 import { CTA } from "./ui/cta";
-import { DecorDots } from "./ui/decor-dots";
-import { cn } from "@/shared";
+import { DecorDots, cn } from "@/shared";
 
 export function HeroSection({ className }: { className?: string }) {
   return (

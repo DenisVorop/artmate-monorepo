@@ -10,6 +10,49 @@
   padding-inline: 1rem;
 }
 
+@utility cta-gradient-hover {
+  isolation: isolate;
+  overflow: hidden;
+  position: relative;
+  transition-duration: 300ms;
+  transition-property: color, box-shadow, border-color, transform;
+  transition-timing-function: cubic-bezier(0.4, 0, 0.2, 1);
+
+  & > [data-slot="cta-gradient-orb"] {
+    aspect-ratio: 1;
+    background: radial-gradient(circle, var(--color-rose-500) 0%, var(--color-orange-400) 72%);
+    border-radius: 9999px;
+    left: 0;
+    opacity: 0;
+    pointer-events: none;
+    position: absolute;
+    top: 0;
+    transform: translate(50%, 50%) translate(-50%, -50%);
+    transition: opacity 180ms ease;
+    width: 220%;
+    will-change: transform, opacity;
+    z-index: 0;
+  }
+
+  & > [data-slot="cta-gradient-content"] {
+    align-items: center;
+    display: inline-flex;
+    gap: inherit;
+    position: relative;
+    z-index: 1;
+  }
+
+  &:is(:hover, :focus-visible) {
+    border-color: var(--color-rose-300);
+    box-shadow: 0 14px 30px rgb(244 63 94 / 0.22);
+    color: white;
+  }
+
+  &:is(:hover, :focus-visible) > [data-slot="cta-gradient-orb"] {
+    opacity: 1;
+  }
+}
+
 @theme inline {
   --font-heading: var(--font-comfortaa);
   --font-sans: var(--font-nunito);
@@ -145,6 +188,6 @@
   }
 
   .full-width {
-    @apply relative right-[50%] left-[50%] w-screen -mr-[50vw] -ml-[50vw];
+    @apply relative right-[50%] left-[50%] -mr-[50vw] -ml-[50vw] w-screen;
   }
 }
