@@ -49,6 +49,9 @@ export function ProductCard({ product }: ProductCardProps) {
   const price = product.price.toLocaleString("ru-RU");
   const addButtonLabel = added ? "Добавлено" : "В корзину";
   const AddIcon = added ? Check : ShoppingBag;
+  const addButtonClassName = added
+    ? "bg-emerald-500 text-white shadow-lg shadow-emerald-500/20 hover:bg-emerald-500 focus-visible:border-emerald-300 focus-visible:ring-emerald-400/30"
+    : "bg-gradient-to-r from-rose-500 to-orange-400 text-white shadow-lg shadow-rose-500/20 hover:from-rose-600 hover:to-orange-500 hover:shadow-rose-500/30 focus-visible:border-rose-300 focus-visible:ring-rose-400/30";
 
   return (
     <Card className="group/product h-full gap-0 py-0 transition-shadow duration-300 hover:shadow-md">
@@ -72,14 +75,11 @@ export function ProductCard({ product }: ProductCardProps) {
         <div className="pointer-events-none absolute inset-0 hidden items-end bg-stone-900/20 p-4 opacity-0 transition-opacity duration-200 group-focus-within/product:opacity-100 group-hover/product:opacity-100 md:flex">
           <Button
             type="button"
-            variant={added ? "default" : "secondary"}
+            size="lg"
             onClick={handleAdd}
-            className={cn(
-              "pointer-events-auto w-full shadow-sm",
-              added && "bg-emerald-500 text-white hover:bg-emerald-500",
-            )}
+            className={cn("pointer-events-auto w-full", addButtonClassName)}
           >
-            <AddIcon data-icon="inline-start" className="size-4" />
+            <AddIcon data-icon="inline-start" />
             {addButtonLabel}
           </Button>
         </div>
@@ -103,13 +103,12 @@ export function ProductCard({ product }: ProductCardProps) {
         <p className="font-semibold text-stone-700">{price} ₽</p>
         <Button
           type="button"
-          size="icon"
-          variant={added ? "default" : "secondary"}
+          size="icon-lg"
           aria-label={added ? "Добавлено в корзину" : `Добавить ${product.title} в корзину`}
           onClick={handleAdd}
-          className={cn("md:hidden", added && "bg-emerald-500 text-white hover:bg-emerald-500")}
+          className={cn("md:hidden", addButtonClassName)}
         >
-          <AddIcon className="size-4" />
+          <AddIcon />
         </Button>
       </CardFooter>
     </Card>
