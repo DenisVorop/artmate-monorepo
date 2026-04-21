@@ -1,8 +1,7 @@
 import { ArrowRight } from "lucide-react";
 import { SectionLabel, SectionTitle } from "@/shared/ui/typography";
 import { Button, CtaGradientLink, DecorDots, cn, routes } from "@/shared";
-import { PRODUCTS } from "../constants";
-import { ProductCard } from "@/entities/products";
+import { ProductCard, PRODUCTS } from "@/entities/products";
 
 export function Bestsellers({ className }: { className?: string }) {
   const bestsellers = PRODUCTS.filter((p) => p.bestseller).slice(0, 4);

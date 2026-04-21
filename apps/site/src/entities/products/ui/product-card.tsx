@@ -7,22 +7,14 @@ import { Badge, Button, cn, routes } from "@/shared";
 import { AspectRatio } from "@/shared/ui/aspect-ratio";
 import { Card, CardContent, CardDescription, CardFooter, CardTitle } from "@/shared/ui/card";
 import { Link } from "@/shared/ui/link";
+import type { Product } from "../model";
 
 interface ProductCardProps {
-  product: {
-    id: string;
-    title: string;
-    price: number;
-    category: string;
-    categoryId: string;
-    image: string;
-    images: string[];
-    description: string;
-    bestseller: boolean;
-  };
+  product: Product;
+  eagerImage?: boolean;
 }
 
-export function ProductCard({ product }: ProductCardProps) {
+export function ProductCard({ product, eagerImage = false }: ProductCardProps) {
   const [added, setAdded] = useState(false);
   const resetTimer = useRef<ReturnType<typeof setTimeout> | null>(null);
 
@@ -62,6 +54,8 @@ export function ProductCard({ product }: ProductCardProps) {
               fill
               src={product.image}
               alt={product.title}
+              loading={eagerImage ? "eager" : "lazy"}
+              fetchPriority={eagerImage ? "high" : undefined}
               sizes="(min-width: 1024px) 25vw, (min-width: 640px) 50vw, 100vw"
               className="object-cover transition-transform duration-700 group-hover/product:scale-105"
             />
