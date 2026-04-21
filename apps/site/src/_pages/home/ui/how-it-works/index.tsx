@@ -11,7 +11,7 @@ export function HowItWorks({ className }: { className?: string }) {
       <div className="pointer-events-none absolute right-0 bottom-0 h-[400px] w-[400px] translate-x-1/3 translate-y-1/3 rounded-full bg-violet-100/30 blur-3xl" />
       <div className="pointer-events-none absolute top-1/2 left-1/2 h-[300px] w-[600px] -translate-x-1/2 -translate-y-1/2 rounded-full bg-amber-50/60 blur-3xl" />
 
-      <div className="relative container mx-auto w-full px-4 sm:px-6 lg:px-8">
+      <div className="relative container">
         <div className="mb-14">
           <div className="mb-3">
             <Badge

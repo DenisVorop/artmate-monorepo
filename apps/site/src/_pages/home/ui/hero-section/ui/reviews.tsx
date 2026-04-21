@@ -1,5 +1,5 @@
 import { reviewAvatars } from "../constants";
-import { Badge } from "@/shared";
+import { ReviewRatingSummary } from "@/entities/reviews";
 import {
   Avatar,
   AvatarFallback,
@@ -7,7 +7,6 @@ import {
   AvatarGroupCount,
   AvatarImage,
 } from "@/shared/ui/avatar";
-import { Star } from "lucide-react";
 
 export function Reviews() {
   return (
@@ -24,17 +23,7 @@ export function Reviews() {
         </AvatarGroupCount>
       </AvatarGroup>
 
-      <div className="flex items-center gap-1.5">
-        <div className="flex">
-          {Array.from({ length: 5 }, (_, i) => (
-            <Star key={i} className="h-4 w-4 fill-amber-400 text-amber-400" />
-          ))}
-        </div>
-        <Badge variant="secondary" className="bg-amber-50">
-          4.9
-        </Badge>
-        <span className="text-sm text-stone-400">· 4 500+ отзывов на Ozon и Wildberries</span>
-      </div>
+      <ReviewRatingSummary className="justify-start" />
     </div>
   );
 }

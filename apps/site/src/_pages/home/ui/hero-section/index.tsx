@@ -7,12 +7,7 @@ import { DecorDots, cn } from "@/shared";
 
 export function HeroSection({ className }: { className?: string }) {
   return (
-    <section
-      className={cn(
-        "relative z-10 container mx-auto flex w-full flex-1 items-center px-4 py-12 sm:px-6 lg:px-8 lg:py-0",
-        className,
-      )}
-    >
+    <section className={cn("relative z-10 container flex flex-1 items-center", className)}>
       <div className="grid w-full items-center gap-8 lg:grid-cols-[1fr_1.1fr] xl:gap-16">
         <div className="relative isolate order-2 lg:order-1">
           <DecorDots className="-top-24 -left-24 z-0 h-72 w-96 lg:-top-28 lg:-left-28" />
