@@ -34,7 +34,7 @@ export function Menu() {
         <Link href={routes.catalog}>Каталог</Link>
       </li>
       <li>
-        <Link href={routes.contact}>Контакты</Link>
+        <Link href={routes.contacts}>Контакты</Link>
       </li>
       <li>
         <DropdownMenu>

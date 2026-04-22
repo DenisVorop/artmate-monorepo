@@ -7,7 +7,7 @@ export const routes = {
   blogPost: (id: string) => `/blog/${id}`,
   gallery: "/gallery",
   checkout: "/checkout",
-  contact: "/contact",
+  contacts: "/contacts",
   faq: "/faq",
   product: (categorySlug: string, productSlug: string) =>
     `/katalog/raskraski/${categorySlug}/${productSlug}`,

@@ -81,7 +81,7 @@ export function Footer() {
                   { label: "Блог", to: "/blog" },
                   { label: "Галерея работ", to: "/gallery" },
                   { label: "FAQ", to: "/faq" },
-                  { label: "Контакты", to: "/contact" },
+                  { label: "Контакты", to: routes.contacts },
                 ].map((l) => (
                   <li key={l.label}>
                     <Link
@@ -105,7 +105,7 @@ export function Footer() {
                 </h4>
               </div>
               <ul className="space-y-3">
-                {[{ label: "Написать нам", to: "/contact" }].map((l) => (
+                {[{ label: "Написать нам", to: routes.contacts }].map((l) => (
                   <li key={l.label}>
                     <Link
                       href={l.to}
