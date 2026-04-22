@@ -14,8 +14,8 @@ export function Hero() {
           </PageTitle>
         </div>
         <SectionSubtitle className="max-w-md pb-1 md:justify-self-end">
-          Подберите сюжет под настроение, уровень детализации и любимые материалы для спокойного
-          творческого вечера.
+          Подберите сюжет под&nbsp;настроение, уровень детализации и&nbsp;любимые материалы
+          для&nbsp;спокойного творческого вечера.
         </SectionSubtitle>
       </div>
     </section>

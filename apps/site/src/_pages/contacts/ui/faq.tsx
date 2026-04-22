@@ -14,15 +14,16 @@ import { SectionSubtitle, SectionTitle } from "@/shared/ui/typography";
 const faqItems = [
   {
     question: "Маркеры просвечивают через страницы?",
-    answer: "Нет, бумага 190 г/м² подобрана для спиртовых и водных маркеров.",
+    answer: "Нет, бумага 190 г/м² подобрана для\u00a0спиртовых и\u00a0водных маркеров.",
   },
   {
     question: "Где ещё купить книги ARTMATE?",
-    answer: "На Ozon и Wildberries, с доставкой через удобный пункт выдачи.",
+    answer: "На\u00a0Ozon и\u00a0Wildberries, с\u00a0доставкой через удобный пункт выдачи.",
   },
   {
     question: "Есть ли возврат?",
-    answer: "Да, в течение 14 дней с момента получения, если книга не использовалась.",
+    answer:
+      "Да, в\u00a0течение 14 дней с\u00a0момента получения, если книга не\u00a0использовалась.",
   },
 ];
 
@@ -34,15 +35,15 @@ export function Faq() {
           <SectionTitle id="contacts-faq-title">
             Ещё есть вопросы?{" "}
             <span className="text-amber-500">
-              Загляните <span className="whitespace-nowrap">в FAQ</span>
+              Загляните <span className="whitespace-nowrap">в&nbsp;FAQ</span>
             </span>
           </SectionTitle>
           <SectionSubtitle className="text-muted-foreground">
-            Собрали короткие ответы о материалах, доставке и возвратах.
+            Собрали короткие ответы о&nbsp;материалах, доставке и&nbsp;возвратах.
           </SectionSubtitle>
           <Button asChild variant="outline" size="lg" className="mt-2">
             <Link href={routes.faq}>
-              Все вопросы и ответы
+              Все вопросы и&nbsp;ответы
               <ArrowRight data-icon="inline-end" />
             </Link>
           </Button>

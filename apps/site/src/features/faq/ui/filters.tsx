@@ -19,7 +19,7 @@ export function Filters({ query, activeSectionId, onQueryChange, onSectionChange
           type="search"
           value={query}
           onChange={(event) => onQueryChange(event.target.value)}
-          placeholder="Поиск по вопросам"
+          placeholder={"Поиск по\u00a0вопросам"}
           className="h-11 pr-10 pl-9"
         />
         {query && (

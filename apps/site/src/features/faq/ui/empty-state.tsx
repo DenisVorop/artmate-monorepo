@@ -14,10 +14,10 @@ export function EmptyState({ query, onReset }: EmptyStateProps) {
         <span className="mb-4 flex size-12 items-center justify-center rounded-lg bg-muted text-muted-foreground">
           <SearchX className="size-6" />
         </span>
-        <CardTitle className="text-xl">Ничего не найдено</CardTitle>
+        <CardTitle className="text-xl">Ничего не&nbsp;найдено</CardTitle>
         <CardDescription className="mt-2 max-w-md">
-          По запросу «{query}» нет совпадений. Попробуйте изменить формулировку или посмотреть все
-          разделы.
+          По&nbsp;запросу «{query}» нет совпадений. Попробуйте изменить формулировку
+          или&nbsp;посмотреть все разделы.
         </CardDescription>
         <Button type="button" variant="outline" className="mt-5" onClick={onReset}>
           Показать все вопросы

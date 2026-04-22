@@ -17,9 +17,7 @@ export function generateStaticParams() {
   }));
 }
 
-export async function generateMetadata({
-  params,
-}: CatalogCategoryRouteProps): Promise<Metadata> {
+export async function generateMetadata({ params }: CatalogCategoryRouteProps): Promise<Metadata> {
   const { categorySlug } = await params;
   const category = getProductCategoryBySlug(categorySlug);
 
@@ -27,8 +25,8 @@ export async function generateMetadata({
     return {};
   }
 
-  const title = `${category.title} - раскраски по номерам Artmate`;
-  const description = `Раскраски Artmate в категории «${category.title}»: альбомы A4 на плотной бумаге для спокойного творческого вечера.`;
+  const title = `${category.title} - раскраски по\u00a0номерам Artmate`;
+  const description = `Раскраски Artmate в\u00a0категории «${category.title}»: альбомы A4 на\u00a0плотной бумаге для\u00a0спокойного творческого вечера.`;
   const url = routes.catalogCategory(category.slug);
 
   return {

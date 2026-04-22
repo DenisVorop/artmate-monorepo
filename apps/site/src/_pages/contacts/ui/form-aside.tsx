@@ -4,12 +4,12 @@ import { SectionSubtitle, SectionTitle } from "@/shared/ui/typography";
 const responseTimes = [
   {
     value: "~1 ч",
-    label: "в Telegram",
+    label: "в\u00a0Telegram",
     className: "bg-violet-50 text-violet-700 ring-violet-200/70",
   },
   {
     value: "24 ч",
-    label: "по Email",
+    label: "по\u00a0Email",
     className: "bg-rose-50 text-rose-700 ring-rose-200/70",
   },
 ];
@@ -22,8 +22,8 @@ export function FormAside() {
           Или заполните форму — <span className="text-rose-500">сами свяжемся</span>
         </SectionTitle>
         <SectionSubtitle className="max-w-md text-muted-foreground">
-          Обычно отвечаем в течение одного рабочего дня. Номер заказа поможет быстрее разобраться в
-          ситуации.
+          Обычно отвечаем в&nbsp;течение одного рабочего дня. Номер заказа поможет быстрее
+          разобраться в&nbsp;ситуации.
         </SectionSubtitle>
       </div>
 

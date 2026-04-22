@@ -12,9 +12,9 @@ export function HelpCard() {
             <MessageCircle className="size-5" />
           </span>
           <div className="space-y-1">
-            <CardTitle className="text-xl">Не нашли ответ?</CardTitle>
+            <CardTitle className="text-xl">Не&nbsp;нашли ответ?</CardTitle>
             <CardDescription>
-              Команда поддержки ответит в течение одного рабочего дня.
+              Команда поддержки ответит в&nbsp;течение одного рабочего дня.
             </CardDescription>
           </div>
         </div>

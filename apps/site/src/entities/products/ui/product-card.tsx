@@ -86,10 +86,7 @@ export function ProductCard({ product, eagerImage = false }: ProductCardProps) {
           {product.category}
         </CardDescription>
         <CardTitle role="heading" aria-level={3} className="font-display leading-snug font-bold">
-          <Link
-            href={productHref}
-            className="text-stone-900 transition-colors hover:text-rose-500"
-          >
+          <Link href={productHref} className="text-stone-900 transition-colors hover:text-rose-500">
             {product.title}
           </Link>
         </CardTitle>
@@ -100,7 +97,9 @@ export function ProductCard({ product, eagerImage = false }: ProductCardProps) {
         <Button
           type="button"
           size="icon-lg"
-          aria-label={added ? "Добавлено в корзину" : `Добавить ${product.title} в корзину`}
+          aria-label={
+            added ? "Добавлено в\u00a0корзину" : `Добавить ${product.title} в\u00a0корзину`
+          }
           onClick={handleAdd}
           className={cn("md:hidden", addButtonClassName)}
         >

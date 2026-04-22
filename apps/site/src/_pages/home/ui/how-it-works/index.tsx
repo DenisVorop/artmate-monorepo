@@ -26,7 +26,7 @@ export function HowItWorks({ className }: { className?: string }) {
           <div className="flex flex-col justify-between gap-4 md:flex-row md:items-end md:gap-0">
             <div>
               <SectionTitle className="max-w-lg">
-                Три шага к{" "}
+                Три шага к&nbsp;
                 <span className="relative inline-block">
                   идеалу
                   <span className="absolute -bottom-0.5 left-0 h-[3px] w-full rounded-full bg-gradient-to-r from-rose-400 to-amber-400" />
@@ -35,7 +35,8 @@ export function HowItWorks({ className }: { className?: string }) {
             </div>
 
             <SectionSubtitle className="max-w-xs">
-              Простой процесс — от выбора раскраски до готовой работы, которой хочется гордиться.
+              Простой процесс — от&nbsp;выбора раскраски до&nbsp;готовой работы, которой хочется
+              гордиться.
             </SectionSubtitle>
           </div>
         </div>

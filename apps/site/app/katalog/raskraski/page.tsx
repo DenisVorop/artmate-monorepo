@@ -3,9 +3,9 @@ import type { Metadata } from "next";
 import { CatalogPage } from "@/pages/catalog";
 import { routes, siteConfig } from "@/shared";
 
-const title = "Раскраски Artmate - каталог раскрасок по номерам";
+const title = "Раскраски Artmate - каталог раскрасок по\u00a0номерам";
 const description =
-  "Выберите раскраску Artmate по теме, настроению, цене и уровню детализации для спокойного творческого вечера.";
+  "Выберите раскраску Artmate по\u00a0теме, настроению, цене и\u00a0уровню детализации для\u00a0спокойного творческого вечера.";
 
 export const metadata: Metadata = {
   title: {

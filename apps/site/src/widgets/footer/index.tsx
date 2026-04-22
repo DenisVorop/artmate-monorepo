@@ -138,7 +138,7 @@ export function Footer() {
                 </li>
                 <li className="flex items-start gap-2">
                   <span className="mt-0.5 shrink-0 text-stone-600">→</span>
-                  <span>Курьер — от 350 ₽</span>
+                  <span>Курьер — от&nbsp;350 ₽</span>
                 </li>
               </ul>
             </div>

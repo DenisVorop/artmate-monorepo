@@ -1,9 +1,9 @@
 import type { Metadata } from "next";
 import { routes, siteConfig } from "@/shared";
 
-const title = "FAQ Artmate - ответы на частые вопросы";
+const title = "FAQ Artmate - ответы на\u00a0частые вопросы";
 const description =
-  "Ответы на частые вопросы Artmate о заказах, оплате, доставке, возвратах, книгах и раскрашивании.";
+  "Ответы на\u00a0частые вопросы Artmate о\u00a0заказах, оплате, доставке, возвратах, книгах и\u00a0раскрашивании.";
 
 export const metadata: Metadata = {
   title: {

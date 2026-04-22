@@ -1,7 +1,7 @@
 import type { Metadata } from "next";
 import { siteConfig } from "@/shared";
 
-const title = "Artmate - раскраски по номерам для отдыха и творчества";
+const title = "Artmate - раскраски по\u00a0номерам для\u00a0отдыха и\u00a0творчества";
 
 export const metadata: Metadata = {
   title: {
@@ -23,7 +23,7 @@ export const metadata: Metadata = {
         url: siteConfig.ogImage,
         width: 1200,
         height: 630,
-        alt: "Artmate - раскраски по номерам",
+        alt: "Artmate - раскраски по\u00a0номерам",
       },
     ],
   },

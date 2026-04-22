@@ -6,7 +6,7 @@ const channels = [
   {
     label: "Telegram",
     handle: "@artmate_support",
-    description: "Быстрее всего отвечаем на срочные вопросы по заказам.",
+    description: "Быстрее всего отвечаем на\u00a0срочные вопросы по\u00a0заказам.",
     href: "https://t.me/artmate_support",
     icon: MessageCircle,
     tone: "text-violet-600 bg-violet-50 ring-violet-200/70",
@@ -15,7 +15,7 @@ const channels = [
   {
     label: "Email",
     handle: "artmate.official@outlook.com",
-    description: "Для возвратов, обменов, документов и сотрудничества.",
+    description: "Для\u00a0возвратов, обменов, документов и\u00a0сотрудничества.",
     href: "mailto:artmate.official@outlook.com",
     icon: Mail,
     tone: "text-rose-600 bg-rose-50 ring-rose-200/70",
@@ -31,7 +31,7 @@ export function Channels() {
           Каналы связи
         </h2>
         <p className="max-w-2xl text-sm text-muted-foreground">
-          Выберите удобный способ связи. Для срочных вопросов лучше писать в Telegram.
+          Выберите удобный способ связи. Для&nbsp;срочных вопросов лучше писать в&nbsp;Telegram.
         </p>
       </div>
 

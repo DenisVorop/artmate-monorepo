@@ -4,7 +4,7 @@ import { cn } from "@/shared";
 
 export function RatingStars({ rating, className }: { rating: number; className?: string }) {
   return (
-    <div className={cn("flex gap-0.5", className)} aria-label={`${rating} из 5`}>
+    <div className={cn("flex gap-0.5", className)} aria-label={`${rating} из\u00a05`}>
       {Array.from({ length: 5 }, (_, index) => {
         const isFilled = index < rating;
 

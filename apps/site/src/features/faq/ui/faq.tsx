@@ -24,7 +24,7 @@ export function Faq() {
   return (
     <section className="container py-8 md:py-12" aria-labelledby="faq-content-title">
       <h2 id="faq-content-title" className="sr-only">
-        Список вопросов и ответов
+        Список вопросов и&nbsp;ответов
       </h2>
 
       <div className="mx-auto max-w-4xl space-y-8">

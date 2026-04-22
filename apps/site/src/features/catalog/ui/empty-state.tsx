@@ -14,9 +14,9 @@ export function EmptyState() {
       </div>
 
       <div className="space-y-2">
-        <CardTitle>По вашему запросу ничего не нашлось</CardTitle>
+        <CardTitle>По&nbsp;вашему запросу ничего не&nbsp;нашлось</CardTitle>
         <CardDescription className="mx-auto max-w-xs">
-          Попробуйте изменить фильтры или поисковый запрос.
+          Попробуйте изменить фильтры или&nbsp;поисковый запрос.
         </CardDescription>
       </div>
 

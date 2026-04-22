@@ -3,7 +3,7 @@ import { PageTitle } from "@/shared/ui/typography";
 export function Heading() {
   return (
     <PageTitle className="mb-4 tracking-tight">
-      Раскраски по номерам{" "}
+      Раскраски по&nbsp;номерам{" "}
       <span className="relative inline-block">
         <span className="relative z-10 text-rose-400">Artmate</span>
         <svg
@@ -22,7 +22,7 @@ export function Heading() {
           />
         </svg>
       </span>{" "}
-      для отдыха и творчества
+      для&nbsp;отдыха и&nbsp;творчества
     </PageTitle>
   );
 }

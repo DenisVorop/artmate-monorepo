@@ -10,7 +10,7 @@ export function Heading() {
         >
           Твоё время{" "}
           <span className="relative inline-block">
-            для творчества
+            для&nbsp;творчества
             {/* волнистое подчёркивание */}
             <svg
               className="absolute -bottom-1 left-0 w-full"
@@ -31,7 +31,7 @@ export function Heading() {
           .
         </p>
         <p className="max-w-sm text-sm leading-relaxed text-stone-500">
-          Антистресс-раскраски по номерам — просто начните и наслаждайтесь процессом.
+          Антистресс-раскраски по&nbsp;номерам — просто начните и&nbsp;наслаждайтесь процессом.
         </p>
       </div>
     </div>

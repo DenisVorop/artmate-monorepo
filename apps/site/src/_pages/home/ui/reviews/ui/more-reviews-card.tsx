@@ -28,7 +28,7 @@ export function MoreReviewsCard() {
 
       <CardContent className="px-5 pt-2">
         <CardDescription className="mt-2 text-sm leading-relaxed text-stone-500">
-          Смотрите оценки, фото и комментарии покупателей на маркетплейсах.
+          Смотрите оценки, фото и&nbsp;комментарии покупателей на&nbsp;маркетплейсах.
         </CardDescription>
       </CardContent>
 

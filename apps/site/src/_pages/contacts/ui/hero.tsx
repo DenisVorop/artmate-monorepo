@@ -10,12 +10,12 @@ export function Hero() {
             Контакты
           </Badge>
           <PageTitle className="max-w-xl">
-            Мы на связи — <span className="text-rose-500">напишите нам</span>
+            Мы на&nbsp;связи — <span className="text-rose-500">напишите нам</span>
           </PageTitle>
         </div>
         <SectionSubtitle className="max-w-md pb-1 md:justify-self-end">
-          Ответим на вопросы о заказах, доставке, возвратах и поможем выбрать раскраску под
-          настроение.
+          Ответим на&nbsp;вопросы о&nbsp;заказах, доставке, возвратах и&nbsp;поможем выбрать
+          раскраску под&nbsp;настроение.
         </SectionSubtitle>
       </div>
     </section>

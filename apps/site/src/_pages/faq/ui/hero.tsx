@@ -4,13 +4,16 @@ import { PageTitle, SectionSubtitle } from "@/shared/ui/typography";
 export function Hero() {
   return (
     <section className="container py-6 md:py-8">
-      <div className="mx-auto max-w-2xl text-center">
-        <Badge variant="secondary" className="mb-6">
-          Помощь
-        </Badge>
-        <PageTitle className="mb-4">Часто задаваемые вопросы</PageTitle>
-        <SectionSubtitle className="mx-auto max-w-xl text-muted-foreground">
-          Найдите ответ по теме или через поиск. Если нужного ответа нет, напишите нам в поддержку.
+      <div className="grid items-end gap-4 md:grid-cols-[minmax(0,3fr)_minmax(18rem,2fr)] md:gap-8">
+        <div>
+          <Badge variant="secondary" className="mb-6">
+            Помощь
+          </Badge>
+          <PageTitle className="max-w-xl">Часто задаваемые вопросы</PageTitle>
+        </div>
+        <SectionSubtitle className="max-w-md pb-1 text-muted-foreground md:justify-self-end">
+          Найдите ответ по&nbsp;теме или&nbsp;через поиск. Если нужного ответа нет, напишите нам
+          в&nbsp;поддержку.
         </SectionSubtitle>
       </div>
     </section>

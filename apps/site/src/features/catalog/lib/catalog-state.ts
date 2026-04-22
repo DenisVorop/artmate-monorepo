@@ -76,7 +76,7 @@ export function filterProducts(products: readonly Product[], filters: FiltersSta
 
 export function formatCount(count: number) {
   if (count === 0) {
-    return "Ничего не найдено";
+    return "Ничего не\u00a0найдено";
   }
 
   const lastDigit = count % 10;

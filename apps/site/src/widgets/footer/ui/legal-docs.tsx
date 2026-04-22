@@ -17,7 +17,7 @@ const legalDocs = [
     href: routes.legal.userAgreement,
   },
   {
-    label: "Согласие на обработку ПДн",
+    label: "Согласие на\u00a0обработку ПДн",
     href: routes.legal.personalDataConsent,
   },
   {

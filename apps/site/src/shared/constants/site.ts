@@ -9,7 +9,7 @@ export const siteConfig = {
   url: normalizeSiteUrl(process.env.NEXT_PUBLIC_SITE_URL ?? defaultSiteUrl),
   locale: "ru_RU",
   description:
-    "Раскраски по номерам Artmate: альбомы A4 на спирали, плотная бумага 190 г/м², сюжеты с котиками, цветами, пейзажами и поп-артом.",
+    "Раскраски по\u00a0номерам Artmate: альбомы A4 на\u00a0спирали, плотная бумага 190 г/м², сюжеты с\u00a0котиками, цветами, пейзажами и\u00a0поп-артом.",
   ogImage: "/opengraph-image",
 } as const;
 

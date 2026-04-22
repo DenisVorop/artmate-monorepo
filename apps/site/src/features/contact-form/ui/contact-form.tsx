@@ -17,7 +17,13 @@ import {
   cn,
 } from "@/shared";
 
-const topics = ["Вопрос о заказе", "Возврат или обмен", "Сотрудничество", "Пресса", "Другое"];
+const topics = [
+  "Вопрос о\u00a0заказе",
+  "Возврат или\u00a0обмен",
+  "Сотрудничество",
+  "Пресса",
+  "Другое",
+];
 
 export function ContactForm() {
   const [activeTopic, setActiveTopic] = useState<string | null>(null);
@@ -39,8 +45,8 @@ export function ContactForm() {
           <div className="space-y-2">
             <CardTitle className="text-2xl">Сообщение отправлено</CardTitle>
             <CardDescription className="max-w-md">
-              Мы получили ваше сообщение и скоро ответим. Если дело срочное, напишите нам в
-              Telegram.
+              Мы&nbsp;получили ваше сообщение и&nbsp;скоро ответим. Если дело срочное, напишите нам
+              в&nbsp;Telegram.
             </CardDescription>
           </div>
           <Button type="button" variant="outline" onClick={() => setSent(false)}>
@@ -55,7 +61,9 @@ export function ContactForm() {
     <Card className="shadow-sm">
       <CardHeader className="border-b">
         <CardTitle className="text-xl">Сообщение команде ARTMATE</CardTitle>
-        <CardDescription>Заполните поля, и мы ответим на указанный email.</CardDescription>
+        <CardDescription>
+          Заполните поля, и&nbsp;мы&nbsp;ответим на&nbsp;указанный email.
+        </CardDescription>
       </CardHeader>
       <CardContent>
         <form onSubmit={handleSubmit} className="space-y-6">

@@ -13,7 +13,7 @@ const moreItems = [
   {
     href: routes.blog,
     title: "Блог",
-    description: "Советы, идеи и вдохновение",
+    description: "Советы, идеи и\u00a0вдохновение",
   },
   {
     href: routes.gallery,
@@ -23,7 +23,7 @@ const moreItems = [
   {
     href: routes.faq,
     title: "FAQ",
-    description: "Ответы на частые вопросы",
+    description: "Ответы на\u00a0частые вопросы",
   },
 ];
 
