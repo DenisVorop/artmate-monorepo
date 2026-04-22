@@ -31,7 +31,7 @@ export function Menu() {
   return (
     <ul className="flex items-center gap-8 text-stone-500">
       <li>
-        <Link href="/catalog">Каталог</Link>
+        <Link href={routes.catalog}>Каталог</Link>
       </li>
       <li>
         <Link href={routes.contact}>Контакты</Link>

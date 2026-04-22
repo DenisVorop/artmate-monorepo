@@ -7,7 +7,7 @@ import { Badge, Button, cn, routes } from "@/shared";
 import { AspectRatio } from "@/shared/ui/aspect-ratio";
 import { Card, CardContent, CardDescription, CardFooter, CardTitle } from "@/shared/ui/card";
 import { Link } from "@/shared/ui/link";
-import type { Product } from "../model";
+import { getProductCategory, type Product } from "../model";
 
 interface ProductCardProps {
   product: Product;
@@ -39,6 +39,8 @@ export function ProductCard({ product, eagerImage = false }: ProductCardProps) {
   };
 
   const price = product.price.toLocaleString("ru-RU");
+  const category = getProductCategory(product.categoryId);
+  const productHref = routes.product(category?.slug ?? product.categoryId, product.slug);
   const addButtonLabel = added ? "Добавлено" : "В корзину";
   const AddIcon = added ? Check : ShoppingBag;
   const addButtonClassName = added
@@ -48,7 +50,7 @@ export function ProductCard({ product, eagerImage = false }: ProductCardProps) {
   return (
     <Card className="group/product h-full gap-0 py-0 transition-shadow duration-300 hover:shadow-md">
       <div className="relative">
-        <Link href={routes.product(product.id)} className="block overflow-hidden bg-muted">
+        <Link href={productHref} className="block overflow-hidden bg-muted">
           <AspectRatio ratio={1} className="relative">
             <Image
               fill
@@ -85,7 +87,7 @@ export function ProductCard({ product, eagerImage = false }: ProductCardProps) {
         </CardDescription>
         <CardTitle role="heading" aria-level={3} className="font-display leading-snug font-bold">
           <Link
-            href={routes.product(product.id)}
+            href={productHref}
             className="text-stone-900 transition-colors hover:text-rose-500"
           >
             {product.title}

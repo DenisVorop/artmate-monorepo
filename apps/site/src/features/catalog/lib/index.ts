@@ -2,10 +2,9 @@ export { CatalogProvider, useCatalog, withCatalog } from "./catalog-provider";
 export {
   filterProducts,
   formatCount,
+  getCatalogHref,
   normalizeCategoryId,
-  resolveInitialCategoryId,
   sortOptions,
   type FiltersState,
-  type SearchParams,
   type SortValue,
 } from "./catalog-state";

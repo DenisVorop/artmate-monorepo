@@ -18,23 +18,52 @@ export type Product = {
   bestseller: boolean;
 };
 
+export const PRODUCT_SPECS = [
+  "Формат А4 (210 x 297 мм)",
+  "25 уникальных сегментированных иллюстраций",
+  "Премиальная бумага 190 г/м²",
+  "Металлическая спираль, раскрытие на 180°",
+  "Страницы с перфорацией для легкого отрыва",
+] as const;
+
+export const PRODUCT_HOW_IT_WORKS =
+  "Каждая иллюстрация разделена на четкие сегменты: вы выбираете палитру и красите в своем темпе. Плотная бумага не пропускает чернила, подходит для спиртовых маркеров, акварели и цветных карандашей.";
+
+export const PRODUCT_HIGHLIGHTS = [
+  {
+    id: "delivery",
+    title: "Доставка",
+    description: "Бесплатная доставка по России",
+  },
+  {
+    id: "paper",
+    title: "Бумага",
+    description: "Плотность 190 г/м², листы не просвечивают",
+  },
+  {
+    id: "print",
+    title: "Печать",
+    description: "Односторонняя печать для комфортного раскрашивания",
+  },
+] as const;
+
 export const CATEGORIES = [
   {
     id: "cats",
     title: "Котики",
-    slug: "cats",
+    slug: "kotiki",
     image: "https://images.unsplash.com/photo-1605011368428-e1d0835ff5ec?w=800&q=80",
   },
   {
     id: "landscapes",
     title: "Пейзажи",
-    slug: "landscapes",
+    slug: "peizaji",
     image: "https://images.unsplash.com/photo-1683143726497-a097780bab5a?w=800&q=80",
   },
   {
     id: "flowers",
     title: "Цветы",
-    slug: "flowers",
+    slug: "cvety",
     image: "https://images.unsplash.com/photo-1545491221-95e2bc86d4ba?w=800&q=80",
   },
   {
@@ -52,7 +81,7 @@ export const CATEGORIES = [
   {
     id: "city",
     title: "Город",
-    slug: "city",
+    slug: "gorod",
     image: "https://images.unsplash.com/photo-1604952703578-8ae924053711?w=800&q=80",
   },
 ] satisfies ProductCategory[];
@@ -61,7 +90,7 @@ export const PRODUCTS = [
   {
     id: "1",
     title: "Кошачьи Сны. Том 1",
-    slug: "feline-dreams-vol-1",
+    slug: "koshachi-sny-tom-1",
     price: 890,
     category: "Котики",
     categoryId: "cats",
@@ -79,7 +108,7 @@ export const PRODUCTS = [
   {
     id: "2",
     title: "Ботаническая Гармония",
-    slug: "botanical-harmony",
+    slug: "botanicheskaya-garmoniya",
     price: 790,
     category: "Цветы",
     categoryId: "flowers",
@@ -97,7 +126,7 @@ export const PRODUCTS = [
   {
     id: "3",
     title: "Безмятежные Пейзажи",
-    slug: "serene-landscapes",
+    slug: "bezmyatezhnye-peizaji",
     price: 990,
     category: "Пейзажи",
     categoryId: "landscapes",
@@ -132,10 +161,27 @@ export const PRODUCTS = [
   {
     id: "5",
     title: "Эстетика Аниме",
-    slug: "anime-aesthetics",
+    slug: "estetika-anime",
     price: 950,
     category: "Аниме",
     categoryId: "anime",
+    description: "Эстетика в стиле аниме для раскрашивания. Расслабляюще и увлекательно.",
+    image: "https://images.unsplash.com/photo-1771366629899-2b695442ad31?w=800&q=80",
+    images: [
+      "https://images.unsplash.com/photo-1771366629899-2b695442ad31?w=1080&q=80",
+      "https://images.unsplash.com/photo-1587741097323-0fdcee8b0e24?w=1080&q=80",
+      "https://images.unsplash.com/photo-1689230053630-cb51e7b90fc1?w=1080&q=80",
+      "https://images.unsplash.com/photo-1761034036989-24640be78e90?w=1080&q=80",
+    ],
+    bestseller: false,
+  },
+  {
+    id: "6",
+    title: "котики 2",
+    slug: "kotiki-2",
+    price: 950,
+    category: "Котики",
+    categoryId: "cats",
     description: "Эстетика в стиле аниме для раскрашивания. Расслабляюще и увлекательно.",
     image: "https://images.unsplash.com/photo-1771366629899-2b695442ad31?w=800&q=80",
     images: [
@@ -150,4 +196,28 @@ export const PRODUCTS = [
 
 export function getProductCategory(categoryId?: string) {
   return CATEGORIES.find((category) => category.id === categoryId);
+}
+
+export function getProductCategoryBySlug(slug?: string) {
+  return CATEGORIES.find((category) => category.slug === slug);
+}
+
+export function getProductById(id: string) {
+  return PRODUCTS.find((product) => product.id === id);
+}
+
+export function getProductBySlug(slug: string) {
+  return PRODUCTS.find((product) => product.slug === slug);
+}
+
+export function getRelatedProducts(product: Product, limit = 4) {
+  const products = PRODUCTS.filter((candidate) => candidate.id !== product.id);
+  const sameCategory = products.filter((candidate) => candidate.categoryId === product.categoryId);
+  const otherCategories = products.filter(
+    (candidate) => candidate.categoryId !== product.categoryId,
+  );
+  const sameCategoryLimit =
+    sameCategory.length > 0 && otherCategories.length > 0 ? Math.max(limit - 1, 0) : limit;
+
+  return [...sameCategory.slice(0, sameCategoryLimit), ...otherCategories].slice(0, limit);
 }

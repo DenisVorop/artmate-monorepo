@@ -1,9 +1,9 @@
 import type { Metadata } from "next";
 import { routes, siteConfig } from "@/shared";
 
-const title = "Каталог Artmate - товары для творчества";
+const title = "Альбом Artmate - раскраска по номерам";
 const description =
-  "Выберите раскраски и товары Artmate по настроению, формату, цене и уровню детализации для спокойного творческого вечера.";
+  "Подробная информация об альбоме Artmate: фотографии, характеристики, отзывы и похожие раскраски по номерам.";
 
 export const metadata: Metadata = {
   title: {
@@ -11,12 +11,12 @@ export const metadata: Metadata = {
   },
   description,
   alternates: {
-    canonical: routes.catalog,
+    canonical: routes.raskraski,
   },
   openGraph: {
     title,
     description,
-    url: routes.catalog,
+    url: routes.raskraski,
     siteName: siteConfig.name,
     locale: siteConfig.locale,
     type: "website",
@@ -25,7 +25,7 @@ export const metadata: Metadata = {
         url: siteConfig.ogImage,
         width: 1200,
         height: 630,
-        alt: "Каталог Artmate - раскраски по номерам",
+        alt: "Альбом Artmate - раскраска по номерам",
       },
     ],
   },

@@ -1,4 +1,5 @@
 import { CATEGORIES, type Product } from "@/entities/products";
+import { routes } from "@/shared";
 
 export type SortValue = "featured" | "newest" | "price-asc" | "price-desc";
 
@@ -16,28 +17,22 @@ export type FiltersState = {
   sortBy: SortValue;
 };
 
-export type SearchParams = {
-  category?: string | string[];
-};
-
-export function normalizeCategoryId(categoryId?: string) {
-  return CATEGORIES.some((category) => category.id === categoryId) ? categoryId : undefined;
+export function normalizeCategoryId(categoryValue?: string) {
+  return CATEGORIES.find(
+    (category) => category.id === categoryValue || category.slug === categoryValue,
+  )?.id;
 }
 
-export function resolveInitialCategoryId(searchParams?: SearchParams) {
-  const category = Array.isArray(searchParams?.category)
-    ? searchParams.category[0]
-    : searchParams?.category;
+export function getCatalogHref(categoryId?: string) {
+  const normalizedCategoryId = normalizeCategoryId(categoryId);
 
-  return normalizeCategoryId(category);
-}
-
-export function getHref(categoryId?: string) {
-  if (!categoryId) {
-    return "/catalog";
+  if (!normalizedCategoryId) {
+    return routes.raskraski;
   }
 
-  return `/catalog?category=${encodeURIComponent(categoryId)}`;
+  const category = CATEGORIES.find((item) => item.id === normalizedCategoryId);
+
+  return category ? routes.catalogCategory(category.slug) : routes.raskraski;
 }
 
 export function filterProducts(products: readonly Product[], filters: FiltersState) {

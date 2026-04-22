@@ -1,13 +1,16 @@
 export const routes = {
   home: "/",
-  catalog: "/catalog",
+  catalog: "/katalog",
+  raskraski: "/katalog/raskraski",
+  catalogCategory: (categorySlug: string) => `/katalog/raskraski/${categorySlug}`,
   blog: "/blog",
   blogPost: (id: string) => `/blog/${id}`,
   gallery: "/gallery",
   checkout: "/checkout",
   contact: "/contact",
   faq: "/faq",
-  product: (id: string) => `/product/${id}`,
+  product: (categorySlug: string, productSlug: string) =>
+    `/katalog/raskraski/${categorySlug}/${productSlug}`,
   legal: {
     privacyPolicy: "/legal/privacy-policy",
     publicOffer: "/legal/public-offer",

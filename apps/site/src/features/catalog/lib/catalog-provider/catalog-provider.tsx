@@ -6,7 +6,7 @@ import { CATEGORIES, PRODUCTS, getProductCategory } from "@/entities/products";
 import {
   filterProducts,
   formatCount,
-  getHref,
+  getCatalogHref,
   normalizeCategoryId,
   type SortValue,
 } from "../catalog-state";
@@ -44,7 +44,7 @@ export function CatalogProvider({ initialCategoryId, children }: CatalogProvider
       const normalized = normalizeCategoryId(nextCategoryId);
 
       setCategoryId(normalized);
-      router.replace(getHref(normalized), { scroll: false });
+      router.replace(getCatalogHref(normalized), { scroll: false });
     },
     [router],
   );
@@ -58,7 +58,7 @@ export function CatalogProvider({ initialCategoryId, children }: CatalogProvider
     setQuery("");
     setSortBy("featured");
     setOnlyBestsellers(false);
-    router.replace(getHref(), { scroll: false });
+    router.replace(getCatalogHref(), { scroll: false });
   }, [router]);
 
   const value = useMemo<CatalogContextValue>(

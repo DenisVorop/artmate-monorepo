@@ -1,4 +1,22 @@
+export {
+  Avatar,
+  AvatarBadge,
+  AvatarFallback,
+  AvatarGroup,
+  AvatarGroupCount,
+  AvatarImage,
+} from "./avatar";
+export { AspectRatio } from "./aspect-ratio";
 export { Badge, badgeVariants } from "./badge";
+export {
+  Breadcrumb,
+  BreadcrumbEllipsis,
+  BreadcrumbItem,
+  BreadcrumbLink,
+  BreadcrumbList,
+  BreadcrumbPage,
+  BreadcrumbSeparator,
+} from "./breadcrumb";
 export { Button, buttonVariants } from "./button";
 export {
   Card,
@@ -11,6 +29,18 @@ export {
 } from "./card";
 export { CtaGradientLink } from "./cta-gradient-link";
 export { DecorDots } from "./decor-dots";
+export {
+  Dialog,
+  DialogClose,
+  DialogContent,
+  DialogDescription,
+  DialogFooter,
+  DialogHeader,
+  DialogOverlay,
+  DialogPortal,
+  DialogTitle,
+  DialogTrigger,
+} from "./dialog";
 export {
   DropdownMenu,
   DropdownMenuCheckboxItem,
@@ -31,3 +61,4 @@ export {
 export { Input } from "./input";
 export { InfiniteCarousel } from "./infinite-carousel";
 export { Separator } from "./separator";
+export { Tabs, TabsContent, TabsList, TabsTrigger, tabsListVariants } from "./tabs";
