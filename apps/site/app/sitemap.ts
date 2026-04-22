@@ -24,6 +24,16 @@ const staticRoutes = [
     changeFrequency: "weekly",
     priority: 0.85,
   },
+  {
+    path: routes.contacts,
+    changeFrequency: "monthly",
+    priority: 0.6,
+  },
+  {
+    path: routes.faq,
+    changeFrequency: "monthly",
+    priority: 0.65,
+  },
 ] satisfies SitemapEntry[];
 
 export default function sitemap(): MetadataRoute.Sitemap {
