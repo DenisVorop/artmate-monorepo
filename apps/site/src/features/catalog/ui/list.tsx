@@ -10,7 +10,7 @@ export function List() {
   const { filteredProducts } = useCatalog();
 
   return (
-    <section className="container py-10">
+    <section className="container py-6">
       <Summary />
 
       <AnimatePresence mode="wait">

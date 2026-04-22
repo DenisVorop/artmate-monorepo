@@ -18,7 +18,7 @@ export function Summary() {
   } = useCatalog();
 
   return (
-    <div className="mb-8 flex flex-col justify-between gap-4 sm:flex-row sm:items-start">
+    <div className="mb-4 flex flex-col justify-between gap-4 sm:flex-row sm:items-start">
       <div className="flex flex-col gap-3 sm:flex-row sm:items-center">
         <p className="text-sm text-muted-foreground">{countLabel}</p>
 
