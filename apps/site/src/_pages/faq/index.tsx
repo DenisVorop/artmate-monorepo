@@ -8,7 +8,9 @@ export function FaqPage() {
       <Hero />
 
       <div className="container">
-        <Separator />
+        <div className="mx-auto max-w-4xl">
+          <Separator />
+        </div>
       </div>
 
       <Faq />

@@ -55,12 +55,11 @@ export function Filters() {
           )}
         </div>
 
-        <Separator orientation="vertical" className="hidden h-6 lg:block" />
+        <Separator orientation="vertical" className="hidden h-8 lg:block" />
 
         <div className="-mx-1 flex gap-2 overflow-x-auto px-1 pb-1 sm:flex-wrap sm:overflow-visible sm:pb-0">
           <Button
             type="button"
-            size="sm"
             variant={categoryId ? "ghost" : "default"}
             aria-pressed={!categoryId}
             onClick={() => setCategory(undefined)}
@@ -71,7 +70,6 @@ export function Filters() {
             <Button
               key={category.id}
               type="button"
-              size="sm"
               variant={categoryId === category.id ? "default" : "ghost"}
               aria-pressed={categoryId === category.id}
               onClick={() => setCategory(categoryId === category.id ? undefined : category.id)}
@@ -81,11 +79,10 @@ export function Filters() {
           ))}
         </div>
 
-        <Separator orientation="vertical" className="hidden h-6 lg:block" />
+        <Separator orientation="vertical" className="hidden h-8 lg:block" />
 
         <Button
           type="button"
-          size="sm"
           variant={onlyBestsellers ? "default" : "outline"}
           aria-pressed={onlyBestsellers}
           onClick={() => setOnlyBestsellers(!onlyBestsellers)}
@@ -105,7 +102,6 @@ export function Filters() {
               <Button
                 type="button"
                 variant="outline"
-                size="sm"
                 className="min-w-44 justify-between"
               >
                 <span className="inline-flex min-w-0 items-center gap-1.5">
