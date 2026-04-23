@@ -62,6 +62,7 @@ export {
 export { Input } from "./input";
 export { InfiniteCarousel } from "./infinite-carousel";
 export { Label } from "./label";
+export { Progress } from "./progress";
 export { Separator } from "./separator";
 export { Tabs, TabsContent, TabsList, TabsTrigger, tabsListVariants } from "./tabs";
 export { Textarea } from "./textarea";

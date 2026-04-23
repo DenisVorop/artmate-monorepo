@@ -1,4 +1,5 @@
 export { BlogPage, metadata as blogMetadata } from "./blog";
+export { BlogPostPage } from "./blog-post";
 export { CatalogPage, metadata as catalogMetadata } from "./catalog";
 export { ContactsPage, metadata as contactsMetadata } from "./contacts";
 export { FaqPage, metadata as faqMetadata } from "./faq";

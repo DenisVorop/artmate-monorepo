@@ -1,4 +1,5 @@
 import type { MetadataRoute } from "next";
+import { BLOG_POSTS } from "@/entities/blog";
 import { CATEGORIES, PRODUCTS, getProductCategory } from "@/entities/products";
 import { getAbsoluteUrl, routes } from "@/shared";
 
@@ -43,6 +44,11 @@ const staticRoutes = [
 
 export default function sitemap(): MetadataRoute.Sitemap {
   const lastModified = new Date();
+  const blogRoutes = BLOG_POSTS.map((post) => ({
+    path: routes.blogPost(post.id),
+    changeFrequency: "weekly",
+    priority: 0.65,
+  })) satisfies SitemapEntry[];
   const categoryRoutes = CATEGORIES.map((category) => ({
     path: routes.catalogCategory(category.slug),
     changeFrequency: "weekly",
@@ -64,7 +70,7 @@ export default function sitemap(): MetadataRoute.Sitemap {
     ];
   }) satisfies SitemapEntry[];
 
-  return [...staticRoutes, ...categoryRoutes, ...productRoutes].map((route) => ({
+  return [...staticRoutes, ...blogRoutes, ...categoryRoutes, ...productRoutes].map((route) => ({
     url: getAbsoluteUrl(route.path),
     lastModified,
     changeFrequency: route.changeFrequency,

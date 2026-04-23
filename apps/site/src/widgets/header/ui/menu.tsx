@@ -1,3 +1,5 @@
+import { useEffect, useState } from "react";
+import { usePathname } from "next/navigation";
 import {
   DropdownMenu,
   DropdownMenuContent,
@@ -28,6 +30,13 @@ const moreItems = [
 ];
 
 export function Menu() {
+  const pathname = usePathname();
+  const [isMoreOpen, setIsMoreOpen] = useState(false);
+
+  useEffect(() => {
+    setIsMoreOpen(false);
+  }, [pathname]);
+
   return (
     <ul className="flex items-center gap-8 text-stone-500">
       <li>
@@ -37,7 +46,7 @@ export function Menu() {
         <Link href={routes.contacts}>Контакты</Link>
       </li>
       <li>
-        <DropdownMenu>
+        <DropdownMenu open={isMoreOpen} onOpenChange={setIsMoreOpen}>
           <DropdownMenuTrigger asChild>
             <button
               type="button"
@@ -55,8 +64,16 @@ export function Menu() {
             <DropdownMenuLabel>Разделы ARTMATE</DropdownMenuLabel>
             <div className="grid gap-1">
               {moreItems.map((item) => (
-                <DropdownMenuItem key={item.href}>
-                  <Link href={item.href}>
+                <DropdownMenuItem
+                  key={item.href}
+                  asChild
+                  onSelect={() => setIsMoreOpen(false)}
+                >
+                  <Link
+                    href={item.href}
+                    onClick={() => setIsMoreOpen(false)}
+                    className="block w-full"
+                  >
                     <span className="block font-medium text-stone-900">{item.title}</span>
                     <span className="block text-xs text-stone-500">{item.description}</span>
                   </Link>
