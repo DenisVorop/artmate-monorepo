@@ -25,6 +25,11 @@ const staticRoutes = [
     priority: 0.85,
   },
   {
+    path: routes.blog,
+    changeFrequency: "weekly",
+    priority: 0.7,
+  },
+  {
     path: routes.contacts,
     changeFrequency: "monthly",
     priority: 0.6,
