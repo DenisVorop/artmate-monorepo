@@ -67,6 +67,8 @@ export function ContactForm() {
       </CardHeader>
       <CardContent>
         <form onSubmit={handleSubmit} className="space-y-6">
+          <input hidden type="hidden" name="topic" value={activeTopic ?? ""} aria-hidden="true" />
+
           <fieldset className="space-y-3">
             <legend className="text-sm font-medium text-foreground">Тема обращения</legend>
             <div className="flex flex-wrap gap-2">
@@ -91,7 +93,6 @@ export function ContactForm() {
                 );
               })}
             </div>
-            {activeTopic && <input type="hidden" name="topic" value={activeTopic} />}
           </fieldset>
 
           <div className="grid gap-4 sm:grid-cols-2">
