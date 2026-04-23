@@ -18,11 +18,6 @@ const moreItems = [
     description: "Советы, идеи и\u00a0вдохновение",
   },
   {
-    href: routes.gallery,
-    title: "Галерея работ",
-    description: "Работы нашего сообщества",
-  },
-  {
     href: routes.faq,
     title: "FAQ",
     description: "Ответы на\u00a0частые вопросы",

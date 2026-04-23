@@ -34,7 +34,11 @@ export function Bestsellers({ className }: { className?: string }) {
             <SectionTitle id="best-sellers-title">Хиты продаж</SectionTitle>
           </div>
 
-          <Button asChild size="lg">
+          <Button
+            asChild
+            size="lg"
+            className="border-0 bg-gradient-to-r from-rose-500 via-rose-400 to-orange-400 font-semibold text-white shadow-sm shadow-rose-500/20 hover:from-rose-500/95 hover:via-rose-400/95 hover:to-orange-400/95"
+          >
             <CtaGradientLink href={routes.catalog}>
               Весь каталог
               <ArrowRight

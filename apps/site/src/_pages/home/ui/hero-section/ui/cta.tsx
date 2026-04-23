@@ -5,7 +5,11 @@ import Link from "next/link";
 export function CTA() {
   return (
     <div className="mb-6 flex flex-wrap gap-3">
-      <Button asChild size="lg">
+      <Button
+        asChild
+        size="lg"
+        className="border-0 bg-gradient-to-r from-rose-500 via-rose-400 to-orange-400 font-semibold text-white shadow-sm shadow-rose-500/20 hover:from-rose-500/95 hover:via-rose-400/95 hover:to-orange-400/95"
+      >
         <CtaGradientLink href={routes.catalog}>
           В каталог
           <ArrowRight
