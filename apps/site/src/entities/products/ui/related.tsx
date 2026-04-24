@@ -3,9 +3,10 @@ import { ProductCard } from "./product-card";
 
 type RelatedProps = {
   products: Product[];
+  onAddToCart?: (_product: Product, _quantity?: number) => Promise<void> | void;
 };
 
-export function Related({ products }: RelatedProps) {
+export function Related({ products, onAddToCart }: RelatedProps) {
   if (products.length === 0) {
     return null;
   }
@@ -26,7 +27,7 @@ export function Related({ products }: RelatedProps) {
               key={product.id}
               className="w-[min(82vw,20rem)] flex-none snap-start sm:w-auto sm:flex-auto"
             >
-              <ProductCard product={product} />
+              <ProductCard product={product} onAddToCart={onAddToCart} />
             </li>
           ))}
         </ul>

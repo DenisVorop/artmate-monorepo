@@ -1,6 +1,7 @@
 "use client";
 
 import { useProductsData } from "@/entities/products";
+import { useAddProductToCart } from "@/features/cart";
 import { Catalog } from "@/features/catalog";
 import { DataState, Separator } from "@/shared/ui";
 import { Hero } from "./ui/hero";
@@ -11,6 +12,7 @@ type CatalogPageProps = {
 
 export function CatalogPage({ initialCategoryId }: CatalogPageProps) {
   const { data, isError } = useProductsData();
+  const addProductToCart = useAddProductToCart();
 
   return (
     <main className="bg-background">
@@ -40,6 +42,7 @@ export function CatalogPage({ initialCategoryId }: CatalogPageProps) {
           categories={data.categories}
           products={data.products}
           initialCategoryId={initialCategoryId}
+          onAddToCart={addProductToCart}
         />
       )}
     </main>

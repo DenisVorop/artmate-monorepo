@@ -5,7 +5,13 @@ import { routes } from "@/shared/constants";
 import { cn } from "@/shared/lib";
 import { ProductCard, type Product } from "@/entities/products";
 
-export function Bestsellers({ products, className }: { products: Product[]; className?: string }) {
+type BestsellersProps = {
+  products: Product[];
+  className?: string;
+  onAddToCart?: (_product: Product, _quantity?: number) => Promise<void> | void;
+};
+
+export function Bestsellers({ products, className, onAddToCart }: BestsellersProps) {
   const bestsellers = products.filter((p) => p.bestseller).slice(0, 4);
 
   return (
@@ -55,7 +61,7 @@ export function Bestsellers({ products, className }: { products: Product[]; clas
           <ul className="grid gap-5 sm:grid-cols-2 lg:grid-cols-4">
             {bestsellers.map((product) => (
               <li key={product.id} className="h-full">
-                <ProductCard product={product} />
+                <ProductCard product={product} onAddToCart={onAddToCart} />
               </li>
             ))}
           </ul>

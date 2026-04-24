@@ -3,6 +3,7 @@
 import { useHomeData } from "@/entities/home";
 import { useProductsData } from "@/entities/products";
 import { useReviewsData } from "@/entities/reviews";
+import { useAddProductToCart } from "@/features/cart";
 import { DataState } from "@/shared/ui";
 import { HeroSection } from "./ui/hero-section";
 import { AdvantagesCarousel } from "./ui/advantages-carousel";
@@ -14,6 +15,7 @@ export function HomePage() {
   const home = useHomeData();
   const products = useProductsData();
   const reviews = useReviewsData();
+  const addProductToCart = useAddProductToCart();
 
   if (home.isError) {
     return (
@@ -63,7 +65,11 @@ export function HomePage() {
       <HowItWorks steps={homeData.howItWorksSteps} className="py-4 md:py-8" />
 
       {visibleProductsData ? (
-        <Bestsellers products={visibleProductsData.products} className="py-4 md:py-8" />
+        <Bestsellers
+          products={visibleProductsData.products}
+          className="py-4 md:py-8"
+          onAddToCart={addProductToCart}
+        />
       ) : (
         <section className="container py-4 md:py-8">
           <DataState

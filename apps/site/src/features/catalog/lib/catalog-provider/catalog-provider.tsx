@@ -16,6 +16,7 @@ type CatalogProviderProps = {
   categories: ProductCategory[];
   products: Product[];
   initialCategoryId?: string;
+  onAddToCart?: (_product: Product, _quantity?: number) => Promise<void> | void;
   children: ReactNode;
 };
 
@@ -23,6 +24,7 @@ export function CatalogProvider({
   categories,
   products,
   initialCategoryId,
+  onAddToCart,
   children,
 }: CatalogProviderProps) {
   const router = useRouter();
@@ -73,6 +75,7 @@ export function CatalogProvider({
       categories,
       products,
       filteredProducts,
+      onAddToCart,
       activeCategory: getProductCategory(categories, categoryId),
       categoryId,
       query,
@@ -97,6 +100,7 @@ export function CatalogProvider({
       clearQuery,
       categories,
       filteredProducts,
+      onAddToCart,
       onlyBestsellers,
       products,
       query,

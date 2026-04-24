@@ -1,5 +1,6 @@
 export const routes = {
   home: "/",
+  cart: "/cart",
   catalog: "/katalog",
   raskraski: "/katalog/raskraski",
   catalogCategory: (categorySlug: string) => `/katalog/raskraski/${categorySlug}`,

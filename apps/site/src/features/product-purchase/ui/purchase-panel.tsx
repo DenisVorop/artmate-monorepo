@@ -1,19 +1,23 @@
 "use client";
 
-import { Check, Minus, Plus, ShoppingBag } from "lucide-react";
+import { Check, LoaderCircle, Minus, Plus, ShoppingBag } from "lucide-react";
 import { useEffect, useMemo, useRef, useState } from "react";
 
 import type { Product } from "@/entities/products";
+import { routes } from "@/shared/constants";
 import { Button, Card, CardContent, Separator } from "@/shared/ui";
+import { Link } from "@/shared/ui/link";
 import { cn } from "@/shared/lib";
 
 type PurchasePanelProps = {
   product: Product;
+  onAddToCart?: (_product: Product, _quantity?: number) => Promise<void> | void;
 };
 
-export function ProductPurchase({ product }: PurchasePanelProps) {
+export function ProductPurchase({ product, onAddToCart }: PurchasePanelProps) {
   const [quantity, setQuantity] = useState(1);
   const [added, setAdded] = useState(false);
+  const [isAdding, setIsAdding] = useState(false);
   const resetTimer = useRef<ReturnType<typeof setTimeout> | null>(null);
 
   useEffect(() => {
@@ -29,7 +33,19 @@ export function ProductPurchase({ product }: PurchasePanelProps) {
     [product.price, quantity],
   );
 
-  const handleAdd = () => {
+  const handleAdd = async () => {
+    if (!onAddToCart || isAdding) {
+      return;
+    }
+
+    setIsAdding(true);
+
+    try {
+      await onAddToCart(product, quantity);
+    } finally {
+      setIsAdding(false);
+    }
+
     setAdded(true);
 
     if (resetTimer.current) {
@@ -39,7 +55,7 @@ export function ProductPurchase({ product }: PurchasePanelProps) {
     resetTimer.current = setTimeout(() => setAdded(false), 1800);
   };
 
-  const ActionIcon = added ? Check : ShoppingBag;
+  const ActionIcon = isAdding ? LoaderCircle : added ? Check : ShoppingBag;
 
   return (
     <Card>
@@ -82,6 +98,7 @@ export function ProductPurchase({ product }: PurchasePanelProps) {
             type="button"
             size="lg"
             onClick={handleAdd}
+            disabled={!onAddToCart || isAdding}
             className={cn(
               "h-11",
               added
@@ -89,12 +106,12 @@ export function ProductPurchase({ product }: PurchasePanelProps) {
                 : "bg-gradient-to-r from-rose-500 to-orange-400 text-white shadow-lg shadow-rose-500/20 hover:from-rose-600 hover:to-orange-500",
             )}
           >
-            <ActionIcon data-icon="inline-start" />
-            {added ? "Добавлено" : "В корзину"}
+            <ActionIcon data-icon="inline-start" className={cn(isAdding && "animate-spin")} />
+            {isAdding ? "Добавляем" : added ? "Добавлено" : "В корзину"}
           </Button>
 
-          <Button type="button" variant="outline" size="lg" className="h-11" onClick={handleAdd}>
-            Купить сейчас
+          <Button asChild variant="outline" size="lg" className="h-11">
+            <Link href={routes.cart}>Перейти в корзину</Link>
           </Button>
         </div>
       </CardContent>

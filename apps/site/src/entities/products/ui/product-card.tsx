@@ -1,6 +1,6 @@
 "use client";
 
-import { Check, ShoppingBag } from "lucide-react";
+import { Check, LoaderCircle, ShoppingBag } from "lucide-react";
 import Image from "next/image";
 import { useEffect, useRef, useState, type MouseEvent } from "react";
 import { Badge, Button } from "@/shared/ui";
@@ -14,10 +14,12 @@ import type { Product } from "../model";
 interface ProductCardProps {
   product: Product;
   eagerImage?: boolean;
+  onAddToCart?: (_product: Product, _quantity?: number) => Promise<void> | void;
 }
 
-export function ProductCard({ product, eagerImage = false }: ProductCardProps) {
+export function ProductCard({ product, eagerImage = false, onAddToCart }: ProductCardProps) {
   const [added, setAdded] = useState(false);
+  const [isAdding, setIsAdding] = useState(false);
   const resetTimer = useRef<ReturnType<typeof setTimeout> | null>(null);
 
   useEffect(() => {
@@ -28,9 +30,22 @@ export function ProductCard({ product, eagerImage = false }: ProductCardProps) {
     };
   }, []);
 
-  const handleAdd = (event: MouseEvent<HTMLButtonElement>) => {
+  const handleAdd = async (event: MouseEvent<HTMLButtonElement>) => {
     event.preventDefault();
     event.stopPropagation();
+
+    if (!onAddToCart || isAdding) {
+      return;
+    }
+
+    setIsAdding(true);
+
+    try {
+      await onAddToCart(product, 1);
+    } finally {
+      setIsAdding(false);
+    }
+
     setAdded(true);
 
     if (resetTimer.current) {
@@ -42,8 +57,8 @@ export function ProductCard({ product, eagerImage = false }: ProductCardProps) {
 
   const price = product.price.toLocaleString("ru-RU");
   const productHref = routes.product(product.categorySlug, product.slug);
-  const addButtonLabel = added ? "Добавлено" : "В корзину";
-  const AddIcon = added ? Check : ShoppingBag;
+  const addButtonLabel = isAdding ? "Добавляем" : added ? "Добавлено" : "В корзину";
+  const AddIcon = isAdding ? LoaderCircle : added ? Check : ShoppingBag;
   const addButtonClassName = added
     ? "bg-emerald-500 text-white shadow-lg shadow-emerald-500/20 hover:bg-emerald-500 focus-visible:border-emerald-300 focus-visible:ring-emerald-400/30"
     : "bg-gradient-to-r from-rose-500 to-orange-400 text-white shadow-lg shadow-rose-500/20 hover:from-rose-600 hover:to-orange-500 hover:shadow-rose-500/30 focus-visible:border-rose-300 focus-visible:ring-rose-400/30";
@@ -74,9 +89,10 @@ export function ProductCard({ product, eagerImage = false }: ProductCardProps) {
             type="button"
             size="lg"
             onClick={handleAdd}
+            disabled={!onAddToCart || isAdding}
             className={cn("pointer-events-auto w-full", addButtonClassName)}
           >
-            <AddIcon data-icon="inline-start" />
+            <AddIcon data-icon="inline-start" className={cn(isAdding && "animate-spin")} />
             {addButtonLabel}
           </Button>
         </div>
@@ -99,12 +115,17 @@ export function ProductCard({ product, eagerImage = false }: ProductCardProps) {
           type="button"
           size="icon-lg"
           aria-label={
-            added ? "Добавлено в\u00a0корзину" : `Добавить ${product.title} в\u00a0корзину`
+            isAdding
+              ? `Добавляем ${product.title} в\u00a0корзину`
+              : added
+                ? "Добавлено в\u00a0корзину"
+                : `Добавить ${product.title} в\u00a0корзину`
           }
           onClick={handleAdd}
+          disabled={!onAddToCart || isAdding}
           className={cn("md:hidden", addButtonClassName)}
         >
-          <AddIcon />
+          <AddIcon className={cn(isAdding && "animate-spin")} />
         </Button>
       </CardFooter>
     </Card>

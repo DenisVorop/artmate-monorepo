@@ -1,5 +1,6 @@
 "use client";
 
+import { useAddProductToCart } from "@/features/cart";
 import { ProductPurchase } from "@/features/product-purchase";
 import {
   DetailsTabs,
@@ -23,6 +24,7 @@ type ProductPageProps = {
 export function ProductPage({ productId }: ProductPageProps) {
   const products = useProductsData();
   const reviews = useReviewsData();
+  const addProductToCart = useAddProductToCart();
 
   if (products.isError) {
     return (
@@ -82,7 +84,7 @@ export function ProductPage({ productId }: ProductPageProps) {
               <ReviewRatingSummary stats={visibleReviewsData.stats} className="justify-start" />
             )}
             <Summary product={product} />
-            <ProductPurchase product={product} />
+            <ProductPurchase product={product} onAddToCart={addProductToCart} />
             <Highlights items={productsData.productHighlights} />
             <DetailsTabs
               specs={productsData.productSpecs}
@@ -110,7 +112,7 @@ export function ProductPage({ productId }: ProductPageProps) {
 
         <Separator />
 
-        <Related products={relatedProducts} />
+        <Related products={relatedProducts} onAddToCart={addProductToCart} />
       </div>
     </main>
   );

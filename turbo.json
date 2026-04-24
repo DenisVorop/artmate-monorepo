@@ -2,6 +2,8 @@
   "$schema": "https://turborepo.dev/schema.json",
   "ui": "tui",
   "globalEnv": [
+    "API_BASE_URL",
+    "NODE_ENV",
     "PORT"
   ],
   "tasks": {

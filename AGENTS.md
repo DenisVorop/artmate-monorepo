@@ -123,6 +123,7 @@ src/shared/actions/<domain>/*.actions.ts
 - `shared/actions` сейчас хранит server actions и mock/read data. Actions помечаются `"use server"` и возвращают `ApiResultDTO<T>` через `ApiResult.prepareApi(...)`, если это доменные read-запросы.
 - Entity `model/query.ts` экспортирует `queryOptions(...)` со стабильным `queryKey`, обычно `staleTime: Infinity` и `retryOnMount: false` для статичных read/mock данных.
 - Entity hook (`use-*.ts`) должен быть отдельным `"use client"` файлом и оборачивать `useQuery(...)`.
+- Entity hook возвращает только те поля query result, которые реально нужны потребителям (`data`, `isError`, `isPending` и т.п.), а не весь объект `useQuery(...)` целиком без необходимости.
 - Для SSR/RSC prefetch используй data builders из `src/_app/lib`. Они кладут данные в `QueryClient` через `setApiResultQueryData(...)` или `prefetchQuery(...)`.
 - В route-файлах обезвоживай query client только через `dehydrateQueryClient(queryClient)`, потому что он сохраняет и error-состояния.
 - Для динамических страниц проверяй данные после build/prefetch и вызывай `notFound()` в route, если route params невалидны.
@@ -204,7 +205,7 @@ src/features/<feature>/
   index.ts
   model/
     query.ts
-    mutation.ts
+    use-<action>.ts
   lib/
     <feature>-state.ts
     <feature>-provider/
@@ -221,6 +222,10 @@ src/features/<feature>/
 - `ui/<feature>.tsx` собирает feature из sibling UI-компонентов и подключает provider/HOC, если он нужен.
 - `lib/<feature>-state.ts` содержит чистую client-side логику состояния, фильтрации, сортировки и derived view data.
 - `model` в feature используй только для data/query/mutation слоя сценария. Не клади туда форматтеры, URL helpers и client-only filters.
+- Каждую feature mutation выноси в отдельный файл с именем hook/action, например `use-update-cart-item-quantity.ts`. Не собирай несколько разных mutation hooks в общий `mutation.ts`.
+- Feature mutation hook не должен возвращать весь объект `useMutation(...)` без необходимости. Сразу деструктурируй из него только нужные поля, обычно `{ mutate, isPending }`, и возвращай их в таком же виде.
+- Если в компоненте используется несколько mutation hooks одновременно, одинаковые имена (`mutate`, `isPending`) переименовывай точечно при деструктуризации в компоненте, а не меняй контракт самих hooks.
+- Не выделяй мелкие одноразовые helper-функции вокруг mutation/query cache updates, например обертку только для `queryClient.setQueryData(...)`; inline-код в hook читается лучше. Выноси helper только если он переиспользуется или содержит нетривиальную логику.
 - Empty/error/loading states сценария должны жить в feature, если они зависят от состояния сценария. Общие dumb states можно брать из `shared/ui`.
 - Feature может передавать entity UI display/optimization props, но entity UI не должна знать, из какой feature она вызвана.
 

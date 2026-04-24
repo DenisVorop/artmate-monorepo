@@ -8,6 +8,7 @@ export type CatalogContextValue = {
   categories: readonly ProductCategory[];
   products: readonly Product[];
   filteredProducts: Product[];
+  onAddToCart?: (_product: Product, _quantity?: number) => Promise<void> | void;
   activeCategory?: ProductCategory;
   categoryId?: string;
   query: string;
