@@ -1,6 +1,8 @@
 import type { ReactNode } from "react";
 import { Comfortaa, Nunito } from "next/font/google";
+import { HydrationBoundary, dehydrate } from "@tanstack/react-query";
 
+import { LayoutDataBuilder } from "../lib/layout-data-builder";
 import { AppProviders } from "../providers/app-providers";
 import { SiteLayout } from "./site-layout";
 
@@ -22,12 +24,16 @@ type RootLayoutProps = {
   readonly children: ReactNode;
 };
 
-export function RootLayout({ children }: RootLayoutProps) {
+export async function RootLayout({ children }: RootLayoutProps) {
+  const { queryClient } = await new LayoutDataBuilder().build();
+
   return (
     <html lang="ru" className={`${comfortaa.variable} ${nunito.variable}`}>
       <body>
         <AppProviders>
-          <SiteLayout>{children}</SiteLayout>
+          <HydrationBoundary state={dehydrate(queryClient)}>
+            <SiteLayout>{children}</SiteLayout>
+          </HydrationBoundary>
         </AppProviders>
       </body>
     </html>
