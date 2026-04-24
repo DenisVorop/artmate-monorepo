@@ -16,5 +16,6 @@ export const blogQuery = {
       queryKey: [baseKey, "posts"] as const,
       queryFn: async () => ApiResult.fromDTO(await getBlogPosts()).unwrap() ?? null,
       staleTime: Infinity,
+      retryOnMount: false,
     }),
 };

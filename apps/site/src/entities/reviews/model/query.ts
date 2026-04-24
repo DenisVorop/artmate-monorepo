@@ -16,5 +16,6 @@ export const reviewsQuery = {
       queryKey: [baseKey, "data"] as const,
       queryFn: async () => ApiResult.fromDTO(await getReviewsData()).unwrap() ?? null,
       staleTime: Infinity,
+      retryOnMount: false,
     }),
 };

@@ -16,5 +16,6 @@ export const homeQuery = {
       queryKey: [baseKey, "data"] as const,
       queryFn: async () => ApiResult.fromDTO(await getHomeData()).unwrap() ?? null,
       staleTime: Infinity,
+      retryOnMount: false,
     }),
 };

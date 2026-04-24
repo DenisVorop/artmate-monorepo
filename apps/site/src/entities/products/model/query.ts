@@ -16,5 +16,6 @@ export const productsQuery = {
       queryKey: [baseKey, "data"] as const,
       queryFn: async () => ApiResult.fromDTO(await getProductsData()).unwrap() ?? null,
       staleTime: Infinity,
+      retryOnMount: false,
     }),
 };

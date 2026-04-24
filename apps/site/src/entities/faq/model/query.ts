@@ -16,5 +16,6 @@ export const faqQuery = {
       queryKey: [baseKey, "sections"] as const,
       queryFn: async () => ApiResult.fromDTO(await getFaqSections()).unwrap() ?? null,
       staleTime: Infinity,
+      retryOnMount: false,
     }),
 };
