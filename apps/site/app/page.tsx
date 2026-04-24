@@ -1,6 +1,7 @@
 import { HomeDataBuilder } from "@/app/lib/home-data-builder";
 import { HomePage } from "@/pages/home";
-import { HydrationBoundary, dehydrate } from "@tanstack/react-query";
+import { dehydrateQueryClient } from "@/shared/lib/dehydrate-query-client";
+import { HydrationBoundary } from "@tanstack/react-query";
 
 export { metadata } from "@/pages/home/metadata";
 
@@ -12,7 +13,7 @@ export default async function Page() {
     .build();
 
   return (
-    <HydrationBoundary state={dehydrate(queryClient)}>
+    <HydrationBoundary state={dehydrateQueryClient(queryClient)}>
       <HomePage />
     </HydrationBoundary>
   );

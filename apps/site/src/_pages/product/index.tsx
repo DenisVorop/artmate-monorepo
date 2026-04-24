@@ -40,7 +40,7 @@ export function ProductPage({ productId }: ProductPageProps) {
     return null;
   }
 
-  if (products.data.isEmpty) {
+  if (products.data.products.length === 0) {
     return (
       <main className="container py-10">
         <DataState
@@ -51,7 +51,7 @@ export function ProductPage({ productId }: ProductPageProps) {
     );
   }
 
-  const productsData = products.data.data!;
+  const productsData = products.data;
   const product = getProductById(productsData.products, productId);
 
   if (!product) {
@@ -67,7 +67,7 @@ export function ProductPage({ productId }: ProductPageProps) {
 
   const relatedProducts = getRelatedProducts(productsData.products, product);
   const visibleReviewsData =
-    !reviews.isError && reviews.data && !reviews.data.isEmpty ? reviews.data.data! : undefined;
+    !reviews.isError && reviews.data && reviews.data.reviews.length > 0 ? reviews.data : undefined;
 
   return (
     <main className="bg-background">

@@ -10,7 +10,8 @@ import {
 } from "@/entities/products";
 import { getProductsData } from "@/shared/actions/products";
 import { routes, siteConfig } from "@/shared/constants";
-import { HydrationBoundary, dehydrate } from "@tanstack/react-query";
+import { dehydrateQueryClient } from "@/shared/lib/dehydrate-query-client";
+import { HydrationBoundary } from "@tanstack/react-query";
 
 type ProductRouteProps = {
   params: Promise<{
@@ -97,14 +98,14 @@ export default async function Page({ params }: ProductRouteProps) {
     !category ||
     !product ||
     !productsData ||
-    productsData.isEmpty ||
+    productsData.products.length === 0 ||
     product.categoryId !== category.id
   ) {
     notFound();
   }
 
   return (
-    <HydrationBoundary state={dehydrate(queryClient)}>
+    <HydrationBoundary state={dehydrateQueryClient(queryClient)}>
       <ProductPage productId={product.id} />
     </HydrationBoundary>
   );

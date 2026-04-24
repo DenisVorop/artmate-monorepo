@@ -1,4 +1,5 @@
 import { blogQuery, type BlogPostsResult } from "@/entities/blog";
+import { getBlogPosts } from "@/shared/actions/blog";
 
 import type { TaskFn } from "../types/data-builder";
 
@@ -20,12 +21,10 @@ export class BlogDataBuilder<TData, TFields extends Fields> extends BaseDataBuil
   }
 
   withPosts() {
-    const { queryClient } = this;
+    const setApiResultQueryData = this.setApiResultQueryData.bind(this);
 
     return this.add("posts", async function () {
-      await queryClient.prefetchQuery(blogQuery.getPosts());
-
-      return queryClient.getQueryData<BlogPostsResult>(blogQuery.getPosts().queryKey);
+      return setApiResultQueryData(blogQuery.getPosts().queryKey, await getBlogPosts());
     });
   }
 }

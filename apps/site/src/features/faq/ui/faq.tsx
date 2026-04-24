@@ -15,7 +15,7 @@ export function Faq() {
   const [query, setQuery] = useState("");
   const [activeSectionId, setActiveSectionId] = useState<string | null>(null);
   const { data, isError } = useFaqSections();
-  const faqSections = data && !data.isEmpty ? data.data!.items : [];
+  const faqSections = data?.items ?? [];
   const sections = decorateFaqSections(faqSections);
   const visibleSections = getVisibleFaqSections({ sections, query, activeSectionId });
 
@@ -40,7 +40,7 @@ export function Faq() {
     return null;
   }
 
-  if (data.isEmpty) {
+  if (faqSections.length === 0) {
     return (
       <section className="container py-8 md:py-12">
         <DataState

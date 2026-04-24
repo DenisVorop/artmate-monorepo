@@ -28,7 +28,7 @@ export function CatalogPage({ initialCategoryId }: CatalogPageProps) {
             description="Обновите страницу или попробуйте вернуться позже."
           />
         </section>
-      ) : !data ? null : data.isEmpty ? (
+      ) : !data ? null : data.products.length === 0 ? (
         <section className="container py-10">
           <DataState
             title="Каталог пока пуст"
@@ -37,8 +37,8 @@ export function CatalogPage({ initialCategoryId }: CatalogPageProps) {
         </section>
       ) : (
         <Catalog
-          categories={data.data!.categories}
-          products={data.data!.products}
+          categories={data.categories}
+          products={data.products}
           initialCategoryId={initialCategoryId}
         />
       )}

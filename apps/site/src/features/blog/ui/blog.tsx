@@ -13,7 +13,7 @@ export function Blog() {
   const [query, setQuery] = useState("");
   const [category, setCategory] = useState("Все");
   const { data, isError } = useBlogPosts();
-  const posts = data && !data.isEmpty ? data.data!.items : [];
+  const posts = data?.items ?? [];
   const categories = Array.from(new Set(posts.map((post) => post.category)));
   const featuredPost = posts.find((post) => post.featured);
   const visiblePostsByFilters = getVisiblePosts(posts, { query, category });
@@ -43,7 +43,7 @@ export function Blog() {
     return null;
   }
 
-  if (data.isEmpty) {
+  if (posts.length === 0) {
     return (
       <section className="container py-8 md:py-12">
         <DataState

@@ -1,11 +1,11 @@
 import { queryOptions } from "@tanstack/react-query";
 
 import { getReviewsData } from "@/shared/actions/reviews";
-import { ensureApiResult, type ApiResultDTO } from "@/shared/lib/api-result";
+import { ApiResult } from "@/shared/lib/api-result";
 
 import type { ReviewsData } from "./types";
 
-export type ReviewsDataResult = ApiResultDTO<ReviewsData>;
+export type ReviewsDataResult = ReviewsData | null;
 
 const baseKey = "reviews";
 
@@ -14,7 +14,7 @@ export const reviewsQuery = {
   getData: () =>
     queryOptions({
       queryKey: [baseKey, "data"] as const,
-      queryFn: async () => ensureApiResult(await getReviewsData()),
+      queryFn: async () => ApiResult.fromDTO(await getReviewsData()).unwrap() ?? null,
       staleTime: Infinity,
     }),
 };

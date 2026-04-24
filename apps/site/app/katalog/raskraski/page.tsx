@@ -3,7 +3,8 @@ import type { Metadata } from "next";
 import { CatalogDataBuilder } from "@/app/lib/catalog-data-builder";
 import { CatalogPage } from "@/pages/catalog";
 import { routes, siteConfig } from "@/shared/constants";
-import { HydrationBoundary, dehydrate } from "@tanstack/react-query";
+import { dehydrateQueryClient } from "@/shared/lib/dehydrate-query-client";
+import { HydrationBoundary } from "@tanstack/react-query";
 
 const title = "Раскраски Artmate - каталог раскрасок по\u00a0номерам";
 const description =
@@ -45,7 +46,7 @@ export default async function Page() {
   const { queryClient } = await new CatalogDataBuilder().withProducts().build();
 
   return (
-    <HydrationBoundary state={dehydrate(queryClient)}>
+    <HydrationBoundary state={dehydrateQueryClient(queryClient)}>
       <CatalogPage />
     </HydrationBoundary>
   );

@@ -1,6 +1,9 @@
 import { homeQuery, type HomeDataResult } from "@/entities/home";
 import { productsQuery, type ProductsDataResult } from "@/entities/products";
 import { reviewsQuery, type ReviewsDataResult } from "@/entities/reviews";
+import { getHomeData } from "@/shared/actions/home";
+import { getProductsData } from "@/shared/actions/products";
+import { getReviewsData } from "@/shared/actions/reviews";
 
 import type { TaskFn } from "../types/data-builder";
 
@@ -21,32 +24,32 @@ export class HomeDataBuilder<TData, TFields extends Fields> extends BaseDataBuil
   }
 
   withHomeData() {
-    const { queryClient } = this;
+    const setApiResultQueryData = this.setApiResultQueryData.bind(this);
 
     return this.add("homeData", async function () {
-      await queryClient.prefetchQuery(homeQuery.getData());
-
-      return queryClient.getQueryData<HomeDataResult>(homeQuery.getData().queryKey);
+      return setApiResultQueryData(homeQuery.getData().queryKey, await getHomeData());
     });
   }
 
   withProducts() {
-    const { queryClient } = this;
+    const setApiResultQueryData = this.setApiResultQueryData.bind(this);
 
     return this.add("productsData", async function () {
-      await queryClient.prefetchQuery(productsQuery.getData());
-
-      return queryClient.getQueryData<ProductsDataResult>(productsQuery.getData().queryKey);
+      return setApiResultQueryData(
+        productsQuery.getData().queryKey,
+        await getProductsData(),
+      );
     });
   }
 
   withReviews() {
-    const { queryClient } = this;
+    const setApiResultQueryData = this.setApiResultQueryData.bind(this);
 
     return this.add("reviewsData", async function () {
-      await queryClient.prefetchQuery(reviewsQuery.getData());
-
-      return queryClient.getQueryData<ReviewsDataResult>(reviewsQuery.getData().queryKey);
+      return setApiResultQueryData(
+        reviewsQuery.getData().queryKey,
+        await getReviewsData(),
+      );
     });
   }
 }

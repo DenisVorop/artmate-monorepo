@@ -1,4 +1,5 @@
 import { faqQuery, type FaqSectionsResult } from "@/entities/faq";
+import { getFaqSections } from "@/shared/actions/faq";
 
 import type { TaskFn } from "../types/data-builder";
 
@@ -17,12 +18,13 @@ export class FaqDataBuilder<TData, TFields extends Fields> extends BaseDataBuild
   }
 
   withFaqSections() {
-    const { queryClient } = this;
+    const setApiResultQueryData = this.setApiResultQueryData.bind(this);
 
     return this.add("faqSections", async function () {
-      await queryClient.prefetchQuery(faqQuery.getSections());
-
-      return queryClient.getQueryData<FaqSectionsResult>(faqQuery.getSections().queryKey);
+      return setApiResultQueryData(
+        faqQuery.getSections().queryKey,
+        await getFaqSections(),
+      );
     });
   }
 }

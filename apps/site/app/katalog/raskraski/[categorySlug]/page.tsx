@@ -6,7 +6,8 @@ import { CatalogPage } from "@/pages/catalog";
 import { getProductCategoryBySlug } from "@/entities/products";
 import { getProductsData } from "@/shared/actions/products";
 import { routes, siteConfig } from "@/shared/constants";
-import { HydrationBoundary, dehydrate } from "@tanstack/react-query";
+import { dehydrateQueryClient } from "@/shared/lib/dehydrate-query-client";
+import { HydrationBoundary } from "@tanstack/react-query";
 
 type CatalogCategoryRouteProps = {
   params: Promise<{
@@ -75,12 +76,12 @@ export default async function Page({ params }: CatalogCategoryRouteProps) {
     .withCategory(categorySlug)
     .build();
 
-  if (!category || !productsData || productsData.isEmpty) {
+  if (!category || !productsData || productsData.products.length === 0) {
     notFound();
   }
 
   return (
-    <HydrationBoundary state={dehydrate(queryClient)}>
+    <HydrationBoundary state={dehydrateQueryClient(queryClient)}>
       <CatalogPage initialCategoryId={category.id} />
     </HydrationBoundary>
   );

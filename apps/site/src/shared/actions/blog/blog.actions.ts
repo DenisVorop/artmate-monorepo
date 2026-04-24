@@ -1,4 +1,4 @@
-'use server';
+"use server";
 
 import {
   BLOG_ARTICLE_CONTENT,
@@ -72,8 +72,7 @@ export async function getRelatedBlogPosts(post: BlogPost, limit = 3) {
   const sameCategory = candidates.filter((candidate) => candidate.category === post.category);
   const sameTags = candidates.filter(
     (candidate) =>
-      candidate.category !== post.category &&
-      candidate.tags.some((tag) => post.tags.includes(tag)),
+      candidate.category !== post.category && candidate.tags.some((tag) => post.tags.includes(tag)),
   );
   const seen = new Set([...sameCategory, ...sameTags].map((candidate) => candidate.id));
   const rest = candidates.filter((candidate) => !seen.has(candidate.id));

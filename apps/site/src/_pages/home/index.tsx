@@ -31,7 +31,7 @@ export function HomePage() {
     return null;
   }
 
-  if (home.data.isEmpty) {
+  if (home.data.howItWorksSteps.length === 0) {
     return (
       <main className="container py-10">
         <DataState
@@ -42,11 +42,13 @@ export function HomePage() {
     );
   }
 
-  const homeData = home.data.data!;
+  const homeData = home.data;
   const visibleProductsData =
-    !products.isError && products.data && !products.data.isEmpty ? products.data.data! : undefined;
+    !products.isError && products.data && products.data.products.length > 0
+      ? products.data
+      : undefined;
   const visibleReviewsData =
-    !reviews.isError && reviews.data && !reviews.data.isEmpty ? reviews.data.data! : undefined;
+    !reviews.isError && reviews.data && reviews.data.reviews.length > 0 ? reviews.data : undefined;
 
   return (
     <main>

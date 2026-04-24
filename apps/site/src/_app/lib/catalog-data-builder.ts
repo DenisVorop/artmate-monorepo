@@ -2,6 +2,8 @@ import { getProductCategoryBySlug, getProductBySlug, getRelatedProducts } from "
 import type { Product, ProductCategory } from "@/entities/products";
 import { productsQuery, type ProductsDataResult } from "@/entities/products";
 import { reviewsQuery, type ReviewsDataResult } from "@/entities/reviews";
+import { getProductsData } from "@/shared/actions/products";
+import { getReviewsData } from "@/shared/actions/reviews";
 
 import type { TaskFn } from "../types/data-builder";
 
@@ -24,22 +26,24 @@ export class CatalogDataBuilder<TData, TFields extends Fields> extends BaseDataB
   }
 
   withProducts() {
-    const { queryClient } = this;
+    const setApiResultQueryData = this.setApiResultQueryData.bind(this);
 
     return this.add("productsData", async function () {
-      await queryClient.prefetchQuery(productsQuery.getData());
-
-      return queryClient.getQueryData<ProductsDataResult>(productsQuery.getData().queryKey);
+      return setApiResultQueryData(
+        productsQuery.getData().queryKey,
+        await getProductsData(),
+      );
     });
   }
 
   withReviews() {
-    const { queryClient } = this;
+    const setApiResultQueryData = this.setApiResultQueryData.bind(this);
 
     return this.add("reviewsData", async function () {
-      await queryClient.prefetchQuery(reviewsQuery.getData());
-
-      return queryClient.getQueryData<ReviewsDataResult>(reviewsQuery.getData().queryKey);
+      return setApiResultQueryData(
+        reviewsQuery.getData().queryKey,
+        await getReviewsData(),
+      );
     });
   }
 
@@ -47,11 +51,11 @@ export class CatalogDataBuilder<TData, TFields extends Fields> extends BaseDataB
     return this.add("category", async function () {
       const data = await this.$.productsData;
 
-      if (!data || data.isEmpty) {
+      if (!data || data.products.length === 0) {
         return undefined;
       }
 
-      return getProductCategoryBySlug(data.data!.categories, categorySlug);
+      return getProductCategoryBySlug(data.categories, categorySlug);
     });
   }
 
@@ -59,11 +63,11 @@ export class CatalogDataBuilder<TData, TFields extends Fields> extends BaseDataB
     return this.add("product", async function () {
       const data = await this.$.productsData;
 
-      if (!data || data.isEmpty) {
+      if (!data || data.products.length === 0) {
         return undefined;
       }
 
-      return getProductBySlug(data.data!.products, productSlug);
+      return getProductBySlug(data.products, productSlug);
     });
   }
 
@@ -72,11 +76,11 @@ export class CatalogDataBuilder<TData, TFields extends Fields> extends BaseDataB
       const data = await this.$.productsData;
       const product = await this.$.product;
 
-      if (!data || data.isEmpty || !product) {
+      if (!data || data.products.length === 0 || !product) {
         return [];
       }
 
-      return getRelatedProducts(data.data!.products, product, limit);
+      return getRelatedProducts(data.products, product, limit);
     });
   }
 }

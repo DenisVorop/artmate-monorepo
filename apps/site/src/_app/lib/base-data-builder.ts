@@ -1,5 +1,7 @@
 import { all } from "better-all";
+import type { QueryKey } from "@tanstack/react-query";
 
+import { ApiResult, type ApiResultDTO } from "@/shared/lib/api-result";
 import { getQueryClient } from "@/shared/lib/query-client";
 
 import type { TaskFn } from "../types/data-builder";
@@ -48,5 +50,37 @@ export class BaseDataBuilder<TData, TFields extends object> {
       ...data,
       queryClient: this.queryClient,
     } as TData & { queryClient: QueryClient };
+  }
+
+  protected setApiResultQueryData<T>(queryKey: QueryKey, result: ApiResultDTO<T>) {
+    const apiResult = ApiResult.fromDTO(result);
+
+    if (apiResult.isError) {
+      const error = apiResult.error ?? new Error("Unknown API error");
+      const queryCache = this.queryClient.getQueryCache();
+      const query = queryCache.find({ queryKey }) ?? queryCache.build(this.queryClient, { queryKey });
+
+      query.setState({
+        data: undefined,
+        dataUpdateCount: 0,
+        dataUpdatedAt: 0,
+        error,
+        errorUpdateCount: 1,
+        errorUpdatedAt: Date.now(),
+        fetchFailureCount: 1,
+        fetchFailureReason: error,
+        fetchMeta: null,
+        isInvalidated: false,
+        status: "error",
+        fetchStatus: "idle",
+      });
+
+      return undefined;
+    }
+
+    const data = apiResult.data ?? null;
+    this.queryClient.setQueryData(queryKey, data);
+
+    return data;
   }
 }
