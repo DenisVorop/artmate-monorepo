@@ -1,4 +1,4 @@
-import { BlogDataBuilder } from "@/features/blog";
+import { BlogDataBuilder } from "@/app/lib/blog-data-builder";
 import { BlogPage } from "@/pages/blog";
 
 import { HydrationBoundary, dehydrate } from "@tanstack/react-query";

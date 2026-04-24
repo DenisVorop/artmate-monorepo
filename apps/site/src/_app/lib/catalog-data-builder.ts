@@ -1,15 +1,15 @@
 import { getProductCategoryBySlug, getProductBySlug, getRelatedProducts } from "@/entities/products";
 import type { Product, ProductCategory } from "@/entities/products";
-import { productsQuery, type ProductsDataResult } from "@/entities/products/model/query";
-import { reviewsQuery } from "@/entities/reviews/model/query";
+import { productsQuery, type ProductsDataResult } from "@/entities/products";
+import { reviewsQuery, type ReviewsDataResult } from "@/entities/reviews";
 
 import type { TaskFn } from "../types/data-builder";
 
 import { BaseDataBuilder } from "./base-data-builder";
 
 type Fields = {
-  prefetchProductsData: void;
-  prefetchReviewsData: void;
+  productsData?: ProductsDataResult;
+  reviewsData?: ReviewsDataResult;
   category?: ProductCategory;
   product?: Product;
   relatedProducts: Product[];
@@ -23,55 +23,60 @@ export class CatalogDataBuilder<TData, TFields extends Fields> extends BaseDataB
     return super.add(key, fn) as unknown as CatalogDataBuilder<TData & Record<K, V>, TFields>;
   }
 
-  prefetchProductsData() {
+  withProducts() {
     const { queryClient } = this;
 
-    return this.add("prefetchProductsData", async function () {
-      return queryClient.prefetchQuery(productsQuery.getData());
+    return this.add("productsData", async function () {
+      await queryClient.prefetchQuery(productsQuery.getData());
+
+      return queryClient.getQueryData<ProductsDataResult>(productsQuery.getData().queryKey);
     });
   }
 
-  prefetchReviewsData() {
+  withReviews() {
     const { queryClient } = this;
 
-    return this.add("prefetchReviewsData", async function () {
-      return queryClient.prefetchQuery(reviewsQuery.getData());
+    return this.add("reviewsData", async function () {
+      await queryClient.prefetchQuery(reviewsQuery.getData());
+
+      return queryClient.getQueryData<ReviewsDataResult>(reviewsQuery.getData().queryKey);
     });
   }
 
   withCategory(categorySlug: string) {
-    const { queryClient } = this;
-
     return this.add("category", async function () {
-      const productsResult = queryClient.getQueryData<ProductsDataResult>(productsQuery.getData().queryKey);
-      const productsData = productsResult?.data;
+      const data = await this.$.productsData;
 
-      return productsData
-        ? getProductCategoryBySlug(productsData.categories, categorySlug)
-        : undefined;
+      if (!data || data.isEmpty) {
+        return undefined;
+      }
+
+      return getProductCategoryBySlug(data.data!.categories, categorySlug);
     });
   }
 
   withProduct(productSlug: string) {
-    const { queryClient } = this;
-
     return this.add("product", async function () {
-      const productsResult = queryClient.getQueryData<ProductsDataResult>(productsQuery.getData().queryKey);
-      const productsData = productsResult?.data;
+      const data = await this.$.productsData;
 
-      return productsData ? getProductBySlug(productsData.products, productSlug) : undefined;
+      if (!data || data.isEmpty) {
+        return undefined;
+      }
+
+      return getProductBySlug(data.data!.products, productSlug);
     });
   }
 
   withRelatedProducts(limit = 4) {
-    const { queryClient } = this;
-
     return this.add("relatedProducts", async function () {
-      const productsResult = queryClient.getQueryData<ProductsDataResult>(productsQuery.getData().queryKey);
-      const productsData = productsResult?.data;
+      const data = await this.$.productsData;
       const product = await this.$.product;
 
-      return productsData && product ? getRelatedProducts(productsData.products, product, limit) : [];
+      if (!data || data.isEmpty || !product) {
+        return [];
+      }
+
+      return getRelatedProducts(data.data!.products, product, limit);
     });
   }
 }

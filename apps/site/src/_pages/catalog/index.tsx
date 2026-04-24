@@ -2,7 +2,7 @@
 
 import { useProductsData } from "@/entities/products";
 import { Catalog } from "@/features/catalog";
-import { Separator } from "@/shared";
+import { DataState, Separator } from "@/shared/ui";
 import { Hero } from "./ui/hero";
 
 type CatalogPageProps = {
@@ -10,7 +10,7 @@ type CatalogPageProps = {
 };
 
 export function CatalogPage({ initialCategoryId }: CatalogPageProps) {
-  const { categories, products } = useProductsData();
+  const { data, isError } = useProductsData();
 
   return (
     <main className="bg-background">
@@ -20,7 +20,28 @@ export function CatalogPage({ initialCategoryId }: CatalogPageProps) {
         <Separator />
       </div>
 
-      <Catalog categories={categories} products={products} initialCategoryId={initialCategoryId} />
+      {isError ? (
+        <section className="container py-10">
+          <DataState
+            variant="error"
+            title="Не удалось загрузить каталог"
+            description="Обновите страницу или попробуйте вернуться позже."
+          />
+        </section>
+      ) : !data ? null : data.isEmpty ? (
+        <section className="container py-10">
+          <DataState
+            title="Каталог пока пуст"
+            description="Когда появятся товары, они отобразятся в каталоге."
+          />
+        </section>
+      ) : (
+        <Catalog
+          categories={data.data!.categories}
+          products={data.data!.products}
+          initialCategoryId={initialCategoryId}
+        />
+      )}
     </main>
   );
 }

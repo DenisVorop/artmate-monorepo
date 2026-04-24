@@ -4,9 +4,8 @@ import { notFound } from "next/navigation";
 import { CatalogDataBuilder } from "@/app/lib/catalog-data-builder";
 import { CatalogPage } from "@/pages/catalog";
 import { getProductCategoryBySlug } from "@/entities/products";
-import { productsQuery, type ProductsDataResult } from "@/entities/products/model/query";
 import { getProductsData } from "@/shared/actions/products";
-import { routes, siteConfig } from "@/shared";
+import { routes, siteConfig } from "@/shared/constants";
 import { HydrationBoundary, dehydrate } from "@tanstack/react-query";
 
 type CatalogCategoryRouteProps = {
@@ -71,15 +70,12 @@ export async function generateMetadata({ params }: CatalogCategoryRouteProps): P
 
 export default async function Page({ params }: CatalogCategoryRouteProps) {
   const { categorySlug } = await params;
-  const { queryClient, category } = await new CatalogDataBuilder()
-    .prefetchProductsData()
+  const { queryClient, productsData, category } = await new CatalogDataBuilder()
+    .withProducts()
     .withCategory(categorySlug)
     .build();
-  const productsData = queryClient.getQueryData<ProductsDataResult>(
-    productsQuery.getData().queryKey,
-  )?.data;
 
-  if (!category || !productsData) {
+  if (!category || !productsData || productsData.isEmpty) {
     notFound();
   }
 

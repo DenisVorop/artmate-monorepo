@@ -1,6 +1,6 @@
 import { Link } from "@/shared/ui/link";
 import { ArrowRight } from "lucide-react";
-import { externalLinks, routes } from "@/shared";
+import { externalLinks, routes } from "@/shared/constants";
 import { LegalDocs } from "./ui/legal-docs";
 import { BgText } from "./ui/bg-text";
 import { Heading } from "./ui/heading";

@@ -3,14 +3,12 @@ export type {
   BlogArticleHighlight,
   BlogArticleSection,
   BlogArticleTip,
-} from "./model/content";
+} from "./model";
 export {
   type BlogAuthor,
   type BlogPost,
   type BlogPostsData,
-  emptyBlogPostsData,
 } from "./model";
-export { blogQuery } from "./model/query";
-export type { BlogPostsResult } from "./model/query";
-export { useBlogPosts } from "./model/use-blog-posts";
+export { blogQuery, useBlogPosts } from "./model";
+export type { BlogPostsResult } from "./model";
 export { FeaturedPost, PostCard } from "./ui";

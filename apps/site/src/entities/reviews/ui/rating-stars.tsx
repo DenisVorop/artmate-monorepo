@@ -1,6 +1,6 @@
 import { Star } from "lucide-react";
 
-import { cn } from "@/shared";
+import { cn } from "@/shared/lib";
 
 export function RatingStars({ rating, className }: { rating: number; className?: string }) {
   return (

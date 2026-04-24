@@ -2,7 +2,7 @@ import { ArrowRight, Calendar, Clock } from "lucide-react";
 
 import type { BlogArticleContent, BlogArticleSection, BlogPost } from "@/entities/blog";
 import { TableOfContents } from "@/features/blog-post";
-import { Badge, Button, Card, CardContent, CardDescription, CardHeader, CardTitle } from "@/shared";
+import { Badge, Button, Card, CardContent, CardDescription, CardHeader, CardTitle } from "@/shared/ui";
 import { Link } from "@/shared/ui/link";
 
 type SidebarProps = {

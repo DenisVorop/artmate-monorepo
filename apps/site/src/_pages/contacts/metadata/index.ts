@@ -1,5 +1,5 @@
 import type { Metadata } from "next";
-import { routes, siteConfig } from "@/shared";
+import { routes, siteConfig } from "@/shared/constants";
 
 const title = "Контакты Artmate - свяжитесь с\u00a0нами";
 const description =

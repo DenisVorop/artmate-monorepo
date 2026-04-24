@@ -1,6 +1,6 @@
 import { SearchX } from "lucide-react";
 
-import { Button, Card, CardContent, CardDescription, CardTitle } from "@/shared";
+import { Button, Card, CardContent, CardDescription, CardTitle } from "@/shared/ui";
 
 type EmptyStateProps = {
   onReset(): void;

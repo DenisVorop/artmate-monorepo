@@ -4,7 +4,8 @@ import { Check, Minus, Plus, ShoppingBag } from "lucide-react";
 import { useEffect, useMemo, useRef, useState } from "react";
 
 import type { Product } from "@/entities/products";
-import { Button, Card, CardContent, Separator, cn } from "@/shared";
+import { Button, Card, CardContent, Separator } from "@/shared/ui";
+import { cn } from "@/shared/lib";
 
 type PurchasePanelProps = {
   product: Product;

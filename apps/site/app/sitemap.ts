@@ -2,7 +2,7 @@ import type { MetadataRoute } from "next";
 import { getProductCategory } from "@/entities/products";
 import { getBlogPosts } from "@/shared/actions/blog";
 import { getProductsData } from "@/shared/actions/products";
-import { getAbsoluteUrl, routes } from "@/shared";
+import { getAbsoluteUrl, routes } from "@/shared/constants";
 
 type SitemapEntry = {
   path: string;

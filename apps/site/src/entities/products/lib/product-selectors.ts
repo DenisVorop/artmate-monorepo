@@ -1,23 +1,4 @@
-import type {
-  Product,
-  ProductCategory,
-  ProductsData,
-} from "@/shared/actions/products";
-
-export type {
-  Product,
-  ProductCategory,
-  ProductHighlight,
-  ProductsData,
-} from "@/shared/actions/products";
-
-export const emptyProductsData: ProductsData = {
-  categories: [],
-  products: [],
-  productSpecs: [],
-  productHowItWorks: "",
-  productHighlights: [],
-};
+import type { Product, ProductCategory } from "../model/types";
 
 export function getProductCategory(categories: readonly ProductCategory[], categoryId?: string) {
   return categories.find((category) => category.id === categoryId);

@@ -1,4 +1,4 @@
-import { Badge } from "@/shared";
+import { Badge } from "@/shared/ui";
 import type { Product } from "../model";
 
 type SummaryProps = {

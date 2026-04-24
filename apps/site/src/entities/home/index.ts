@@ -5,7 +5,5 @@ export type {
   HomeStepIcon,
   HomeStepTone,
 } from "./model";
-export { emptyHomeData } from "./model";
-export { homeQuery } from "./model/query";
-export type { HomeDataResult } from "./model/query";
-export { useHomeData } from "./model/use-home-data";
+export { homeQuery, useHomeData } from "./model";
+export type { HomeDataResult } from "./model";

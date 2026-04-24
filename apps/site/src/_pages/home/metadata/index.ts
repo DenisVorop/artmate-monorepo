@@ -1,5 +1,5 @@
 import type { Metadata } from "next";
-import { siteConfig } from "@/shared";
+import { siteConfig } from "@/shared/constants";
 
 const title = "Artmate - раскраски по\u00a0номерам для\u00a0отдыха и\u00a0творчества";
 

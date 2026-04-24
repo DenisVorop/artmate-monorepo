@@ -1,5 +1,5 @@
 import { Faq } from "@/features/faq";
-import { Separator } from "@/shared";
+import { Separator } from "@/shared/ui";
 import { Hero } from "./ui/hero";
 
 export function FaqPage() {

@@ -1,5 +1,5 @@
 import type { Product, ProductCategory } from "@/entities/products";
-import { routes } from "@/shared";
+import { routes } from "@/shared/constants";
 
 export type SortValue = "featured" | "newest" | "price-asc" | "price-desc";
 

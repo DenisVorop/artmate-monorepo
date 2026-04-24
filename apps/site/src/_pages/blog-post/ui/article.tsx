@@ -3,21 +3,8 @@ import { ArrowLeft, Quote, Share2, Tag } from "lucide-react";
 
 import type { BlogArticleContent, BlogPost } from "@/entities/blog";
 import { ShareActions } from "@/features/blog-post";
-import {
-  AspectRatio,
-  Avatar,
-  AvatarFallback,
-  Badge,
-  Button,
-  Card,
-  CardContent,
-  CardDescription,
-  CardHeader,
-  CardTitle,
-  Separator,
-  getAbsoluteUrl,
-  routes,
-} from "@/shared";
+import { AspectRatio, Avatar, AvatarFallback, Badge, Button, Card, CardContent, CardDescription, CardHeader, CardTitle, Separator } from "@/shared/ui";
+import { getAbsoluteUrl, routes } from "@/shared/constants";
 import { Link } from "@/shared/ui/link";
 import { SectionTitle } from "@/shared/ui/typography";
 

@@ -2,7 +2,7 @@ import type { Metadata } from "next";
 
 import { CatalogDataBuilder } from "@/app/lib/catalog-data-builder";
 import { CatalogPage } from "@/pages/catalog";
-import { routes, siteConfig } from "@/shared";
+import { routes, siteConfig } from "@/shared/constants";
 import { HydrationBoundary, dehydrate } from "@tanstack/react-query";
 
 const title = "Раскраски Artmate - каталог раскрасок по\u00a0номерам";
@@ -42,7 +42,7 @@ export const metadata: Metadata = {
 };
 
 export default async function Page() {
-  const { queryClient } = await new CatalogDataBuilder().prefetchProductsData().build();
+  const { queryClient } = await new CatalogDataBuilder().withProducts().build();
 
   return (
     <HydrationBoundary state={dehydrate(queryClient)}>

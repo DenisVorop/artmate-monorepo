@@ -1,13 +1,6 @@
 import type { Product } from "@/entities/products";
-import {
-  Breadcrumb,
-  BreadcrumbItem,
-  BreadcrumbLink,
-  BreadcrumbList,
-  BreadcrumbPage,
-  BreadcrumbSeparator,
-  routes,
-} from "@/shared";
+import { Breadcrumb, BreadcrumbItem, BreadcrumbLink, BreadcrumbList, BreadcrumbPage, BreadcrumbSeparator } from "@/shared/ui";
+import { routes } from "@/shared/constants";
 import { Link } from "@/shared/ui/link";
 
 type BreadcrumbsProps = {

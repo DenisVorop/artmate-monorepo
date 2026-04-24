@@ -1,4 +1,4 @@
-import { externalLinks } from "@/shared";
+import { externalLinks } from "@/shared/constants";
 
 export function Marketplaces() {
   return (

@@ -1,17 +1,8 @@
 "use client";
 
 import { ChevronDown, Search, SlidersHorizontal, Sparkles, X } from "lucide-react";
-import {
-  Button,
-  DropdownMenu,
-  DropdownMenuContent,
-  DropdownMenuRadioGroup,
-  DropdownMenuRadioItem,
-  DropdownMenuTrigger,
-  Input,
-  Separator,
-  cn,
-} from "@/shared";
+import { Button, DropdownMenu, DropdownMenuContent, DropdownMenuRadioGroup, DropdownMenuRadioItem, DropdownMenuTrigger, Input, Separator } from "@/shared/ui";
+import { cn } from "@/shared/lib";
 import { useCatalog } from "../lib/catalog-provider";
 import { sortOptions, type SortValue } from "../lib/catalog-state";
 

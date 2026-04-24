@@ -1,13 +1,7 @@
 import { useEffect, useState } from "react";
 import { usePathname } from "next/navigation";
-import {
-  DropdownMenu,
-  DropdownMenuContent,
-  DropdownMenuItem,
-  DropdownMenuLabel,
-  DropdownMenuTrigger,
-  routes,
-} from "@/shared";
+import { DropdownMenu, DropdownMenuContent, DropdownMenuItem, DropdownMenuLabel, DropdownMenuTrigger } from "@/shared/ui";
+import { routes } from "@/shared/constants";
 import { Link } from "@/shared/ui/link";
 import { ChevronDown } from "lucide-react";
 

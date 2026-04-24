@@ -1,9 +1,9 @@
 import { queryOptions } from "@tanstack/react-query";
 
 import { getHomeData } from "@/shared/actions/home";
-import type { ApiResultDTO } from "@/shared/lib/api-result";
+import { ensureApiResult, type ApiResultDTO } from "@/shared/lib/api-result";
 
-import type { HomeData } from "@/entities/home/model";
+import type { HomeData } from "./types";
 
 export type HomeDataResult = ApiResultDTO<HomeData>;
 
@@ -14,7 +14,7 @@ export const homeQuery = {
   getData: () =>
     queryOptions({
       queryKey: [baseKey, "data"] as const,
-      queryFn: () => getHomeData(),
+      queryFn: async () => ensureApiResult(await getHomeData()),
       staleTime: Infinity,
     }),
 };

@@ -3,7 +3,7 @@
 import type { ReactNode } from "react";
 import { CheckCircle2 } from "lucide-react";
 
-import { Card, CardContent, Tabs, TabsContent, TabsList, TabsTrigger } from "@/shared";
+import { Card, CardContent, Tabs, TabsContent, TabsList, TabsTrigger } from "@/shared/ui";
 
 type DetailsTabsProps = {
   specs: string[];

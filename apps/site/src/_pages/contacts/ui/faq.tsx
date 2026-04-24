@@ -1,13 +1,7 @@
 import { ArrowRight } from "lucide-react";
 
-import {
-  Accordion,
-  AccordionContent,
-  AccordionItem,
-  AccordionTrigger,
-  Button,
-  routes,
-} from "@/shared";
+import { Accordion, AccordionContent, AccordionItem, AccordionTrigger, Button } from "@/shared/ui";
+import { routes } from "@/shared/constants";
 import { Link } from "@/shared/ui/link";
 import { SectionSubtitle, SectionTitle } from "@/shared/ui/typography";
 

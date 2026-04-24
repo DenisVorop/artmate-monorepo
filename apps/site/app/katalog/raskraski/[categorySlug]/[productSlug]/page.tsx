@@ -8,9 +8,8 @@ import {
   getProductCategory,
   getProductCategoryBySlug,
 } from "@/entities/products";
-import { productsQuery, type ProductsDataResult } from "@/entities/products/model/query";
 import { getProductsData } from "@/shared/actions/products";
-import { routes, siteConfig } from "@/shared";
+import { routes, siteConfig } from "@/shared/constants";
 import { HydrationBoundary, dehydrate } from "@tanstack/react-query";
 
 type ProductRouteProps = {
@@ -87,17 +86,20 @@ export async function generateMetadata({ params }: ProductRouteProps): Promise<M
 
 export default async function Page({ params }: ProductRouteProps) {
   const { categorySlug, productSlug } = await params;
-  const { queryClient, category, product } = await new CatalogDataBuilder()
-    .prefetchProductsData()
-    .prefetchReviewsData()
+  const { queryClient, productsData, category, product } = await new CatalogDataBuilder()
+    .withProducts()
+    .withReviews()
     .withCategory(categorySlug)
     .withProduct(productSlug)
     .build();
-  const productsData = queryClient.getQueryData<ProductsDataResult>(
-    productsQuery.getData().queryKey,
-  )?.data;
 
-  if (!category || !product || !productsData || product.categoryId !== category.id) {
+  if (
+    !category ||
+    !product ||
+    !productsData ||
+    productsData.isEmpty ||
+    product.categoryId !== category.id
+  ) {
     notFound();
   }
 

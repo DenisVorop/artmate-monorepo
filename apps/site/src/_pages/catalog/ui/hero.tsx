@@ -1,4 +1,4 @@
-import { Badge } from "@/shared";
+import { Badge } from "@/shared/ui";
 import { PageTitle, SectionSubtitle } from "@/shared/ui/typography";
 
 export function Hero() {

@@ -13,7 +13,7 @@ import {
 import { ReviewList, ReviewRatingSummary } from "@/entities/reviews";
 import { useProductsData } from "@/entities/products";
 import { useReviewsData } from "@/entities/reviews";
-import { Separator } from "@/shared";
+import { DataState, Separator } from "@/shared/ui";
 import { Breadcrumbs } from "./ui/breadcrumbs";
 
 type ProductPageProps = {
@@ -21,15 +21,53 @@ type ProductPageProps = {
 };
 
 export function ProductPage({ productId }: ProductPageProps) {
-  const { products, productSpecs, productHowItWorks, productHighlights } = useProductsData();
-  const { reviews, stats: reviewStats } = useReviewsData();
-  const product = getProductById(products, productId);
+  const products = useProductsData();
+  const reviews = useReviewsData();
 
-  if (!product) {
+  if (products.isError) {
+    return (
+      <main className="container py-10">
+        <DataState
+          variant="error"
+          title="Не удалось загрузить товар"
+          description="Обновите страницу или попробуйте вернуться позже."
+        />
+      </main>
+    );
+  }
+
+  if (!products.data) {
     return null;
   }
 
-  const relatedProducts = getRelatedProducts(products, product);
+  if (products.data.isEmpty) {
+    return (
+      <main className="container py-10">
+        <DataState
+          title="Каталог пока пуст"
+          description="Когда появятся товары, карточка станет доступна."
+        />
+      </main>
+    );
+  }
+
+  const productsData = products.data.data!;
+  const product = getProductById(productsData.products, productId);
+
+  if (!product) {
+    return (
+      <main className="container py-10">
+        <DataState
+          title="Товар не найден"
+          description="Возможно, он был снят с публикации или адрес страницы изменился."
+        />
+      </main>
+    );
+  }
+
+  const relatedProducts = getRelatedProducts(productsData.products, product);
+  const visibleReviewsData =
+    !reviews.isError && reviews.data && !reviews.data.isEmpty ? reviews.data.data! : undefined;
 
   return (
     <main className="bg-background">
@@ -40,14 +78,32 @@ export function ProductPage({ productId }: ProductPageProps) {
           <Gallery images={product.images} title={product.title} />
 
           <div className="space-y-6">
-            <ReviewRatingSummary stats={reviewStats} className="justify-start" />
+            {visibleReviewsData && (
+              <ReviewRatingSummary stats={visibleReviewsData.stats} className="justify-start" />
+            )}
             <Summary product={product} />
             <ProductPurchase product={product} />
-            <Highlights items={productHighlights} />
+            <Highlights items={productsData.productHighlights} />
             <DetailsTabs
-              specs={productSpecs}
-              howItWorks={productHowItWorks}
-              reviews={<ReviewList reviews={reviews} />}
+              specs={productsData.productSpecs}
+              howItWorks={productsData.productHowItWorks}
+              reviews={
+                visibleReviewsData ? (
+                  <ReviewList reviews={visibleReviewsData.reviews} />
+                ) : (
+                  <DataState
+                    variant={reviews.isError ? "error" : "empty"}
+                    title={
+                      reviews.isError ? "Не удалось загрузить отзывы" : "Отзывы пока не добавлены"
+                    }
+                    description={
+                      reviews.isError
+                        ? "Обновите страницу или попробуйте вернуться позже."
+                        : "Когда появятся первые отзывы, они отобразятся здесь."
+                    }
+                  />
+                )
+              }
             />
           </div>
         </section>

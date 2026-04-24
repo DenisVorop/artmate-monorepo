@@ -6,9 +6,9 @@ export { metadata } from "@/pages/home/metadata";
 
 export default async function Page() {
   const { queryClient } = await new HomeDataBuilder()
-    .prefetchHomeData()
-    .prefetchProductsData()
-    .prefetchReviewsData()
+    .withHomeData()
+    .withProducts()
+    .withReviews()
     .build();
 
   return (

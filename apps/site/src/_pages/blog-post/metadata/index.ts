@@ -1,7 +1,7 @@
 import type { Metadata } from "next";
 
 import type { BlogPost } from "@/entities/blog";
-import { routes, siteConfig } from "@/shared";
+import { routes, siteConfig } from "@/shared/constants";
 
 export function getBlogPostMetadata(post: BlogPost): Metadata {
   const title = `${post.title} - Блог Artmate`;

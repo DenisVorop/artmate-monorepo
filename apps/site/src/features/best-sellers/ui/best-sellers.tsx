@@ -1,6 +1,8 @@
 import { ArrowRight } from "lucide-react";
 import { SectionLabel, SectionTitle } from "@/shared/ui/typography";
-import { Button, CtaGradientLink, DecorDots, cn, routes } from "@/shared";
+import { Button, CtaGradientLink, DataState, DecorDots } from "@/shared/ui";
+import { routes } from "@/shared/constants";
+import { cn } from "@/shared/lib";
 import { ProductCard, type Product } from "@/entities/products";
 
 export function Bestsellers({ products, className }: { products: Product[]; className?: string }) {
@@ -49,13 +51,20 @@ export function Bestsellers({ products, className }: { products: Product[]; clas
           </Button>
         </div>
 
-        <ul className="grid gap-5 sm:grid-cols-2 lg:grid-cols-4">
-          {bestsellers.map((product) => (
-            <li key={product.id} className="h-full">
-              <ProductCard product={product} />
-            </li>
-          ))}
-        </ul>
+        {bestsellers.length > 0 ? (
+          <ul className="grid gap-5 sm:grid-cols-2 lg:grid-cols-4">
+            {bestsellers.map((product) => (
+              <li key={product.id} className="h-full">
+                <ProductCard product={product} />
+              </li>
+            ))}
+          </ul>
+        ) : (
+          <DataState
+            title="Хиты продаж пока не выбраны"
+            description="Когда товары получат отметку хита, они появятся в этом блоке."
+          />
+        )}
       </div>
     </section>
   );

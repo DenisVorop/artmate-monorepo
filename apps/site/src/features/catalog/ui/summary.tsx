@@ -1,7 +1,7 @@
 "use client";
 
 import { X } from "lucide-react";
-import { Badge, Button } from "@/shared";
+import { Badge, Button } from "@/shared/ui";
 import { useCatalog } from "../lib/catalog-provider";
 
 export function Summary() {

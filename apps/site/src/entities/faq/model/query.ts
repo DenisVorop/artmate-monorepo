@@ -1,9 +1,9 @@
 import { queryOptions } from "@tanstack/react-query";
 
 import { getFaqSections } from "@/shared/actions/faq";
-import type { ApiResultDTO } from "@/shared/lib/api-result";
+import { ensureApiResult, type ApiResultDTO } from "@/shared/lib/api-result";
 
-import type { FaqSectionsData } from "@/entities/faq/model";
+import type { FaqSectionsData } from "./types";
 
 export type FaqSectionsResult = ApiResultDTO<FaqSectionsData>;
 
@@ -14,7 +14,7 @@ export const faqQuery = {
   getSections: () =>
     queryOptions({
       queryKey: [baseKey, "sections"] as const,
-      queryFn: () => getFaqSections(),
+      queryFn: async () => ensureApiResult(await getFaqSections()),
       staleTime: Infinity,
     }),
 };

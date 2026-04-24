@@ -1,7 +1,7 @@
 import { Link } from "@/shared/ui/link";
 import InstagramSvg from "../assets/instagram.svg";
 import TelegramSvg from "../assets/telegram.svg";
-import { externalLinks, routes } from "@/shared";
+import { externalLinks, routes } from "@/shared/constants";
 
 const legalDocs = [
   {

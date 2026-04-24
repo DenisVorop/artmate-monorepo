@@ -1,9 +1,9 @@
 import { getBlogPosts } from "@/shared/actions/blog";
-import type { ApiResultDTO } from "@/shared/lib/api-result";
+import { ensureApiResult, type ApiResultDTO } from "@/shared/lib/api-result";
 
 import { queryOptions } from "@tanstack/react-query";
 
-import type { BlogPostsData } from "@/entities/blog/model";
+import type { BlogPostsData } from "./types";
 
 export type BlogPostsResult = ApiResultDTO<BlogPostsData>;
 
@@ -14,7 +14,7 @@ export const blogQuery = {
   getPosts: () =>
     queryOptions({
       queryKey: [baseKey, "posts"] as const,
-      queryFn: () => getBlogPosts(),
+      queryFn: async () => ensureApiResult(await getBlogPosts()),
       staleTime: Infinity,
     }),
 };

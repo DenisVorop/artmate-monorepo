@@ -3,7 +3,7 @@
 import { useEffect, useRef, useState } from "react";
 import { Copy, Send } from "lucide-react";
 
-import { Button } from "@/shared";
+import { Button } from "@/shared/ui";
 
 type ShareActionsProps = {
   title: string;

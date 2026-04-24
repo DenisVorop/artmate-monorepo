@@ -4,18 +4,8 @@ import { CheckCircle2, Send } from "lucide-react";
 import { useId, useState } from "react";
 import type { FormEvent } from "react";
 
-import {
-  Button,
-  Card,
-  CardContent,
-  CardDescription,
-  CardHeader,
-  CardTitle,
-  Input,
-  Label,
-  Textarea,
-  cn,
-} from "@/shared";
+import { Button, Card, CardContent, CardDescription, CardHeader, CardTitle, Input, Label, Textarea } from "@/shared/ui";
+import { cn } from "@/shared/lib";
 
 const topics = [
   "Вопрос о\u00a0заказе",

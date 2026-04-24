@@ -1,5 +1,6 @@
 import { heroImages } from "../constants";
-import { Badge, cn } from "@/shared";
+import { Badge } from "@/shared/ui";
+import { cn } from "@/shared/lib";
 import { AspectRatio } from "@/shared/ui/aspect-ratio";
 import { Card, CardContent, CardDescription, CardTitle } from "@/shared/ui/card";
 import { Progress } from "@/shared/ui/progress";

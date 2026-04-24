@@ -1,5 +1,5 @@
 import { ReviewRatingSummary, type Review, type ReviewStats } from "@/entities/reviews";
-import { cn } from "@/shared";
+import { cn } from "@/shared/lib";
 import { SectionLabel, SectionTitle } from "@/shared/ui/typography";
 import { ReviewsRail } from "./ui/reviews-rail";
 

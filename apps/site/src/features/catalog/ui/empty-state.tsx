@@ -1,7 +1,7 @@
 "use client";
 
 import { Palette } from "lucide-react";
-import { Button, Card, CardDescription, CardTitle } from "@/shared";
+import { Button, Card, CardDescription, CardTitle } from "@/shared/ui";
 import { useCatalog } from "../lib/catalog-provider";
 
 export function EmptyState() {

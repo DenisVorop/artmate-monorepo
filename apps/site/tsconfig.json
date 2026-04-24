@@ -3,17 +3,11 @@
   "compilerOptions": {
     "baseUrl": ".",
     "paths": {
-      "@/app": ["src/_app/index.ts"],
       "@/app/*": ["src/_app/*"],
-      "@/pages": ["src/_pages/index.ts"],
       "@/pages/*": ["src/_pages/*"],
-      "@/features": ["src/features/index.ts"],
       "@/features/*": ["src/features/*"],
-      "@/entities": ["src/entities/index.ts"],
       "@/entities/*": ["src/entities/*"],
-      "@/widgets": ["src/widgets/index.ts"],
       "@/widgets/*": ["src/widgets/*"],
-      "@/shared": ["src/shared/index.ts"],
       "@/shared/*": ["src/shared/*"]
     },
     "plugins": [

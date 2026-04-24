@@ -1,6 +1,6 @@
 import { Search, X } from "lucide-react";
 
-import { Button, Input, Separator } from "@/shared";
+import { Button, Input, Separator } from "@/shared/ui";
 
 type FiltersProps = {
   categories: string[];

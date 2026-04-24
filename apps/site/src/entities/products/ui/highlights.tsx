@@ -1,6 +1,6 @@
 import { FileText, ShieldCheck, Truck } from "lucide-react";
 
-import { Card, CardContent, CardTitle } from "@/shared";
+import { Card, CardContent, CardTitle } from "@/shared/ui";
 import type { ProductHighlight } from "../model";
 
 const highlightIcons = {

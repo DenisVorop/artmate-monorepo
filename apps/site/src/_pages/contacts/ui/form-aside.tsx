@@ -1,4 +1,4 @@
-import { Card, CardContent } from "@/shared";
+import { Card, CardContent } from "@/shared/ui";
 import { SectionSubtitle, SectionTitle } from "@/shared/ui/typography";
 
 const responseTimes = [

@@ -1,7 +1,7 @@
 import { Calendar, Clock } from "lucide-react";
 
 import type { BlogPost } from "@/entities/blog";
-import { Avatar, AvatarFallback, Badge } from "@/shared";
+import { Avatar, AvatarFallback, Badge } from "@/shared/ui";
 import { PageTitle } from "@/shared/ui/typography";
 import { Breadcrumbs } from "./breadcrumbs";
 

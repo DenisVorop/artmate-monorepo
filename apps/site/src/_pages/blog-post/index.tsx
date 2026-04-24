@@ -1,7 +1,7 @@
 "use client";
 
 import { ReadingProgress, useBlogPostPageData } from "@/features/blog-post";
-import { Separator } from "@/shared";
+import { Separator } from "@/shared/ui";
 import { Article } from "./ui/article";
 import { Hero } from "./ui/hero";
 import { Related } from "./ui/related";

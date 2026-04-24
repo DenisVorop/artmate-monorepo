@@ -1,9 +1,9 @@
 import { queryOptions } from "@tanstack/react-query";
 
 import { getProductsData } from "@/shared/actions/products";
-import type { ApiResultDTO } from "@/shared/lib/api-result";
+import { ensureApiResult, type ApiResultDTO } from "@/shared/lib/api-result";
 
-import type { ProductsData } from "@/entities/products/model";
+import type { ProductsData } from "./types";
 
 export type ProductsDataResult = ApiResultDTO<ProductsData>;
 
@@ -14,7 +14,7 @@ export const productsQuery = {
   getData: () =>
     queryOptions({
       queryKey: [baseKey, "data"] as const,
-      queryFn: () => getProductsData(),
+      queryFn: async () => ensureApiResult(await getProductsData()),
       staleTime: Infinity,
     }),
 };

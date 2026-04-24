@@ -2,7 +2,8 @@
 
 import { useEffect, useState } from "react";
 
-import { Button, cn } from "@/shared";
+import { Button } from "@/shared/ui";
+import { cn } from "@/shared/lib";
 
 type TocItem = {
   id: string;

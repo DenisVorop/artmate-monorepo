@@ -1,5 +1,5 @@
 import { ContactForm } from "@/features/contact-form";
-import { Separator } from "@/shared";
+import { Separator } from "@/shared/ui";
 import { Channels } from "./ui/channels";
 import { Faq } from "./ui/faq";
 import { FormAside } from "./ui/form-aside";

@@ -3,7 +3,9 @@
 import { Check, ShoppingBag } from "lucide-react";
 import Image from "next/image";
 import { useEffect, useRef, useState, type MouseEvent } from "react";
-import { Badge, Button, cn, routes } from "@/shared";
+import { Badge, Button } from "@/shared/ui";
+import { routes } from "@/shared/constants";
+import { cn } from "@/shared/lib";
 import { AspectRatio } from "@/shared/ui/aspect-ratio";
 import { Card, CardContent, CardDescription, CardFooter, CardTitle } from "@/shared/ui/card";
 import { Link } from "@/shared/ui/link";

@@ -2,16 +2,8 @@ import { ArrowRight, Clock, Tag } from "lucide-react";
 import Image from "next/image";
 
 import type { BlogPost } from "../model";
-import {
-  AspectRatio,
-  Badge,
-  Card,
-  CardContent,
-  CardDescription,
-  CardFooter,
-  CardTitle,
-  routes,
-} from "@/shared";
+import { AspectRatio, Badge, Card, CardContent, CardDescription, CardFooter, CardTitle } from "@/shared/ui";
+import { routes } from "@/shared/constants";
 import { Link } from "@/shared/ui/link";
 
 type PostCardProps = {

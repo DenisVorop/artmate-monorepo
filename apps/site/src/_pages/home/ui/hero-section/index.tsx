@@ -5,7 +5,8 @@ import { Subheading } from "./ui/subheading";
 import { Collage } from "./ui/collage";
 import { Reviews } from "./ui/reviews";
 import { CTA } from "./ui/cta";
-import { DecorDots, cn } from "@/shared";
+import { DecorDots } from "@/shared/ui";
+import { cn } from "@/shared/lib";
 
 export function HeroSection({
   metrics,
@@ -13,7 +14,7 @@ export function HeroSection({
   className,
 }: {
   metrics: HomeHeroMetricsDTO;
-  reviewStats: ReviewStats;
+  reviewStats?: ReviewStats;
   className?: string;
 }) {
   return (

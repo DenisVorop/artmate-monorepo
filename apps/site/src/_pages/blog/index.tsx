@@ -1,5 +1,5 @@
 import { Blog } from "@/features/blog";
-import { Separator } from "@/shared";
+import { Separator } from "@/shared/ui";
 import { Hero } from "./ui/hero";
 
 export function BlogPage() {

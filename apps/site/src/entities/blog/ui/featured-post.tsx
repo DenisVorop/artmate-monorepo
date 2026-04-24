@@ -2,16 +2,8 @@ import { ArrowRight, Clock } from "lucide-react";
 import Image from "next/image";
 
 import type { BlogPost } from "../model";
-import {
-  AspectRatio,
-  Badge,
-  Button,
-  Card,
-  CardContent,
-  CardDescription,
-  CardTitle,
-  routes,
-} from "@/shared";
+import { AspectRatio, Badge, Button, Card, CardContent, CardDescription, CardTitle } from "@/shared/ui";
+import { routes } from "@/shared/constants";
 import { Link } from "@/shared/ui/link";
 
 type FeaturedPostProps = {

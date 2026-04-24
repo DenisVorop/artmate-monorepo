@@ -8,7 +8,11 @@ import {
   AvatarImage,
 } from "@/shared/ui/avatar";
 
-export function Reviews({ stats }: { stats: ReviewStats }) {
+export function Reviews({ stats }: { stats?: ReviewStats }) {
+  if (!stats) {
+    return null;
+  }
+
   return (
     <div className="flex flex-wrap items-center gap-6">
       <AvatarGroup className="*:data-[slot=avatar]:ring-white">

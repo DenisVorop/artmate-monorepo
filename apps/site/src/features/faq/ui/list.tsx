@@ -1,14 +1,5 @@
-import {
-  Accordion,
-  AccordionContent,
-  AccordionItem,
-  AccordionTrigger,
-  Card,
-  CardContent,
-  CardHeader,
-  CardTitle,
-  cn,
-} from "@/shared";
+import { Accordion, AccordionContent, AccordionItem, AccordionTrigger, Card, CardContent, CardHeader, CardTitle } from "@/shared/ui";
+import { cn } from "@/shared/lib";
 import type { FaqSection } from "../lib";
 
 type ListProps = {

@@ -1,4 +1,4 @@
-import { Badge, Button } from "@/shared";
+import { Badge, Button } from "@/shared/ui";
 import { ShoppingBag } from "lucide-react";
 
 const cartItemsCount = 99;

@@ -1,6 +1,7 @@
 import { Search, X } from "lucide-react";
 
-import { Button, Input, cn } from "@/shared";
+import { Button, Input } from "@/shared/ui";
+import { cn } from "@/shared/lib";
 import type { FaqSection } from "../lib";
 
 type FiltersProps = {

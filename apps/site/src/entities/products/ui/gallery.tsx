@@ -4,7 +4,8 @@ import { ChevronLeft, ChevronRight, Expand, X } from "lucide-react";
 import Image from "next/image";
 import { useCallback, useEffect, useState, type MouseEvent } from "react";
 
-import { AspectRatio, Button, Dialog, DialogClose, DialogContent, DialogTitle, cn } from "@/shared";
+import { AspectRatio, Button, Dialog, DialogClose, DialogContent, DialogTitle } from "@/shared/ui";
+import { cn } from "@/shared/lib";
 
 type GalleryProps = {
   images: string[];

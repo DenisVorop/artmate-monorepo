@@ -1,15 +1,15 @@
-import { homeQuery } from "@/entities/home/model/query";
-import { productsQuery } from "@/entities/products/model/query";
-import { reviewsQuery } from "@/entities/reviews/model/query";
+import { homeQuery, type HomeDataResult } from "@/entities/home";
+import { productsQuery, type ProductsDataResult } from "@/entities/products";
+import { reviewsQuery, type ReviewsDataResult } from "@/entities/reviews";
 
 import type { TaskFn } from "../types/data-builder";
 
 import { BaseDataBuilder } from "./base-data-builder";
 
 type Fields = {
-  prefetchHomeData: void;
-  prefetchProductsData: void;
-  prefetchReviewsData: void;
+  homeData?: HomeDataResult;
+  productsData?: ProductsDataResult;
+  reviewsData?: ReviewsDataResult;
 };
 
 export class HomeDataBuilder<TData, TFields extends Fields> extends BaseDataBuilder<
@@ -20,27 +20,33 @@ export class HomeDataBuilder<TData, TFields extends Fields> extends BaseDataBuil
     return super.add(key, fn) as unknown as HomeDataBuilder<TData & Record<K, V>, TFields>;
   }
 
-  prefetchHomeData() {
+  withHomeData() {
     const { queryClient } = this;
 
-    return this.add("prefetchHomeData", async function () {
-      return queryClient.prefetchQuery(homeQuery.getData());
+    return this.add("homeData", async function () {
+      await queryClient.prefetchQuery(homeQuery.getData());
+
+      return queryClient.getQueryData<HomeDataResult>(homeQuery.getData().queryKey);
     });
   }
 
-  prefetchProductsData() {
+  withProducts() {
     const { queryClient } = this;
 
-    return this.add("prefetchProductsData", async function () {
-      return queryClient.prefetchQuery(productsQuery.getData());
+    return this.add("productsData", async function () {
+      await queryClient.prefetchQuery(productsQuery.getData());
+
+      return queryClient.getQueryData<ProductsDataResult>(productsQuery.getData().queryKey);
     });
   }
 
-  prefetchReviewsData() {
+  withReviews() {
     const { queryClient } = this;
 
-    return this.add("prefetchReviewsData", async function () {
-      return queryClient.prefetchQuery(reviewsQuery.getData());
+    return this.add("reviewsData", async function () {
+      await queryClient.prefetchQuery(reviewsQuery.getData());
+
+      return queryClient.getQueryData<ReviewsDataResult>(reviewsQuery.getData().queryKey);
     });
   }
 }

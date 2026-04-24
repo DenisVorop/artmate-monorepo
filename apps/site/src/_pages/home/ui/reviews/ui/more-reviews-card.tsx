@@ -1,6 +1,7 @@
 import { ExternalLink, MessageCircle } from "lucide-react";
 
-import { Button, externalLinks } from "@/shared";
+import { Button } from "@/shared/ui";
+import { externalLinks } from "@/shared/constants";
 import {
   Card,
   CardContent,

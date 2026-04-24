@@ -1,6 +1,7 @@
 import type { BlogPost } from "@/entities/blog";
 import { PostCard } from "@/entities/blog";
-import { Button, routes } from "@/shared";
+import { Button } from "@/shared/ui";
+import { routes } from "@/shared/constants";
 import { Link } from "@/shared/ui/link";
 import { SectionSubtitle, SectionTitle } from "@/shared/ui/typography";
 

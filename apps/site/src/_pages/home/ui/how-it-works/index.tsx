@@ -1,5 +1,6 @@
 import type { HomeHowItWorksStep as HomeHowItWorksStepDTO } from "@/entities/home";
-import { Badge, cn } from "@/shared";
+import { Badge } from "@/shared/ui";
+import { cn } from "@/shared/lib";
 import { SectionSubtitle, SectionTitle } from "@/shared/ui/typography";
 import { StepCard } from "./ui/card";
 import { Connector } from "./ui/connector";

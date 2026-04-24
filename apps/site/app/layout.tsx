@@ -1,4 +1,4 @@
-import { RootLayout } from "@/app";
+import { RootLayout } from "@/app/layouts/root-layout";
 
 import "./globals.css";
 import { metadata } from "@/app/metadata";

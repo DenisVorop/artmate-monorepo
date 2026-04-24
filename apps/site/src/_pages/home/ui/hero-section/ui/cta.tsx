@@ -1,4 +1,5 @@
-import { Button, CtaGradientLink, routes } from "@/shared";
+import { Button, CtaGradientLink } from "@/shared/ui";
+import { routes } from "@/shared/constants";
 import { ArrowRight } from "lucide-react";
 import Link from "next/link";
 

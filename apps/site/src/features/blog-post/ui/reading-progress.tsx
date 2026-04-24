@@ -2,7 +2,7 @@
 
 import { useEffect, useState } from "react";
 
-import { Progress } from "@/shared";
+import { Progress } from "@/shared/ui";
 
 type ReadingProgressProps = {
   articleId: string;

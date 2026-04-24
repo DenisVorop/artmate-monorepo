@@ -1,6 +1,7 @@
 import { ArrowRight, MessageCircle } from "lucide-react";
 
-import { Button, Card, CardContent, CardDescription, CardTitle, routes } from "@/shared";
+import { Button, Card, CardContent, CardDescription, CardTitle } from "@/shared/ui";
+import { routes } from "@/shared/constants";
 import { Link } from "@/shared/ui/link";
 
 export function HelpCard() {

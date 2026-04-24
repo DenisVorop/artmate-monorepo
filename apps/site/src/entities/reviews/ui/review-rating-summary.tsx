@@ -1,4 +1,5 @@
-import { Badge, cn } from "@/shared";
+import { Badge } from "@/shared/ui";
+import { cn } from "@/shared/lib";
 import type { ReviewStats } from "../model";
 import { RatingStars } from "./rating-stars";
 

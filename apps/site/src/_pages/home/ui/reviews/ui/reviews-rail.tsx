@@ -4,7 +4,8 @@ import * as React from "react";
 import { ChevronLeft, ChevronRight } from "lucide-react";
 
 import type { Review } from "@/entities/reviews";
-import { Button, cn } from "@/shared";
+import { Button } from "@/shared/ui";
+import { cn } from "@/shared/lib";
 import { MoreReviewsCard } from "./more-reviews-card";
 import { ReviewCard } from "./review-card";
 

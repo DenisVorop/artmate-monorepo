@@ -1,6 +1,7 @@
 import { ArrowUpRight, Mail, MessageCircle } from "lucide-react";
 
-import { Badge, Card, CardAction, CardDescription, CardHeader, CardTitle, cn } from "@/shared";
+import { Badge, Card, CardAction, CardDescription, CardHeader, CardTitle } from "@/shared/ui";
+import { cn } from "@/shared/lib";
 
 const channels = [
   {

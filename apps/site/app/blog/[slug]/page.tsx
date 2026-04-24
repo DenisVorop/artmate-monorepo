@@ -1,7 +1,7 @@
 import type { Metadata } from "next";
 import { notFound } from "next/navigation";
 
-import { BlogPostDataBuilder } from "@/features/blog-post";
+import { BlogPostDataBuilder } from "@/app/lib/blog-post-data-builder";
 import { blogPostPageQuery } from "@/features/blog-post/model/query";
 import { BlogPostPage } from "@/pages/blog-post";
 import { getBlogPostMetadata } from "@/pages/blog-post/metadata";
@@ -36,7 +36,7 @@ export async function generateMetadata({ params }: BlogPostRouteProps): Promise<
 export default async function Page({ params }: BlogPostRouteProps) {
   const { slug } = await params;
   const { queryClient } = await new BlogPostDataBuilder()
-    .prefetchPostPage(slug)
+    .withPostPage(slug)
     .build();
   const postPageData = queryClient.getQueryData(blogPostPageQuery(slug).queryKey);
 
