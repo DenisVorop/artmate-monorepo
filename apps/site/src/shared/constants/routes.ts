@@ -8,6 +8,7 @@ export const routes = {
   blogPost: (id: string) => `/blog/${id}`,
   gallery: "/gallery",
   checkout: "/checkout",
+  checkoutSuccess: "/checkout/success",
   contacts: "/contacts",
   faq: "/faq",
   product: (categorySlug: string, productSlug: string) =>

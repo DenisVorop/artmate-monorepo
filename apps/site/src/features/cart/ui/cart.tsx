@@ -1,6 +1,14 @@
 "use client";
 
-import { ArrowLeft, LoaderCircle, Minus, Plus, ShoppingBag, Trash2 } from "lucide-react";
+import {
+  ArrowLeft,
+  CreditCard,
+  LoaderCircle,
+  Minus,
+  Plus,
+  ShoppingBag,
+  Trash2,
+} from "lucide-react";
 import Image from "next/image";
 
 import { useCartData, type CartItem } from "@/entities/cart";
@@ -130,6 +138,12 @@ export function Cart() {
           </CardContent>
           <CardFooter className="flex-col items-stretch gap-2">
             <Button asChild size="lg" className="w-full">
+              <Link href={routes.checkout}>
+                <CreditCard data-icon="inline-start" />
+                Оформить заказ
+              </Link>
+            </Button>
+            <Button asChild variant="outline" className="w-full">
               <Link href={routes.catalog}>
                 <ShoppingBag data-icon="inline-start" />
                 Добавить еще товары
@@ -142,9 +156,7 @@ export function Cart() {
               onClick={() => clearCart()}
               className="w-full"
             >
-              {isClearingCart && (
-                <LoaderCircle data-icon="inline-start" className="animate-spin" />
-              )}
+              {isClearingCart && <LoaderCircle data-icon="inline-start" className="animate-spin" />}
               Очистить корзину
             </Button>
           </CardFooter>

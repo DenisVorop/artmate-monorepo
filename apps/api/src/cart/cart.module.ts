@@ -7,5 +7,6 @@ import { CartStorage } from "./cart.storage";
 @Module({
   controllers: [CartController],
   providers: [CartService, CartStorage],
+  exports: [CartService, CartStorage],
 })
 export class CartModule {}
