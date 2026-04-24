@@ -1,1 +1,1 @@
-export { faqSections, getVisibleFaqSections, type FaqItem, type FaqSection } from "./faq-state";
+export { decorateFaqSections, getVisibleFaqSections, type FaqItem, type FaqSection } from "./faq-state";

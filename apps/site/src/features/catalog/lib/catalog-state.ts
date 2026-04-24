@@ -1,4 +1,4 @@
-import { CATEGORIES, type Product } from "@/entities/products";
+import type { Product, ProductCategory } from "@/entities/products";
 import { routes } from "@/shared";
 
 export type SortValue = "featured" | "newest" | "price-asc" | "price-desc";
@@ -17,20 +17,20 @@ export type FiltersState = {
   sortBy: SortValue;
 };
 
-export function normalizeCategoryId(categoryValue?: string) {
-  return CATEGORIES.find(
+export function normalizeCategoryId(categories: readonly ProductCategory[], categoryValue?: string) {
+  return categories.find(
     (category) => category.id === categoryValue || category.slug === categoryValue,
   )?.id;
 }
 
-export function getCatalogHref(categoryId?: string) {
-  const normalizedCategoryId = normalizeCategoryId(categoryId);
+export function getCatalogHref(categories: readonly ProductCategory[], categoryId?: string) {
+  const normalizedCategoryId = normalizeCategoryId(categories, categoryId);
 
   if (!normalizedCategoryId) {
     return routes.raskraski;
   }
 
-  const category = CATEGORIES.find((item) => item.id === normalizedCategoryId);
+  const category = categories.find((item) => item.id === normalizedCategoryId);
 
   return category ? routes.catalogCategory(category.slug) : routes.raskraski;
 }

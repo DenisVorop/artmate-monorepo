@@ -1,6 +1,7 @@
 import type { MetadataRoute } from "next";
-import { BLOG_POSTS } from "@/entities/blog";
-import { CATEGORIES, PRODUCTS, getProductCategory } from "@/entities/products";
+import { getProductCategory } from "@/entities/products";
+import { getBlogPosts } from "@/shared/actions/blog";
+import { getProductsData } from "@/shared/actions/products";
 import { getAbsoluteUrl, routes } from "@/shared";
 
 type SitemapEntry = {
@@ -42,20 +43,23 @@ const staticRoutes = [
   },
 ] satisfies SitemapEntry[];
 
-export default function sitemap(): MetadataRoute.Sitemap {
+export default async function sitemap(): Promise<MetadataRoute.Sitemap> {
   const lastModified = new Date();
-  const blogRoutes = BLOG_POSTS.map((post) => ({
+  const [blogData, productsResult] = await Promise.all([getBlogPosts(), getProductsData()]);
+  const productsData = productsResult.data;
+  const blogPosts = blogData.data?.items ?? [];
+  const blogRoutes = blogPosts.map((post) => ({
     path: routes.blogPost(post.id),
     changeFrequency: "weekly",
     priority: 0.65,
   })) satisfies SitemapEntry[];
-  const categoryRoutes = CATEGORIES.map((category) => ({
+  const categoryRoutes = (productsData?.categories ?? []).map((category) => ({
     path: routes.catalogCategory(category.slug),
     changeFrequency: "weekly",
     priority: 0.8,
   })) satisfies SitemapEntry[];
-  const productRoutes = PRODUCTS.flatMap((product) => {
-    const category = getProductCategory(product.categoryId);
+  const productRoutes = (productsData?.products ?? []).flatMap((product) => {
+    const category = getProductCategory(productsData?.categories ?? [], product.categoryId);
 
     if (!category) {
       return [];

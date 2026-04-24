@@ -1,4 +1,4 @@
-import { getProductCategory, type Product } from "@/entities/products";
+import type { Product } from "@/entities/products";
 import {
   Breadcrumb,
   BreadcrumbItem,
@@ -15,9 +15,8 @@ type BreadcrumbsProps = {
 };
 
 export function Breadcrumbs({ product }: BreadcrumbsProps) {
-  const category = getProductCategory(product.categoryId);
-  const categoryHref = category ? routes.catalogCategory(category.slug) : routes.catalog;
-  const categoryTitle = category?.title ?? product.category;
+  const categoryHref = routes.catalogCategory(product.categorySlug);
+  const categoryTitle = product.category;
 
   return (
     <Breadcrumb>

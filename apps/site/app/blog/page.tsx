@@ -1,5 +1,16 @@
+import { BlogDataBuilder } from "@/features/blog";
 import { BlogPage } from "@/pages/blog";
 
-export { metadata } from "@/pages/blog";
+import { HydrationBoundary, dehydrate } from "@tanstack/react-query";
 
-export default BlogPage;
+export { metadata } from "@/pages/blog/metadata";
+
+export default async function Page() {
+  const { queryClient } = await new BlogDataBuilder().withPosts().build();
+
+  return (
+    <HydrationBoundary state={dehydrate(queryClient)}>
+      <BlogPage />
+    </HydrationBoundary>
+  );
+}

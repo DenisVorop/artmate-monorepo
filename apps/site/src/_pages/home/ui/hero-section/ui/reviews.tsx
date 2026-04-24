@@ -1,5 +1,5 @@
 import { reviewAvatars } from "../constants";
-import { ReviewRatingSummary } from "@/entities/reviews";
+import { ReviewRatingSummary, type ReviewStats } from "@/entities/reviews";
 import {
   Avatar,
   AvatarFallback,
@@ -8,7 +8,7 @@ import {
   AvatarImage,
 } from "@/shared/ui/avatar";
 
-export function Reviews() {
+export function Reviews({ stats }: { stats: ReviewStats }) {
   return (
     <div className="flex flex-wrap items-center gap-6">
       <AvatarGroup className="*:data-[slot=avatar]:ring-white">
@@ -23,7 +23,7 @@ export function Reviews() {
         </AvatarGroupCount>
       </AvatarGroup>
 
-      <ReviewRatingSummary className="justify-start" />
+      <ReviewRatingSummary stats={stats} className="justify-start" />
     </div>
   );
 }

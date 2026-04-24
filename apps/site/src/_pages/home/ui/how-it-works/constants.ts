@@ -1,7 +1,7 @@
-import { routes } from "@/shared";
 import { BookOpen, Brush, Smile, type LucideIcon } from "lucide-react";
 
 export type StepTone = "rose" | "amber" | "violet";
+export type StepIcon = "book-open" | "brush" | "smile";
 
 export type HowItWorksStep = {
   num: string;
@@ -14,38 +14,11 @@ export type HowItWorksStep = {
   cta: string;
 };
 
-export const steps = [
-  {
-    num: "01",
-    icon: BookOpen,
-    title: "Выберите раскраску",
-    desc: "Выберите тематику под\u00a0настроение — от\u00a0уютных сюжетов до\u00a0детализированных пейзажей.",
-    chips: ["25 иллюстраций", "Формат A4", "Металлическая пружина"],
-    tone: "rose",
-    href: routes.catalog,
-    cta: "В\u00a0каталог",
-  },
-  {
-    num: "02",
-    icon: Brush,
-    title: "Раскрашивайте по\u00a0номерам",
-    desc: "Каждая зона уже продумана — просто подбирайте оттенки и\u00a0заполняйте рисунок шаг за\u00a0шагом.",
-    chips: ["Плотная бумага 190 г/м²", "Подходит для\u00a0маркеров", "Чёткие контуры"],
-    tone: "amber",
-    href: routes.catalog,
-    cta: "Смотреть",
-  },
-  {
-    num: "03",
-    icon: Smile,
-    title: "Наслаждайтесь процессом",
-    desc: "Расслабьтесь, отвлекитесь от\u00a0суеты и\u00a0создайте работу, которая будет радовать вас каждый день.",
-    chips: ["Антистресс", "Творческий отдых", "Уникальный результат"],
-    tone: "violet",
-    href: routes.gallery,
-    cta: "Галерея",
-  },
-] satisfies HowItWorksStep[];
+export const stepIcons = {
+  "book-open": BookOpen,
+  brush: Brush,
+  smile: Smile,
+} satisfies Record<StepIcon, LucideIcon>;
 
 type StepTones = {
   accent: string;

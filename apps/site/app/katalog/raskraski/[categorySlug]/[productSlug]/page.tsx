@@ -1,15 +1,17 @@
 import type { Metadata } from "next";
 import { notFound } from "next/navigation";
 
+import { CatalogDataBuilder } from "@/app/lib/catalog-data-builder";
 import { ProductPage } from "@/pages/product";
 import {
-  PRODUCTS,
   getProductBySlug,
   getProductCategory,
   getProductCategoryBySlug,
-  getRelatedProducts,
 } from "@/entities/products";
+import { productsQuery, type ProductsDataResult } from "@/entities/products/model/query";
+import { getProductsData } from "@/shared/actions/products";
 import { routes, siteConfig } from "@/shared";
+import { HydrationBoundary, dehydrate } from "@tanstack/react-query";
 
 type ProductRouteProps = {
   params: Promise<{
@@ -18,9 +20,11 @@ type ProductRouteProps = {
   }>;
 };
 
-export function generateStaticParams() {
-  return PRODUCTS.flatMap((product) => {
-    const category = getProductCategory(product.categoryId);
+export async function generateStaticParams() {
+  const productsData = (await getProductsData()).data;
+
+  return (productsData?.products ?? []).flatMap((product) => {
+    const category = getProductCategory(productsData?.categories ?? [], product.categoryId);
 
     if (!category) {
       return [];
@@ -37,8 +41,9 @@ export function generateStaticParams() {
 
 export async function generateMetadata({ params }: ProductRouteProps): Promise<Metadata> {
   const { categorySlug, productSlug } = await params;
-  const category = getProductCategoryBySlug(categorySlug);
-  const product = getProductBySlug(productSlug);
+  const productsData = (await getProductsData()).data;
+  const category = getProductCategoryBySlug(productsData?.categories ?? [], categorySlug);
+  const product = getProductBySlug(productsData?.products ?? [], productSlug);
 
   if (!category || !product || product.categoryId !== category.id) {
     return {};
@@ -82,12 +87,23 @@ export async function generateMetadata({ params }: ProductRouteProps): Promise<M
 
 export default async function Page({ params }: ProductRouteProps) {
   const { categorySlug, productSlug } = await params;
-  const category = getProductCategoryBySlug(categorySlug);
-  const product = getProductBySlug(productSlug);
+  const { queryClient, category, product } = await new CatalogDataBuilder()
+    .prefetchProductsData()
+    .prefetchReviewsData()
+    .withCategory(categorySlug)
+    .withProduct(productSlug)
+    .build();
+  const productsData = queryClient.getQueryData<ProductsDataResult>(
+    productsQuery.getData().queryKey,
+  )?.data;
 
-  if (!category || !product || product.categoryId !== category.id) {
+  if (!category || !product || !productsData || product.categoryId !== category.id) {
     notFound();
   }
 
-  return <ProductPage product={product} relatedProducts={getRelatedProducts(product)} />;
+  return (
+    <HydrationBoundary state={dehydrate(queryClient)}>
+      <ProductPage productId={product.id} />
+    </HydrationBoundary>
+  );
 }

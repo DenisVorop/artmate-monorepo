@@ -1,1 +1,1 @@
-export { allBlogCategories, getVisiblePosts } from "./blog-state";
+export { getVisiblePosts } from "./blog-state";

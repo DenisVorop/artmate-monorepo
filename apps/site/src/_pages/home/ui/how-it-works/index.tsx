@@ -1,10 +1,16 @@
+import type { HomeHowItWorksStep as HomeHowItWorksStepDTO } from "@/entities/home";
 import { Badge, cn } from "@/shared";
 import { SectionSubtitle, SectionTitle } from "@/shared/ui/typography";
-import { steps } from "./constants";
 import { StepCard } from "./ui/card";
 import { Connector } from "./ui/connector";
 
-export function HowItWorks({ className }: { className?: string }) {
+export function HowItWorks({
+  steps,
+  className,
+}: {
+  steps: HomeHowItWorksStepDTO[];
+  className?: string;
+}) {
   return (
     <section className={cn("relative overflow-hidden bg-[#faf9f7]", className)}>
       <div className="pointer-events-none absolute top-0 left-0 h-[500px] w-[500px] -translate-x-1/2 -translate-y-1/3 rounded-full bg-rose-100/40 blur-3xl" />

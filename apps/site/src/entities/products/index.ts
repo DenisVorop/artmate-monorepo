@@ -1,16 +1,16 @@
 export {
-  CATEGORIES,
-  PRODUCTS,
-  PRODUCT_HIGHLIGHTS,
-  PRODUCT_HOW_IT_WORKS,
-  PRODUCT_SPECS,
   getProductById,
   getProductBySlug,
   getProductCategory,
   getProductCategoryBySlug,
   getRelatedProducts,
+  emptyProductsData,
+  productsData,
 } from "./model";
-export type { Product, ProductCategory } from "./model";
+export type { Product, ProductCategory, ProductHighlight, ProductsData } from "./model";
+export { productsQuery } from "./model/query";
+export type { ProductsDataResult } from "./model/query";
+export { useProductsData } from "./model/use-products-data";
 export { DetailsTabs } from "./ui/details-tabs";
 export { Gallery } from "./ui/gallery";
 export { Highlights } from "./ui/highlights";

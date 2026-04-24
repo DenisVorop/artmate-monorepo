@@ -1,16 +1,24 @@
 import { Search, X } from "lucide-react";
 
 import { Button, Input, Separator } from "@/shared";
-import { allBlogCategories } from "../lib";
 
 type FiltersProps = {
+  categories: string[];
   query: string;
   category: string;
   onQueryChange(_value: string): void;
   onCategoryChange(_category: string): void;
 };
 
-export function Filters({ query, category, onQueryChange, onCategoryChange }: FiltersProps) {
+export function Filters({
+  categories,
+  query,
+  category,
+  onQueryChange,
+  onCategoryChange,
+}: FiltersProps) {
+  const availableCategories = ["Все", ...categories];
+
   return (
     <div className="flex flex-col gap-4 lg:flex-row">
       <div className="relative lg:max-w-sm lg:flex-1">
@@ -39,7 +47,7 @@ export function Filters({ query, category, onQueryChange, onCategoryChange }: Fi
       <Separator orientation="vertical" className="hidden h-8 lg:block" />
 
       <div className="-mx-1 flex gap-2 overflow-x-auto px-1 pb-1 sm:flex-wrap sm:overflow-visible sm:pb-0 lg:justify-end">
-        {allBlogCategories.map((item) => (
+        {availableCategories.map((item) => (
           <Button
             key={item}
             type="button"

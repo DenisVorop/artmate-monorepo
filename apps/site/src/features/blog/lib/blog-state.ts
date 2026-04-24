@@ -1,11 +1,12 @@
-import { BLOG_POSTS, getBlogCategories } from "@/entities/blog";
+import type { BlogPost } from "@/entities/blog";
 
-export const allBlogCategories = ["Все", ...getBlogCategories()] as const;
-
-export function getVisiblePosts({ query, category }: { query: string; category: string }) {
+export function getVisiblePosts(
+  posts: BlogPost[],
+  { query, category }: { query: string; category: string },
+) {
   const normalizedQuery = query.trim().toLowerCase();
 
-  return BLOG_POSTS.filter((post) => {
+  return posts.filter((post) => {
     const matchesCategory = category === "Все" || post.category === category;
     const matchesQuery =
       !normalizedQuery ||

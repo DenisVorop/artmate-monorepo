@@ -2,7 +2,9 @@
 
 import { useMemo, useState } from "react";
 
-import { getVisibleFaqSections } from "../lib";
+import { useFaqSections } from "@/entities/faq";
+
+import { decorateFaqSections, getVisibleFaqSections } from "../lib";
 import { EmptyState } from "./empty-state";
 import { Filters } from "./filters";
 import { HelpCard } from "./help-card";
@@ -11,9 +13,11 @@ import { List } from "./list";
 export function Faq() {
   const [query, setQuery] = useState("");
   const [activeSectionId, setActiveSectionId] = useState<string | null>(null);
-  const sections = useMemo(
-    () => getVisibleFaqSections({ query, activeSectionId }),
-    [activeSectionId, query],
+  const { sections: faqSections } = useFaqSections();
+  const sections = useMemo(() => decorateFaqSections(faqSections), [faqSections]);
+  const visibleSections = useMemo(
+    () => getVisibleFaqSections({ sections, query, activeSectionId }),
+    [activeSectionId, query, sections],
   );
 
   const handleQueryChange = (value: string) => {
@@ -29,14 +33,15 @@ export function Faq() {
 
       <div className="mx-auto max-w-4xl space-y-8">
         <Filters
+          sections={sections}
           query={query}
           activeSectionId={activeSectionId}
           onQueryChange={handleQueryChange}
           onSectionChange={setActiveSectionId}
         />
 
-        {sections.length > 0 ? (
-          <List sections={sections} />
+        {visibleSections.length > 0 ? (
+          <List sections={visibleSections} />
         ) : (
           <EmptyState query={query} onReset={() => handleQueryChange("")} />
         )}

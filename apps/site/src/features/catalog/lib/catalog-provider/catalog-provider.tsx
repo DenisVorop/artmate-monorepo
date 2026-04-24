@@ -2,7 +2,7 @@
 
 import { useCallback, useEffect, useMemo, useState, type ReactNode } from "react";
 import { useRouter } from "next/navigation";
-import { CATEGORIES, PRODUCTS, getProductCategory } from "@/entities/products";
+import { getProductCategory, type Product, type ProductCategory } from "@/entities/products";
 import {
   filterProducts,
   formatCount,
@@ -13,40 +13,47 @@ import {
 import { CatalogContext, type CatalogContextValue } from "./catalog.context";
 
 type CatalogProviderProps = {
+  categories: ProductCategory[];
+  products: Product[];
   initialCategoryId?: string;
   children: ReactNode;
 };
 
-export function CatalogProvider({ initialCategoryId, children }: CatalogProviderProps) {
+export function CatalogProvider({
+  categories,
+  products,
+  initialCategoryId,
+  children,
+}: CatalogProviderProps) {
   const router = useRouter();
-  const [categoryId, setCategoryId] = useState(() => normalizeCategoryId(initialCategoryId));
+  const [categoryId, setCategoryId] = useState(() => normalizeCategoryId(categories, initialCategoryId));
   const [query, setQuery] = useState("");
   const [sortBy, setSortBy] = useState<SortValue>("featured");
   const [onlyBestsellers, setOnlyBestsellers] = useState(false);
 
   useEffect(() => {
-    setCategoryId(normalizeCategoryId(initialCategoryId));
-  }, [initialCategoryId]);
+    setCategoryId(normalizeCategoryId(categories, initialCategoryId));
+  }, [categories, initialCategoryId]);
 
   const filteredProducts = useMemo(
     () =>
-      filterProducts(PRODUCTS, {
+      filterProducts(products, {
         categoryId,
         query,
         sortBy,
         onlyBestsellers,
       }),
-    [categoryId, onlyBestsellers, query, sortBy],
+    [categoryId, onlyBestsellers, products, query, sortBy],
   );
 
   const setCategory = useCallback(
     (nextCategoryId?: string) => {
-      const normalized = normalizeCategoryId(nextCategoryId);
+      const normalized = normalizeCategoryId(categories, nextCategoryId);
 
       setCategoryId(normalized);
-      router.replace(getCatalogHref(normalized), { scroll: false });
+      router.replace(getCatalogHref(categories, normalized), { scroll: false });
     },
-    [router],
+    [categories, router],
   );
 
   const clearQuery = useCallback(() => setQuery(""), []);
@@ -58,15 +65,15 @@ export function CatalogProvider({ initialCategoryId, children }: CatalogProvider
     setQuery("");
     setSortBy("featured");
     setOnlyBestsellers(false);
-    router.replace(getCatalogHref(), { scroll: false });
-  }, [router]);
+    router.replace(getCatalogHref(categories), { scroll: false });
+  }, [categories, router]);
 
   const value = useMemo<CatalogContextValue>(
     () => ({
-      categories: CATEGORIES,
-      products: PRODUCTS,
+      categories,
+      products,
       filteredProducts,
-      activeCategory: getProductCategory(categoryId),
+      activeCategory: getProductCategory(categories, categoryId),
       categoryId,
       query,
       onlyBestsellers,
@@ -88,8 +95,10 @@ export function CatalogProvider({ initialCategoryId, children }: CatalogProvider
       clearBestsellers,
       clearCategory,
       clearQuery,
+      categories,
       filteredProducts,
       onlyBestsellers,
+      products,
       query,
       setCategory,
       sortBy,

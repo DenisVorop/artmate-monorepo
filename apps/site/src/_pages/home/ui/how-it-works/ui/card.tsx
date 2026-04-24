@@ -1,3 +1,4 @@
+import type { HomeHowItWorksStep as HomeHowItWorksStepDTO } from "@/entities/home";
 import { Badge, Button, cn } from "@/shared";
 import { Link } from "@/shared/ui/link";
 import {
@@ -9,10 +10,10 @@ import {
   CardTitle,
 } from "@/shared/ui/card";
 import { ArrowRight } from "lucide-react";
-import { stepTones, type HowItWorksStep } from "../constants";
+import { stepIcons, stepTones } from "../constants";
 
-export function StepCard({ step }: { step: HowItWorksStep }) {
-  const Icon = step.icon;
+export function StepCard({ step }: { step: HomeHowItWorksStepDTO }) {
+  const Icon = stepIcons[step.icon];
   const tone = stepTones[step.tone];
 
   return (

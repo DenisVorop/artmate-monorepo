@@ -1,16 +1,23 @@
 import { Search, X } from "lucide-react";
 
 import { Button, Input, cn } from "@/shared";
-import { faqSections } from "../lib";
+import type { FaqSection } from "../lib";
 
 type FiltersProps = {
+  sections: FaqSection[];
   query: string;
   activeSectionId: string | null;
   onQueryChange(_value: string): void;
   onSectionChange(_sectionId: string | null): void;
 };
 
-export function Filters({ query, activeSectionId, onQueryChange, onSectionChange }: FiltersProps) {
+export function Filters({
+  sections,
+  query,
+  activeSectionId,
+  onQueryChange,
+  onSectionChange,
+}: FiltersProps) {
   return (
     <div className="space-y-4">
       <div className="relative">
@@ -48,7 +55,7 @@ export function Filters({ query, activeSectionId, onQueryChange, onSectionChange
             Все разделы
           </Button>
 
-          {faqSections.map((section) => {
+          {sections.map((section) => {
             const selected = activeSectionId === section.id;
             const Icon = section.icon;
 

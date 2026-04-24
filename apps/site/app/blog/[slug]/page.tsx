@@ -1,14 +1,12 @@
 import type { Metadata } from "next";
 import { notFound } from "next/navigation";
 
-import {
-  BLOG_POSTS,
-  getBlogPostBySlug,
-  getBlogPostContent,
-  getRelatedBlogPosts,
-} from "@/entities/blog";
+import { BlogPostDataBuilder } from "@/features/blog-post";
+import { blogPostPageQuery } from "@/features/blog-post/model/query";
 import { BlogPostPage } from "@/pages/blog-post";
 import { getBlogPostMetadata } from "@/pages/blog-post/metadata";
+import { getBlogPostBySlug, getBlogPosts } from "@/shared/actions/blog";
+import { HydrationBoundary, dehydrate } from "@tanstack/react-query";
 
 type BlogPostRouteProps = {
   params: Promise<{
@@ -16,15 +14,17 @@ type BlogPostRouteProps = {
   }>;
 };
 
-export function generateStaticParams() {
-  return BLOG_POSTS.map((post) => ({
+export async function generateStaticParams() {
+  const posts = (await getBlogPosts()).data?.items ?? [];
+
+  return posts.map((post) => ({
     slug: post.id,
   }));
 }
 
 export async function generateMetadata({ params }: BlogPostRouteProps): Promise<Metadata> {
   const { slug } = await params;
-  const post = getBlogPostBySlug(slug);
+  const post = await getBlogPostBySlug(slug);
 
   if (!post) {
     return {};
@@ -35,17 +35,18 @@ export async function generateMetadata({ params }: BlogPostRouteProps): Promise<
 
 export default async function Page({ params }: BlogPostRouteProps) {
   const { slug } = await params;
-  const post = getBlogPostBySlug(slug);
+  const { queryClient } = await new BlogPostDataBuilder()
+    .prefetchPostPage(slug)
+    .build();
+  const postPageData = queryClient.getQueryData(blogPostPageQuery(slug).queryKey);
 
-  if (!post) {
+  if (!postPageData?.post || !postPageData.content) {
     notFound();
   }
 
-  const content = getBlogPostContent(post.id);
-
-  if (!content) {
-    notFound();
-  }
-
-  return <BlogPostPage post={post} content={content} relatedPosts={getRelatedBlogPosts(post)} />;
+  return (
+    <HydrationBoundary state={dehydrate(queryClient)}>
+      <BlogPostPage slug={slug} />
+    </HydrationBoundary>
+  );
 }

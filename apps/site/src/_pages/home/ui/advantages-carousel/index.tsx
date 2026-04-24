@@ -1,17 +1,6 @@
 import { InfiniteCarousel } from "@/shared/ui/infinite-carousel";
 
-const advantages = [
-  "Антистресс",
-  "Сегментированные иллюстрации",
-  "Бумага 190 г/м²",
-  "Спиральный переплёт",
-  "Идеально для\u00a0маркеров",
-  "Расслабление",
-  "Творчество",
-  "Дзен",
-];
-
-export function AdvantagesCarousel() {
+export function AdvantagesCarousel({ advantages }: { advantages: string[] }) {
   return (
     <InfiniteCarousel
       className="border-y border-stone-200 bg-white py-3 select-none"

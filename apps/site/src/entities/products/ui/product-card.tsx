@@ -7,7 +7,7 @@ import { Badge, Button, cn, routes } from "@/shared";
 import { AspectRatio } from "@/shared/ui/aspect-ratio";
 import { Card, CardContent, CardDescription, CardFooter, CardTitle } from "@/shared/ui/card";
 import { Link } from "@/shared/ui/link";
-import { getProductCategory, type Product } from "../model";
+import type { Product } from "../model";
 
 interface ProductCardProps {
   product: Product;
@@ -39,8 +39,7 @@ export function ProductCard({ product, eagerImage = false }: ProductCardProps) {
   };
 
   const price = product.price.toLocaleString("ru-RU");
-  const category = getProductCategory(product.categoryId);
-  const productHref = routes.product(category?.slug ?? product.categoryId, product.slug);
+  const productHref = routes.product(product.categorySlug, product.slug);
   const addButtonLabel = added ? "Добавлено" : "В корзину";
   const AddIcon = added ? Check : ShoppingBag;
   const addButtonClassName = added

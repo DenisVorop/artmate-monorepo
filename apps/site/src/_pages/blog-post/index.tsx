@@ -1,5 +1,6 @@
-import type { BlogArticleContent, BlogPost } from "@/entities/blog";
-import { ReadingProgress } from "@/features/blog-post";
+"use client";
+
+import { ReadingProgress, useBlogPostPageData } from "@/features/blog-post";
 import { Separator } from "@/shared";
 import { Article } from "./ui/article";
 import { Hero } from "./ui/hero";
@@ -9,12 +10,16 @@ import { Sidebar } from "./ui/sidebar";
 const BLOG_POST_ARTICLE_ID = "blog-post-article";
 
 type BlogPostPageProps = {
-  post: BlogPost;
-  content: BlogArticleContent;
-  relatedPosts: BlogPost[];
+  slug: string;
 };
 
-export function BlogPostPage({ post, content, relatedPosts }: BlogPostPageProps) {
+export function BlogPostPage({ slug }: BlogPostPageProps) {
+  const { post, content, relatedPosts } = useBlogPostPageData(slug);
+
+  if (!post || !content) {
+    return null;
+  }
+
   return (
     <main className="bg-background">
       <ReadingProgress articleId={BLOG_POST_ARTICLE_ID} />

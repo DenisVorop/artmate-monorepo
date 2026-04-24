@@ -1,10 +1,10 @@
 import { ArrowRight } from "lucide-react";
 import { SectionLabel, SectionTitle } from "@/shared/ui/typography";
 import { Button, CtaGradientLink, DecorDots, cn, routes } from "@/shared";
-import { ProductCard, PRODUCTS } from "@/entities/products";
+import { ProductCard, type Product } from "@/entities/products";
 
-export function Bestsellers({ className }: { className?: string }) {
-  const bestsellers = PRODUCTS.filter((p) => p.bestseller).slice(0, 4);
+export function Bestsellers({ products, className }: { products: Product[]; className?: string }) {
+  const bestsellers = products.filter((p) => p.bestseller).slice(0, 4);
 
   return (
     <section

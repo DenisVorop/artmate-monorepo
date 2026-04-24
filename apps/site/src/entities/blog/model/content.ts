@@ -1,5 +1,5 @@
-import type { BlogPost } from "./model";
-import { routes } from "@/shared";
+import type { BlogPost } from "@/entities/blog/model";
+import { routes } from "@/shared/constants";
 
 export type BlogArticleHighlight = {
   emoji: string;

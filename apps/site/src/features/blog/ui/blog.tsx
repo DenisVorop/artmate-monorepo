@@ -2,7 +2,7 @@
 
 import { useMemo, useState } from "react";
 
-import { BLOG_POSTS, getFeaturedPost } from "@/entities/blog";
+import { useBlogPosts } from "@/entities/blog";
 import { getVisiblePosts } from "../lib";
 import { EmptyState } from "./empty-state";
 import { Filters } from "./filters";
@@ -11,12 +11,15 @@ import { List } from "./list";
 export function Blog() {
   const [query, setQuery] = useState("");
   const [category, setCategory] = useState("Все");
-  const featuredPost = getFeaturedPost();
-  const posts = useMemo(() => getVisiblePosts({ query, category }), [category, query]);
+  const { posts, categories, featuredPost } = useBlogPosts();
+  const visiblePostsByFilters = useMemo(
+    () => getVisiblePosts(posts, { query, category }),
+    [category, posts, query],
+  );
   const showFeatured = Boolean(featuredPost && !query && category === "Все");
   const visiblePosts = showFeatured
-    ? BLOG_POSTS.filter((post) => post.id !== featuredPost?.id)
-    : posts;
+    ? posts.filter((post) => post.id !== featuredPost?.id)
+    : visiblePostsByFilters;
 
   const resetFilters = () => {
     setQuery("");
@@ -31,13 +34,14 @@ export function Blog() {
 
       <div className="mx-auto max-w-4xl space-y-8">
         <Filters
+          categories={categories}
           query={query}
           category={category}
           onQueryChange={setQuery}
           onCategoryChange={setCategory}
         />
 
-        {posts.length === 0 ? (
+        {visiblePostsByFilters.length === 0 ? (
           <EmptyState onReset={resetFilters} />
         ) : (
           <List posts={visiblePosts} featuredPost={showFeatured ? featuredPost : undefined} />

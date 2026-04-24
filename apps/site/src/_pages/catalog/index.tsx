@@ -1,5 +1,6 @@
-export { metadata } from "./metadata";
+"use client";
 
+import { useProductsData } from "@/entities/products";
 import { Catalog } from "@/features/catalog";
 import { Separator } from "@/shared";
 import { Hero } from "./ui/hero";
@@ -9,6 +10,8 @@ type CatalogPageProps = {
 };
 
 export function CatalogPage({ initialCategoryId }: CatalogPageProps) {
+  const { categories, products } = useProductsData();
+
   return (
     <main className="bg-background">
       <Hero />
@@ -17,7 +20,7 @@ export function CatalogPage({ initialCategoryId }: CatalogPageProps) {
         <Separator />
       </div>
 
-      <Catalog initialCategoryId={initialCategoryId} />
+      <Catalog categories={categories} products={products} initialCategoryId={initialCategoryId} />
     </main>
   );
 }

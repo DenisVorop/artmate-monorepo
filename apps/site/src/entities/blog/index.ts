@@ -3,16 +3,16 @@ export type {
   BlogArticleHighlight,
   BlogArticleSection,
   BlogArticleTip,
-} from "./article-content";
+} from "./model/content";
 export {
   BLOG_POSTS,
-  getBlogCategories,
-  getBlogPostById,
-  getBlogPostBySlug,
-  getBlogPostContent,
-  getFeaturedPost,
-  getRelatedBlogPosts,
   type BlogAuthor,
   type BlogPost,
+  type BlogPostsData,
+  blogPostsData,
+  emptyBlogPostsData,
 } from "./model";
+export { blogQuery } from "./model/query";
+export type { BlogPostsResult } from "./model/query";
+export { useBlogPosts } from "./model/use-blog-posts";
 export { FeaturedPost, PostCard } from "./ui";

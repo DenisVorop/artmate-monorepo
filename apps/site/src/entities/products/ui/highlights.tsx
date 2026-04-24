@@ -1,7 +1,7 @@
 import { FileText, ShieldCheck, Truck } from "lucide-react";
 
 import { Card, CardContent, CardTitle } from "@/shared";
-import { PRODUCT_HIGHLIGHTS } from "../model";
+import type { ProductHighlight } from "../model";
 
 const highlightIcons = {
   delivery: Truck,
@@ -9,10 +9,10 @@ const highlightIcons = {
   print: FileText,
 } as const;
 
-export function Highlights() {
+export function Highlights({ items }: { items: ProductHighlight[] }) {
   return (
     <div className="grid gap-3 sm:grid-cols-3">
-      {PRODUCT_HIGHLIGHTS.map((item) => {
+      {items.map((item) => {
         const Icon = highlightIcons[item.id];
 
         return (

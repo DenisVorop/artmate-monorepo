@@ -1,9 +1,13 @@
 import type { Metadata } from "next";
 import { notFound } from "next/navigation";
 
+import { CatalogDataBuilder } from "@/app/lib/catalog-data-builder";
 import { CatalogPage } from "@/pages/catalog";
-import { CATEGORIES, getProductCategoryBySlug } from "@/entities/products";
+import { getProductCategoryBySlug } from "@/entities/products";
+import { productsQuery, type ProductsDataResult } from "@/entities/products/model/query";
+import { getProductsData } from "@/shared/actions/products";
 import { routes, siteConfig } from "@/shared";
+import { HydrationBoundary, dehydrate } from "@tanstack/react-query";
 
 type CatalogCategoryRouteProps = {
   params: Promise<{
@@ -11,15 +15,18 @@ type CatalogCategoryRouteProps = {
   }>;
 };
 
-export function generateStaticParams() {
-  return CATEGORIES.map((category) => ({
+export async function generateStaticParams() {
+  const productsData = (await getProductsData()).data;
+
+  return (productsData?.categories ?? []).map((category) => ({
     categorySlug: category.slug,
   }));
 }
 
 export async function generateMetadata({ params }: CatalogCategoryRouteProps): Promise<Metadata> {
   const { categorySlug } = await params;
-  const category = getProductCategoryBySlug(categorySlug);
+  const productsData = (await getProductsData()).data;
+  const category = getProductCategoryBySlug(productsData?.categories ?? [], categorySlug);
 
   if (!category) {
     return {};
@@ -64,11 +71,21 @@ export async function generateMetadata({ params }: CatalogCategoryRouteProps): P
 
 export default async function Page({ params }: CatalogCategoryRouteProps) {
   const { categorySlug } = await params;
-  const category = getProductCategoryBySlug(categorySlug);
+  const { queryClient, category } = await new CatalogDataBuilder()
+    .prefetchProductsData()
+    .withCategory(categorySlug)
+    .build();
+  const productsData = queryClient.getQueryData<ProductsDataResult>(
+    productsQuery.getData().queryKey,
+  )?.data;
 
-  if (!category) {
+  if (!category || !productsData) {
     notFound();
   }
 
-  return <CatalogPage initialCategoryId={category.id} />;
+  return (
+    <HydrationBoundary state={dehydrate(queryClient)}>
+      <CatalogPage initialCategoryId={category.id} />
+    </HydrationBoundary>
+  );
 }

@@ -3,6 +3,7 @@ import { Badge, cn } from "@/shared";
 import { AspectRatio } from "@/shared/ui/aspect-ratio";
 import { Card, CardContent, CardDescription, CardTitle } from "@/shared/ui/card";
 import { Progress } from "@/shared/ui/progress";
+import type { HomeHeroMetrics as HomeHeroMetricsDTO } from "@/entities/home";
 import { Star } from "lucide-react";
 import Image from "next/image";
 import type { CSSProperties, ReactNode } from "react";
@@ -65,7 +66,7 @@ function CollagePhoto({
   );
 }
 
-export function Collage() {
+export function Collage({ metrics }: { metrics: HomeHeroMetricsDTO }) {
   return (
     <div className="relative order-1 flex min-h-[360px] items-center justify-center lg:order-2 lg:min-h-0">
       <CollagePhoto
@@ -109,7 +110,7 @@ export function Collage() {
           <div>
             <CardDescription className="text-xs text-stone-400">Рейтинг</CardDescription>
             <CardTitle className="font-display leading-none font-bold text-stone-900">
-              4.9 / 5
+              {metrics.ratingLabel}
             </CardTitle>
           </div>
         </CardContent>
@@ -120,10 +121,12 @@ export function Collage() {
           <CardDescription className="mb-0.5 text-xs text-stone-400">
             Уже раскрасили
           </CardDescription>
-          <CardTitle className="font-display font-bold text-stone-900">30 000+ человек</CardTitle>
+          <CardTitle className="font-display font-bold text-stone-900">
+            {metrics.paintedCountLabel}
+          </CardTitle>
           <Progress
             aria-label="Прогресс раскрасок"
-            value={80}
+            value={metrics.progressValue}
             className="mt-1.5 h-1.5 bg-stone-200 [&_[data-slot=progress-indicator]]:bg-rose-400"
           />
         </CardContent>

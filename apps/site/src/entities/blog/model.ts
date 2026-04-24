@@ -1,5 +1,3 @@
-import { BLOG_ARTICLE_CONTENT, createFallbackBlogArticleContent } from "./article-content";
-
 export type BlogAuthor = {
   name: string;
   role: string;
@@ -18,6 +16,14 @@ export type BlogPost = {
   tags: string[];
   author: BlogAuthor;
   featured?: boolean;
+};
+
+export type BlogPostsData = {
+  items: BlogPost[];
+};
+
+export const emptyBlogPostsData: BlogPostsData = {
+  items: [],
 };
 
 const AUTHORS = {
@@ -116,42 +122,6 @@ export const BLOG_POSTS = [
   },
 ] satisfies BlogPost[];
 
-export function getBlogCategories() {
-  return Array.from(new Set(BLOG_POSTS.map((post) => post.category)));
-}
-
-export function getFeaturedPost() {
-  return BLOG_POSTS.find((post) => post.featured);
-}
-
-export function getBlogPostById(id?: string) {
-  return BLOG_POSTS.find((post) => post.id === id);
-}
-
-export function getBlogPostBySlug(slug?: string) {
-  return getBlogPostById(slug);
-}
-
-export function getBlogPostContent(postId: string) {
-  const post = getBlogPostById(postId);
-
-  if (!post) {
-    return undefined;
-  }
-
-  return BLOG_ARTICLE_CONTENT[postId] ?? createFallbackBlogArticleContent(post);
-}
-
-export function getRelatedBlogPosts(post: BlogPost, limit = 3) {
-  const candidates = BLOG_POSTS.filter((candidate) => candidate.id !== post.id);
-  const sameCategory = candidates.filter((candidate) => candidate.category === post.category);
-  const sameTags = candidates.filter(
-    (candidate) =>
-      candidate.category !== post.category &&
-      candidate.tags.some((tag) => post.tags.includes(tag)),
-  );
-  const seen = new Set([...sameCategory, ...sameTags].map((candidate) => candidate.id));
-  const rest = candidates.filter((candidate) => !seen.has(candidate.id));
-
-  return [...sameCategory, ...sameTags, ...rest].slice(0, limit);
-}
+export const blogPostsData = {
+  items: BLOG_POSTS,
+} satisfies BlogPostsData;
