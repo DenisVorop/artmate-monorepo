@@ -1,8 +1,8 @@
 'use server';
 
-import { faqSectionsData } from "@/entities/faq/model";
-import type { FaqSectionsData } from "@/entities/faq/model";
 import { ApiResult, type ApiResultDTO } from "@/shared/lib/api-result";
+
+import { faqSectionsData, type FaqSectionsData } from "./faq.data";
 
 export async function getFaqSections(): Promise<ApiResultDTO<FaqSectionsData>> {
   const result = await ApiResult.prepareApi(async () => faqSectionsData, {

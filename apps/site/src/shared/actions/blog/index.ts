@@ -9,10 +9,10 @@ export {
   getRelatedBlogPosts,
 } from "./blog.actions";
 export type { BlogPostPageDataDTO } from "./blog.actions";
-export type { BlogAuthor, BlogPost, BlogPostsData } from "@/entities/blog/model";
+export type { BlogAuthor, BlogPost, BlogPostsData } from "./blog.data";
 export type {
   BlogArticleContent,
   BlogArticleHighlight,
   BlogArticleSection,
   BlogArticleTip,
-} from "@/entities/blog/model/content";
+} from "./blog-content.data";

@@ -5,11 +5,9 @@ export type {
   BlogArticleTip,
 } from "./model/content";
 export {
-  BLOG_POSTS,
   type BlogAuthor,
   type BlogPost,
   type BlogPostsData,
-  blogPostsData,
   emptyBlogPostsData,
 } from "./model";
 export { blogQuery } from "./model/query";

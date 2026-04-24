@@ -3,4 +3,4 @@ export type {
   FaqItem,
   FaqSection,
   FaqSectionsData,
-} from "@/entities/faq/model";
+} from "./faq.data";

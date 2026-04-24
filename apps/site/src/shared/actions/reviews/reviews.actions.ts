@@ -1,8 +1,8 @@
 'use server';
 
-import { reviewsData } from "@/entities/reviews/model";
-import type { ReviewsData } from "@/entities/reviews/model";
 import { ApiResult, type ApiResultDTO } from "@/shared/lib/api-result";
+
+import { reviewsData, type ReviewsData } from "./reviews.data";
 
 export async function getReviewsData(): Promise<ApiResultDTO<ReviewsData>> {
   const result = await ApiResult.prepareApi(async () => reviewsData, {

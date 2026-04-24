@@ -5,7 +5,6 @@ export {
   getProductCategoryBySlug,
   getRelatedProducts,
   emptyProductsData,
-  productsData,
 } from "./model";
 export type { Product, ProductCategory, ProductHighlight, ProductsData } from "./model";
 export { productsQuery } from "./model/query";

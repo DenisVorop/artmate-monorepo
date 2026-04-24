@@ -1,8 +1,8 @@
 'use server';
 
-import { homeData } from "@/entities/home/model";
-import type { HomeData } from "@/entities/home/model";
 import { ApiResult, type ApiResultDTO } from "@/shared/lib/api-result";
+
+import { homeData, type HomeData } from "./home.data";
 
 export async function getHomeData(): Promise<ApiResultDTO<HomeData>> {
   const result = await ApiResult.prepareApi(async () => homeData, {

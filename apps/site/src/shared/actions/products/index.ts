@@ -1,7 +1,11 @@
 export { getProductsData } from "./products.actions";
 export type {
+  ProductCategory,
   ProductCategory as ProductCategoryDTO,
+  Product,
   Product as ProductDTO,
+  ProductHighlight,
   ProductHighlight as ProductHighlightDTO,
+  ProductsData,
   ProductsData as ProductsDataDTO,
-} from "@/entities/products/model";
+} from "./products.data";

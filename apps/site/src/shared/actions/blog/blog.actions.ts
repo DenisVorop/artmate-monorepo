@@ -4,8 +4,8 @@ import {
   BLOG_ARTICLE_CONTENT,
   createFallbackBlogArticleContent,
   type BlogArticleContent,
-} from "@/entities/blog/model/content";
-import { blogPostsData, type BlogPost, type BlogPostsData } from "@/entities/blog/model";
+} from "./blog-content.data";
+import { blogPostsData, type BlogPost, type BlogPostsData } from "./blog.data";
 import { ApiResult, type ApiResultDTO } from "@/shared/lib/api-result";
 
 export async function getBlogPosts(): Promise<ApiResultDTO<BlogPostsData>> {
