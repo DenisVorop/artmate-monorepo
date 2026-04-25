@@ -3,7 +3,7 @@
 import { useRouter } from "next/navigation";
 import { LoaderCircle, LogIn, LogOut, UserRound } from "lucide-react";
 
-import { useSessionData } from "@/entities/session";
+import { useUser } from "@/entities/session";
 import { routes } from "@/shared/constants";
 import {
   Button,
@@ -20,22 +20,12 @@ import { useLogoutMutation } from "../model";
 
 export function SessionMenu() {
   const router = useRouter();
-  const { data: session, isPending: isSessionPending } = useSessionData();
   const { mutate: logout, isPending: isLogoutPending } = useLogoutMutation();
-  const user = session?.user;
+  const user = useUser();
 
   async function handleLogout() {
     await logout();
     router.refresh();
-  }
-
-  if (isSessionPending && !session) {
-    return (
-      <Button type="button" variant="outline" disabled aria-label="Проверка сессии">
-        <LoaderCircle data-icon="inline-start" className="animate-spin" />
-        <span className="hidden sm:inline">Аккаунт</span>
-      </Button>
-    );
   }
 
   if (!user) {
@@ -67,9 +57,7 @@ export function SessionMenu() {
         <DropdownMenuLabel>
           <span className="block truncate font-medium">{title}</span>
           {user.email && (
-            <span className="block truncate text-xs font-normal text-stone-500">
-              {user.email}
-            </span>
+            <span className="block truncate text-xs font-normal text-stone-500">{user.email}</span>
           )}
         </DropdownMenuLabel>
         <DropdownMenuSeparator />

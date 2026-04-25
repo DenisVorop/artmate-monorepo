@@ -36,9 +36,7 @@ export async function generateMetadata({ params }: BlogPostRouteProps): Promise<
 
 export default async function Page({ params }: BlogPostRouteProps) {
   const { slug } = await params;
-  const { queryClient } = await new BlogPostDataBuilder()
-    .withPostPage(slug)
-    .build();
+  const { queryClient } = await new BlogPostDataBuilder().withPostPage(slug).build();
   const postPageData = queryClient.getQueryData(blogPostPageQuery(slug).queryKey);
 
   if (!postPageData?.post || !postPageData.content) {

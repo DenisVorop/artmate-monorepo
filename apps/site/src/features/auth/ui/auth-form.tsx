@@ -5,7 +5,7 @@ import { useRouter, useSearchParams } from "next/navigation";
 import { ExternalLink, LoaderCircle, LogIn, UserPlus, UserRound } from "lucide-react";
 import { useForm } from "react-hook-form";
 
-import { useSessionData, type AuthUser } from "@/entities/session";
+import { useUser, type AuthUser } from "@/entities/session";
 import type { LoginInputDTO, RegisterInputDTO } from "@/shared/actions/auth";
 import { routes } from "@/shared/constants";
 import {
@@ -35,10 +35,10 @@ type RegisterFormValues = RegisterInputDTO & {
 
 export function AuthForm() {
   const [mode, setMode] = useState<AuthMode>("login");
-  const { data: session, isPending } = useSessionData();
+  const user = useUser();
 
-  if (session?.user) {
-    return <AuthenticatedPanel user={session.user} />;
+  if (user) {
+    return <AuthenticatedPanel user={user} />;
   }
 
   return (
@@ -57,11 +57,11 @@ export function AuthForm() {
           </TabsList>
 
           <TabsContent value="login" className="mt-4">
-            <LoginForm isSessionPending={isPending} />
+            <LoginForm />
           </TabsContent>
 
           <TabsContent value="register" className="mt-4">
-            <RegisterForm isSessionPending={isPending} />
+            <RegisterForm />
           </TabsContent>
         </Tabs>
       </CardContent>
@@ -69,7 +69,7 @@ export function AuthForm() {
   );
 }
 
-function LoginForm({ isSessionPending }: { isSessionPending: boolean }) {
+function LoginForm() {
   const router = useRouter();
   const searchParams = useSearchParams();
   const [submitError, setSubmitError] = useState<string>();
@@ -85,11 +85,8 @@ function LoginForm({ isSessionPending }: { isSessionPending: boolean }) {
     },
     mode: "onSubmit",
   });
-  const isSubmitting = isPending || isSessionPending;
-  const redirectPath = useMemo(
-    () => getSafeRedirectPath(searchParams.get("next")),
-    [searchParams],
-  );
+  const isSubmitting = isPending;
+  const redirectPath = useMemo(() => getSafeRedirectPath(searchParams.get("next")), [searchParams]);
 
   const submitForm = handleSubmit(async (values) => {
     setSubmitError(undefined);
@@ -153,7 +150,7 @@ function LoginForm({ isSessionPending }: { isSessionPending: boolean }) {
   );
 }
 
-function RegisterForm({ isSessionPending }: { isSessionPending: boolean }) {
+function RegisterForm() {
   const router = useRouter();
   const searchParams = useSearchParams();
   const [submitError, setSubmitError] = useState<string>();
@@ -174,11 +171,8 @@ function RegisterForm({ isSessionPending }: { isSessionPending: boolean }) {
     mode: "onSubmit",
   });
   const password = watch("password");
-  const isSubmitting = isPending || isSessionPending;
-  const redirectPath = useMemo(
-    () => getSafeRedirectPath(searchParams.get("next")),
-    [searchParams],
-  );
+  const isSubmitting = isPending;
+  const redirectPath = useMemo(() => getSafeRedirectPath(searchParams.get("next")), [searchParams]);
 
   const submitForm = handleSubmit(async (values) => {
     setSubmitError(undefined);
