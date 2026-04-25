@@ -1,32 +1,39 @@
-export type CartProductDTO = {
-  id: string;
-  title: string;
-  slug: string;
-  price: number;
-  category: string;
-  categorySlug: string;
-  image: string;
-};
+import { Type } from "class-transformer";
+import {
+  IsArray,
+  IsIn,
+  IsInt,
+  IsNotEmpty,
+  IsNumber,
+  IsString,
+  Min,
+  ValidateNested,
+} from "class-validator";
 
-export type CartItemDTO = CartProductDTO & {
-  quantity: number;
-  lineTotal: number;
-};
+import { CartItemDTO } from "./cart-item.dto";
 
-export type CartDTO = {
-  id: string;
-  items: CartItemDTO[];
-  itemsCount: number;
-  subtotal: number;
-  total: number;
-  currency: "RUB";
-};
+export class CartDTO {
+  @IsString()
+  @IsNotEmpty()
+  id!: string;
 
-export type AddCartItemRequestDTO = {
-  product: CartProductDTO;
-  quantity?: number;
-};
+  @IsArray()
+  @ValidateNested({ each: true })
+  @Type(() => CartItemDTO)
+  items!: CartItemDTO[];
 
-export type UpdateCartItemRequestDTO = {
-  quantity: number;
-};
+  @IsInt()
+  @Min(0)
+  itemsCount!: number;
+
+  @IsNumber({ allowInfinity: false, allowNaN: false })
+  @Min(0)
+  subtotal!: number;
+
+  @IsNumber({ allowInfinity: false, allowNaN: false })
+  @Min(0)
+  total!: number;
+
+  @IsIn(["RUB"])
+  currency!: "RUB";
+}

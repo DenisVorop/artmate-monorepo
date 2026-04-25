@@ -1,6 +1,12 @@
 import { Body, Controller, Get, Headers, Param, Post } from "@nestjs/common";
 
-import type { CreateOrderRequestDTO } from "./dto/order.dto";
+import { ValidateResponse } from "../common/response-validation.interceptor";
+
+import {
+  CreateOrderRequestDTO,
+  OrderDTO,
+  PickupPointDTO,
+} from "./dto";
 import { OrdersService } from "./orders.service";
 
 const CART_COOKIE_NAME = "cart_id";
@@ -9,11 +15,13 @@ const CART_COOKIE_NAME = "cart_id";
 export class OrdersController {
   constructor(private readonly ordersService: OrdersService) {}
 
+  @ValidateResponse(PickupPointDTO, { isArray: true })
   @Get("pickup-points")
   getPickupPoints() {
     return this.ordersService.getPickupPoints();
   }
 
+  @ValidateResponse(OrderDTO)
   @Post()
   createOrder(
     @Body() request: CreateOrderRequestDTO,
@@ -25,11 +33,13 @@ export class OrdersController {
     );
   }
 
+  @ValidateResponse(OrderDTO)
   @Get(":orderId")
   getOrder(@Param("orderId") orderId: string) {
     return this.ordersService.getOrder(orderId);
   }
 
+  @ValidateResponse(OrderDTO)
   @Post(":orderId/confirm-payment")
   confirmPayment(@Param("orderId") orderId: string) {
     return this.ordersService.confirmPayment(orderId);

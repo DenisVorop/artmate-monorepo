@@ -3,14 +3,11 @@ import { BadRequestException, Injectable } from "@nestjs/common";
 import { CartService } from "../cart/cart.service";
 import { CartStorage } from "../cart/cart.storage";
 
-import type {
-  CreateOrderRequestDTO,
-  OrderDTO,
-  PickupPointDTO,
-} from "./dto/order.dto";
+import { ORDER_COMMENT_MAX_LENGTH } from "./orders.constants";
+import type { CreateOrderRequestDTO, OrderDTO, PickupPointDTO } from "./dto";
 import { OrdersStorage } from "./orders.storage";
 
-const MAX_COMMENT_LENGTH = 1000;
+const MAX_COMMENT_LENGTH = ORDER_COMMENT_MAX_LENGTH;
 
 @Injectable()
 export class OrdersService {

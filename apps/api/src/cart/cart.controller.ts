@@ -1,7 +1,13 @@
 import { Body, Controller, Delete, Get, Headers, Param, Patch, Post, Res } from "@nestjs/common";
 
+import { ValidateResponse } from "../common/response-validation.interceptor";
+
 import { CartService } from "./cart.service";
-import type { AddCartItemRequestDTO, UpdateCartItemRequestDTO } from "./dto/cart.dto";
+import {
+  AddCartItemRequestDTO,
+  CartDTO,
+  UpdateCartItemRequestDTO,
+} from "./dto";
 
 const CART_COOKIE_NAME = "cart_id";
 const CART_COOKIE_MAX_AGE_MS = 1000 * 60 * 60 * 24 * 30;
@@ -24,6 +30,7 @@ type CookieResponse = {
 export class CartController {
   constructor(private readonly cartService: CartService) {}
 
+  @ValidateResponse(CartDTO)
   @Get()
   getCart(@Headers("cookie") cookieHeader: string | undefined, @Res({ passthrough: true }) response: CookieResponse) {
     const cart = this.cartService.getCart(this.getCartId(cookieHeader));
@@ -32,6 +39,7 @@ export class CartController {
     return cart;
   }
 
+  @ValidateResponse(CartDTO)
   @Post("items")
   addItem(
     @Body() request: AddCartItemRequestDTO,
@@ -44,6 +52,7 @@ export class CartController {
     return cart;
   }
 
+  @ValidateResponse(CartDTO)
   @Patch("items/:productId")
   updateItem(
     @Param("productId") productId: string,
@@ -57,6 +66,7 @@ export class CartController {
     return cart;
   }
 
+  @ValidateResponse(CartDTO)
   @Delete("items/:productId")
   removeItem(
     @Param("productId") productId: string,
@@ -69,6 +79,7 @@ export class CartController {
     return cart;
   }
 
+  @ValidateResponse(CartDTO)
   @Delete()
   clearCart(@Headers("cookie") cookieHeader: string | undefined, @Res({ passthrough: true }) response: CookieResponse) {
     const cart = this.cartService.clearCart(this.getCartId(cookieHeader));

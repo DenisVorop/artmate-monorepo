@@ -2,7 +2,7 @@ import { randomUUID } from "node:crypto";
 
 import { Injectable } from "@nestjs/common";
 
-import type { CartDTO, CartItemDTO, CartProductDTO } from "./dto/cart.dto";
+import type { CartDTO, CartItemDTO, CartProductDTO } from "./dto";
 
 type StoredCartItem = {
   product: CartProductDTO;

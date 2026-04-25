@@ -1,62 +1,90 @@
-import type { CartItemDTO } from "../../cart/dto/cart.dto";
+import { Type } from "class-transformer";
+import {
+  IsArray,
+  IsDefined,
+  IsISO8601,
+  IsIn,
+  IsInt,
+  IsNotEmpty,
+  IsNumber,
+  IsOptional,
+  IsString,
+  MaxLength,
+  Min,
+  ValidateNested,
+} from "class-validator";
 
-export type OrderStatus = "pending_payment" | "paid";
-export type PaymentMethod = "bank_card_mock";
-export type PaymentStatus = "pending" | "paid";
-export type DeliveryProvider = "ozon";
+import { CartItemDTO } from "../../cart/dto";
+import {
+  ORDER_COMMENT_MAX_LENGTH,
+  orderStatuses,
+  type OrderStatus,
+} from "../orders.constants";
 
-export type PickupPointDTO = {
-  id: string;
-  title: string;
-  address: string;
-  workHours: string;
-  deliveryPrice: number;
-};
+import { OrderCustomerDTO } from "./order-customer.dto";
+import { OrderDeliveryDTO } from "./order-delivery.dto";
+import { OrderPaymentDTO } from "./order-payment.dto";
 
-export type OrderCustomerDTO = {
-  name: string;
-  phone: string;
-  email: string;
-};
+export class OrderDTO {
+  @IsString()
+  @IsNotEmpty()
+  id!: string;
 
-export type OrderDeliveryDTO = {
-  provider: DeliveryProvider;
-  pickupPoint: PickupPointDTO;
-};
+  @IsString()
+  @IsNotEmpty()
+  cartId!: string;
 
-export type OrderPaymentDTO = {
-  method: PaymentMethod;
-  status: PaymentStatus;
-  redirectUrl: string;
-};
+  @IsIn(orderStatuses)
+  status!: OrderStatus;
 
-export type OrderDTO = {
-  id: string;
-  cartId: string;
-  status: OrderStatus;
-  customer: OrderCustomerDTO;
-  delivery: OrderDeliveryDTO;
-  payment: OrderPaymentDTO;
-  items: CartItemDTO[];
-  itemsCount: number;
-  subtotal: number;
-  deliveryPrice: number;
-  total: number;
-  currency: "RUB";
+  @IsDefined()
+  @ValidateNested()
+  @Type(() => OrderCustomerDTO)
+  customer!: OrderCustomerDTO;
+
+  @IsDefined()
+  @ValidateNested()
+  @Type(() => OrderDeliveryDTO)
+  delivery!: OrderDeliveryDTO;
+
+  @IsDefined()
+  @ValidateNested()
+  @Type(() => OrderPaymentDTO)
+  payment!: OrderPaymentDTO;
+
+  @IsArray()
+  @ValidateNested({ each: true })
+  @Type(() => CartItemDTO)
+  items!: CartItemDTO[];
+
+  @IsInt()
+  @Min(0)
+  itemsCount!: number;
+
+  @IsNumber({ allowInfinity: false, allowNaN: false })
+  @Min(0)
+  subtotal!: number;
+
+  @IsNumber({ allowInfinity: false, allowNaN: false })
+  @Min(0)
+  deliveryPrice!: number;
+
+  @IsNumber({ allowInfinity: false, allowNaN: false })
+  @Min(0)
+  total!: number;
+
+  @IsIn(["RUB"])
+  currency!: "RUB";
+
+  @IsOptional()
+  @IsString()
+  @MaxLength(ORDER_COMMENT_MAX_LENGTH)
   comment?: string;
-  createdAt: string;
+
+  @IsISO8601()
+  createdAt!: string;
+
+  @IsOptional()
+  @IsISO8601()
   paidAt?: string;
-};
-
-export type CreateOrderRequestDTO = {
-  customer: OrderCustomerDTO;
-  delivery: {
-    provider: DeliveryProvider;
-    pickupPointId: string;
-  };
-  payment: {
-    method: PaymentMethod;
-  };
-  comment?: string;
-  acceptedLegal: boolean;
-};
+}

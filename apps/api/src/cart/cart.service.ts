@@ -1,14 +1,15 @@
 import { BadRequestException, Injectable, NotFoundException } from "@nestjs/common";
 
+import { CART_ITEM_MAX_QUANTITY } from "./cart.constants";
 import { CartStorage } from "./cart.storage";
 import type {
   AddCartItemRequestDTO,
   CartDTO,
   CartProductDTO,
   UpdateCartItemRequestDTO,
-} from "./dto/cart.dto";
+} from "./dto";
 
-const MAX_QUANTITY = 99;
+const MAX_QUANTITY = CART_ITEM_MAX_QUANTITY;
 
 @Injectable()
 export class CartService {

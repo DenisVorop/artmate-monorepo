@@ -2,7 +2,7 @@ import { randomUUID } from "node:crypto";
 
 import { Injectable, NotFoundException } from "@nestjs/common";
 
-import type { CartItemDTO } from "../cart/dto/cart.dto";
+import type { CartItemDTO } from "../cart/dto";
 
 import type {
   OrderCustomerDTO,
@@ -10,7 +10,7 @@ import type {
   OrderDeliveryDTO,
   OrderPaymentDTO,
   PickupPointDTO,
-} from "./dto/order.dto";
+} from "./dto";
 
 const CHECKOUT_SUCCESS_PATH = "/checkout/success";
 
