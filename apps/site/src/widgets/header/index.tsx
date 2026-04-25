@@ -1,5 +1,7 @@
 "use client";
 
+import { SessionMenu } from "@/features/auth";
+
 import { Logo } from "./ui/logo";
 import { CartButton } from "./ui/cart-button";
 import { Menu } from "./ui/menu";
@@ -12,7 +14,10 @@ export function Header() {
 
         <Menu />
 
-        <CartButton />
+        <div className="flex items-center gap-2">
+          <SessionMenu />
+          <CartButton />
+        </div>
       </div>
     </header>
   );

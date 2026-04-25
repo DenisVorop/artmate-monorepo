@@ -1,5 +1,7 @@
 export const routes = {
   home: "/",
+  auth: "/auth",
+  authOAuth: (provider: string) => `/auth/oauth/${provider}`,
   cart: "/cart",
   catalog: "/katalog",
   raskraski: "/katalog/raskraski",

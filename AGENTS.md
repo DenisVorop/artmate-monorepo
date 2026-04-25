@@ -64,6 +64,8 @@ yarn workspace @repo/ui check-types
 - `docs` — `3001`.
 - `api` — `3002`, можно переопределить через `PORT`.
 
+Если запускаешь dev-серверы для проверки задачи, после проверки останавливай все процессы, которые сам поднял, и проверяй, что соответствующие порты свободны через `lsof -iTCP:<port> -sTCP:LISTEN -n -P`.
+
 Коммиты должны быть Conventional Commits. Husky запускает `yarn commitlint --edit "$1"`.
 
 ## Архитектура `apps/site`
