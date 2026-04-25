@@ -1,0 +1,40 @@
+export type AuthProvider = "credentials" | "yandex";
+
+export type AuthUser = {
+  id: string;
+  provider: AuthProvider;
+  providerUserId: string;
+  email?: string;
+  name?: string;
+  image?: string;
+  roles: string[];
+};
+
+export type AuthTokenPayload = {
+  sub: string;
+  provider: AuthProvider;
+  providerUserId: string;
+  email?: string;
+  name?: string;
+  image?: string;
+  roles: string[];
+};
+
+export type YandexTokenResponse = {
+  access_token?: unknown;
+  token_type?: unknown;
+  expires_in?: unknown;
+  refresh_token?: unknown;
+};
+
+export type YandexProfileResponse = {
+  id?: unknown;
+  default_email?: unknown;
+  display_name?: unknown;
+  real_name?: unknown;
+  first_name?: unknown;
+  last_name?: unknown;
+  login?: unknown;
+  default_avatar_id?: unknown;
+  is_avatar_empty?: unknown;
+};

@@ -10,6 +10,11 @@ async function bootstrap() {
   const app = await NestFactory.create(AppModule);
   const port = getPort(process.env.PORT);
 
+  app.enableCors({
+    credentials: true,
+    origin: getCorsOrigins(),
+  });
+
   app.useGlobalPipes(
     new ValidationPipe({
       forbidNonWhitelisted: true,
@@ -23,6 +28,15 @@ async function bootstrap() {
   );
 
   await app.listen(port);
+}
+
+function getCorsOrigins() {
+  const origins =
+    process.env.CORS_ORIGIN ??
+    process.env.SITE_URL ??
+    "http://localhost:3000";
+
+  return origins.split(",").map((origin) => origin.trim()).filter(Boolean);
 }
 
 function getPort(port: string | undefined) {

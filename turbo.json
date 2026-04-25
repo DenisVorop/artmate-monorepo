@@ -3,9 +3,23 @@
   "ui": "tui",
   "globalEnv": [
     "API_BASE_URL",
+    "API_PUBLIC_URL",
+    "AUTH_JWT_SECRET",
+    "AUTH_PASSWORD",
+    "AUTH_PASSWORD_EMAIL",
+    "AUTH_PASSWORD_HASH",
+    "AUTH_PASSWORD_LOGIN",
+    "AUTH_PASSWORD_NAME",
+    "AUTH_PASSWORD_ROLES",
+    "AUTH_SUCCESS_REDIRECT_URL",
+    "CORS_ORIGIN",
     "DATABASE_URL",
     "NODE_ENV",
-    "PORT"
+    "PORT",
+    "SITE_URL",
+    "YANDEX_OAUTH_CLIENT_ID",
+    "YANDEX_OAUTH_CLIENT_SECRET",
+    "YANDEX_OAUTH_REDIRECT_URI"
   ],
   "tasks": {
     "build": {
