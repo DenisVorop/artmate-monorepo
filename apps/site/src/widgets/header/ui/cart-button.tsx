@@ -19,7 +19,7 @@ export function CartButton() {
     <Button asChild className="relative">
       <Link href={routes.cart} aria-label={cartLabel}>
         <ShoppingBag size={16} />
-        <span>Корзина</span>
+        <span className="hidden sm:inline">Корзина</span>
         {cartItemsCount > 0 && (
           <Badge
             aria-label={cartLabel}
