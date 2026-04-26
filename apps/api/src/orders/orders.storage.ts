@@ -55,6 +55,7 @@ const orderInclude = {
 } as const;
 
 type CreateStoredOrderInput = {
+  userId?: string;
   cartId: string;
   customer: OrderCustomerDTO;
   delivery: OrderDeliveryDTO;
@@ -85,6 +86,7 @@ export class OrdersStorage {
   async createOrder(input: CreateStoredOrderInput): Promise<OrderDTO> {
     const deliveryPrice = input.delivery.pickupPoint.deliveryPrice;
     const total = input.subtotal + deliveryPrice;
+    const userId = await this.getExistingUserId(input.userId);
 
     for (let attempt = 0; attempt < 3; attempt += 1) {
       const id = this.createOrderId();
@@ -93,6 +95,7 @@ export class OrdersStorage {
         const order = await this.prisma.order.create({
           data: {
             id,
+            userId,
             cartId: input.cartId,
             status: PrismaOrderStatus.PENDING_PAYMENT,
             customerName: input.customer.name,
@@ -153,6 +156,37 @@ export class OrdersStorage {
     }
 
     return this.mapOrder(order);
+  }
+
+  async getOrdersByUserId(userId: string): Promise<OrderDTO[]> {
+    if (!userId.trim()) {
+      return [];
+    }
+
+    const orders = await this.prisma.order.findMany({
+      where: {
+        userId,
+      },
+      orderBy: {
+        createdAt: "desc",
+      },
+      include: orderInclude,
+    });
+
+    return orders.map((order) => this.mapOrder(order));
+  }
+
+  private async getExistingUserId(userId?: string) {
+    if (!userId) {
+      return undefined;
+    }
+
+    const user = await this.prisma.user.findUnique({
+      where: { id: userId },
+      select: { id: true },
+    });
+
+    return user?.id;
   }
 
   async markOrderAsPaid(orderId: string): Promise<OrderDTO> {

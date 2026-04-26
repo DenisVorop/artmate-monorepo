@@ -61,6 +61,12 @@ export function SessionMenu() {
           )}
         </DropdownMenuLabel>
         <DropdownMenuSeparator />
+        <DropdownMenuItem asChild>
+          <Link href={routes.account}>
+            <UserRound data-icon="inline-start" />
+            Личный кабинет
+          </Link>
+        </DropdownMenuItem>
         <DropdownMenuItem
           disabled={isLogoutPending}
           onSelect={(event) => {

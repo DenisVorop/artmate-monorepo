@@ -20,6 +20,7 @@ model User {
   authAccounts     AuthAccount[]
   authSessions     AuthSession[]
   createdBlogPosts BlogPost[]    @relation("BlogPostCreator")
+  orders           Order[]
 
   @@index([status])
   @@map("users")

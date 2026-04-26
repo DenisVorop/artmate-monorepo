@@ -9,13 +9,16 @@ export type CheckoutFormValues = {
   acceptedLegal: boolean;
 };
 
+export type CheckoutCustomerDefaults = Partial<Pick<CheckoutFormValues, "email" | "name" | "phone">>;
+
 export function getDefaultCheckoutFormValues(
   pickupPoints: OzonPickupPointDTO[],
+  customerDefaults: CheckoutCustomerDefaults = {},
 ): CheckoutFormValues {
   return {
-    name: "",
-    phone: "",
-    email: "",
+    name: customerDefaults.name ?? "",
+    phone: customerDefaults.phone ?? "",
+    email: customerDefaults.email ?? "",
     pickupPointId: pickupPoints[0]?.id ?? "",
     comment: "",
     acceptedLegal: false,

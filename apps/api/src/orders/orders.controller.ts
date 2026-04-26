@@ -1,5 +1,17 @@
-import { Body, Controller, Get, Headers, Param, Post } from "@nestjs/common";
+import {
+  Body,
+  Controller,
+  Get,
+  Headers,
+  Param,
+  Post,
+  Req,
+  UseGuards,
+} from "@nestjs/common";
 
+import { AuthGuard } from "../auth/auth.guard";
+import { AuthService } from "../auth/auth.service";
+import type { AuthUser } from "../auth/auth.types";
 import { ValidateResponse } from "../common/response-validation.interceptor";
 
 import {
@@ -11,9 +23,16 @@ import { OrdersService } from "./orders.service";
 
 const CART_COOKIE_NAME = "cart_id";
 
+type AuthenticatedRequest = {
+  user: AuthUser;
+};
+
 @Controller("orders")
 export class OrdersController {
-  constructor(private readonly ordersService: OrdersService) {}
+  constructor(
+    private readonly authService: AuthService,
+    private readonly ordersService: OrdersService,
+  ) {}
 
   @ValidateResponse(PickupPointDTO, { isArray: true })
   @Get("pickup-points")
@@ -21,15 +40,25 @@ export class OrdersController {
     return this.ordersService.getPickupPoints();
   }
 
+  @UseGuards(AuthGuard)
+  @ValidateResponse(OrderDTO, { isArray: true })
+  @Get("my")
+  getMyOrders(@Req() request: AuthenticatedRequest) {
+    return this.ordersService.getMyOrders(request.user);
+  }
+
   @ValidateResponse(OrderDTO)
   @Post()
-  createOrder(
+  async createOrder(
     @Body() request: CreateOrderRequestDTO,
     @Headers("cookie") cookieHeader: string | undefined,
   ) {
+    const user = await this.getOptionalUser(cookieHeader);
+
     return this.ordersService.createOrder(
       this.getCartId(cookieHeader),
       request,
+      user,
     );
   }
 
@@ -61,5 +90,11 @@ export class OrdersController {
     }
 
     return decodeURIComponent(rawCartId);
+  }
+
+  private async getOptionalUser(cookieHeader?: string) {
+    const session = await this.authService.getSession(undefined, cookieHeader);
+
+    return session.user ?? undefined;
   }
 }

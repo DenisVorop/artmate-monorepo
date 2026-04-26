@@ -1,5 +1,6 @@
 import { BadRequestException, Injectable } from "@nestjs/common";
 
+import type { AuthUser } from "../auth/auth.types";
 import { CartService } from "../cart/cart.service";
 import { CartStorage } from "../cart/cart.storage";
 
@@ -25,9 +26,14 @@ export class OrdersService {
     return this.ordersStorage.getOrder(this.parseOrderId(orderId));
   }
 
+  getMyOrders(user: AuthUser): Promise<OrderDTO[]> {
+    return this.ordersStorage.getOrdersByUserId(user.id);
+  }
+
   async createOrder(
     cartId: string | undefined,
     request: CreateOrderRequestDTO,
+    user?: AuthUser,
   ): Promise<OrderDTO> {
     const cart = await this.cartStorage.ensureCart(cartId);
     const cartDTO = this.cartStorage.getDTO(cart);
@@ -50,6 +56,7 @@ export class OrdersService {
     }
 
     return this.ordersStorage.createOrder({
+      userId: user?.id,
       cartId: cartDTO.id,
       customer,
       delivery: {

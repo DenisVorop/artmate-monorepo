@@ -21,6 +21,7 @@ import {
 import { Link } from "@/shared/ui/link";
 
 import {
+  type CheckoutCustomerDefaults,
   formatMoney,
   getDefaultCheckoutFormValues,
   toCreateOrderInput,
@@ -30,6 +31,7 @@ import {
 type CheckoutFormProps = {
   pickupPoints: OzonPickupPointDTO[];
   selectedPickupPointId: string;
+  customerDefaults?: CheckoutCustomerDefaults;
   isSubmitting: boolean;
   onPickupPointChange: (_pickupPointId: string) => void;
   onSubmit: (_input: ReturnType<typeof toCreateOrderInput>) => Promise<void>;
@@ -38,11 +40,15 @@ type CheckoutFormProps = {
 export function CheckoutForm({
   pickupPoints,
   selectedPickupPointId,
+  customerDefaults,
   isSubmitting,
   onPickupPointChange,
   onSubmit,
 }: CheckoutFormProps) {
-  const defaultValues = useMemo(() => getDefaultCheckoutFormValues(pickupPoints), [pickupPoints]);
+  const defaultValues = useMemo(
+    () => getDefaultCheckoutFormValues(pickupPoints, customerDefaults),
+    [customerDefaults, pickupPoints],
+  );
   const {
     register,
     handleSubmit,

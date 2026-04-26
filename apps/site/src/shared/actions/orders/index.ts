@@ -1,4 +1,10 @@
-export { confirmOrderPayment, createOrder, getOrder, getOzonPickupPoints } from "./orders.actions";
+export {
+  confirmOrderPayment,
+  createOrder,
+  getMyOrders,
+  getOrder,
+  getOzonPickupPoints,
+} from "./orders.actions";
 export type {
   ConfirmOrderPaymentInputDTO,
   CreateOrderInputDTO,

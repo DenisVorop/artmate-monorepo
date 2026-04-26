@@ -1,17 +1,18 @@
 "use client";
 
 import { ArrowLeft, ShoppingBag } from "lucide-react";
-import { useState } from "react";
+import { useMemo, useState } from "react";
 import { useRouter } from "next/navigation";
 
 import { useCartData } from "@/entities/cart";
+import { useUser } from "@/entities/session";
 import type { CreateOrderInputDTO, OzonPickupPointDTO } from "@/shared/actions/orders";
 import { routes } from "@/shared/constants";
 import { Button, DataState } from "@/shared/ui";
 import { Link } from "@/shared/ui/link";
 
 import { useCreateOrderMutation } from "../model";
-import { getSelectedPickupPoint } from "../lib";
+import { getSelectedPickupPoint, type CheckoutCustomerDefaults } from "../lib";
 
 import { CheckoutForm } from "./form";
 import { OrderSummary } from "./order-summary";
@@ -23,11 +24,19 @@ type CheckoutProps = {
 
 export function Checkout({ pickupPoints, isPickupPointsError = false }: CheckoutProps) {
   const router = useRouter();
+  const user = useUser();
   const cart = useCartData();
   const defaultPickupPointId = pickupPoints[0]?.id ?? "";
   const [selectedPickupPointId, setSelectedPickupPointId] = useState(defaultPickupPointId);
   const { createOrder, isPending, error } = useCreateOrderMutation();
   const selectedPickupPoint = getSelectedPickupPoint(pickupPoints, selectedPickupPointId);
+  const customerDefaults = useMemo<CheckoutCustomerDefaults>(
+    () => ({
+      ...(user?.email ? { email: user.email } : {}),
+      ...(user?.name ? { name: user.name } : {}),
+    }),
+    [user?.email, user?.name],
+  );
 
   const handleSubmit = async (input: CreateOrderInputDTO) => {
     try {
@@ -121,6 +130,7 @@ export function Checkout({ pickupPoints, isPickupPointsError = false }: Checkout
           <CheckoutForm
             pickupPoints={pickupPoints}
             selectedPickupPointId={selectedPickupPointId}
+            customerDefaults={customerDefaults}
             isSubmitting={isPending}
             onPickupPointChange={setSelectedPickupPointId}
             onSubmit={handleSubmit}

@@ -26,6 +26,7 @@ enum OrderDeliveryProvider {
 
 model Order {
   id                   String                @id @db.VarChar(32)
+  userId               String?               @map("user_id")
   cartId               String                @map("cart_id") @db.VarChar(128)
   status               OrderStatus           @default(PENDING_PAYMENT)
   customerName         String                @map("customer_name") @db.VarChar(160)
@@ -50,7 +51,9 @@ model Order {
   updatedAt            DateTime              @default(now()) @updatedAt @map("updated_at")
 
   items OrderItem[]
+  user  User?       @relation(fields: [userId], references: [id], onDelete: SetNull)
 
+  @@index([userId, createdAt])
   @@index([cartId])
   @@index([status, createdAt])
   @@index([customerEmail])

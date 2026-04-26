@@ -12,6 +12,7 @@ import type {
 } from "./order.types";
 
 const CART_COOKIE_NAME = "cart_id";
+const AUTH_ACCESS_TOKEN_COOKIE_NAME = "artmate_access_token";
 const DEFAULT_API_BASE_URL = "http://localhost:3002";
 
 export async function getOzonPickupPoints(): Promise<ApiResultDTO<OzonPickupPointDTO[]>> {
@@ -20,6 +21,12 @@ export async function getOzonPickupPoints(): Promise<ApiResultDTO<OzonPickupPoin
   )();
 
   return result.toDTO() as ApiResultDTO<OzonPickupPointDTO[]>;
+}
+
+export async function getMyOrders(): Promise<ApiResultDTO<OrderDTO[]>> {
+  const result = await ApiResult.prepareApi(async () => requestOrders<OrderDTO[]>("/orders/my"))();
+
+  return result.toDTO() as ApiResultDTO<OrderDTO[]>;
 }
 
 export async function createOrder(input: CreateOrderInputDTO): Promise<ApiResultDTO<OrderDTO>> {
@@ -56,12 +63,17 @@ export async function getOrder(orderId: string): Promise<ApiResultDTO<OrderDTO>>
 async function requestOrders<T>(path: string, init: RequestInit = {}) {
   const cookieStore = await cookies();
   const cartId = cookieStore.get(CART_COOKIE_NAME)?.value;
+  const accessToken = cookieStore.get(AUTH_ACCESS_TOKEN_COOKIE_NAME)?.value;
+  const cookieHeader = getRequestCookieHeader([
+    [CART_COOKIE_NAME, cartId],
+    [AUTH_ACCESS_TOKEN_COOKIE_NAME, accessToken],
+  ]);
   const response = await fetch(`${getApiBaseUrl()}${path}`, {
     ...init,
     cache: "no-store",
     headers: {
       "content-type": "application/json",
-      ...(cartId ? { cookie: `${CART_COOKIE_NAME}=${encodeURIComponent(cartId)}` } : {}),
+      ...(cookieHeader ? { cookie: cookieHeader } : {}),
       ...init.headers,
     },
   });
@@ -71,6 +83,14 @@ async function requestOrders<T>(path: string, init: RequestInit = {}) {
   }
 
   return (await response.json()) as T;
+}
+
+function getRequestCookieHeader(cookies: Array<[string, string | undefined]>) {
+  const values = cookies
+    .filter((item): item is [string, string] => Boolean(item[1]))
+    .map(([name, value]) => `${name}=${encodeURIComponent(value)}`);
+
+  return values.length > 0 ? values.join("; ") : undefined;
 }
 
 function getApiBaseUrl() {
