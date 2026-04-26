@@ -1,4 +1,8 @@
-import { BadRequestException, Injectable, NotFoundException } from "@nestjs/common";
+import {
+  BadRequestException,
+  Injectable,
+  NotFoundException,
+} from "@nestjs/common";
 
 import { CART_ITEM_MAX_QUANTITY } from "./cart.constants";
 import { CartStorage } from "./cart.storage";
@@ -15,52 +19,54 @@ const MAX_QUANTITY = CART_ITEM_MAX_QUANTITY;
 export class CartService {
   constructor(private readonly cartStorage: CartStorage) {}
 
-  getCart(cartId?: string): CartDTO {
-    const cart = this.cartStorage.ensureCart(cartId);
+  async getCart(cartId?: string): Promise<CartDTO> {
+    const cart = await this.cartStorage.ensureCart(cartId);
 
     return this.cartStorage.getDTO(cart);
   }
 
-  addItem(cartId: string | undefined, request: AddCartItemRequestDTO): CartDTO {
-    const cart = this.cartStorage.ensureCart(cartId);
+  async addItem(
+    cartId: string | undefined,
+    request: AddCartItemRequestDTO,
+  ): Promise<CartDTO> {
     const product = this.parseProduct(request.product);
     const quantity = this.parseQuantity(request.quantity ?? 1);
-    const existingItem = cart.items.get(product.id);
-
-    cart.items.set(product.id, {
+    const cart = await this.cartStorage.addItem(
+      cartId,
       product,
-      quantity: Math.min((existingItem?.quantity ?? 0) + quantity, MAX_QUANTITY),
-    });
+      quantity,
+      MAX_QUANTITY,
+    );
 
     return this.cartStorage.getDTO(cart);
   }
 
-  updateItem(cartId: string | undefined, productId: string, request: UpdateCartItemRequestDTO) {
-    const cart = this.cartStorage.ensureCart(cartId);
-    const existingItem = cart.items.get(productId);
+  async updateItem(
+    cartId: string | undefined,
+    productId: string,
+    request: UpdateCartItemRequestDTO,
+  ) {
+    const cart = await this.cartStorage.updateItemQuantity(
+      cartId,
+      productId,
+      this.parseQuantity(request.quantity),
+    );
 
-    if (!existingItem) {
+    if (!cart) {
       throw new NotFoundException("Cart item not found");
     }
 
-    cart.items.set(productId, {
-      ...existingItem,
-      quantity: this.parseQuantity(request.quantity),
-    });
+    return this.cartStorage.getDTO(cart);
+  }
+
+  async removeItem(cartId: string | undefined, productId: string) {
+    const cart = await this.cartStorage.removeItem(cartId, productId);
 
     return this.cartStorage.getDTO(cart);
   }
 
-  removeItem(cartId: string | undefined, productId: string) {
-    const cart = this.cartStorage.ensureCart(cartId);
-    cart.items.delete(productId);
-
-    return this.cartStorage.getDTO(cart);
-  }
-
-  clearCart(cartId?: string) {
-    const cart = this.cartStorage.ensureCart(cartId);
-    cart.items.clear();
+  async clearCart(cartId?: string) {
+    const cart = await this.cartStorage.clearCart(cartId);
 
     return this.cartStorage.getDTO(cart);
   }
@@ -75,7 +81,10 @@ export class CartService {
       title: this.parseRequiredString(product.title, "product.title"),
       slug: this.parseRequiredString(product.slug, "product.slug"),
       category: this.parseRequiredString(product.category, "product.category"),
-      categorySlug: this.parseRequiredString(product.categorySlug, "product.categorySlug"),
+      categorySlug: this.parseRequiredString(
+        product.categorySlug,
+        "product.categorySlug",
+      ),
       image: this.parseRequiredString(product.image, "product.image"),
       price: this.parsePrice(product.price),
     };
@@ -93,15 +102,24 @@ export class CartService {
 
   private parsePrice(value: unknown): number {
     if (typeof value !== "number" || !Number.isFinite(value) || value < 0) {
-      throw new BadRequestException("product.price must be a non-negative number");
+      throw new BadRequestException(
+        "product.price must be a non-negative number",
+      );
     }
 
     return value;
   }
 
   private parseQuantity(value: unknown): number {
-    if (typeof value !== "number" || !Number.isInteger(value) || value < 1 || value > MAX_QUANTITY) {
-      throw new BadRequestException(`quantity must be an integer between 1 and ${MAX_QUANTITY}`);
+    if (
+      typeof value !== "number" ||
+      !Number.isInteger(value) ||
+      value < 1 ||
+      value > MAX_QUANTITY
+    ) {
+      throw new BadRequestException(
+        `quantity must be an integer between 1 and ${MAX_QUANTITY}`,
+      );
     }
 
     return value;

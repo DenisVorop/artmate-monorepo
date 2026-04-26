@@ -7,6 +7,12 @@ import {
 import crypto from "node:crypto";
 
 import {
+  AuthProvider as PrismaAuthProvider,
+  Prisma,
+} from "../generated/prisma/client";
+import { PrismaService } from "../prisma/prisma.service";
+
+import {
   YANDEX_AUTHORIZE_URL,
   YANDEX_PROFILE_URL,
   YANDEX_TOKEN_URL,
@@ -17,8 +23,18 @@ import type {
   YandexTokenResponse,
 } from "./auth.types";
 
+const yandexAccountInclude = {
+  user: true,
+} as const;
+
+type StoredYandexAccount = Prisma.AuthAccountGetPayload<{
+  include: typeof yandexAccountInclude;
+}>;
+
 @Injectable()
 export class YandexOAuthService {
+  constructor(private readonly prisma: PrismaService) {}
+
   createState() {
     return crypto.randomBytes(32).toString("base64url");
   }
@@ -38,7 +54,7 @@ export class YandexOAuthService {
     const accessToken = await this.exchangeCode(code);
     const profile = await this.getProfile(accessToken);
 
-    return this.mapProfileToUser(profile);
+    return this.upsertProfileUser(profile);
   }
 
   getRedirectUri() {
@@ -91,20 +107,104 @@ export class YandexOAuthService {
     return (await response.json()) as YandexProfileResponse;
   }
 
-  private mapProfileToUser(profile: YandexProfileResponse): AuthUser {
+  private async upsertProfileUser(profile: YandexProfileResponse) {
     if (typeof profile.id !== "string") {
       throw new UnauthorizedException("Yandex profile is missing user id");
     }
 
+    const providerUserId = profile.id;
+    const providerEmail = this.getOptionalString(profile.default_email);
+    const name = this.getProfileName(profile);
+    const image = this.getProfileImage(profile);
+    const providerData = this.getProviderData(profile);
+
+    const account = await this.prisma.$transaction(async (tx) => {
+      const existingAccount = await tx.authAccount.findUnique({
+        where: {
+          provider_providerUserId: {
+            provider: PrismaAuthProvider.YANDEX,
+            providerUserId,
+          },
+        },
+        include: yandexAccountInclude,
+      });
+
+      if (existingAccount) {
+        return tx.authAccount.update({
+          where: { id: existingAccount.id },
+          data: {
+            providerEmail,
+            providerData,
+            lastLoginAt: new Date(),
+            user: {
+              update: {
+                name,
+                image,
+              },
+            },
+          },
+          include: yandexAccountInclude,
+        });
+      }
+
+      const existingUser = providerEmail
+        ? await tx.user.findUnique({ where: { email: providerEmail } })
+        : null;
+
+      return tx.authAccount.create({
+        data: {
+          provider: PrismaAuthProvider.YANDEX,
+          providerUserId,
+          providerEmail,
+          providerData,
+          user: existingUser
+            ? {
+                connect: { id: existingUser.id },
+              }
+            : {
+                create: {
+                  email: providerEmail,
+                  name,
+                  image,
+                  roles: ["customer"],
+                },
+              },
+        },
+        include: yandexAccountInclude,
+      });
+    });
+
+    return this.mapStoredAccount(account);
+  }
+
+  private mapStoredAccount(account: StoredYandexAccount): AuthUser {
     return {
-      id: `yandex:${profile.id}`,
+      id: account.user.id,
       provider: "yandex",
-      providerUserId: profile.id,
-      email: this.getOptionalString(profile.default_email),
-      name: this.getProfileName(profile),
-      image: this.getProfileImage(profile),
-      roles: ["customer"],
+      providerUserId: account.providerUserId,
+      email: account.user.email ?? account.providerEmail ?? undefined,
+      name: account.user.name ?? undefined,
+      image: account.user.image ?? undefined,
+      roles: account.user.roles,
     };
+  }
+
+  private getProviderData(
+    profile: YandexProfileResponse,
+  ): Prisma.InputJsonObject {
+    const data: Record<string, Prisma.InputJsonValue> = {};
+
+    for (const [key, value] of Object.entries(profile)) {
+      if (
+        typeof value === "string" ||
+        typeof value === "number" ||
+        typeof value === "boolean"
+      ) {
+        data[key] = value;
+      }
+    }
+
+    return data;
   }
 
   private getProfileName(profile: YandexProfileResponse) {

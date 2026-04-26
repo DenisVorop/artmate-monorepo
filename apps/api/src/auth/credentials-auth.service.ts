@@ -6,6 +6,13 @@ import {
 } from "@nestjs/common";
 import crypto from "node:crypto";
 
+import {
+  AuthProvider as PrismaAuthProvider,
+  Prisma,
+  UserStatus,
+} from "../generated/prisma/client";
+import { PrismaService } from "../prisma/prisma.service";
+
 import type { AuthUser } from "./auth.types";
 
 const SCRYPT_HASH_PREFIX = "scrypt";
@@ -16,15 +23,6 @@ type ScryptPasswordHash = {
   hash: string;
 };
 
-type StoredCredentialsUser = {
-  id: string;
-  login: string;
-  passwordHash: string;
-  email?: string;
-  name?: string;
-  roles: string[];
-};
-
 type RegisterCredentialsUserInput = {
   login: string;
   password: string;
@@ -32,36 +30,96 @@ type RegisterCredentialsUserInput = {
   name?: string;
 };
 
+const credentialsUserInclude = {
+  account: {
+    include: {
+      user: true,
+    },
+  },
+} as const;
+
+const credentialsAccountInclude = {
+  user: true,
+} as const;
+
+type StoredCredentialsUser = Prisma.AuthCredentialGetPayload<{
+  include: typeof credentialsUserInclude;
+}>;
+
+type StoredCredentialsAccount = Prisma.AuthAccountGetPayload<{
+  include: typeof credentialsAccountInclude;
+}>;
+
 @Injectable()
 export class CredentialsAuthService {
-  private readonly users = new Map<string, StoredCredentialsUser>();
+  constructor(private readonly prisma: PrismaService) {}
 
   async registerUser(input: RegisterCredentialsUserInput): Promise<AuthUser> {
     const login = this.normalizeLogin(input.login);
+    const email = this.getOptionalString(input.email);
+    const existingCredential = await this.prisma.authCredential.findUnique({
+      where: { login },
+    });
 
-    if (this.users.has(login)) {
+    if (existingCredential) {
       throw new ConflictException("User already exists");
     }
 
-    const user: StoredCredentialsUser = {
-      id: `credentials:${crypto.randomUUID()}`,
-      login,
-      passwordHash: await this.createPasswordHash(input.password),
-      email: this.getOptionalString(input.email),
-      name: this.getOptionalString(input.name) ?? login,
-      roles: ["customer"],
-    };
+    if (email) {
+      const existingUser = await this.prisma.user.findUnique({
+        where: { email },
+      });
 
-    this.users.set(login, user);
+      if (existingUser) {
+        throw new ConflictException("User already exists");
+      }
+    }
 
-    return this.mapStoredUser(user);
+    try {
+      const account = await this.prisma.authAccount.create({
+        data: {
+          provider: PrismaAuthProvider.CREDENTIALS,
+          providerUserId: login,
+          providerEmail: email,
+          user: {
+            create: {
+              email,
+              name: this.getOptionalString(input.name) ?? login,
+              roles: ["customer"],
+            },
+          },
+          credential: {
+            create: {
+              login,
+              passwordHash: await this.createPasswordHash(input.password),
+            },
+          },
+        },
+        include: credentialsAccountInclude,
+      });
+
+      return this.mapStoredAccount(account);
+    } catch (error) {
+      if (this.isUniqueConstraintError(error)) {
+        throw new ConflictException("User already exists");
+      }
+
+      throw error;
+    }
   }
 
   async validateUser(login: string, password: string): Promise<AuthUser> {
     const normalizedLogin = this.normalizeLogin(login);
-    const user = this.users.get(normalizedLogin);
+    const user = await this.prisma.authCredential.findUnique({
+      where: { login: normalizedLogin },
+      include: credentialsUserInclude,
+    });
 
     if (user) {
+      if (user.account.user.status !== UserStatus.ACTIVE) {
+        throw new UnauthorizedException("Invalid login or password");
+      }
+
       const isPasswordValid = await this.verifyScryptPassword(
         password,
         user.passwordHash,
@@ -178,14 +236,26 @@ export class CredentialsAuthService {
   }
 
   private mapStoredUser(user: StoredCredentialsUser): AuthUser {
+    return this.mapStoredAccount(user.account);
+  }
+
+  private mapStoredAccount(account: StoredCredentialsAccount): AuthUser {
     return {
-      id: user.id,
+      id: account.user.id,
       provider: "credentials",
-      providerUserId: user.login,
-      email: user.email,
-      name: user.name,
-      roles: user.roles,
+      providerUserId: account.providerUserId,
+      email: account.user.email ?? account.providerEmail ?? undefined,
+      name: account.user.name ?? undefined,
+      image: account.user.image ?? undefined,
+      roles: account.user.roles,
     };
+  }
+
+  private isUniqueConstraintError(error: unknown) {
+    return (
+      error instanceof Prisma.PrismaClientKnownRequestError &&
+      error.code === "P2002"
+    );
   }
 
   private normalizeLogin(login: string) {

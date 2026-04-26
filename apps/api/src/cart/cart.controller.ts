@@ -1,4 +1,14 @@
-import { Body, Controller, Delete, Get, Headers, Param, Patch, Post, Res } from "@nestjs/common";
+import {
+  Body,
+  Controller,
+  Delete,
+  Get,
+  Headers,
+  Param,
+  Patch,
+  Post,
+  Res,
+} from "@nestjs/common";
 
 import { ValidateResponse } from "../common/response-validation.interceptor";
 
@@ -32,8 +42,11 @@ export class CartController {
 
   @ValidateResponse(CartDTO)
   @Get()
-  getCart(@Headers("cookie") cookieHeader: string | undefined, @Res({ passthrough: true }) response: CookieResponse) {
-    const cart = this.cartService.getCart(this.getCartId(cookieHeader));
+  async getCart(
+    @Headers("cookie") cookieHeader: string | undefined,
+    @Res({ passthrough: true }) response: CookieResponse,
+  ) {
+    const cart = await this.cartService.getCart(this.getCartId(cookieHeader));
     this.setCartCookie(response, cart.id);
 
     return cart;
@@ -41,12 +54,15 @@ export class CartController {
 
   @ValidateResponse(CartDTO)
   @Post("items")
-  addItem(
+  async addItem(
     @Body() request: AddCartItemRequestDTO,
     @Headers("cookie") cookieHeader: string | undefined,
     @Res({ passthrough: true }) response: CookieResponse,
   ) {
-    const cart = this.cartService.addItem(this.getCartId(cookieHeader), request);
+    const cart = await this.cartService.addItem(
+      this.getCartId(cookieHeader),
+      request,
+    );
     this.setCartCookie(response, cart.id);
 
     return cart;
@@ -54,13 +70,17 @@ export class CartController {
 
   @ValidateResponse(CartDTO)
   @Patch("items/:productId")
-  updateItem(
+  async updateItem(
     @Param("productId") productId: string,
     @Body() request: UpdateCartItemRequestDTO,
     @Headers("cookie") cookieHeader: string | undefined,
     @Res({ passthrough: true }) response: CookieResponse,
   ) {
-    const cart = this.cartService.updateItem(this.getCartId(cookieHeader), productId, request);
+    const cart = await this.cartService.updateItem(
+      this.getCartId(cookieHeader),
+      productId,
+      request,
+    );
     this.setCartCookie(response, cart.id);
 
     return cart;
@@ -68,12 +88,15 @@ export class CartController {
 
   @ValidateResponse(CartDTO)
   @Delete("items/:productId")
-  removeItem(
+  async removeItem(
     @Param("productId") productId: string,
     @Headers("cookie") cookieHeader: string | undefined,
     @Res({ passthrough: true }) response: CookieResponse,
   ) {
-    const cart = this.cartService.removeItem(this.getCartId(cookieHeader), productId);
+    const cart = await this.cartService.removeItem(
+      this.getCartId(cookieHeader),
+      productId,
+    );
     this.setCartCookie(response, cart.id);
 
     return cart;
@@ -81,8 +104,11 @@ export class CartController {
 
   @ValidateResponse(CartDTO)
   @Delete()
-  clearCart(@Headers("cookie") cookieHeader: string | undefined, @Res({ passthrough: true }) response: CookieResponse) {
-    const cart = this.cartService.clearCart(this.getCartId(cookieHeader));
+  async clearCart(
+    @Headers("cookie") cookieHeader: string | undefined,
+    @Res({ passthrough: true }) response: CookieResponse,
+  ) {
+    const cart = await this.cartService.clearCart(this.getCartId(cookieHeader));
     this.setCartCookie(response, cart.id);
 
     return cart;
@@ -94,7 +120,9 @@ export class CartController {
     }
 
     const cookies = cookieHeader.split(";").map((cookie) => cookie.trim());
-    const cartCookie = cookies.find((cookie) => cookie.startsWith(`${CART_COOKIE_NAME}=`));
+    const cartCookie = cookies.find((cookie) =>
+      cookie.startsWith(`${CART_COOKIE_NAME}=`),
+    );
     const rawCartId = cartCookie?.slice(CART_COOKIE_NAME.length + 1);
 
     if (!rawCartId) {

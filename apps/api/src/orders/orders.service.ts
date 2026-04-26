@@ -21,15 +21,15 @@ export class OrdersService {
     return this.ordersStorage.getPickupPoints();
   }
 
-  getOrder(orderId: string): OrderDTO {
+  getOrder(orderId: string): Promise<OrderDTO> {
     return this.ordersStorage.getOrder(this.parseOrderId(orderId));
   }
 
-  createOrder(
+  async createOrder(
     cartId: string | undefined,
     request: CreateOrderRequestDTO,
-  ): OrderDTO {
-    const cart = this.cartStorage.ensureCart(cartId);
+  ): Promise<OrderDTO> {
+    const cart = await this.cartStorage.ensureCart(cartId);
     const cartDTO = this.cartStorage.getDTO(cart);
 
     if (cartDTO.items.length === 0) {
@@ -63,11 +63,11 @@ export class OrdersService {
     });
   }
 
-  confirmPayment(orderId: string): OrderDTO {
-    const order = this.ordersStorage.markOrderAsPaid(
+  async confirmPayment(orderId: string): Promise<OrderDTO> {
+    const order = await this.ordersStorage.markOrderAsPaid(
       this.parseOrderId(orderId),
     );
-    this.cartService.clearCart(order.cartId);
+    await this.cartService.clearCart(order.cartId);
 
     return order;
   }
