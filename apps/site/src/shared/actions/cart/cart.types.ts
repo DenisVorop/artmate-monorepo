@@ -23,7 +23,7 @@ export type CartDTO = {
 };
 
 export type AddCartItemInputDTO = {
-  product: CartProductDTO;
+  productId: string;
   quantity?: number;
 };
 

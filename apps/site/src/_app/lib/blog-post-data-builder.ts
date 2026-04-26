@@ -1,5 +1,5 @@
 import type { BlogPostPageDataDTO } from "@/shared/actions/blog";
-import { blogPostPageQuery } from "@/features/blog-post/model/query";
+import { blogPostPageQuery } from "@/features/blog-post";
 
 import type { TaskFn } from "../types/data-builder";
 

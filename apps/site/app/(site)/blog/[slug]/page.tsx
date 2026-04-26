@@ -2,7 +2,7 @@ import type { Metadata } from "next";
 import { notFound } from "next/navigation";
 
 import { BlogPostDataBuilder } from "@/app/lib/blog-post-data-builder";
-import { blogPostPageQuery } from "@/features/blog-post/model/query";
+import { blogPostPageQuery } from "@/features/blog-post";
 import { BlogPostPage } from "@/pages/blog-post";
 import { getBlogPostMetadata } from "@/pages/blog-post/metadata";
 import { getBlogPostBySlug, getBlogPosts } from "@/shared/actions/blog";

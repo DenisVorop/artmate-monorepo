@@ -3,7 +3,7 @@
 import { useRouter } from "next/navigation";
 import { LoaderCircle, LogIn, LogOut, UserRound } from "lucide-react";
 
-import { useUser } from "@/entities/session";
+import { useSession } from "@/entities/session";
 import { routes } from "@/shared/constants";
 import {
   Button,
@@ -21,11 +21,20 @@ import { useLogoutMutation } from "../model";
 export function SessionMenu() {
   const router = useRouter();
   const { mutate: logout, isPending: isLogoutPending } = useLogoutMutation();
-  const user = useUser();
+  const { user, isPending: isSessionPending } = useSession();
 
   async function handleLogout() {
     await logout();
     router.refresh();
+  }
+
+  if (isSessionPending) {
+    return (
+      <Button type="button" variant="outline" disabled>
+        <LoaderCircle data-icon="inline-start" className="animate-spin" />
+        <span className="hidden sm:inline">Аккаунт</span>
+      </Button>
+    );
   }
 
   if (!user) {

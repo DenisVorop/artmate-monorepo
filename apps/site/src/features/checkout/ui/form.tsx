@@ -2,7 +2,7 @@
 
 import { zodResolver } from "@hookform/resolvers/zod";
 import { CreditCard, LoaderCircle } from "lucide-react";
-import { useMemo } from "react";
+import { useEffect, useMemo } from "react";
 import { useForm } from "react-hook-form";
 
 import { routes } from "@/shared/constants";
@@ -51,13 +51,20 @@ export function CheckoutForm({
   const {
     register,
     handleSubmit,
-    formState: { errors },
+    reset,
+    formState: { errors, isDirty },
   } = useForm<CheckoutFormValues>({
     defaultValues,
     mode: "onSubmit",
     resolver: zodResolver(checkoutFormValidationSchema),
   });
   const phoneField = register("phone");
+
+  useEffect(() => {
+    if (!isDirty) {
+      reset(defaultValues);
+    }
+  }, [defaultValues, isDirty, reset]);
 
   const submitForm = handleSubmit(async (values) => {
     await onSubmit(toCreateOrderInput(values, selectedPickupPointId));
@@ -133,8 +140,8 @@ export function CheckoutForm({
             <div>
               <p className="font-medium">Онлайн-оплата картой</p>
               <p className="text-sm text-muted-foreground">
-                После подтверждения заказа откроется платежная страница. Artmate не хранит
-                реквизиты банковских карт.
+                После подтверждения заказа откроется платежная страница. Artmate не хранит реквизиты
+                банковских карт.
               </p>
             </div>
           </div>

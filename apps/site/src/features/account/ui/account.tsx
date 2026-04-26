@@ -20,7 +20,7 @@ import {
   OrderCard,
   useOrdersData,
 } from "@/entities/orders";
-import { useUser } from "@/entities/session";
+import { useSession } from "@/entities/session";
 import { routes } from "@/shared/constants";
 import { Badge, Button, Card, CardContent, CardHeader, CardTitle, DataState } from "@/shared/ui";
 import { Link } from "@/shared/ui/link";
@@ -31,8 +31,19 @@ const providerLabels = {
 } as const;
 
 export function Account() {
-  const user = useUser();
+  const { user, isPending: isSessionPending } = useSession();
   const orders = useOrdersData({ enabled: Boolean(user) });
+
+  if (isSessionPending) {
+    return (
+      <section className="container py-10 md:py-14">
+        <DataState
+          title="Загружаем аккаунт"
+          description="Проверяем текущую сессию и данные профиля."
+        />
+      </section>
+    );
+  }
 
   if (!user) {
     return (
@@ -95,11 +106,7 @@ export function Account() {
             <CardContent className="space-y-4">
               <ContactLine icon={Mail} label="Почта" value={email ?? "Не указана"} />
               <ContactLine icon={Phone} label="Телефон" value={phone ?? "Не указан"} />
-              <ContactLine
-                icon={BadgeCheck}
-                label="Вход"
-                value={providerLabels[user.provider]}
-              />
+              <ContactLine icon={BadgeCheck} label="Вход" value={providerLabels[user.provider]} />
 
               <Badge variant="outline" className="rounded-lg border-emerald-200 text-emerald-700">
                 Аккаунт активен

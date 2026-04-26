@@ -7,6 +7,7 @@ export {
   type CheckoutCustomerDefaults,
   type CheckoutFormValues,
 } from "./checkout-form";
+export { canConfirmPendingOrderPayment, markPendingOrderPayment } from "./checkout-payment-session";
 export {
   checkoutDeliveryCities,
   getCheckoutDeliveryCity,

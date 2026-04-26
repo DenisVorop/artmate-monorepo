@@ -1,5 +1,7 @@
+"use client";
+
 import { CheckCircle2, ShoppingBag } from "lucide-react";
-import type { ReactNode } from "react";
+import { useEffect, useRef, useState, type ReactNode } from "react";
 
 import type { OrderDTO } from "@/shared/actions/orders";
 import { routes } from "@/shared/constants";
@@ -14,19 +16,81 @@ import {
 } from "@/shared/ui";
 import { Link } from "@/shared/ui/link";
 
-import { formatMoney } from "../lib";
-
-import { CheckoutSuccessCartReset } from "./success-cart-reset";
+import { canConfirmPendingOrderPayment, formatMoney } from "../lib";
+import { useConfirmOrderPaymentMutation } from "../model";
 
 type CheckoutSuccessProps = {
-  order: OrderDTO;
+  orderId?: string;
 };
 
-export function CheckoutSuccess({ order }: CheckoutSuccessProps) {
+export function CheckoutSuccess({ orderId }: CheckoutSuccessProps) {
+  const submittedOrderIdRef = useRef<string | undefined>(undefined);
+  const [canConfirmOrder, setCanConfirmOrder] = useState<boolean>();
+  const { confirmPayment, order, error, isError, isPending, isSuccess } =
+    useConfirmOrderPaymentMutation();
+
+  useEffect(() => {
+    if (!orderId) {
+      return;
+    }
+
+    setCanConfirmOrder(canConfirmPendingOrderPayment(orderId));
+  }, [orderId]);
+
+  useEffect(() => {
+    if (!orderId || !canConfirmOrder || submittedOrderIdRef.current === orderId) {
+      return;
+    }
+
+    submittedOrderIdRef.current = orderId;
+    void confirmPayment({ orderId });
+  }, [canConfirmOrder, confirmPayment, orderId]);
+
+  if (!orderId) {
+    return (
+      <CheckoutSuccessState
+        variant="error"
+        title="Не найден номер заказа"
+        description="Вернитесь в корзину и попробуйте оформить заказ заново."
+      />
+    );
+  }
+
+  if (canConfirmOrder === false) {
+    return (
+      <CheckoutSuccessState
+        variant="error"
+        title="Не удалось подтвердить оплату"
+        description="Эта ссылка не связана с текущим оформлением заказа."
+      />
+    );
+  }
+
+  if (canConfirmOrder === undefined || isPending || (!isError && !isSuccess)) {
+    return (
+      <CheckoutSuccessState
+        title="Подтверждаем оплату"
+        description="Проверяем заказ и обновляем статус оплаты."
+      />
+    );
+  }
+
+  if (isError || !order) {
+    return (
+      <CheckoutSuccessState
+        variant="error"
+        title="Не удалось подтвердить оплату"
+        description={error?.message ?? "Проверьте ссылку или попробуйте позже."}
+      />
+    );
+  }
+
+  return <CheckoutSuccessDetails order={order} />;
+}
+
+function CheckoutSuccessDetails({ order }: { order: OrderDTO }) {
   return (
     <section className="container py-10 md:py-14">
-      <CheckoutSuccessCartReset />
-
       <Card className="mx-auto max-w-3xl">
         <CardHeader className="items-start gap-4 border-b">
           <span className="flex size-12 items-center justify-center rounded-lg bg-emerald-50 text-emerald-600 ring-1 ring-emerald-200">
@@ -86,6 +150,39 @@ export function CheckoutSuccess({ order }: CheckoutSuccessProps) {
           </div>
         </CardContent>
       </Card>
+    </section>
+  );
+}
+
+function CheckoutSuccessState({
+  variant,
+  title,
+  description,
+}: {
+  variant?: "error";
+  title: string;
+  description: string;
+}) {
+  return (
+    <section className="container py-10">
+      <div className="mx-auto max-w-3xl">
+        <Card>
+          <CardContent className="flex flex-col items-center gap-5 py-10 text-center">
+            <div className="space-y-2">
+              <CardTitle className={variant === "error" ? "text-destructive" : undefined}>
+                {title}
+              </CardTitle>
+              <CardDescription>{description}</CardDescription>
+            </div>
+
+            {variant === "error" && (
+              <Button asChild>
+                <Link href={routes.cart}>Вернуться в корзину</Link>
+              </Button>
+            )}
+          </CardContent>
+        </Card>
+      </div>
     </section>
   );
 }

@@ -1,7 +1,6 @@
 import type { ReactNode } from "react";
 import { Comfortaa, Nunito } from "next/font/google";
 
-import { LayoutDataBuilder } from "../lib/layout-data-builder";
 import { AppProviders } from "../providers/app-providers";
 
 const comfortaa = Comfortaa({
@@ -22,13 +21,11 @@ type RootLayoutProps = {
   readonly children: ReactNode;
 };
 
-export async function RootLayout({ children }: RootLayoutProps) {
-  const { session } = await new LayoutDataBuilder().withSession().build();
-
+export function RootLayout({ children }: RootLayoutProps) {
   return (
     <html lang="ru" className={`${comfortaa.variable} ${nunito.variable}`}>
       <body>
-        <AppProviders user={session?.user ?? null}>{children}</AppProviders>
+        <AppProviders>{children}</AppProviders>
       </body>
     </html>
   );

@@ -4,12 +4,16 @@ import { useContext } from "react";
 
 import { UserContext } from "./user.context";
 
-export function useUser() {
-  const user = useContext(UserContext);
+export function useSession() {
+  const session = useContext(UserContext);
 
-  if (user === undefined) {
+  if (session === undefined) {
     throw new Error("useUser must be used within UserProvider");
   }
 
-  return user;
+  return session;
+}
+
+export function useUser() {
+  return useSession().user;
 }

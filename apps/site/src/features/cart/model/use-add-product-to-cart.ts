@@ -12,15 +12,7 @@ export function useAddProductToCart() {
   return useCallback(
     async (product: Product, quantity = 1) => {
       await mutate({
-        product: {
-          id: product.id,
-          title: product.title,
-          slug: product.slug,
-          price: product.price,
-          category: product.category,
-          categorySlug: product.categorySlug,
-          image: product.image,
-        },
+        productId: product.id,
         quantity,
       });
     },

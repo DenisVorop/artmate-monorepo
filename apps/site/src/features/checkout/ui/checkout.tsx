@@ -11,13 +11,10 @@ import { routes } from "@/shared/constants";
 import { Button, DataState } from "@/shared/ui";
 import { Link } from "@/shared/ui/link";
 
-import {
-  useCheckoutCalculation,
-  useCreateOrderMutation,
-  useOzonPickupPoints,
-} from "../model";
+import { useCheckoutCalculation, useCreateOrderMutation, useOzonPickupPoints } from "../model";
 import {
   getSelectedDeliveryPoint,
+  markPendingOrderPayment,
   type CheckoutCustomerDefaults,
   type CheckoutDeliveryCityId,
 } from "../lib";
@@ -33,10 +30,7 @@ export function Checkout() {
   const [cityId, setCityId] = useState<CheckoutDeliveryCityId>("moscow");
   const [selectedPickupPointId, setSelectedPickupPointId] = useState("");
   const pickupPoints = useOzonPickupPoints(cityId);
-  const pointInfo = useMemo(
-    () => pickupPoints.data?.points ?? [],
-    [pickupPoints.data?.points],
-  );
+  const pointInfo = useMemo(() => pickupPoints.data?.points ?? [], [pickupPoints.data?.points]);
   const selectedPoint = getSelectedDeliveryPoint(pointInfo, selectedPickupPointId);
   const calculation = useCheckoutCalculation(
     selectedPoint?.available ? selectedPickupPointId : undefined,
@@ -51,10 +45,10 @@ export function Checkout() {
   );
   const canSubmitOrder = Boolean(
     selectedPoint?.available &&
-      calculation.data &&
-      !calculation.isError &&
-      !calculation.isPending &&
-      !calculation.isFetching,
+    calculation.data &&
+    !calculation.isError &&
+    !calculation.isPending &&
+    !calculation.isFetching,
   );
 
   useEffect(() => {
@@ -72,9 +66,7 @@ export function Checkout() {
 
     const firstAvailablePoint = pointInfo.find((point) => point.available);
 
-    setSelectedPickupPointId(
-      firstAvailablePoint ? String(firstAvailablePoint.map_point_id) : "",
-    );
+    setSelectedPickupPointId(firstAvailablePoint ? String(firstAvailablePoint.map_point_id) : "");
   }, [pointInfo, selectedPickupPointId]);
 
   const handleSubmit = async (input: CreateOrderInputDTO) => {
@@ -86,6 +78,7 @@ export function Checkout() {
       const order = await createOrder(input);
 
       if (order?.payment.redirectUrl) {
+        markPendingOrderPayment(order.id);
         router.push(order.payment.redirectUrl);
       }
     } catch {
