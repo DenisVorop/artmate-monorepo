@@ -3,7 +3,6 @@ import { Comfortaa, Nunito } from "next/font/google";
 
 import { LayoutDataBuilder } from "../lib/layout-data-builder";
 import { AppProviders } from "../providers/app-providers";
-import { SiteLayout } from "./site-layout";
 
 const comfortaa = Comfortaa({
   subsets: ["latin", "cyrillic"],
@@ -29,9 +28,7 @@ export async function RootLayout({ children }: RootLayoutProps) {
   return (
     <html lang="ru" className={`${comfortaa.variable} ${nunito.variable}`}>
       <body>
-        <AppProviders user={session?.user ?? null}>
-          <SiteLayout>{children}</SiteLayout>
-        </AppProviders>
+        <AppProviders user={session?.user ?? null}>{children}</AppProviders>
       </body>
     </html>
   );

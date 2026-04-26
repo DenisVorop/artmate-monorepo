@@ -2,10 +2,9 @@
 
 import { useMemo, useState } from "react";
 import { useRouter, useSearchParams } from "next/navigation";
-import { ExternalLink, LoaderCircle, LogIn, UserPlus, UserRound } from "lucide-react";
+import { ExternalLink, LoaderCircle, LogIn, UserPlus } from "lucide-react";
 import { useForm } from "react-hook-form";
 
-import { useUser, type AuthUser } from "@/entities/session";
 import type { LoginInputDTO, RegisterInputDTO } from "@/shared/actions/auth";
 import { routes } from "@/shared/constants";
 import {
@@ -25,7 +24,7 @@ import {
 import { Link } from "@/shared/ui/link";
 
 import { getAuthErrorMessage } from "../lib";
-import { useLoginMutation, useLogoutMutation, useRegisterMutation } from "../model";
+import { useLoginMutation, useRegisterMutation } from "../model";
 
 type AuthMode = "login" | "register";
 
@@ -35,11 +34,6 @@ type RegisterFormValues = RegisterInputDTO & {
 
 export function AuthForm() {
   const [mode, setMode] = useState<AuthMode>("login");
-  const user = useUser();
-
-  if (user) {
-    return <AuthenticatedPanel user={user} />;
-  }
 
   return (
     <Card className="w-full max-w-md shadow-xl shadow-stone-950/5">
@@ -296,45 +290,6 @@ function OAuthButton() {
   );
 }
 
-function AuthenticatedPanel({ user }: { user: AuthUser }) {
-  const router = useRouter();
-  const { mutate: logout, isPending } = useLogoutMutation();
-  const title = user.name ?? user.email ?? user.providerUserId;
-
-  async function handleLogout() {
-    await logout();
-    router.replace(routes.home);
-    router.refresh();
-  }
-
-  return (
-    <Card className="w-full max-w-md shadow-xl shadow-stone-950/5">
-      <CardHeader>
-        <CardTitle className="flex items-center gap-2 text-xl">
-          <UserRound className="size-5" />
-          {title}
-        </CardTitle>
-        <CardDescription>{user.email ?? "Аккаунт Artmate"}</CardDescription>
-      </CardHeader>
-      <CardContent className="grid gap-3">
-        <Button asChild variant="outline" className="h-10 w-full">
-          <Link href={routes.home}>На главную</Link>
-        </Button>
-        <Button
-          type="button"
-          variant="destructive"
-          disabled={isPending}
-          className="h-10 w-full"
-          onClick={() => void handleLogout()}
-        >
-          {isPending && <LoaderCircle data-icon="inline-start" className="animate-spin" />}
-          Выйти
-        </Button>
-      </CardContent>
-    </Card>
-  );
-}
-
 function FieldError({ message }: { message?: string }) {
   if (!message) {
     return null;
@@ -362,9 +317,18 @@ function getOptionalValue(value?: string) {
 }
 
 function getSafeRedirectPath(path: string | null) {
-  if (!path || !path.startsWith("/") || path.startsWith("//")) {
+  if (!path || !path.startsWith("/") || path.startsWith("//") || isAuthPath(path)) {
     return routes.home;
   }
 
   return path;
+}
+
+function isAuthPath(path: string) {
+  return (
+    path === routes.auth ||
+    path.startsWith(`${routes.auth}/`) ||
+    path.startsWith(`${routes.auth}?`) ||
+    path.startsWith(`${routes.auth}#`)
+  );
 }
