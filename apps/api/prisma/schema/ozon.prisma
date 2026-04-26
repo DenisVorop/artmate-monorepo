@@ -1,0 +1,14 @@
+model OzonOAuthToken {
+  id           String   @id @default(cuid())
+  tokenKey     String   @unique @default("default") @map("token_key") @db.VarChar(64)
+  accessToken  String   @map("access_token") @db.Text
+  refreshToken String?  @map("refresh_token") @db.Text
+  scope        String[] @default([])
+  tokenType    String?  @map("token_type") @db.VarChar(32)
+  expiresAt    DateTime @map("expires_at")
+  createdAt    DateTime @default(now()) @map("created_at")
+  updatedAt    DateTime @default(now()) @updatedAt @map("updated_at")
+
+  @@index([expiresAt])
+  @@map("ozon_oauth_tokens")
+}
