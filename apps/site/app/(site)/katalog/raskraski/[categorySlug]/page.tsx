@@ -54,7 +54,7 @@ export async function generateMetadata({ params }: CatalogCategoryRouteProps): P
       images: [
         {
           url: category.image,
-          width: 1200,
+          width: 900,
           height: 1200,
           alt: title,
         },

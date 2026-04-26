@@ -70,7 +70,7 @@ export async function generateMetadata({ params }: ProductRouteProps): Promise<M
       images: [
         {
           url: product.image,
-          width: 1200,
+          width: 900,
           height: 1200,
           alt: product.title,
         },

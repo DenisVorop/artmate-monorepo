@@ -74,10 +74,6 @@ export function PaymentAndDeliveryPage() {
             <h1 className="font-display text-3xl font-bold tracking-normal text-foreground md:text-5xl">
               Заказ оплачивается через Ozon Pay и доставляется в ПВЗ Ozon
             </h1>
-            <p className="text-lg leading-8 text-muted-foreground">
-              На этой странице описан процесс оформления заказа, оплаты, получения чека,
-              доставки и возврата для интернет-магазина Artmate.
-            </p>
             <div className="flex flex-col gap-3 sm:flex-row">
               <Button asChild size="lg">
                 <Link href={routes.catalog}>Перейти в каталог</Link>

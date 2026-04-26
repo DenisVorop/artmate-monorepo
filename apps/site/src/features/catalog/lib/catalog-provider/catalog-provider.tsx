@@ -28,10 +28,13 @@ export function CatalogProvider({
   children,
 }: CatalogProviderProps) {
   const router = useRouter();
-  const [categoryId, setCategoryId] = useState(() => normalizeCategoryId(categories, initialCategoryId));
+  const [categoryId, setCategoryId] = useState(() =>
+    normalizeCategoryId(categories, initialCategoryId),
+  );
   const [query, setQuery] = useState("");
   const [sortBy, setSortBy] = useState<SortValue>("featured");
   const [onlyBestsellers, setOnlyBestsellers] = useState(false);
+  const [onlyPixel, setOnlyPixel] = useState(false);
 
   useEffect(() => {
     setCategoryId(normalizeCategoryId(categories, initialCategoryId));
@@ -44,8 +47,9 @@ export function CatalogProvider({
         query,
         sortBy,
         onlyBestsellers,
+        onlyPixel,
       }),
-    [categoryId, onlyBestsellers, products, query, sortBy],
+    [categoryId, onlyBestsellers, onlyPixel, products, query, sortBy],
   );
 
   const setCategory = useCallback(
@@ -61,12 +65,14 @@ export function CatalogProvider({
   const clearQuery = useCallback(() => setQuery(""), []);
   const clearCategory = useCallback(() => setCategory(undefined), [setCategory]);
   const clearBestsellers = useCallback(() => setOnlyBestsellers(false), []);
+  const clearPixel = useCallback(() => setOnlyPixel(false), []);
 
   const clearAll = useCallback(() => {
     setCategoryId(undefined);
     setQuery("");
     setSortBy("featured");
     setOnlyBestsellers(false);
+    setOnlyPixel(false);
     router.replace(getCatalogHref(categories), { scroll: false });
   }, [categories, router]);
 
@@ -80,16 +86,19 @@ export function CatalogProvider({
       categoryId,
       query,
       onlyBestsellers,
+      onlyPixel,
       sortBy,
       countLabel: formatCount(filteredProducts.length),
-      hasFilters: Boolean(categoryId || query.trim() || onlyBestsellers),
+      hasFilters: Boolean(categoryId || query.trim() || onlyBestsellers || onlyPixel),
       setQuery,
       setCategory,
       setOnlyBestsellers,
+      setOnlyPixel,
       setSortBy,
       clearQuery,
       clearCategory,
       clearBestsellers,
+      clearPixel,
       clearAll,
     }),
     [
@@ -97,11 +106,13 @@ export function CatalogProvider({
       clearAll,
       clearBestsellers,
       clearCategory,
+      clearPixel,
       clearQuery,
       categories,
       filteredProducts,
       onAddToCart,
       onlyBestsellers,
+      onlyPixel,
       products,
       query,
       setCategory,

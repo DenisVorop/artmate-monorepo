@@ -189,7 +189,7 @@ function CartLineSkeleton() {
   return (
     <Card className="overflow-hidden py-0" aria-hidden="true">
       <CardContent className="grid gap-4 p-4 sm:grid-cols-[7rem_minmax(0,1fr)]">
-        <div className="aspect-square rounded-lg bg-muted motion-safe:animate-pulse" />
+        <div className="aspect-[3/4] rounded-lg bg-muted motion-safe:animate-pulse" />
 
         <div className="grid gap-4 md:grid-cols-[minmax(0,1fr)_auto] md:items-center">
           <div className="min-w-0 space-y-3">
@@ -248,7 +248,7 @@ function CartLine({ item, disabled, onUpdateQuantity, onRemove }: CartLineProps)
       <CardContent className="grid gap-4 p-4 sm:grid-cols-[7rem_minmax(0,1fr)]">
         <Link
           href={productHref}
-          className="relative block aspect-square overflow-hidden rounded-lg bg-muted"
+          className="relative block aspect-[3/4] overflow-hidden rounded-lg bg-muted"
         >
           <Image
             fill

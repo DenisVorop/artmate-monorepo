@@ -88,7 +88,7 @@ export function Gallery({ images, title }: GalleryProps) {
               aria-pressed={activeIndex === index}
               onClick={() => setActiveIndex(index)}
               className={cn(
-                "relative aspect-square overflow-hidden rounded-lg border bg-muted transition",
+                "relative aspect-[3/4] overflow-hidden rounded-lg border bg-muted transition",
                 activeIndex === index
                   ? "border-foreground opacity-100"
                   : "border-border opacity-70 hover:opacity-100",
@@ -109,7 +109,7 @@ export function Gallery({ images, title }: GalleryProps) {
 
       <div className="min-w-0 flex-1 space-y-3">
         <AspectRatio
-          ratio={1}
+          ratio={3 / 4}
           className="group/gallery relative overflow-hidden rounded-xl bg-muted"
         >
           <button
@@ -180,7 +180,7 @@ export function Gallery({ images, title }: GalleryProps) {
                 aria-pressed={activeIndex === index}
                 onClick={() => setActiveIndex(index)}
                 className={cn(
-                  "relative h-16 w-16 shrink-0 overflow-hidden rounded-lg border bg-muted transition",
+                  "relative h-20 w-15 shrink-0 overflow-hidden rounded-lg border bg-muted transition",
                   activeIndex === index ? "border-foreground" : "border-border opacity-70",
                 )}
               >
@@ -188,7 +188,7 @@ export function Gallery({ images, title }: GalleryProps) {
                   fill
                   src={image}
                   alt=""
-                  sizes="64px"
+                  sizes="60px"
                   className="object-cover"
                   draggable={false}
                 />
@@ -223,12 +223,12 @@ export function Gallery({ images, title }: GalleryProps) {
           </div>
 
           <div className="flex min-h-0 flex-1 items-center justify-center px-4 py-16">
-            <div className="relative aspect-square w-[min(78vw,calc(100dvh-12rem))] max-w-[42rem] overflow-hidden rounded-xl bg-black/20 shadow-2xl ring-1 ring-white/15 max-md:w-[min(92vw,calc(100dvh-11rem))]">
+            <div className="relative aspect-[3/4] w-[min(78vw,calc((100dvh-12rem)*0.75),42rem)] overflow-hidden rounded-xl bg-black/20 shadow-2xl ring-1 ring-white/15 max-md:w-[min(92vw,calc((100dvh-11rem)*0.75))]">
               <Image
                 fill
                 src={lightboxImage}
                 alt={`${title}, фото ${lightboxIndex + 1}`}
-                sizes="(min-width: 768px) min(78vw, 42rem), 92vw"
+                sizes="(min-width: 768px) 42rem, 92vw"
                 className="object-cover"
                 draggable={false}
               />
@@ -270,13 +270,13 @@ export function Gallery({ images, title }: GalleryProps) {
                   aria-pressed={lightboxIndex === index}
                   onClick={() => setLightboxIndex(index)}
                   className={cn(
-                    "relative h-14 w-14 shrink-0 overflow-hidden rounded-lg border transition",
+                    "relative h-16 w-12 shrink-0 overflow-hidden rounded-lg border transition",
                     lightboxIndex === index
                       ? "border-white opacity-100"
                       : "border-white/20 opacity-60 hover:opacity-100",
                   )}
                 >
-                  <Image fill src={image} alt="" sizes="56px" className="object-cover" />
+                  <Image fill src={image} alt="" sizes="48px" className="object-cover" />
                 </button>
               ))}
             </div>

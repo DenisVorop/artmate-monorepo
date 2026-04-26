@@ -67,7 +67,7 @@ export function ProductCard({ product, eagerImage = false, onAddToCart }: Produc
     <Card className="group/product h-full gap-0 py-0 transition-shadow duration-300 hover:shadow-md">
       <div className="relative">
         <Link href={productHref} className="block overflow-hidden bg-muted">
-          <AspectRatio ratio={1} className="relative">
+          <AspectRatio ratio={3 / 4} className="relative">
             <Image
               fill
               src={product.image}

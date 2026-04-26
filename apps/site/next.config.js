@@ -6,6 +6,38 @@ const nextConfig = {
         protocol: "https",
         hostname: "images.unsplash.com",
       },
+      {
+        protocol: "https",
+        hostname: "basket-20.wbbasket.ru",
+      },
+      {
+        protocol: "https",
+        hostname: "basket-21.wbbasket.ru",
+      },
+      {
+        protocol: "https",
+        hostname: "basket-24.wbbasket.ru",
+      },
+      {
+        protocol: "https",
+        hostname: "basket-27.wbbasket.ru",
+      },
+      {
+        protocol: "https",
+        hostname: "basket-28.wbbasket.ru",
+      },
+      {
+        protocol: "https",
+        hostname: "basket-30.wbbasket.ru",
+      },
+      {
+        protocol: "https",
+        hostname: "basket-35.wbbasket.ru",
+      },
+      {
+        protocol: "https",
+        hostname: "basket-41.wbbasket.ru",
+      },
     ],
   },
   turbopack: {
@@ -17,9 +49,7 @@ const nextConfig = {
     },
   },
   webpack(config) {
-    const fileLoaderRule = config.module.rules.find((rule) =>
-      rule.test?.test?.(".svg"),
-    );
+    const fileLoaderRule = config.module.rules.find((rule) => rule.test?.test?.(".svg"));
 
     config.module.rules.push(
       {

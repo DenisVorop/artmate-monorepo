@@ -1,13 +1,7 @@
 "use client";
 
 import Image from "next/image";
-import {
-  CalendarDays,
-  ChevronDown,
-  ChevronUp,
-  MapPin,
-  PackageCheck,
-} from "lucide-react";
+import { CalendarDays, ChevronDown, ChevronUp, MapPin, PackageCheck } from "lucide-react";
 import { useId, useState } from "react";
 
 import { routes } from "@/shared/constants";
@@ -138,7 +132,7 @@ function OrderItemRow({ item }: { item: OrderItem }) {
     <div className="grid grid-cols-[4rem_minmax(0,1fr)_auto] gap-3">
       <Link
         href={routes.product(item.categorySlug, item.slug)}
-        className="relative aspect-square overflow-hidden rounded-lg bg-muted"
+        className="relative aspect-[3/4] overflow-hidden rounded-lg bg-muted"
       >
         <Image fill src={item.image} alt={item.title} sizes="64px" className="object-cover" />
       </Link>

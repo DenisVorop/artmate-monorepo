@@ -9,11 +9,13 @@ export function Summary() {
     activeCategory,
     query,
     onlyBestsellers,
+    onlyPixel,
     hasFilters,
     countLabel,
     clearCategory,
     clearQuery,
     clearBestsellers,
+    clearPixel,
     clearAll,
   } = useCatalog();
 
@@ -41,13 +43,29 @@ export function Summary() {
 
           {onlyBestsellers && (
             <Badge className="h-auto bg-rose-500 py-1 pr-1 text-white hover:bg-rose-500">
-              Хиты
+              Хит
               <Button
                 type="button"
                 size="icon-xs"
                 variant="ghost"
                 aria-label="Убрать фильтр хитов"
                 onClick={clearBestsellers}
+                className="size-4 rounded-full text-white hover:bg-white/15 hover:text-white"
+              >
+                <X />
+              </Button>
+            </Badge>
+          )}
+
+          {onlyPixel && (
+            <Badge className="h-auto bg-stone-900 py-1 pr-1 text-white hover:bg-stone-900">
+              Пиксельная
+              <Button
+                type="button"
+                size="icon-xs"
+                variant="ghost"
+                aria-label="Убрать фильтр пиксельных раскрасок"
+                onClick={clearPixel}
                 className="size-4 rounded-full text-white hover:bg-white/15 hover:text-white"
               >
                 <X />

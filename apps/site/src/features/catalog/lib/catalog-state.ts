@@ -14,10 +14,14 @@ export type FiltersState = {
   categoryId?: string;
   query: string;
   onlyBestsellers: boolean;
+  onlyPixel: boolean;
   sortBy: SortValue;
 };
 
-export function normalizeCategoryId(categories: readonly ProductCategory[], categoryValue?: string) {
+export function normalizeCategoryId(
+  categories: readonly ProductCategory[],
+  categoryValue?: string,
+) {
   return categories.find(
     (category) => category.id === categoryValue || category.slug === categoryValue,
   )?.id;
@@ -45,6 +49,16 @@ export function filterProducts(products: readonly Product[], filters: FiltersSta
 
   if (filters.onlyBestsellers) {
     list = list.filter((product) => product.bestseller);
+  }
+
+  if (filters.onlyPixel) {
+    list = list.filter((product) => {
+      const slug = product.slug.toLocaleLowerCase("ru-RU");
+      const title = product.title.toLocaleLowerCase("ru-RU");
+      const description = product.description.toLocaleLowerCase("ru-RU");
+
+      return slug.includes("pixel") || title.includes("пиксел") || description.includes("пиксел");
+    });
   }
 
   if (normalizedQuery) {

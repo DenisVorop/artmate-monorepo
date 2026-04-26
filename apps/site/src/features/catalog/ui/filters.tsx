@@ -1,21 +1,29 @@
 "use client";
 
-import { ChevronDown, Search, SlidersHorizontal, Sparkles, X } from "lucide-react";
-import { Button, DropdownMenu, DropdownMenuContent, DropdownMenuRadioGroup, DropdownMenuRadioItem, DropdownMenuTrigger, Input, Separator } from "@/shared/ui";
+import { Blocks, ChevronDown, Search, SlidersHorizontal, Sparkles, X } from "lucide-react";
+import {
+  Button,
+  DropdownMenu,
+  DropdownMenuContent,
+  DropdownMenuRadioGroup,
+  DropdownMenuRadioItem,
+  DropdownMenuTrigger,
+  Input,
+  Separator,
+} from "@/shared/ui";
 import { cn } from "@/shared/lib";
 import { useCatalog } from "../lib/catalog-provider";
 import { sortOptions, type SortValue } from "../lib/catalog-state";
 
 export function Filters() {
   const {
-    categories,
-    categoryId,
     query,
     onlyBestsellers,
+    onlyPixel,
     sortBy,
     setQuery,
-    setCategory,
     setOnlyBestsellers,
+    setOnlyPixel,
     setSortBy,
   } = useCatalog();
   const sortLabel = sortOptions.find((option) => option.value === sortBy)?.label ?? "Сортировка";
@@ -51,50 +59,39 @@ export function Filters() {
         <div className="-mx-1 flex gap-2 overflow-x-auto px-1 pb-1 sm:flex-wrap sm:overflow-visible sm:pb-0">
           <Button
             type="button"
-            variant={categoryId ? "ghost" : "default"}
-            aria-pressed={!categoryId}
-            onClick={() => setCategory(undefined)}
+            variant={onlyBestsellers ? "default" : "outline"}
+            aria-pressed={onlyBestsellers}
+            onClick={() => setOnlyBestsellers(!onlyBestsellers)}
+            className={cn(
+              "w-fit",
+              onlyBestsellers &&
+                "bg-rose-500 text-white hover:bg-rose-600 focus-visible:border-rose-300 focus-visible:ring-rose-400/30",
+            )}
           >
-            Все
+            <Sparkles data-icon="inline-start" />
+            Хит
           </Button>
-          {categories.map((category) => (
-            <Button
-              key={category.id}
-              type="button"
-              variant={categoryId === category.id ? "default" : "ghost"}
-              aria-pressed={categoryId === category.id}
-              onClick={() => setCategory(categoryId === category.id ? undefined : category.id)}
-            >
-              {category.title}
-            </Button>
-          ))}
+
+          <Button
+            type="button"
+            variant={onlyPixel ? "default" : "outline"}
+            aria-pressed={onlyPixel}
+            onClick={() => setOnlyPixel(!onlyPixel)}
+            className={cn(
+              "w-fit",
+              onlyPixel &&
+                "bg-stone-900 text-white hover:bg-stone-800 focus-visible:border-stone-400 focus-visible:ring-stone-500/30",
+            )}
+          >
+            <Blocks data-icon="inline-start" />
+            Пиксельная
+          </Button>
         </div>
-
-        <Separator orientation="vertical" className="hidden h-8 lg:block" />
-
-        <Button
-          type="button"
-          variant={onlyBestsellers ? "default" : "outline"}
-          aria-pressed={onlyBestsellers}
-          onClick={() => setOnlyBestsellers(!onlyBestsellers)}
-          className={cn(
-            "w-fit",
-            onlyBestsellers &&
-              "bg-rose-500 text-white hover:bg-rose-600 focus-visible:border-rose-300 focus-visible:ring-rose-400/30",
-          )}
-        >
-          <Sparkles data-icon="inline-start" />
-          Хиты
-        </Button>
 
         <div className="flex flex-1 justify-start lg:justify-end">
           <DropdownMenu>
             <DropdownMenuTrigger asChild>
-              <Button
-                type="button"
-                variant="outline"
-                className="min-w-44 justify-between"
-              >
+              <Button type="button" variant="outline" className="min-w-44 justify-between">
                 <span className="inline-flex min-w-0 items-center gap-1.5">
                   <SlidersHorizontal data-icon="inline-start" />
                   <span className="truncate">{sortLabel}</span>

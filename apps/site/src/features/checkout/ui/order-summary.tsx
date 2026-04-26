@@ -25,12 +25,12 @@ export function OrderSummary({ cart, pickupPoint }: OrderSummaryProps) {
         <ul className="space-y-3">
           {cart.items.map((item) => (
             <li key={item.id} className="flex gap-3">
-              <div className="relative size-14 shrink-0 overflow-hidden rounded-lg bg-muted">
+              <div className="relative h-16 w-12 shrink-0 overflow-hidden rounded-lg bg-muted">
                 <Image
                   fill
                   src={item.image}
                   alt={item.title}
-                  sizes="56px"
+                  sizes="48px"
                   className="object-cover"
                 />
               </div>

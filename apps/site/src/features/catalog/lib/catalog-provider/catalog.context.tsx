@@ -13,16 +13,19 @@ export type CatalogContextValue = {
   categoryId?: string;
   query: string;
   onlyBestsellers: boolean;
+  onlyPixel: boolean;
   sortBy: SortValue;
   countLabel: string;
   hasFilters: boolean;
   setQuery: (_query: string) => void;
   setCategory: (_categoryId?: string) => void;
   setOnlyBestsellers: (_value: boolean) => void;
+  setOnlyPixel: (_value: boolean) => void;
   setSortBy: (_sortBy: SortValue) => void;
   clearQuery: () => void;
   clearCategory: () => void;
   clearBestsellers: () => void;
+  clearPixel: () => void;
   clearAll: () => void;
 };
 
