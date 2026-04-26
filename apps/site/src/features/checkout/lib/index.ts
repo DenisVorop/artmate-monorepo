@@ -1,4 +1,7 @@
 export {
+  checkoutFormValidationSchema,
+  checkoutPhonePlaceholder,
+  formatCheckoutPhone,
   getDefaultCheckoutFormValues,
   getSelectedPickupPoint,
   toCreateOrderInput,

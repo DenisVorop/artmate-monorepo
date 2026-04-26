@@ -1,5 +1,6 @@
 "use client";
 
+import { zodResolver } from "@hookform/resolvers/zod";
 import { CreditCard, LoaderCircle, MapPin } from "lucide-react";
 import { useMemo } from "react";
 import { useForm } from "react-hook-form";
@@ -21,8 +22,11 @@ import {
 import { Link } from "@/shared/ui/link";
 
 import {
+  checkoutFormValidationSchema,
+  checkoutPhonePlaceholder,
   type CheckoutCustomerDefaults,
   formatMoney,
+  formatCheckoutPhone,
   getDefaultCheckoutFormValues,
   toCreateOrderInput,
   type CheckoutFormValues,
@@ -56,7 +60,9 @@ export function CheckoutForm({
   } = useForm<CheckoutFormValues>({
     defaultValues,
     mode: "onSubmit",
+    resolver: zodResolver(checkoutFormValidationSchema),
   });
+  const phoneField = register("phone");
 
   const submitForm = handleSubmit(async (values) => {
     await onSubmit(toCreateOrderInput(values));
@@ -78,13 +84,7 @@ export function CheckoutForm({
               autoComplete="name"
               placeholder="Анна Иванова"
               aria-invalid={Boolean(errors.name)}
-              {...register("name", {
-                required: "Укажите имя",
-                minLength: {
-                  value: 2,
-                  message: "Имя должно быть длиннее 1 символа",
-                },
-              })}
+              {...register("name")}
             />
             <FieldError message={errors.name?.message} />
           </div>
@@ -96,15 +96,14 @@ export function CheckoutForm({
               type="tel"
               inputMode="tel"
               autoComplete="tel"
-              placeholder="+7 900 000-00-00"
+              placeholder={checkoutPhonePlaceholder}
+              maxLength={checkoutPhonePlaceholder.length}
               aria-invalid={Boolean(errors.phone)}
-              {...register("phone", {
-                required: "Укажите телефон",
-                minLength: {
-                  value: 6,
-                  message: "Телефон выглядит слишком коротким",
-                },
-              })}
+              {...phoneField}
+              onChange={(event) => {
+                event.target.value = formatCheckoutPhone(event.target.value);
+                void phoneField.onChange(event);
+              }}
             />
             <FieldError message={errors.phone?.message} />
           </div>
@@ -117,13 +116,7 @@ export function CheckoutForm({
               autoComplete="email"
               placeholder="anna@example.com"
               aria-invalid={Boolean(errors.email)}
-              {...register("email", {
-                required: "Укажите email",
-                pattern: {
-                  value: /^[^\s@]+@[^\s@]+\.[^\s@]+$/,
-                  message: "Введите корректный email",
-                },
-              })}
+              {...register("email")}
             />
             <FieldError message={errors.email?.message} />
           </div>
@@ -154,7 +147,6 @@ export function CheckoutForm({
                   value={pickupPoint.id}
                   className="mt-1 size-4 accent-rose-500"
                   {...register("pickupPointId", {
-                    required: "Выберите ПВЗ",
                     onChange: (event) => onPickupPointChange(event.target.value),
                   })}
                 />
@@ -208,12 +200,7 @@ export function CheckoutForm({
               rows={4}
               placeholder="Например, пожелания по упаковке"
               className="min-h-24 resize-none"
-              {...register("comment", {
-                maxLength: {
-                  value: 1000,
-                  message: "Комментарий должен быть короче 1000 символов",
-                },
-              })}
+              {...register("comment")}
             />
             <FieldError message={errors.comment?.message} />
           </div>
@@ -223,9 +210,7 @@ export function CheckoutForm({
               type="checkbox"
               className="mt-0.5 size-4 rounded border-border accent-rose-500"
               aria-invalid={Boolean(errors.acceptedLegal)}
-              {...register("acceptedLegal", {
-                validate: (value) => value || "Подтвердите согласие с условиями",
-              })}
+              {...register("acceptedLegal")}
             />
             <span className="text-muted-foreground">
               Я принимаю{" "}

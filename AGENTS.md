@@ -281,6 +281,7 @@ src/_pages/<page>/
 - Не добавляй лишний префикс контекста в именах файлов и компонентов. Внутри конкретного slice не дублируй его имя в каждом файле, если роль файла уже понятна.
 - Page-local static UI может называться коротко: `hero.tsx`, `heading.tsx`, `cta.tsx`.
 - Названия должны отражать роль в текущем slice, а не весь путь.
+- Константы именуй в `camelCase`, не используй `SCREAMING_SNAKE_CASE`.
 - Для query hooks используй форму `use-<domain-data>.ts`.
 - Для query options используй `query.ts`; для типов модели — `types.ts`; для public API slice — `index.ts`.
 
