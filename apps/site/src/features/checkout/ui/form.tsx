@@ -181,7 +181,9 @@ export function CheckoutForm({
       <Card>
         <CardHeader>
           <CardTitle>Оплата</CardTitle>
-          <CardDescription>Сейчас подключен моковый банковский сценарий.</CardDescription>
+          <CardDescription>
+            Оплата проходит на защищенной платежной странице Ozon Pay.
+          </CardDescription>
         </CardHeader>
         <CardContent className="space-y-4">
           <div className="flex items-center gap-3 rounded-lg border bg-muted/40 p-4">
@@ -191,7 +193,8 @@ export function CheckoutForm({
             <div>
               <p className="font-medium">Онлайн-оплата картой</p>
               <p className="text-sm text-muted-foreground">
-                После отправки заказа откроется моковая страница оплаты.
+                После подтверждения заказа откроется платежная страница. Artmate не хранит
+                реквизиты банковских карт.
               </p>
             </div>
           </div>
@@ -229,7 +232,11 @@ export function CheckoutForm({
               <Link href={routes.legal.publicOffer} className="text-foreground underline">
                 оферту
               </Link>{" "}
-              и соглашаюсь на обработку персональных данных.
+              и{" "}
+              <Link href={routes.legal.personalDataConsent} className="text-foreground underline">
+                соглашаюсь на обработку персональных данных
+              </Link>
+              .
             </span>
           </label>
           <FieldError message={errors.acceptedLegal?.message} />

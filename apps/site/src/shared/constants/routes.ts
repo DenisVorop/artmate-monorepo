@@ -12,6 +12,7 @@ export const routes = {
   gallery: "/gallery",
   checkout: "/checkout",
   checkoutSuccess: "/checkout/success",
+  paymentAndDelivery: "/payment-and-delivery",
   contacts: "/contacts",
   faq: "/faq",
   product: (categorySlug: string, productSlug: string) =>

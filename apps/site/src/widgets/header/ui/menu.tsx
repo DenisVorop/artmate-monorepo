@@ -32,6 +32,9 @@ export function Menu() {
         <Link href={routes.catalog}>Каталог</Link>
       </li>
       <li>
+        <Link href={routes.paymentAndDelivery}>Оплата и доставка</Link>
+      </li>
+      <li>
         <Link href={routes.contacts}>Контакты</Link>
       </li>
       <li>

@@ -1,7 +1,6 @@
 import { Link } from "@/shared/ui/link";
-import InstagramSvg from "../assets/instagram.svg";
 import TelegramSvg from "../assets/telegram.svg";
-import { externalLinks, routes } from "@/shared/constants";
+import { companyDetails, externalLinks, routes } from "@/shared/constants";
 
 const legalDocs = [
   {
@@ -56,17 +55,11 @@ export function LegalDocs() {
       <div className="container flex flex-col items-center justify-between gap-4 border-t border-stone-800 py-8 md:flex-row">
         <p className="text-sm text-stone-500">© {currentYear} ARTMATE. Все права защищены.</p>
         <div className="flex items-center gap-6">
-          <p className="text-xs text-stone-600">ИНН: XXXXXXXXXX · ОГРН: XXXXXXXXXXXXX</p>
+          <p className="text-xs text-stone-600">
+            ИНН: {companyDetails.inn} · {companyDetails.registrationNumberLabel}:{" "}
+            {companyDetails.registrationNumber}
+          </p>
           <div className="flex items-center gap-3">
-            <a
-              href={externalLinks.social.instagram}
-              target="_blank"
-              rel="noreferrer"
-              aria-label="Instagram Artmate"
-              className="text-stone-500 transition-colors hover:text-white"
-            >
-              <InstagramSvg className="h-5 w-5" />
-            </a>
             <a
               href={externalLinks.social.telegram}
               target="_blank"

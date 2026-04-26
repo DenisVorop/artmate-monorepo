@@ -40,6 +40,7 @@ export function Footer() {
               <ul className="space-y-3">
                 {[
                   { label: "Каталог", to: routes.catalog },
+                  { label: "Оплата и доставка", to: routes.paymentAndDelivery },
                   { label: "Ozon", href: externalLinks.marketplaces.ozon },
                   { label: "Wildberries", href: externalLinks.marketplaces.wildberries },
                 ].map((l) => (
@@ -130,15 +131,17 @@ export function Footer() {
               <ul className="space-y-3 text-sm text-stone-500">
                 <li className="flex items-start gap-2">
                   <span className="mt-0.5 shrink-0 text-emerald-400">✓</span>
-                  <span>Ozon Логистика — бесплатно</span>
+                  <span>ПВЗ Ozon — условия при оформлении</span>
                 </li>
                 <li className="flex items-start gap-2">
                   <span className="mt-0.5 shrink-0 text-emerald-400">✓</span>
-                  <span>Wildberries — бесплатно</span>
+                  <span>Оплата через Ozon Pay</span>
                 </li>
                 <li className="flex items-start gap-2">
                   <span className="mt-0.5 shrink-0 text-stone-600">→</span>
-                  <span>Курьер — от&nbsp;350 ₽</span>
+                  <Link href={routes.paymentAndDelivery} className="hover:text-white">
+                    Подробнее об оплате
+                  </Link>
                 </li>
               </ul>
             </div>

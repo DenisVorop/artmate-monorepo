@@ -5,6 +5,5 @@ export const externalLinks = {
   },
   social: {
     telegram: "https://t.me",
-    instagram: "https://www.instagram.com",
   },
 } as const;

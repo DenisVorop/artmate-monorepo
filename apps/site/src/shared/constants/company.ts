@@ -1,0 +1,16 @@
+export const companyDetails = {
+  brandName: "Artmate",
+  legalName: "Укажите полное наименование ИП или ООО",
+  inn: "Укажите ИНН",
+  registrationNumberLabel: "ОГРН/ОГРНИП",
+  registrationNumber: "Укажите ОГРН или ОГРНИП",
+  legalAddress: "Укажите юридический адрес",
+  actualAddress: "Укажите фактический адрес",
+  registrationCountry: "Российская Федерация",
+  supportPhone: "Укажите телефон",
+  supportEmail: "artmate.official@outlook.com",
+  businessHours: "Пн-пт, 10:00-18:00 по московскому времени",
+  paymentProvider: "Ozon Pay",
+  acquiringProvider: "Ozon Банк",
+  deliveryProvider: "Ozon",
+} as const;

@@ -37,9 +37,44 @@ const staticRoutes = [
     priority: 0.6,
   },
   {
+    path: routes.paymentAndDelivery,
+    changeFrequency: "monthly",
+    priority: 0.65,
+  },
+  {
     path: routes.faq,
     changeFrequency: "monthly",
     priority: 0.65,
+  },
+  {
+    path: routes.legal.publicOffer,
+    changeFrequency: "monthly",
+    priority: 0.45,
+  },
+  {
+    path: routes.legal.privacyPolicy,
+    changeFrequency: "monthly",
+    priority: 0.45,
+  },
+  {
+    path: routes.legal.userAgreement,
+    changeFrequency: "monthly",
+    priority: 0.45,
+  },
+  {
+    path: routes.legal.personalDataConsent,
+    changeFrequency: "monthly",
+    priority: 0.4,
+  },
+  {
+    path: routes.legal.cookiePolicy,
+    changeFrequency: "monthly",
+    priority: 0.4,
+  },
+  {
+    path: routes.legal.returnPolicy,
+    changeFrequency: "monthly",
+    priority: 0.45,
   },
 ] satisfies SitemapEntry[];
 

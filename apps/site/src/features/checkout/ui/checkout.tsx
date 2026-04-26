@@ -113,7 +113,7 @@ export function Checkout({ pickupPoints, isPickupPointsError = false }: Checkout
             Доставка и оплата
           </h1>
           <p className="max-w-2xl text-muted-foreground">
-            Выберите ПВЗ Ozon, проверьте контакты и перейдите к моковой оплате заказа.
+            Выберите ПВЗ Ozon, проверьте контакты и перейдите к защищенной оплате заказа.
           </p>
         </div>
 
