@@ -39,18 +39,8 @@ export function Cart() {
     useUpdateCartItemQuantityMutation();
   const { mutate: removeCartItem, isPending: isRemovingItem } = useRemoveCartItemMutation();
   const { mutate: clearCart, isPending: isClearingCart } = useClearCartMutation();
+  const isLoading = cart.isPending;
   const isMutating = isUpdatingItemQuantity || isRemovingItem || isClearingCart;
-
-  if (cart.isPending) {
-    return (
-      <section className="container py-10">
-        <DataState
-          title="Загружаем корзину"
-          description="Проверяем товары и актуальные количества."
-        />
-      </section>
-    );
-  }
 
   if (cart.isError) {
     return (
@@ -64,7 +54,7 @@ export function Cart() {
     );
   }
 
-  if (!cart.data || cart.data.items.length === 0) {
+  if (!isLoading && (!cart.data || cart.data.items.length === 0)) {
     return (
       <section className="container py-10">
         <DataState
@@ -83,7 +73,9 @@ export function Cart() {
     );
   }
 
-  const itemsLabel = `${cart.data.itemsCount} ${getItemsWord(cart.data.itemsCount)}`;
+  const itemsLabel = cart.data
+    ? `${cart.data.itemsCount} ${getItemsWord(cart.data.itemsCount)}`
+    : "Проверяем товары";
 
   return (
     <section className="container py-8 md:py-12">
@@ -105,19 +97,25 @@ export function Cart() {
       </div>
 
       <div className="grid gap-6 lg:grid-cols-[minmax(0,1fr)_22rem] lg:items-start">
-        <ul className="space-y-4">
-          {cart.data.items.map((item) => (
-            <li key={item.id}>
-              <CartLine
-                item={item}
-                disabled={isMutating}
-                onUpdateQuantity={(quantity) =>
-                  updateCartItemQuantity({ productId: item.id, quantity })
-                }
-                onRemove={() => removeCartItem({ productId: item.id })}
-              />
-            </li>
-          ))}
+        <ul className="space-y-4" aria-busy={isLoading}>
+          {isLoading
+            ? Array.from({ length: 3 }, (_, index) => (
+                <li key={index}>
+                  <CartLineSkeleton />
+                </li>
+              ))
+            : cart.data?.items.map((item) => (
+                <li key={item.id}>
+                  <CartLine
+                    item={item}
+                    disabled={isMutating}
+                    onUpdateQuantity={(quantity) =>
+                      updateCartItemQuantity({ productId: item.id, quantity })
+                    }
+                    onRemove={() => removeCartItem({ productId: item.id })}
+                  />
+                </li>
+              ))}
         </ul>
 
         <Card className="lg:sticky lg:top-24">
@@ -128,21 +126,24 @@ export function Cart() {
           <CardContent className="space-y-4">
             <div className="flex items-center justify-between text-sm">
               <span className="text-muted-foreground">Товары</span>
-              <span className="font-medium">{formatMoney(cart.data.subtotal)}</span>
+              {isLoading ? (
+                <AmountSkeleton className="h-5 w-20" />
+              ) : (
+                <span className="font-medium">{formatMoney(cart.data?.subtotal ?? 0)}</span>
+              )}
             </div>
             <Separator />
             <div className="flex items-center justify-between text-lg font-semibold">
               <span>К оплате</span>
-              <span>{formatMoney(cart.data.total)}</span>
+              {isLoading ? (
+                <AmountSkeleton className="h-6 w-24" />
+              ) : (
+                <span>{formatMoney(cart.data?.total ?? 0)}</span>
+              )}
             </div>
           </CardContent>
           <CardFooter className="flex-col items-stretch gap-2">
-            <Button asChild size="lg" className="w-full">
-              <Link href={routes.checkout}>
-                <CreditCard data-icon="inline-start" />
-                Оформить заказ
-              </Link>
-            </Button>
+            <CheckoutButton disabled={isLoading} />
             <Button asChild variant="outline" className="w-full">
               <Link href={routes.catalog}>
                 <ShoppingBag data-icon="inline-start" />
@@ -152,7 +153,7 @@ export function Cart() {
             <Button
               type="button"
               variant="outline"
-              disabled={isMutating}
+              disabled={isLoading || isMutating}
               onClick={() => clearCart()}
               className="w-full"
             >
@@ -163,6 +164,53 @@ export function Cart() {
         </Card>
       </div>
     </section>
+  );
+}
+
+function CartLineSkeleton() {
+  return (
+    <Card className="overflow-hidden py-0" aria-hidden="true">
+      <CardContent className="grid gap-4 p-4 sm:grid-cols-[7rem_minmax(0,1fr)]">
+        <div className="aspect-square rounded-lg bg-muted motion-safe:animate-pulse" />
+
+        <div className="grid gap-4 md:grid-cols-[minmax(0,1fr)_auto] md:items-center">
+          <div className="min-w-0 space-y-3">
+            <div className="h-3 w-24 rounded bg-muted motion-safe:animate-pulse" />
+            <div className="h-5 w-full max-w-sm rounded bg-muted motion-safe:animate-pulse" />
+            <div className="h-4 w-32 rounded bg-muted motion-safe:animate-pulse" />
+          </div>
+
+          <div className="flex flex-wrap items-center justify-between gap-3 md:justify-end">
+            <div className="h-10 w-32 rounded-lg border bg-muted/60 motion-safe:animate-pulse" />
+            <div className="h-8 w-28 rounded bg-muted motion-safe:animate-pulse" />
+          </div>
+        </div>
+      </CardContent>
+    </Card>
+  );
+}
+
+function AmountSkeleton({ className }: { className: string }) {
+  return <span className={cn("rounded bg-muted motion-safe:animate-pulse", className)} />;
+}
+
+function CheckoutButton({ disabled }: { disabled: boolean }) {
+  if (disabled) {
+    return (
+      <Button type="button" size="lg" disabled className="w-full">
+        <CreditCard data-icon="inline-start" />
+        Оформить заказ
+      </Button>
+    );
+  }
+
+  return (
+    <Button asChild size="lg" className="w-full">
+      <Link href={routes.checkout}>
+        <CreditCard data-icon="inline-start" />
+        Оформить заказ
+      </Link>
+    </Button>
   );
 }
 
