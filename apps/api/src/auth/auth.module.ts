@@ -5,6 +5,7 @@ import { AuthController } from "./auth.controller";
 import { AuthGuard } from "./auth.guard";
 import { AuthService } from "./auth.service";
 import { CredentialsAuthService } from "./credentials-auth.service";
+import { LoginThrottleService } from "./login-throttle.service";
 import { OAuthProvidersService } from "./oauth-providers.service";
 import { YandexOAuthService } from "./yandex-oauth.service";
 
@@ -15,6 +16,7 @@ import { YandexOAuthService } from "./yandex-oauth.service";
     AuthGuard,
     AuthService,
     CredentialsAuthService,
+    LoginThrottleService,
     OAuthProvidersService,
     YandexOAuthService,
   ],

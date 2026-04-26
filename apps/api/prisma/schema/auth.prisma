@@ -5,6 +5,13 @@ enum AuthProvider {
   @@map("auth_provider")
 }
 
+enum AuthLoginThrottleScope {
+  LOGIN @map("login")
+  IP    @map("ip")
+
+  @@map("auth_login_throttle_scope")
+}
+
 model AuthAccount {
   id             String       @id @default(cuid())
   userId         String       @map("user_id")
@@ -70,4 +77,20 @@ model OAuthState {
 
   @@index([provider, expiresAt])
   @@map("oauth_states")
+}
+
+model AuthLoginThrottle {
+  id             String                 @id @default(cuid())
+  scope          AuthLoginThrottleScope
+  subjectHash    String                 @map("subject_hash") @db.VarChar(64)
+  failedAttempts Int                    @default(0) @map("failed_attempts")
+  firstFailedAt  DateTime               @default(now()) @map("first_failed_at")
+  lastFailedAt   DateTime               @default(now()) @map("last_failed_at")
+  lockedUntil    DateTime?              @map("locked_until")
+  createdAt      DateTime               @default(now()) @map("created_at")
+  updatedAt      DateTime               @default(now()) @updatedAt @map("updated_at")
+
+  @@unique([scope, subjectHash])
+  @@index([lockedUntil])
+  @@map("auth_login_throttles")
 }

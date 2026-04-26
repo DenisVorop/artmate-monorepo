@@ -1,6 +1,6 @@
 "use server";
 
-import { cookies } from "next/headers";
+import { cookies, headers } from "next/headers";
 
 import { ApiResult, type ApiResultDTO } from "@/shared/lib/api-result";
 
@@ -89,6 +89,7 @@ async function requestAuth<T>(
   options: RequestAuthOptions = {},
 ) {
   const cookieStore = await cookies();
+  const headerStore = await headers();
   const accessToken = cookieStore.get(AUTH_ACCESS_TOKEN_COOKIE_NAME)?.value;
   const response = await fetch(`${getApiBaseUrl()}${path}`, {
     ...init,
@@ -100,6 +101,7 @@ async function requestAuth<T>(
             cookie: `${AUTH_ACCESS_TOKEN_COOKIE_NAME}=${encodeURIComponent(accessToken)}`,
           }
         : {}),
+      ...getForwardedIpHeaders(headerStore),
       ...init.headers,
     },
   });
@@ -186,22 +188,53 @@ function getApiBaseUrl() {
   return process.env.API_BASE_URL ?? DEFAULT_API_BASE_URL;
 }
 
+function getForwardedIpHeaders(headerStore: Headers) {
+  const forwardedFor = headerStore.get("x-forwarded-for");
+  const realIp =
+    headerStore.get("x-real-ip") ??
+    headerStore.get("cf-connecting-ip") ??
+    headerStore.get("true-client-ip");
+
+  return {
+    ...(forwardedFor ? { "x-forwarded-for": forwardedFor } : {}),
+    ...(realIp ? { "x-real-ip": realIp } : {}),
+  };
+}
+
 async function getErrorMessage(response: Response) {
   const fallback = `Auth API request failed with status ${response.status}`;
 
   try {
-    const body = (await response.json()) as { message?: unknown };
+    const body = (await response.json()) as {
+      message?: unknown;
+      retryAfterSeconds?: unknown;
+    };
+    const retryAfterSeconds = getRetryAfterSeconds(body.retryAfterSeconds);
 
     if (typeof body.message === "string") {
-      return body.message;
+      return formatErrorMessage(body.message, retryAfterSeconds);
     }
 
     if (Array.isArray(body.message)) {
-      return body.message.join(", ");
+      return formatErrorMessage(body.message.join(", "), retryAfterSeconds);
     }
   } catch {
     return fallback;
   }
 
   return fallback;
+}
+
+function getRetryAfterSeconds(value: unknown) {
+  return typeof value === "number" && Number.isFinite(value)
+    ? Math.max(1, Math.ceil(value))
+    : undefined;
+}
+
+function formatErrorMessage(message: string, retryAfterSeconds?: number) {
+  if (!retryAfterSeconds) {
+    return message;
+  }
+
+  return `${message}. Retry after ${retryAfterSeconds} seconds`;
 }

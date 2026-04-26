@@ -4,6 +4,7 @@ import {
   Controller,
   Get,
   Headers,
+  Ip,
   Param,
   Post,
   Query,
@@ -32,6 +33,7 @@ import {
 import { AuthGuard } from "./auth.guard";
 import type { AuthUser } from "./auth.types";
 import { CredentialsAuthService } from "./credentials-auth.service";
+import { LoginThrottleService } from "./login-throttle.service";
 import { OAuthProvidersService } from "./oauth-providers.service";
 
 type CookieResponse = {
@@ -65,6 +67,7 @@ export class AuthController {
   constructor(
     private readonly authService: AuthService,
     private readonly credentialsAuthService: CredentialsAuthService,
+    private readonly loginThrottleService: LoginThrottleService,
     private readonly oauthProvidersService: OAuthProvidersService,
   ) {}
 
@@ -91,12 +94,41 @@ export class AuthController {
   @Post("login")
   async login(
     @Body() request: LoginRequestDTO,
+    @Headers("x-forwarded-for") forwardedFor: string | undefined,
+    @Headers("x-real-ip") realIp: string | undefined,
+    @Ip() requestIp: string | undefined,
     @Res({ passthrough: true }) response: CookieResponse,
   ) {
-    const user = await this.credentialsAuthService.validateUser(
-      request.login,
-      request.password,
-    );
+    const ipAddress = this.getClientIp(requestIp, forwardedFor, realIp);
+
+    await this.loginThrottleService.assertLoginAllowed({
+      login: request.login,
+      ipAddress,
+    });
+
+    let user: AuthUser;
+
+    try {
+      user = await this.credentialsAuthService.validateUser(
+        request.login,
+        request.password,
+      );
+    } catch (error) {
+      if (error instanceof UnauthorizedException) {
+        await this.loginThrottleService.recordFailedLogin({
+          login: request.login,
+          ipAddress,
+        });
+      }
+
+      throw error;
+    }
+
+    await this.loginThrottleService.recordSuccessfulLogin({
+      login: request.login,
+      ipAddress,
+    });
+
     const accessToken = await this.authService.createAccessToken(user);
 
     this.setAccessTokenCookie(response, accessToken);
@@ -240,5 +272,57 @@ export class AuthController {
 
   private getProviderCookiePath(provider: string) {
     return `/auth/oauth/${provider}`;
+  }
+
+  private getClientIp(
+    requestIp: string | undefined,
+    forwardedFor: string | undefined,
+    realIp: string | undefined,
+  ) {
+    const directIp = this.normalizeIpAddress(requestIp);
+
+    if (directIp && !this.canTrustForwardedIp(directIp)) {
+      return directIp;
+    }
+
+    return (
+      this.getFirstForwardedIp(forwardedFor) ??
+      this.normalizeIpAddress(realIp) ??
+      directIp
+    );
+  }
+
+  private getFirstForwardedIp(forwardedFor: string | undefined) {
+    return this.normalizeIpAddress(forwardedFor?.split(",")[0]);
+  }
+
+  private normalizeIpAddress(ipAddress: string | undefined) {
+    const normalizedIpAddress = ipAddress?.trim();
+
+    if (
+      !normalizedIpAddress ||
+      normalizedIpAddress.toLowerCase() === "unknown"
+    ) {
+      return undefined;
+    }
+
+    return normalizedIpAddress.startsWith("::ffff:")
+      ? normalizedIpAddress.slice("::ffff:".length)
+      : normalizedIpAddress;
+  }
+
+  private canTrustForwardedIp(ipAddress: string) {
+    const normalizedIpAddress = ipAddress.toLowerCase();
+
+    return (
+      normalizedIpAddress === "::1" ||
+      normalizedIpAddress === "127.0.0.1" ||
+      normalizedIpAddress.startsWith("10.") ||
+      normalizedIpAddress.startsWith("192.168.") ||
+      /^172\.(1[6-9]|2\d|3[0-1])\./.test(normalizedIpAddress) ||
+      normalizedIpAddress.startsWith("fc") ||
+      normalizedIpAddress.startsWith("fd") ||
+      normalizedIpAddress.startsWith("fe80:")
+    );
   }
 }
