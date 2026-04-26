@@ -223,11 +223,15 @@ function CheckoutButton({ disabled }: { disabled: boolean }) {
   }
 
   return (
-    <Button asChild size="lg" className="w-full">
-      <Link href={routes.checkout}>
+    <Button
+      asChild
+      size="lg"
+      className="h-9 w-full border-0 bg-gradient-to-r from-rose-500 via-rose-400 to-orange-400 font-semibold text-white shadow-sm shadow-rose-500/20 hover:from-rose-500/95 hover:via-rose-400/95 hover:to-orange-400/95"
+    >
+      <CtaGradientLink href={routes.checkout}>
         <CreditCard data-icon="inline-start" />
         Оформить заказ
-      </Link>
+      </CtaGradientLink>
     </Button>
   );
 }

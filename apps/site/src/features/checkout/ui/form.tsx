@@ -1,13 +1,11 @@
 "use client";
 
 import { zodResolver } from "@hookform/resolvers/zod";
-import { CreditCard, LoaderCircle, MapPin } from "lucide-react";
+import { CreditCard, LoaderCircle } from "lucide-react";
 import { useMemo } from "react";
 import { useForm } from "react-hook-form";
 
-import type { OzonPickupPointDTO } from "@/shared/actions/orders";
 import { routes } from "@/shared/constants";
-import { cn } from "@/shared/lib";
 import {
   Button,
   Card,
@@ -25,7 +23,6 @@ import {
   checkoutFormValidationSchema,
   checkoutPhonePlaceholder,
   type CheckoutCustomerDefaults,
-  formatMoney,
   formatCheckoutPhone,
   getDefaultCheckoutFormValues,
   toCreateOrderInput,
@@ -33,25 +30,23 @@ import {
 } from "../lib";
 
 type CheckoutFormProps = {
-  pickupPoints: OzonPickupPointDTO[];
   selectedPickupPointId: string;
   customerDefaults?: CheckoutCustomerDefaults;
   isSubmitting: boolean;
-  onPickupPointChange: (_pickupPointId: string) => void;
+  isSubmitDisabled: boolean;
   onSubmit: (_input: ReturnType<typeof toCreateOrderInput>) => Promise<void>;
 };
 
 export function CheckoutForm({
-  pickupPoints,
   selectedPickupPointId,
   customerDefaults,
   isSubmitting,
-  onPickupPointChange,
+  isSubmitDisabled,
   onSubmit,
 }: CheckoutFormProps) {
   const defaultValues = useMemo(
-    () => getDefaultCheckoutFormValues(pickupPoints, customerDefaults),
-    [customerDefaults, pickupPoints],
+    () => getDefaultCheckoutFormValues(customerDefaults),
+    [customerDefaults],
   );
   const {
     register,
@@ -65,7 +60,7 @@ export function CheckoutForm({
   const phoneField = register("phone");
 
   const submitForm = handleSubmit(async (values) => {
-    await onSubmit(toCreateOrderInput(values));
+    await onSubmit(toCreateOrderInput(values, selectedPickupPointId));
   });
 
   return (
@@ -120,53 +115,6 @@ export function CheckoutForm({
             />
             <FieldError message={errors.email?.message} />
           </div>
-        </CardContent>
-      </Card>
-
-      <Card>
-        <CardHeader>
-          <CardTitle>Пункт выдачи Ozon</CardTitle>
-          <CardDescription>Выберите удобный ПВЗ для получения заказа.</CardDescription>
-        </CardHeader>
-        <CardContent className="space-y-3">
-          {pickupPoints.map((pickupPoint) => {
-            const selected = pickupPoint.id === selectedPickupPointId;
-
-            return (
-              <label
-                key={pickupPoint.id}
-                className={cn(
-                  "flex cursor-pointer gap-3 rounded-lg border bg-background p-4 transition-colors",
-                  selected
-                    ? "border-rose-300 bg-rose-50/70 ring-2 ring-rose-200/70"
-                    : "hover:border-rose-200 hover:bg-muted/40",
-                )}
-              >
-                <input
-                  type="radio"
-                  value={pickupPoint.id}
-                  className="mt-1 size-4 accent-rose-500"
-                  {...register("pickupPointId", {
-                    onChange: (event) => onPickupPointChange(event.target.value),
-                  })}
-                />
-                <span className="min-w-0 flex-1 space-y-1">
-                  <span className="flex items-center gap-2 font-medium">
-                    <MapPin className="size-4 text-rose-500" />
-                    {pickupPoint.title}
-                  </span>
-                  <span className="block text-sm text-muted-foreground">{pickupPoint.address}</span>
-                  <span className="block text-sm text-muted-foreground">
-                    {pickupPoint.workHours}
-                  </span>
-                </span>
-                <span className="shrink-0 text-sm font-semibold">
-                  {formatMoney(pickupPoint.deliveryPrice)}
-                </span>
-              </label>
-            );
-          })}
-          <FieldError message={errors.pickupPointId?.message} />
         </CardContent>
       </Card>
 
@@ -231,7 +179,7 @@ export function CheckoutForm({
       <Button
         type="submit"
         size="lg"
-        disabled={isSubmitting}
+        disabled={isSubmitting || isSubmitDisabled}
         className="h-11 w-full bg-gradient-to-r from-rose-500 to-orange-400 text-white shadow-lg shadow-rose-500/20 hover:from-rose-600 hover:to-orange-500"
       >
         {isSubmitting ? (

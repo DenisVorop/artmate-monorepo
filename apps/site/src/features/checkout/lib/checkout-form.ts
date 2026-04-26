@@ -1,6 +1,6 @@
 import { z } from "zod";
 
-import type { CreateOrderInputDTO, OzonPickupPointDTO } from "@/shared/actions/orders";
+import type { CreateOrderInputDTO } from "@/shared/actions/orders";
 
 export const checkoutPhonePlaceholder = "+7 (999) 999-99-99";
 export const checkoutPhonePattern = /^\+7 \(\d{3}\) \d{3}-\d{2}-\d{2}$/;
@@ -18,7 +18,6 @@ export const checkoutFormValidationSchema = z.object({
     .min(1, "Укажите телефон")
     .regex(checkoutPhonePattern, `Введите телефон в формате ${checkoutPhonePlaceholder}`),
   email: z.string().trim().min(1, "Укажите email").email("Введите корректный email"),
-  pickupPointId: z.string().min(1, "Выберите ПВЗ"),
   comment: z.string().max(1000, "Комментарий должен быть короче 1000 символов"),
   acceptedLegal: z.boolean().refine((value) => value, "Подтвердите согласие с условиями"),
 });
@@ -28,14 +27,12 @@ export type CheckoutFormValues = z.infer<typeof checkoutFormValidationSchema>;
 export type CheckoutCustomerDefaults = Partial<Pick<CheckoutFormValues, "email" | "name" | "phone">>;
 
 export function getDefaultCheckoutFormValues(
-  pickupPoints: OzonPickupPointDTO[],
   customerDefaults: CheckoutCustomerDefaults = {},
 ): CheckoutFormValues {
   return {
     name: customerDefaults.name ?? "",
     phone: formatCheckoutPhone(customerDefaults.phone ?? ""),
     email: customerDefaults.email ?? "",
-    pickupPointId: pickupPoints[0]?.id ?? "",
     comment: "",
     acceptedLegal: false,
   };
@@ -82,11 +79,10 @@ export function formatCheckoutPhone(value: string) {
   return phone;
 }
 
-export function getSelectedPickupPoint(pickupPoints: OzonPickupPointDTO[], pickupPointId: string) {
-  return pickupPoints.find((pickupPoint) => pickupPoint.id === pickupPointId);
-}
-
-export function toCreateOrderInput(values: CheckoutFormValues): CreateOrderInputDTO {
+export function toCreateOrderInput(
+  values: CheckoutFormValues,
+  pickupPointId: string,
+): CreateOrderInputDTO {
   const comment = values.comment.trim();
 
   return {
@@ -97,7 +93,7 @@ export function toCreateOrderInput(values: CheckoutFormValues): CreateOrderInput
     },
     delivery: {
       provider: "ozon",
-      pickupPointId: values.pickupPointId,
+      pickupPointId,
     },
     payment: {
       method: "bank_card_mock",

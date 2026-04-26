@@ -5,9 +5,12 @@ import { cookies } from "next/headers";
 import { ApiResult, type ApiResultDTO } from "@/shared/lib/api-result";
 
 import type {
+  CalculateCheckoutInputDTO,
+  CheckoutCalculationDTO,
   ConfirmOrderPaymentInputDTO,
   CreateOrderInputDTO,
   OrderDTO,
+  OrderStateDTO,
   OzonPickupPointDTO,
 } from "./order.types";
 
@@ -40,6 +43,19 @@ export async function createOrder(input: CreateOrderInputDTO): Promise<ApiResult
   return result.toDTO() as ApiResultDTO<OrderDTO>;
 }
 
+export async function calculateCheckout(
+  input: CalculateCheckoutInputDTO,
+): Promise<ApiResultDTO<CheckoutCalculationDTO>> {
+  const result = await ApiResult.prepareApi(async () =>
+    requestOrders<CheckoutCalculationDTO>("/orders/checkout/calculate", {
+      method: "POST",
+      body: JSON.stringify(input),
+    }),
+  )();
+
+  return result.toDTO() as ApiResultDTO<CheckoutCalculationDTO>;
+}
+
 export async function confirmOrderPayment(
   input: ConfirmOrderPaymentInputDTO,
 ): Promise<ApiResultDTO<OrderDTO>> {
@@ -50,6 +66,14 @@ export async function confirmOrderPayment(
   )();
 
   return result.toDTO() as ApiResultDTO<OrderDTO>;
+}
+
+export async function getOrderStatus(orderId: string): Promise<ApiResultDTO<OrderStateDTO>> {
+  const result = await ApiResult.prepareApi(async () =>
+    requestOrders<OrderStateDTO>(`/orders/${encodeURIComponent(orderId)}/status`),
+  )();
+
+  return result.toDTO() as ApiResultDTO<OrderStateDTO>;
 }
 
 export async function getOrder(orderId: string): Promise<ApiResultDTO<OrderDTO>> {

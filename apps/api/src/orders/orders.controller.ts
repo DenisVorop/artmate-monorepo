@@ -1,4 +1,10 @@
 import {
+  ApiBody,
+  ApiOkResponse,
+  ApiOperation,
+  ApiTags,
+} from "@nestjs/swagger";
+import {
   Body,
   Controller,
   Get,
@@ -15,8 +21,11 @@ import type { AuthUser } from "../auth/auth.types";
 import { ValidateResponse } from "../common/response-validation.interceptor";
 
 import {
+  CalculateCheckoutRequestDTO,
+  CheckoutCalculationDTO,
   CreateOrderRequestDTO,
   OrderDTO,
+  OrderStateDTO,
   PickupPointDTO,
 } from "./dto";
 import { OrdersService } from "./orders.service";
@@ -27,6 +36,7 @@ type AuthenticatedRequest = {
   user: AuthUser;
 };
 
+@ApiTags("Orders")
 @Controller("orders")
 export class OrdersController {
   constructor(
@@ -35,6 +45,12 @@ export class OrdersController {
   ) {}
 
   @ValidateResponse(PickupPointDTO, { isArray: true })
+  @ApiOperation({
+    summary: "Get available Ozon pickup points",
+    description:
+      "Compatibility endpoint for checkout. In mock mode returns available mock Ozon points. In real mode reads points through Ozon Logistics map and point-info.",
+  })
+  @ApiOkResponse({ type: [PickupPointDTO] })
   @Get("pickup-points")
   getPickupPoints() {
     return this.ordersService.getPickupPoints();
@@ -42,13 +58,53 @@ export class OrdersController {
 
   @UseGuards(AuthGuard)
   @ValidateResponse(OrderDTO, { isArray: true })
+  @ApiOperation({ summary: "Get current user's orders" })
+  @ApiOkResponse({ type: [OrderDTO] })
   @Get("my")
   getMyOrders(@Req() request: AuthenticatedRequest) {
     return this.ordersService.getMyOrders(request.user);
   }
 
+  @ValidateResponse(CheckoutCalculationDTO)
+  @Post("checkout/calculate")
+  @ApiOperation({
+    summary: "Calculate checkout totals for selected Ozon pickup point",
+    description:
+      "Uses the current cart cookie and selected pickup point to calculate delivery and order total on the backend.",
+  })
+  @ApiBody({
+    type: CalculateCheckoutRequestDTO,
+    examples: {
+      ozonPickup: {
+        summary: "Ozon pickup point",
+        value: {
+          delivery: {
+            provider: "ozon",
+            pickupPointId: "100101",
+          },
+        },
+      },
+    },
+  })
+  @ApiOkResponse({ type: CheckoutCalculationDTO })
+  calculateCheckout(
+    @Body() request: CalculateCheckoutRequestDTO,
+    @Headers("cookie") cookieHeader: string | undefined,
+  ) {
+    return this.ordersService.calculateCheckout(
+      this.getCartId(cookieHeader),
+      request,
+    );
+  }
+
   @ValidateResponse(OrderDTO)
   @Post()
+  @ApiOperation({
+    summary: "Create order from the current cart",
+    description:
+      "Creates an order with selected Ozon pickup point and mock bank card payment state.",
+  })
+  @ApiOkResponse({ type: OrderDTO })
   async createOrder(
     @Body() request: CreateOrderRequestDTO,
     @Headers("cookie") cookieHeader: string | undefined,
@@ -62,14 +118,30 @@ export class OrdersController {
     );
   }
 
+  @ValidateResponse(OrderStateDTO)
+  @Get(":orderId/status")
+  @ApiOperation({ summary: "Get order and mock payment status" })
+  @ApiOkResponse({ type: OrderStateDTO })
+  getOrderState(@Param("orderId") orderId: string) {
+    return this.ordersService.getOrderState(orderId);
+  }
+
   @ValidateResponse(OrderDTO)
   @Get(":orderId")
+  @ApiOperation({ summary: "Get order by ID" })
+  @ApiOkResponse({ type: OrderDTO })
   getOrder(@Param("orderId") orderId: string) {
     return this.ordersService.getOrder(orderId);
   }
 
   @ValidateResponse(OrderDTO)
   @Post(":orderId/confirm-payment")
+  @ApiOperation({
+    summary: "Confirm mock payment",
+    description:
+      "Marks the order as paid and clears the cart. This is a mock payment transition without real acquiring.",
+  })
+  @ApiOkResponse({ type: OrderDTO })
   confirmPayment(@Param("orderId") orderId: string) {
     return this.ordersService.confirmPayment(orderId);
   }

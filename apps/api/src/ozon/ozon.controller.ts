@@ -33,12 +33,15 @@ import {
 import {
   OzonAuthorizationUrlDTO,
   OzonDeliveryMapRequestDTO,
+  OzonDeliveryMapResponseDTO,
   OzonDeliveryPointInfoRequestDTO,
+  OzonDeliveryPointInfoResponseDTO,
   OzonExchangeCodeRequestDTO,
   OzonRefreshTokenRequestDTO,
   OzonTokenStatusDTO,
   OzonTokenStatusResponseDTO,
 } from "./dto";
+import { OzonLogisticsService } from "./ozon-logistics.service";
 import { OzonOAuthService } from "./ozon-oauth.service";
 
 type CookieResponse = {
@@ -68,6 +71,7 @@ type CookieResponse = {
 export class OzonController {
   constructor(
     private readonly authService: AuthService,
+    private readonly ozonLogisticsService: OzonLogisticsService,
     private readonly ozonOAuthService: OzonOAuthService,
   ) {}
 
@@ -221,7 +225,7 @@ export class OzonController {
   @ApiOperation({
     summary: "Get Ozon Logistics pickup point clusters by map viewport",
     description:
-      "Sends POST /v1/delivery/map to Ozon Seller API using the saved OAuth bearer token. Use this endpoint in Swagger instead of the full point list.",
+      "In OZON_LOGISTICS_MODE=real sends POST /v1/delivery/map to Ozon Seller API using the saved OAuth bearer token. In mock mode returns Ozon-like pickup point clusters and points.",
   })
   @ApiBody({
     type: OzonDeliveryMapRequestDTO,
@@ -246,7 +250,8 @@ export class OzonController {
   })
   @ApiOkResponse({
     description:
-      "Raw Ozon Seller API response with pickup point clusters and map_point_ids.",
+      "Ozon Seller API response in real mode or Ozon-like mock response with pickup point clusters and map_point_ids.",
+    type: OzonDeliveryMapResponseDTO,
   })
   @ApiForbiddenResponse({
     description:
@@ -256,7 +261,7 @@ export class OzonController {
     description: "Ozon Seller API returned a server-side error.",
   })
   getDeliveryMap(@Body() request: OzonDeliveryMapRequestDTO) {
-    return this.ozonOAuthService.requestSellerApi("/v1/delivery/map", request);
+    return this.ozonLogisticsService.getDeliveryMap(request);
   }
 
   @Post("logistics/point-info")
@@ -264,7 +269,7 @@ export class OzonController {
   @ApiOperation({
     summary: "Get Ozon Logistics pickup point details",
     description:
-      "Sends POST /v1/delivery/point/info to Ozon Seller API using the saved OAuth bearer token. Take map_point_ids from /ozon/logistics/map response.",
+      "In OZON_LOGISTICS_MODE=real sends POST /v1/delivery/point/info to Ozon Seller API using the saved OAuth bearer token. In mock mode returns detailed Ozon-like pickup point data.",
   })
   @ApiBody({
     type: OzonDeliveryPointInfoRequestDTO,
@@ -278,7 +283,8 @@ export class OzonController {
     },
   })
   @ApiOkResponse({
-    description: "Raw Ozon Seller API response.",
+    description: "Ozon Seller API response in real mode or Ozon-like mock response.",
+    type: OzonDeliveryPointInfoResponseDTO,
   })
   @ApiForbiddenResponse({
     description:
@@ -288,10 +294,7 @@ export class OzonController {
     description: "Ozon Seller API returned a server-side error.",
   })
   getDeliveryPointInfo(@Body() request: OzonDeliveryPointInfoRequestDTO) {
-    return this.ozonOAuthService.requestSellerApi(
-      "/v1/delivery/point/info",
-      request,
-    );
+    return this.ozonLogisticsService.getDeliveryPointInfo(request);
   }
 
   @Post("logistics/pickup-points")

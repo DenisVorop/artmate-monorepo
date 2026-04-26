@@ -48,6 +48,16 @@ export type OrderDTO = {
   paidAt?: string;
 };
 
+export type CheckoutCalculationDTO = {
+  cartId: string;
+  itemsCount: number;
+  subtotal: number;
+  deliveryPrice: number;
+  total: number;
+  currency: "RUB";
+  delivery: OrderDeliveryDTO;
+};
+
 export type CreateOrderInputDTO = {
   customer: OrderCustomerDTO;
   delivery: {
@@ -61,6 +71,16 @@ export type CreateOrderInputDTO = {
   acceptedLegal: boolean;
 };
 
+export type CalculateCheckoutInputDTO = {
+  delivery: CreateOrderInputDTO["delivery"];
+};
+
 export type ConfirmOrderPaymentInputDTO = {
   orderId: string;
+};
+
+export type OrderStateDTO = {
+  orderId: string;
+  status: OrderStatusDTO;
+  paymentStatus: OrderPaymentStatusDTO;
 };

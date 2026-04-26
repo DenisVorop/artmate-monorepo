@@ -17,34 +17,9 @@ import type {
   OrderDTO,
   OrderDeliveryDTO,
   OrderPaymentDTO,
-  PickupPointDTO,
 } from "./dto";
 
 const CHECKOUT_SUCCESS_PATH = "/checkout/success";
-
-const OZON_PICKUP_POINTS: PickupPointDTO[] = [
-  {
-    id: "ozon-tverskaya-12",
-    title: "Ozon ПВЗ, Тверская",
-    address: "Москва, ул. Тверская, 12с1",
-    workHours: "Ежедневно 09:00-22:00",
-    deliveryPrice: 350,
-  },
-  {
-    id: "ozon-pyatnitskaya-8",
-    title: "Ozon ПВЗ, Пятницкая",
-    address: "Москва, ул. Пятницкая, 8",
-    workHours: "Ежедневно 10:00-21:00",
-    deliveryPrice: 350,
-  },
-  {
-    id: "ozon-leningradskiy-31",
-    title: "Ozon ПВЗ, Ленинградский проспект",
-    address: "Москва, Ленинградский проспект, 31А",
-    workHours: "Пн-Сб 09:00-21:00, Вс 10:00-20:00",
-    deliveryPrice: 390,
-  },
-];
 
 const orderInclude = {
   items: {
@@ -72,16 +47,6 @@ type StoredOrder = Prisma.OrderGetPayload<{
 @Injectable()
 export class OrdersStorage {
   constructor(private readonly prisma: PrismaService) {}
-
-  getPickupPoints(): PickupPointDTO[] {
-    return OZON_PICKUP_POINTS.map((point) => ({ ...point }));
-  }
-
-  getPickupPoint(pickupPointId: string): PickupPointDTO | undefined {
-    const point = OZON_PICKUP_POINTS.find((item) => item.id === pickupPointId);
-
-    return point ? { ...point } : undefined;
-  }
 
   async createOrder(input: CreateStoredOrderInput): Promise<OrderDTO> {
     const deliveryPrice = input.delivery.pickupPoint.deliveryPrice;

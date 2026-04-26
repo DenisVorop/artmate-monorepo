@@ -1,35 +1,47 @@
 "use client";
 
 import { ArrowLeft, ShoppingBag } from "lucide-react";
-import { useMemo, useState } from "react";
+import { useEffect, useMemo, useState } from "react";
 import { useRouter } from "next/navigation";
 
 import { useCartData } from "@/entities/cart";
 import { useUser } from "@/entities/session";
-import type { CreateOrderInputDTO, OzonPickupPointDTO } from "@/shared/actions/orders";
+import type { CreateOrderInputDTO } from "@/shared/actions/orders";
 import { routes } from "@/shared/constants";
 import { Button, DataState } from "@/shared/ui";
 import { Link } from "@/shared/ui/link";
 
-import { useCreateOrderMutation } from "../model";
-import { getSelectedPickupPoint, type CheckoutCustomerDefaults } from "../lib";
+import {
+  useCheckoutCalculation,
+  useCreateOrderMutation,
+  useOzonPickupPoints,
+} from "../model";
+import {
+  getSelectedDeliveryPoint,
+  type CheckoutCustomerDefaults,
+  type CheckoutDeliveryCityId,
+} from "../lib";
 
 import { CheckoutForm } from "./form";
 import { OrderSummary } from "./order-summary";
+import { PickupPointSelector } from "./pickup-point-selector";
 
-type CheckoutProps = {
-  pickupPoints: OzonPickupPointDTO[];
-  isPickupPointsError?: boolean;
-};
-
-export function Checkout({ pickupPoints, isPickupPointsError = false }: CheckoutProps) {
+export function Checkout() {
   const router = useRouter();
   const user = useUser();
   const cart = useCartData();
-  const defaultPickupPointId = pickupPoints[0]?.id ?? "";
-  const [selectedPickupPointId, setSelectedPickupPointId] = useState(defaultPickupPointId);
+  const [cityId, setCityId] = useState<CheckoutDeliveryCityId>("moscow");
+  const [selectedPickupPointId, setSelectedPickupPointId] = useState("");
+  const pickupPoints = useOzonPickupPoints(cityId);
+  const pointInfo = useMemo(
+    () => pickupPoints.data?.points ?? [],
+    [pickupPoints.data?.points],
+  );
+  const selectedPoint = getSelectedDeliveryPoint(pointInfo, selectedPickupPointId);
+  const calculation = useCheckoutCalculation(
+    selectedPoint?.available ? selectedPickupPointId : undefined,
+  );
   const { createOrder, isPending, error } = useCreateOrderMutation();
-  const selectedPickupPoint = getSelectedPickupPoint(pickupPoints, selectedPickupPointId);
   const customerDefaults = useMemo<CheckoutCustomerDefaults>(
     () => ({
       ...(user?.email ? { email: user.email } : {}),
@@ -37,8 +49,39 @@ export function Checkout({ pickupPoints, isPickupPointsError = false }: Checkout
     }),
     [user?.email, user?.name],
   );
+  const canSubmitOrder = Boolean(
+    selectedPoint?.available &&
+      calculation.data &&
+      !calculation.isError &&
+      !calculation.isPending &&
+      !calculation.isFetching,
+  );
+
+  useEffect(() => {
+    if (pointInfo.length === 0) {
+      setSelectedPickupPointId("");
+
+      return;
+    }
+
+    const currentPoint = getSelectedDeliveryPoint(pointInfo, selectedPickupPointId);
+
+    if (currentPoint?.available) {
+      return;
+    }
+
+    const firstAvailablePoint = pointInfo.find((point) => point.available);
+
+    setSelectedPickupPointId(
+      firstAvailablePoint ? String(firstAvailablePoint.map_point_id) : "",
+    );
+  }, [pointInfo, selectedPickupPointId]);
 
   const handleSubmit = async (input: CreateOrderInputDTO) => {
+    if (!canSubmitOrder) {
+      return;
+    }
+
     try {
       const order = await createOrder(input);
 
@@ -92,18 +135,6 @@ export function Checkout({ pickupPoints, isPickupPointsError = false }: Checkout
     );
   }
 
-  if (isPickupPointsError || pickupPoints.length === 0) {
-    return (
-      <section className="container py-10">
-        <DataState
-          variant="error"
-          title="Не удалось загрузить ПВЗ"
-          description="Попробуйте обновить страницу или вернитесь к оформлению позже."
-        />
-      </section>
-    );
-  }
-
   return (
     <section className="container py-8 md:py-12">
       <div className="mb-8 flex flex-col justify-between gap-4 sm:flex-row sm:items-end">
@@ -127,12 +158,39 @@ export function Checkout({ pickupPoints, isPickupPointsError = false }: Checkout
 
       <div className="grid gap-6 lg:grid-cols-[minmax(0,1fr)_22rem] lg:items-start">
         <div className="space-y-4">
+          <PickupPointSelector
+            cityId={cityId}
+            map={pickupPoints.data?.map}
+            points={pointInfo}
+            selectedPickupPointId={selectedPickupPointId}
+            isPending={pickupPoints.isPending}
+            isFetching={pickupPoints.isFetching}
+            isError={pickupPoints.isError}
+            error={pickupPoints.error}
+            onCityChange={(nextCityId) => {
+              setCityId(nextCityId);
+              setSelectedPickupPointId("");
+            }}
+            onPickupPointChange={setSelectedPickupPointId}
+            onRetry={() => {
+              void pickupPoints.refetch();
+            }}
+          />
+
+          {calculation.isError && selectedPickupPointId && (
+            <DataState
+              variant="error"
+              title="Не удалось рассчитать доставку"
+              description={getQueryErrorMessage(calculation.error)}
+              className="max-w-none"
+            />
+          )}
+
           <CheckoutForm
-            pickupPoints={pickupPoints}
             selectedPickupPointId={selectedPickupPointId}
             customerDefaults={customerDefaults}
             isSubmitting={isPending}
-            onPickupPointChange={setSelectedPickupPointId}
+            isSubmitDisabled={!canSubmitOrder}
             onSubmit={handleSubmit}
           />
 
@@ -146,10 +204,20 @@ export function Checkout({ pickupPoints, isPickupPointsError = false }: Checkout
           )}
         </div>
 
-        <OrderSummary cart={cart.data} pickupPoint={selectedPickupPoint} />
+        <OrderSummary
+          cart={cart.data}
+          calculation={calculation.data}
+          selectedPoint={selectedPoint}
+          isCalculationPending={calculation.isPending || calculation.isFetching}
+          isCalculationError={calculation.isError}
+        />
       </div>
     </section>
   );
+}
+
+function getQueryErrorMessage(error: Error | null) {
+  return error?.message || "Выберите другой ПВЗ или попробуйте обновить расчет.";
 }
 
 function getMutationErrorMessage(error: Error) {

@@ -3,9 +3,17 @@ import { BadRequestException, Injectable } from "@nestjs/common";
 import type { AuthUser } from "../auth/auth.types";
 import { CartService } from "../cart/cart.service";
 import { CartStorage } from "../cart/cart.storage";
+import { OzonLogisticsService } from "../ozon/ozon-logistics.service";
 
 import { ORDER_COMMENT_MAX_LENGTH } from "./orders.constants";
-import type { CreateOrderRequestDTO, OrderDTO, PickupPointDTO } from "./dto";
+import type {
+  CalculateCheckoutRequestDTO,
+  CheckoutCalculationDTO,
+  CreateOrderRequestDTO,
+  OrderDTO,
+  OrderStateDTO,
+  PickupPointDTO,
+} from "./dto";
 import { OrdersStorage } from "./orders.storage";
 
 const MAX_COMMENT_LENGTH = ORDER_COMMENT_MAX_LENGTH;
@@ -15,19 +23,58 @@ export class OrdersService {
   constructor(
     private readonly cartStorage: CartStorage,
     private readonly cartService: CartService,
+    private readonly ozonLogisticsService: OzonLogisticsService,
     private readonly ordersStorage: OrdersStorage,
   ) {}
 
-  getPickupPoints(): PickupPointDTO[] {
-    return this.ordersStorage.getPickupPoints();
+  getPickupPoints(): Promise<PickupPointDTO[]> {
+    return this.ozonLogisticsService.getPickupPoints();
   }
 
   getOrder(orderId: string): Promise<OrderDTO> {
     return this.ordersStorage.getOrder(this.parseOrderId(orderId));
   }
 
+  async getOrderState(orderId: string): Promise<OrderStateDTO> {
+    const order = await this.getOrder(orderId);
+
+    return {
+      orderId: order.id,
+      status: order.status,
+      paymentStatus: order.payment.status,
+    };
+  }
+
   getMyOrders(user: AuthUser): Promise<OrderDTO[]> {
     return this.ordersStorage.getOrdersByUserId(user.id);
+  }
+
+  async calculateCheckout(
+    cartId: string | undefined,
+    request: CalculateCheckoutRequestDTO,
+  ): Promise<CheckoutCalculationDTO> {
+    const cart = await this.cartStorage.ensureCart(cartId);
+    const cartDTO = this.cartStorage.getDTO(cart);
+
+    if (cartDTO.items.length === 0) {
+      throw new BadRequestException("Cart is empty");
+    }
+
+    const pickupPoint = await this.parsePickupPoint(request.delivery);
+    const deliveryPrice = pickupPoint.deliveryPrice;
+
+    return {
+      cartId: cartDTO.id,
+      itemsCount: cartDTO.itemsCount,
+      subtotal: cartDTO.subtotal,
+      deliveryPrice,
+      total: cartDTO.subtotal + deliveryPrice,
+      currency: "RUB",
+      delivery: {
+        provider: "ozon",
+        pickupPoint,
+      },
+    };
   }
 
   async createOrder(
@@ -43,7 +90,7 @@ export class OrdersService {
     }
 
     const customer = this.parseCustomer(request.customer);
-    const pickupPoint = this.parsePickupPoint(request.delivery);
+    const pickupPoint = await this.parsePickupPoint(request.delivery);
     const paymentMethod = request.payment?.method;
     const comment = this.parseComment(request.comment);
 
@@ -93,7 +140,7 @@ export class OrdersService {
     };
   }
 
-  private parsePickupPoint(value: unknown): PickupPointDTO {
+  private async parsePickupPoint(value: unknown): Promise<PickupPointDTO> {
     if (!value || typeof value !== "object") {
       throw new BadRequestException("delivery is required");
     }
@@ -108,13 +155,7 @@ export class OrdersService {
       delivery.pickupPointId,
       "delivery.pickupPointId",
     );
-    const pickupPoint = this.ordersStorage.getPickupPoint(pickupPointId);
-
-    if (!pickupPoint) {
-      throw new BadRequestException("Unknown pickup point");
-    }
-
-    return pickupPoint;
+    return this.ozonLogisticsService.getPickupPoint(pickupPointId);
   }
 
   private parseOrderId(value: unknown): string {

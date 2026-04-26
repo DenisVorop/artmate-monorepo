@@ -1,15 +1,9 @@
 import { Checkout } from "@/features/checkout";
-import type { OzonPickupPointDTO } from "@/shared/actions/orders";
 
-type CheckoutPageProps = {
-  pickupPoints: OzonPickupPointDTO[];
-  isPickupPointsError?: boolean;
-};
-
-export function CheckoutPage({ pickupPoints, isPickupPointsError = false }: CheckoutPageProps) {
+export function CheckoutPage() {
   return (
     <main className="bg-background">
-      <Checkout pickupPoints={pickupPoints} isPickupPointsError={isPickupPointsError} />
+      <Checkout />
     </main>
   );
 }
