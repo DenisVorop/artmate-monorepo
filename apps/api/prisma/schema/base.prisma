@@ -1,0 +1,10 @@
+// Prisma schema is split by domain. Keep generator and datasource here.
+
+generator client {
+  provider = "prisma-client"
+  output   = "../../src/generated/prisma"
+}
+
+datasource db {
+  provider = "postgresql"
+}

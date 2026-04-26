@@ -1,0 +1,26 @@
+enum UserStatus {
+  ACTIVE  @map("active")
+  BLOCKED @map("blocked")
+  DELETED @map("deleted")
+
+  @@map("user_status")
+}
+
+model User {
+  id        String     @id @default(cuid())
+  email     String?    @unique @db.VarChar(320)
+  name      String?    @db.VarChar(120)
+  image     String?    @db.Text
+  roles     String[]   @default(["customer"])
+  status    UserStatus @default(ACTIVE)
+  createdAt DateTime   @default(now()) @map("created_at")
+  updatedAt DateTime   @default(now()) @updatedAt @map("updated_at")
+  deletedAt DateTime?  @map("deleted_at")
+
+  authAccounts     AuthAccount[]
+  authSessions     AuthSession[]
+  createdBlogPosts BlogPost[]    @relation("BlogPostCreator")
+
+  @@index([status])
+  @@map("users")
+}

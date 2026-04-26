@@ -1,0 +1,94 @@
+enum BlogPostStatus {
+  DRAFT     @map("draft")
+  PUBLISHED @map("published")
+  ARCHIVED  @map("archived")
+
+  @@map("blog_post_status")
+}
+
+model BlogAuthor {
+  id        String   @id @default(cuid())
+  slug      String   @unique @db.VarChar(160)
+  name      String   @db.VarChar(120)
+  role      String?  @db.VarChar(160)
+  avatar    String?  @db.VarChar(40)
+  image     String?  @db.Text
+  bio       String?  @db.Text
+  createdAt DateTime @default(now()) @map("created_at")
+  updatedAt DateTime @default(now()) @updatedAt @map("updated_at")
+
+  posts BlogPost[]
+
+  @@map("blog_authors")
+}
+
+model BlogCategory {
+  id          String   @id @default(cuid())
+  slug        String   @unique @db.VarChar(160)
+  title       String   @db.VarChar(120)
+  description String?  @db.Text
+  createdAt   DateTime @default(now()) @map("created_at")
+  updatedAt   DateTime @default(now()) @updatedAt @map("updated_at")
+
+  posts BlogPost[]
+
+  @@map("blog_categories")
+}
+
+model BlogTag {
+  id        String   @id @default(cuid())
+  slug      String   @unique @db.VarChar(160)
+  title     String   @db.VarChar(120)
+  createdAt DateTime @default(now()) @map("created_at")
+  updatedAt DateTime @default(now()) @updatedAt @map("updated_at")
+
+  posts BlogPostTag[]
+
+  @@map("blog_tags")
+}
+
+model BlogPost {
+  id              String         @id @default(cuid())
+  slug            String         @unique @db.VarChar(180)
+  title           String         @db.VarChar(220)
+  excerpt         String         @db.Text
+  status          BlogPostStatus @default(DRAFT)
+  featured        Boolean        @default(false)
+  readTimeMinutes Int?           @map("read_time_minutes")
+  imageUrl        String?        @map("image_url") @db.Text
+  imageAlt        String?        @map("image_alt") @db.VarChar(220)
+  content         Json?
+  metaTitle       String?        @map("meta_title") @db.VarChar(220)
+  metaDescription String?        @map("meta_description") @db.Text
+  publishedAt     DateTime?      @map("published_at")
+  createdAt       DateTime       @default(now()) @map("created_at")
+  updatedAt       DateTime       @default(now()) @updatedAt @map("updated_at")
+  authorId        String         @map("author_id")
+  categoryId      String         @map("category_id")
+  createdById     String?        @map("created_by_id")
+
+  author    BlogAuthor    @relation(fields: [authorId], references: [id], onDelete: Restrict)
+  category  BlogCategory  @relation(fields: [categoryId], references: [id], onDelete: Restrict)
+  createdBy User?         @relation("BlogPostCreator", fields: [createdById], references: [id], onDelete: SetNull)
+  tags      BlogPostTag[]
+
+  @@index([authorId])
+  @@index([categoryId])
+  @@index([createdById])
+  @@index([status, publishedAt])
+  @@index([featured, publishedAt])
+  @@map("blog_posts")
+}
+
+model BlogPostTag {
+  postId    String @map("post_id")
+  tagId     String @map("tag_id")
+  sortOrder Int    @default(0) @map("sort_order")
+
+  post BlogPost @relation(fields: [postId], references: [id], onDelete: Cascade)
+  tag  BlogTag  @relation(fields: [tagId], references: [id], onDelete: Cascade)
+
+  @@id([postId, tagId])
+  @@index([tagId])
+  @@map("blog_post_tags")
+}

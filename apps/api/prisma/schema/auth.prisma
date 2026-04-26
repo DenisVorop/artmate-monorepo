@@ -1,0 +1,73 @@
+enum AuthProvider {
+  CREDENTIALS @map("credentials")
+  YANDEX      @map("yandex")
+
+  @@map("auth_provider")
+}
+
+model AuthAccount {
+  id             String       @id @default(cuid())
+  userId         String       @map("user_id")
+  provider       AuthProvider
+  providerUserId String       @map("provider_user_id") @db.VarChar(191)
+  providerEmail  String?      @map("provider_email") @db.VarChar(320)
+  providerData   Json?        @map("provider_data")
+  connectedAt    DateTime     @default(now()) @map("connected_at")
+  lastLoginAt    DateTime?    @map("last_login_at")
+  updatedAt      DateTime     @default(now()) @updatedAt @map("updated_at")
+
+  user       User            @relation(fields: [userId], references: [id], onDelete: Cascade)
+  credential AuthCredential?
+
+  @@unique([provider, providerUserId])
+  @@unique([userId, provider])
+  @@index([userId])
+  @@index([providerEmail])
+  @@map("auth_accounts")
+}
+
+model AuthCredential {
+  id                String   @id @default(cuid())
+  accountId         String   @unique @map("account_id")
+  login             String   @unique @db.VarChar(120)
+  passwordHash      String   @map("password_hash") @db.Text
+  passwordUpdatedAt DateTime @default(now()) @map("password_updated_at")
+  createdAt         DateTime @default(now()) @map("created_at")
+  updatedAt         DateTime @default(now()) @updatedAt @map("updated_at")
+
+  account AuthAccount @relation(fields: [accountId], references: [id], onDelete: Cascade)
+
+  @@map("auth_credentials")
+}
+
+model AuthSession {
+  id         String    @id @default(cuid())
+  userId     String    @map("user_id")
+  tokenHash  String    @unique @map("token_hash") @db.VarChar(128)
+  expiresAt  DateTime  @map("expires_at")
+  revokedAt  DateTime? @map("revoked_at")
+  lastUsedAt DateTime? @map("last_used_at")
+  userAgent  String?   @map("user_agent") @db.Text
+  ipAddress  String?   @map("ip_address") @db.VarChar(45)
+  createdAt  DateTime  @default(now()) @map("created_at")
+  updatedAt  DateTime  @default(now()) @updatedAt @map("updated_at")
+
+  user User @relation(fields: [userId], references: [id], onDelete: Cascade)
+
+  @@index([userId])
+  @@index([expiresAt])
+  @@map("auth_sessions")
+}
+
+model OAuthState {
+  id          String       @id @default(cuid())
+  provider    AuthProvider
+  stateHash   String       @unique @map("state_hash") @db.VarChar(128)
+  redirectUri String?      @map("redirect_uri") @db.Text
+  expiresAt   DateTime     @map("expires_at")
+  consumedAt  DateTime?    @map("consumed_at")
+  createdAt   DateTime     @default(now()) @map("created_at")
+
+  @@index([provider, expiresAt])
+  @@map("oauth_states")
+}
