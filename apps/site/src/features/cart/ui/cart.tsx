@@ -22,6 +22,7 @@ import {
   CardFooter,
   CardHeader,
   CardTitle,
+  CtaGradientLink,
   DataState,
   Separator,
 } from "@/shared/ui";
@@ -54,24 +55,7 @@ export function Cart() {
     );
   }
 
-  if (!isLoading && (!cart.data || cart.data.items.length === 0)) {
-    return (
-      <section className="container py-10">
-        <DataState
-          title="Корзина пуста"
-          description="Добавьте раскраски из каталога, чтобы вернуться к ним перед заказом."
-        />
-        <div className="mt-5 flex justify-center">
-          <Button asChild size="lg">
-            <Link href={routes.catalog}>
-              <ShoppingBag data-icon="inline-start" />
-              Перейти в каталог
-            </Link>
-          </Button>
-        </div>
-      </section>
-    );
-  }
+  const isEmpty = !isLoading && (!cart.data || cart.data.items.length === 0);
 
   const itemsLabel = cart.data
     ? `${cart.data.itemsCount} ${getItemsWord(cart.data.itemsCount)}`
@@ -98,24 +82,33 @@ export function Cart() {
 
       <div className="grid gap-6 lg:grid-cols-[minmax(0,1fr)_22rem] lg:items-start">
         <ul className="space-y-4" aria-busy={isLoading}>
-          {isLoading
-            ? Array.from({ length: 3 }, (_, index) => (
-                <li key={index}>
-                  <CartLineSkeleton />
-                </li>
-              ))
-            : cart.data?.items.map((item) => (
-                <li key={item.id}>
-                  <CartLine
-                    item={item}
-                    disabled={isMutating}
-                    onUpdateQuantity={(quantity) =>
-                      updateCartItemQuantity({ productId: item.id, quantity })
-                    }
-                    onRemove={() => removeCartItem({ productId: item.id })}
-                  />
-                </li>
-              ))}
+          {isLoading &&
+            Array.from({ length: 3 }, (_, index) => (
+              <li key={index}>
+                <CartLineSkeleton />
+              </li>
+            ))}
+
+          {isEmpty && (
+            <li>
+              <EmptyCartLine />
+            </li>
+          )}
+
+          {!isLoading &&
+            !isEmpty &&
+            cart.data?.items.map((item) => (
+              <li key={item.id}>
+                <CartLine
+                  item={item}
+                  disabled={isMutating}
+                  onUpdateQuantity={(quantity) =>
+                    updateCartItemQuantity({ productId: item.id, quantity })
+                  }
+                  onRemove={() => removeCartItem({ productId: item.id })}
+                />
+              </li>
+            ))}
         </ul>
 
         <Card className="lg:sticky lg:top-24">
@@ -143,7 +136,7 @@ export function Cart() {
             </div>
           </CardContent>
           <CardFooter className="flex-col items-stretch gap-2">
-            <CheckoutButton disabled={isLoading} />
+            <CheckoutButton disabled={isLoading || isEmpty} />
             <Button asChild variant="outline" className="w-full">
               <Link href={routes.catalog}>
                 <ShoppingBag data-icon="inline-start" />
@@ -153,7 +146,7 @@ export function Cart() {
             <Button
               type="button"
               variant="outline"
-              disabled={isLoading || isMutating}
+              disabled={isLoading || isEmpty || isMutating}
               onClick={() => clearCart()}
               className="w-full"
             >
@@ -164,6 +157,31 @@ export function Cart() {
         </Card>
       </div>
     </section>
+  );
+}
+
+function EmptyCartLine() {
+  return (
+    <Card className="overflow-hidden py-0">
+      <CardContent className="flex flex-col items-start gap-4 p-6 sm:flex-row sm:items-center sm:justify-between">
+        <div className="space-y-1">
+          <CardTitle className="text-xl">В корзине пока пусто</CardTitle>
+          <CardDescription>
+            Добавьте раскраски из каталога, чтобы оформить заказ позже.
+          </CardDescription>
+        </div>
+
+        <Button
+          asChild
+          className="border-0 bg-gradient-to-r from-rose-500 via-rose-400 to-orange-400 font-semibold text-white shadow-sm shadow-rose-500/20 hover:from-rose-500/95 hover:via-rose-400/95 hover:to-orange-400/95"
+        >
+          <CtaGradientLink href={routes.catalog}>
+            <ShoppingBag data-icon="inline-start" />
+            Перейти в каталог
+          </CtaGradientLink>
+        </Button>
+      </CardContent>
+    </Card>
   );
 }
 

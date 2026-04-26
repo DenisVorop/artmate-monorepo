@@ -1,12 +1,20 @@
 "use client";
 
 import Image from "next/image";
-import { CalendarDays, MapPin, PackageCheck } from "lucide-react";
+import {
+  CalendarDays,
+  ChevronDown,
+  ChevronUp,
+  MapPin,
+  PackageCheck,
+} from "lucide-react";
+import { useId, useState } from "react";
 
 import { routes } from "@/shared/constants";
 import { cn } from "@/shared/lib";
 import {
   Badge,
+  Button,
   Card,
   CardContent,
   CardDescription,
@@ -34,9 +42,12 @@ const orderStatusMeta = {
 } satisfies Record<Order["status"], { label: string; className: string }>;
 
 export function OrderCard({ order }: OrderCardProps) {
+  const [areItemsExpanded, setAreItemsExpanded] = useState(false);
+  const itemsListId = useId();
   const status = orderStatusMeta[order.status];
-  const visibleItems = order.items.slice(0, 3);
-  const hiddenItemsCount = order.items.length - visibleItems.length;
+  const hiddenItemsCount = Math.max(order.items.length - 3, 0);
+  const visibleItems = areItemsExpanded ? order.items : order.items.slice(0, 3);
+  const hasHiddenItems = hiddenItemsCount > 0;
 
   return (
     <Card className="overflow-hidden">
@@ -88,41 +99,60 @@ export function OrderCard({ order }: OrderCardProps) {
         <Separator />
 
         <div className="space-y-3">
-          {visibleItems.map((item) => (
-            <div key={item.id} className="grid grid-cols-[4rem_minmax(0,1fr)_auto] gap-3">
-              <Link
-                href={routes.product(item.categorySlug, item.slug)}
-                className="relative aspect-square overflow-hidden rounded-lg bg-muted"
-              >
-                <Image
-                  fill
-                  src={item.image}
-                  alt={item.title}
-                  sizes="64px"
-                  className="object-cover"
-                />
-              </Link>
+          <div id={itemsListId} className="space-y-3">
+            {visibleItems.map((item) => (
+              <OrderItemRow key={item.id} item={item} />
+            ))}
+          </div>
 
-              <div className="min-w-0">
-                <p className="truncate font-medium">{item.title}</p>
-                <p className="text-sm text-muted-foreground">{item.category}</p>
-              </div>
-
-              <div className="text-right text-sm">
-                <p className="font-medium">{formatMoney(item.lineTotal)}</p>
-                <p className="text-muted-foreground">{item.quantity} шт.</p>
-              </div>
-            </div>
-          ))}
-
-          {hiddenItemsCount > 0 && (
-            <p className="text-sm text-muted-foreground">
-              Ещё {hiddenItemsCount} {getItemsWord(hiddenItemsCount)} в заказе.
-            </p>
+          {hasHiddenItems && (
+            <Button
+              type="button"
+              variant="outline"
+              size="sm"
+              aria-expanded={areItemsExpanded}
+              aria-controls={itemsListId}
+              className="w-full sm:w-auto"
+              onClick={() => setAreItemsExpanded((currentValue) => !currentValue)}
+            >
+              {areItemsExpanded ? (
+                <ChevronUp data-icon="inline-start" />
+              ) : (
+                <ChevronDown data-icon="inline-start" />
+              )}
+              {areItemsExpanded
+                ? "Свернуть товары"
+                : `Показать ещё ${hiddenItemsCount} ${getItemsWord(hiddenItemsCount)}`}
+            </Button>
           )}
         </div>
       </CardContent>
     </Card>
+  );
+}
+
+type OrderItem = Order["items"][number];
+
+function OrderItemRow({ item }: { item: OrderItem }) {
+  return (
+    <div className="grid grid-cols-[4rem_minmax(0,1fr)_auto] gap-3">
+      <Link
+        href={routes.product(item.categorySlug, item.slug)}
+        className="relative aspect-square overflow-hidden rounded-lg bg-muted"
+      >
+        <Image fill src={item.image} alt={item.title} sizes="64px" className="object-cover" />
+      </Link>
+
+      <div className="min-w-0">
+        <p className="truncate font-medium">{item.title}</p>
+        <p className="text-sm text-muted-foreground">{item.category}</p>
+      </div>
+
+      <div className="text-right text-sm">
+        <p className="font-medium">{formatMoney(item.lineTotal)}</p>
+        <p className="text-muted-foreground">{item.quantity} шт.</p>
+      </div>
+    </div>
   );
 }
 
