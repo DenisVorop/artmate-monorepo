@@ -34,17 +34,17 @@ export function LegalDocs() {
 
   return (
     <div className="border-t border-stone-800">
-      <div className="container pt-10 pb-8">
+      <div className="container pt-8 pb-6 md:pt-10 md:pb-8">
         <h4 className="font-display mb-5 text-xs font-bold tracking-widest text-stone-500 uppercase">
           Правовые документы
         </h4>
 
-        <div className="grid grid-cols-2 gap-3 sm:grid-cols-3 lg:grid-cols-6">
+        <div className="grid grid-cols-2 gap-2.5 sm:grid-cols-3 sm:gap-3 lg:grid-cols-6">
           {legalDocs.map((doc) => (
             <Link
               key={doc.href}
               href={doc.href}
-              className="flex items-center justify-center rounded-lg border border-stone-800 px-3 py-2.5 text-center text-xs text-stone-500 transition-colors hover:text-rose-300"
+              className="flex items-center justify-center rounded-lg border border-stone-800 px-2 py-2.5 text-center text-[11px] leading-4 text-stone-500 transition-colors hover:text-rose-300 sm:px-3 sm:text-xs"
             >
               {doc.label}
             </Link>
@@ -52,10 +52,10 @@ export function LegalDocs() {
         </div>
       </div>
 
-      <div className="container flex flex-col items-center justify-between gap-4 border-t border-stone-800 py-8 md:flex-row">
+      <div className="container flex flex-col items-center justify-between gap-4 border-t border-stone-800 py-6 md:flex-row md:py-8">
         <p className="text-sm text-stone-500">© {currentYear} ARTMATE. Все права защищены.</p>
-        <div className="flex items-center gap-6">
-          <p className="text-xs text-stone-600">
+        <div className="flex flex-col items-center gap-3 text-center sm:flex-row sm:gap-6 sm:text-left">
+          <p className="text-xs leading-5 text-stone-600">
             ИНН: {companyDetails.inn} · {companyDetails.registrationNumberLabel}:{" "}
             {companyDetails.registrationNumber}
           </p>

@@ -15,7 +15,7 @@ export function List() {
 
       <AnimatePresence mode="wait">
         {filteredProducts.length > 0 ? (
-          <ul key="grid" className="grid gap-5 sm:grid-cols-2 lg:grid-cols-4">
+          <ul key="grid" className="grid gap-5 sm:grid-cols-2 lg:grid-cols-3 xl:grid-cols-4">
             {filteredProducts.map((product, index) => (
               <motion.li key={product.id} layout transition={{ duration: 0.18 }} className="h-full">
                 <ProductCard

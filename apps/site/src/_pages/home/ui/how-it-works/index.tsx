@@ -19,7 +19,7 @@ export function HowItWorks({
       <div className="pointer-events-none absolute top-1/2 left-1/2 h-[300px] w-[600px] -translate-x-1/2 -translate-y-1/2 rounded-full bg-amber-50/60 blur-3xl" />
 
       <div className="relative container">
-        <div className="mb-14">
+        <div className="mb-8 md:mb-10 lg:mb-14">
           <div className="mb-3">
             <Badge
               variant="ghost"
@@ -30,7 +30,7 @@ export function HowItWorks({
             </Badge>
           </div>
 
-          <div className="flex flex-col justify-between gap-4 md:flex-row md:items-end md:gap-0">
+          <div className="flex flex-col justify-between gap-4 md:flex-row md:items-end md:gap-6">
             <div>
               <SectionTitle className="max-w-lg">
                 Три шага к&nbsp;
@@ -48,10 +48,10 @@ export function HowItWorks({
           </div>
         </div>
 
-        <div className="flex flex-col items-stretch gap-5 md:flex-row md:gap-3 lg:gap-5">
+        <div className="grid items-stretch gap-5 md:grid-cols-2 min-[1040px]:flex min-[1040px]:gap-5">
           {steps.map((step, i) => (
             <div key={step.num} className="contents">
-              <div className="flex-1">
+              <div className="min-[1040px]:flex-1">
                 <StepCard step={step} />
               </div>
               {i < steps.length - 1 && <Connector />}

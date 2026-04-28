@@ -3,6 +3,7 @@ import type { Metadata } from "next";
 import { companyDetails, routes, siteConfig } from "@/shared/constants";
 import { Separator } from "@/shared/ui";
 import { Link } from "@/shared/ui/link";
+import { PageTitle, SectionTitle } from "@/shared/ui/typography";
 
 export type LegalDocumentId =
   | "privacyPolicy"
@@ -305,10 +306,8 @@ export function LegalPage({ documentId }: LegalPageProps) {
             <p className="text-sm font-medium tracking-wide text-rose-500 uppercase">
               Правовые документы
             </p>
-            <h1 className="font-display text-3xl font-bold tracking-normal text-foreground md:text-5xl">
-              {document.title}
-            </h1>
-            <p className="max-w-3xl text-muted-foreground">{document.description}</p>
+            <PageTitle className="max-w-3xl text-foreground">{document.title}</PageTitle>
+            <p className="max-w-3xl leading-7 text-muted-foreground">{document.description}</p>
             <p className="text-sm text-muted-foreground">Редакция от {document.updatedAt}</p>
           </div>
 
@@ -317,9 +316,7 @@ export function LegalPage({ documentId }: LegalPageProps) {
           <div className="space-y-8">
             {document.sections.map((section) => (
               <section key={section.title} className="space-y-4">
-                <h2 className="font-display text-2xl font-semibold tracking-normal">
-                  {section.title}
-                </h2>
+                <SectionTitle className="text-foreground">{section.title}</SectionTitle>
 
                 {section.paragraphs?.map((paragraph) => (
                   <p key={paragraph} className="leading-7 text-muted-foreground">

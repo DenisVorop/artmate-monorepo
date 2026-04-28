@@ -6,6 +6,7 @@ import { useCartData } from "@/entities/cart";
 import { routes } from "@/shared/constants";
 import { Button, DataState } from "@/shared/ui";
 import { Link } from "@/shared/ui/link";
+import { PageTitle } from "@/shared/ui/typography";
 
 import {
   useClearCartMutation,
@@ -51,9 +52,7 @@ export function Cart() {
       <div className="mb-8 flex flex-col justify-between gap-4 sm:flex-row sm:items-end">
         <div className="space-y-2">
           <p className="text-sm font-medium tracking-wide text-rose-500 uppercase">Корзина</p>
-          <h1 className="font-display text-3xl font-bold tracking-normal text-foreground md:text-4xl">
-            Ваши товары
-          </h1>
+          <PageTitle className="text-foreground">Ваши товары</PageTitle>
           <p className="text-muted-foreground">{itemsLabel} в корзине Artmate.</p>
         </div>
 

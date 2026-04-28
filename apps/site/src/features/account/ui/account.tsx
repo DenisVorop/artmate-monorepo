@@ -24,6 +24,7 @@ import { useSession } from "@/entities/session";
 import { routes } from "@/shared/constants";
 import { Badge, Button, Card, CardContent, CardHeader, CardTitle, DataState } from "@/shared/ui";
 import { Link } from "@/shared/ui/link";
+import { PageTitle, SectionTitle } from "@/shared/ui/typography";
 
 const providerLabels = {
   credentials: "Почта и пароль",
@@ -78,9 +79,7 @@ export function Account() {
       <div className="mb-8 flex flex-col justify-between gap-4 sm:flex-row sm:items-end">
         <div className="space-y-2">
           <p className="text-sm font-medium tracking-wide text-rose-500 uppercase">Кабинет</p>
-          <h1 className="font-display text-3xl font-bold tracking-normal text-foreground md:text-4xl">
-            {userTitle}
-          </h1>
+          <PageTitle className="max-w-2xl break-words text-foreground">{userTitle}</PageTitle>
           <p className="max-w-2xl text-muted-foreground">
             Заказы, контакты и основная информация аккаунта Artmate.
           </p>
@@ -135,7 +134,7 @@ export function Account() {
         <div className="space-y-4">
           <div className="flex items-center justify-between gap-4">
             <div>
-              <h2 className="font-display text-2xl font-bold tracking-normal">Мои заказы</h2>
+              <SectionTitle>Мои заказы</SectionTitle>
               <p className="text-sm text-muted-foreground">
                 {getOrdersSectionDescription({
                   count: accountOrders.length,

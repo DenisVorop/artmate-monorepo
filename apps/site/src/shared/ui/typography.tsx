@@ -11,7 +11,7 @@ export function PageTitle({
   return (
     <h1
       className={`font-display leading-tight font-bold text-stone-900 ${className}`}
-      style={{ fontSize: "clamp(1.5rem, 4vw, 2.7rem)", ...style }}
+      style={{ fontSize: "clamp(2rem, 5vw, 2.75rem)", ...style }}
       {...rest}
     >
       {children}
@@ -29,7 +29,7 @@ export function SectionTitle({
   return (
     <h2
       className={`font-display leading-tight font-bold text-stone-900 ${className}`}
-      style={{ fontSize: "clamp(1rem, 3.5vw, 2rem)", ...style }}
+      style={{ fontSize: "clamp(1.5rem, 5vw, 2rem)", ...style }}
       {...rest}
     >
       {children}
@@ -90,7 +90,7 @@ export function SectionSubtitle({
   ...rest
 }: HTMLAttributes<HTMLParagraphElement>) {
   return (
-    <p className={`text-sm leading-relaxed text-stone-400 ${className}`} {...rest}>
+    <p className={`text-base leading-7 text-muted-foreground ${className}`} {...rest}>
       {children}
     </p>
   );

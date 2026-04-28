@@ -1,4 +1,5 @@
 import { Badge } from "@/shared/ui";
+import { PageTitle } from "@/shared/ui/typography";
 import type { Product } from "../model";
 
 type SummaryProps = {
@@ -16,9 +17,7 @@ export function Summary({ product }: SummaryProps) {
       </div>
 
       <div className="space-y-3">
-        <h1 className="max-w-3xl text-3xl leading-tight font-bold text-foreground md:text-4xl">
-          {product.title}
-        </h1>
+        <PageTitle className="max-w-3xl text-foreground">{product.title}</PageTitle>
         <p className="text-3xl font-bold text-foreground">{price} ₽</p>
       </div>
 

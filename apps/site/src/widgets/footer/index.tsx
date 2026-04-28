@@ -9,7 +9,7 @@ import { Marketplaces } from "./ui/marketplaces";
 export function Footer() {
   return (
     <footer className="overflow-hidden bg-stone-900 text-stone-300">
-      <div className="relative pt-16 pb-14">
+      <div className="relative pt-12 pb-10 md:pt-16 md:pb-14">
         {/* Декоративные блюры */}
         <div className="pointer-events-none absolute top-0 left-0 h-72 w-72 rounded-full bg-rose-500/10 blur-3xl" />
         <div className="pointer-events-none absolute top-0 right-0 h-60 w-60 rounded-full bg-violet-500/8 blur-3xl" />
@@ -18,22 +18,22 @@ export function Footer() {
         <BgText />
 
         <div className="relative container">
-          <div className="grid items-start gap-10 lg:grid-cols-[1fr_520px] lg:gap-16">
+          <div className="grid items-start gap-8 lg:grid-cols-[1fr_520px] lg:gap-16">
             <Heading />
 
             <Marketplaces />
           </div>
 
           {/* ── Разделитель ── */}
-          <div className="full-width my-12 h-px bg-linear-to-r from-transparent via-stone-700 to-transparent" />
+          <div className="full-width my-8 h-px bg-linear-to-r from-transparent via-stone-700 to-transparent md:my-12" />
 
           {/* ── Навигационные колонки ── */}
-          <div className="grid grid-cols-2 gap-8 sm:grid-cols-4">
+          <div className="grid grid-cols-2 gap-x-4 gap-y-8 sm:grid-cols-4 sm:gap-8">
             {/* Магазин */}
             <div>
               <div className="mb-5 flex items-center gap-2">
                 <span className="h-2 w-2 shrink-0 rounded-full bg-rose-400" />
-                <h4 className="font-display text-sm font-bold tracking-wider text-white uppercase">
+                <h4 className="font-display text-[11px] font-bold tracking-wide text-white uppercase sm:text-sm sm:tracking-wider">
                   Магазин
                 </h4>
               </div>
@@ -48,7 +48,7 @@ export function Footer() {
                     {"to" in l ? (
                       <Link
                         href={l.to!}
-                        className="group flex items-center gap-1.5 text-sm text-stone-500 transition-colors hover:text-white"
+                        className="group flex items-center gap-1.5 text-xs text-stone-500 transition-colors hover:text-white sm:text-sm"
                       >
                         <ArrowRight className="-ml-4 h-3 w-3 opacity-0 transition-all duration-200 group-hover:ml-0 group-hover:opacity-100" />
                         {l.label}
@@ -58,7 +58,7 @@ export function Footer() {
                         href={l.href}
                         target="_blank"
                         rel="noreferrer"
-                        className="group flex items-center gap-1.5 text-sm text-stone-500 transition-colors hover:text-white"
+                        className="group flex items-center gap-1.5 text-xs text-stone-500 transition-colors hover:text-white sm:text-sm"
                       >
                         <ArrowRight className="-ml-4 h-3 w-3 opacity-0 transition-all duration-200 group-hover:ml-0 group-hover:opacity-100" />
                         {l.label}
@@ -73,7 +73,7 @@ export function Footer() {
             <div>
               <div className="mb-5 flex items-center gap-2">
                 <span className="h-2 w-2 shrink-0 rounded-full bg-amber-400" />
-                <h4 className="font-display text-sm font-bold tracking-wider text-white uppercase">
+                <h4 className="font-display text-[11px] font-bold tracking-wide text-white uppercase sm:text-sm sm:tracking-wider">
                   Бренд
                 </h4>
               </div>
@@ -87,7 +87,7 @@ export function Footer() {
                   <li key={l.label}>
                     <Link
                       href={l.to}
-                      className="group flex items-center gap-1.5 text-sm text-stone-500 transition-colors hover:text-white"
+                      className="group flex items-center gap-1.5 text-xs text-stone-500 transition-colors hover:text-white sm:text-sm"
                     >
                       <ArrowRight className="-ml-4 h-3 w-3 opacity-0 transition-all duration-200 group-hover:ml-0 group-hover:opacity-100" />
                       {l.label}
@@ -101,7 +101,7 @@ export function Footer() {
             <div>
               <div className="mb-5 flex items-center gap-2">
                 <span className="h-2 w-2 shrink-0 rounded-full bg-violet-400" />
-                <h4 className="font-display text-sm font-bold tracking-wider text-white uppercase">
+                <h4 className="font-display text-[11px] font-bold tracking-wide text-white uppercase sm:text-sm sm:tracking-wider">
                   Сотрудничество
                 </h4>
               </div>
@@ -110,7 +110,7 @@ export function Footer() {
                   <li key={l.label}>
                     <Link
                       href={l.to}
-                      className="group flex items-center gap-1.5 text-sm text-stone-500 transition-colors hover:text-white"
+                      className="group flex items-center gap-1.5 text-xs text-stone-500 transition-colors hover:text-white sm:text-sm"
                     >
                       <ArrowRight className="-ml-4 h-3 w-3 opacity-0 transition-all duration-200 group-hover:ml-0 group-hover:opacity-100" />
                       {l.label}
@@ -120,29 +120,29 @@ export function Footer() {
               </ul>
             </div>
 
-            {/* Доставка */}
+            {/* Оплата */}
             <div>
               <div className="mb-5 flex items-center gap-2">
                 <span className="h-2 w-2 shrink-0 rounded-full bg-emerald-400" />
-                <h4 className="font-display text-sm font-bold tracking-wider text-white uppercase">
-                  Доставка
+                <h4 className="font-display text-[11px] font-bold tracking-wide text-white uppercase sm:text-sm sm:tracking-wider">
+                  Оплата
                 </h4>
               </div>
-              <ul className="space-y-3 text-sm text-stone-500">
-                <li className="flex items-start gap-2">
-                  <span className="mt-0.5 shrink-0 text-emerald-400">✓</span>
-                  <span>ПВЗ Ozon — условия при оформлении</span>
-                </li>
-                <li className="flex items-start gap-2">
-                  <span className="mt-0.5 shrink-0 text-emerald-400">✓</span>
-                  <span>Оплата через Ozon Pay</span>
-                </li>
-                <li className="flex items-start gap-2">
-                  <span className="mt-0.5 shrink-0 text-stone-600">→</span>
-                  <Link href={routes.paymentAndDelivery} className="hover:text-white">
-                    Подробнее об оплате
-                  </Link>
-                </li>
+              <ul className="space-y-3">
+                {[
+                  { label: "Ozon Pay", to: routes.paymentAndDelivery },
+                  { label: "Подробнее", to: routes.paymentAndDelivery },
+                ].map((l) => (
+                  <li key={l.label}>
+                    <Link
+                      href={l.to}
+                      className="group flex items-center gap-1.5 text-xs text-stone-500 transition-colors hover:text-white sm:text-sm"
+                    >
+                      <ArrowRight className="-ml-4 h-3 w-3 opacity-0 transition-all duration-200 group-hover:ml-0 group-hover:opacity-100" />
+                      {l.label}
+                    </Link>
+                  </li>
+                ))}
               </ul>
             </div>
           </div>

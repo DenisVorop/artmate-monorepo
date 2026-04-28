@@ -14,7 +14,7 @@ export function Reviews({ stats }: { stats?: ReviewStats }) {
   }
 
   return (
-    <div className="flex flex-wrap items-center gap-6">
+    <div className="flex flex-col items-start gap-3 sm:flex-row sm:items-center sm:gap-6">
       <AvatarGroup className="*:data-[slot=avatar]:ring-white">
         {reviewAvatars.map((image) => (
           <Avatar key={image.alt} className="size-9 border-2 border-white ring-1 ring-stone-100">

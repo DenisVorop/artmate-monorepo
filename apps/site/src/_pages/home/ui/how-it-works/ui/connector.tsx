@@ -1,6 +1,6 @@
 export function Connector() {
   return (
-    <div className="mt-6 hidden w-10 shrink-0 items-center justify-center self-center md:flex">
+    <div className="mt-6 hidden w-10 shrink-0 items-center justify-center self-center min-[1040px]:flex">
       <div className="w-full origin-left">
         <svg width="40" height="24" viewBox="0 0 40 24" fill="none" className="w-full">
           <path

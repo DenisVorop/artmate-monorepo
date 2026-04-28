@@ -75,7 +75,9 @@ export function HomePage() {
           <DataState
             variant={products.isError ? "error" : "empty"}
             title={
-              products.isError ? "Не удалось загрузить хиты продаж" : "Хиты продаж пока не добавлены"
+              products.isError
+                ? "Не удалось загрузить хиты продаж"
+                : "Хиты продаж пока не добавлены"
             }
             description={
               products.isError

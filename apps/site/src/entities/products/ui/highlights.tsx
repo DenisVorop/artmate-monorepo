@@ -11,7 +11,7 @@ const highlightIcons = {
 
 export function Highlights({ items }: { items: ProductHighlight[] }) {
   return (
-    <div className="grid gap-3 sm:grid-cols-3">
+    <div className="grid gap-3 sm:grid-cols-2 xl:grid-cols-3">
       {items.map((item) => {
         const Icon = highlightIcons[item.id];
 

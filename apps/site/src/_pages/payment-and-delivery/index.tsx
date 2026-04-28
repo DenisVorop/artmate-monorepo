@@ -3,6 +3,7 @@ import { CreditCard, MapPin, ReceiptText, RotateCcw, ShieldCheck, Truck } from "
 import { companyDetails, routes } from "@/shared/constants";
 import { Button, Separator } from "@/shared/ui";
 import { Link } from "@/shared/ui/link";
+import { PageTitle, SectionTitle } from "@/shared/ui/typography";
 
 const steps = [
   {
@@ -71,9 +72,9 @@ export function PaymentAndDeliveryPage() {
             <p className="text-sm font-medium tracking-wide text-rose-500 uppercase">
               Оплата и доставка
             </p>
-            <h1 className="font-display text-3xl font-bold tracking-normal text-foreground md:text-5xl">
+            <PageTitle className="max-w-3xl text-foreground">
               Заказ оплачивается через Ozon Pay и доставляется в ПВЗ Ozon
-            </h1>
+            </PageTitle>
             <div className="flex flex-col gap-3 sm:flex-row">
               <Button asChild size="lg">
                 <Link href={routes.catalog}>Перейти в каталог</Link>
@@ -85,7 +86,7 @@ export function PaymentAndDeliveryPage() {
           </div>
 
           <div className="rounded-lg border bg-muted/30 p-5">
-            <h2 className="font-display text-2xl font-semibold tracking-normal">
+            <h2 className="font-display text-xl leading-tight font-semibold tracking-normal">
               Реквизиты продавца
             </h2>
             <dl className="mt-5 grid gap-3 text-sm">
@@ -106,10 +107,8 @@ export function PaymentAndDeliveryPage() {
 
       <section className="border-y bg-muted/30 py-10 md:py-14" aria-labelledby="payment-steps">
         <div className="container">
-          <h2 id="payment-steps" className="font-display text-2xl font-semibold tracking-normal">
-            Как проходит заказ
-          </h2>
-          <div className="mt-6 grid gap-4 md:grid-cols-4">
+          <SectionTitle id="payment-steps">Как проходит заказ</SectionTitle>
+          <div className="mt-6 grid gap-4 sm:grid-cols-2 xl:grid-cols-4">
             {steps.map((step, index) => (
               <div key={step.title} className="rounded-lg border bg-background p-5">
                 <span className="flex size-8 items-center justify-center rounded-full bg-rose-100 text-sm font-semibold text-rose-600">
@@ -125,9 +124,7 @@ export function PaymentAndDeliveryPage() {
 
       <section className="container py-10 md:py-14" aria-labelledby="payment-details">
         <div className="max-w-3xl space-y-3">
-          <h2 id="payment-details" className="font-display text-2xl font-semibold tracking-normal">
-            Условия оплаты и предоставления услуг
-          </h2>
+          <SectionTitle id="payment-details">Условия оплаты и предоставления услуг</SectionTitle>
           <p className="leading-7 text-muted-foreground">
             После подтверждения заказа покупатель будет перенаправлен на защищенную платежную
             страницу {companyDetails.paymentProvider}. Оплата считается завершенной после получения

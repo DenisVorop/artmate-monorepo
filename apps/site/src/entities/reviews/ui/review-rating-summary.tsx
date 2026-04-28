@@ -11,13 +11,17 @@ export function ReviewRatingSummary({
   className?: string;
 }) {
   return (
-    <div className={cn("flex flex-wrap items-center justify-center gap-3 text-sm", className)}>
-      <RatingStars rating={stats.rating} />
-      <div className="flex flex-wrap items-center justify-center gap-2 text-stone-400">
+    <div className={cn("flex flex-wrap items-center justify-center gap-2 text-sm", className)}>
+      <div className="flex shrink-0 items-center gap-2">
+        <RatingStars rating={stats.rating} />
         <Badge variant="secondary" className="bg-amber-50 text-stone-700">
           {stats.ratingLabel}&nbsp;из&nbsp;5
         </Badge>
-        <span aria-hidden="true">·</span>
+      </div>
+      <div className="flex flex-wrap items-center justify-center gap-2 text-stone-400">
+        <span aria-hidden="true" className="hidden sm:inline">
+          ·
+        </span>
         <span>{stats.reviewsLabel}</span>
       </div>
     </div>

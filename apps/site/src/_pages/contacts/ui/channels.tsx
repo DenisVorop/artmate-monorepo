@@ -2,6 +2,7 @@ import { ArrowUpRight, Mail, MessageCircle } from "lucide-react";
 
 import { Badge, Card, CardAction, CardDescription, CardHeader, CardTitle } from "@/shared/ui";
 import { cn } from "@/shared/lib";
+import { SectionSubtitle, SectionTitle } from "@/shared/ui/typography";
 
 const channels = [
   {
@@ -28,15 +29,15 @@ export function Channels() {
   return (
     <section className="container py-8 md:py-12" aria-labelledby="contact-channels-title">
       <div className="mb-6 space-y-2">
-        <h2 id="contact-channels-title" className="text-2xl font-bold text-foreground">
+        <SectionTitle id="contact-channels-title" className="text-foreground">
           Каналы связи
-        </h2>
-        <p className="max-w-2xl text-sm text-muted-foreground">
+        </SectionTitle>
+        <SectionSubtitle className="max-w-2xl">
           Выберите удобный способ связи. Для&nbsp;срочных вопросов лучше писать в&nbsp;Telegram.
-        </p>
+        </SectionSubtitle>
       </div>
 
-      <div className="grid gap-4 md:grid-cols-3">
+      <div className="grid gap-4 md:grid-cols-2">
         {channels.map((channel) => {
           const Icon = channel.icon;
 

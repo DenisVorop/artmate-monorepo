@@ -10,6 +10,7 @@ import type { CreateOrderInputDTO } from "@/shared/actions/orders";
 import { routes } from "@/shared/constants";
 import { Button, DataState } from "@/shared/ui";
 import { Link } from "@/shared/ui/link";
+import { PageTitle } from "@/shared/ui/typography";
 
 import { useCheckoutCalculation, useCreateOrderMutation, useOzonPickupPoints } from "../model";
 import {
@@ -133,9 +134,7 @@ export function Checkout() {
       <div className="mb-8 flex flex-col justify-between gap-4 sm:flex-row sm:items-end">
         <div className="space-y-2">
           <p className="text-sm font-medium tracking-wide text-rose-500 uppercase">Оформление</p>
-          <h1 className="font-display text-3xl font-bold tracking-normal text-foreground md:text-4xl">
-            Доставка и оплата
-          </h1>
+          <PageTitle className="text-foreground">Доставка и оплата</PageTitle>
           <p className="max-w-2xl text-muted-foreground">
             Выберите ПВЗ Ozon, проверьте контакты и перейдите к защищенной оплате заказа.
           </p>
