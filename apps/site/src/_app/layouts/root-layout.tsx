@@ -1,6 +1,9 @@
 import type { ReactNode } from "react";
 import { Comfortaa, Nunito } from "next/font/google";
 
+import type { AuthSession } from "@/entities/session";
+import { getAuthSession } from "@/shared/actions/auth";
+import { ApiResult } from "@/shared/lib/api-result";
 import { getServerDeviceInfo } from "@/shared/lib/device/server";
 
 import { AppProviders } from "../providers/app-providers";
@@ -24,13 +27,28 @@ type RootLayoutProps = {
 };
 
 export async function RootLayout({ children }: RootLayoutProps) {
-  const initialDeviceInfo = await getServerDeviceInfo();
+  const [initialDeviceInfo, initialSession] = await Promise.all([
+    getServerDeviceInfo(),
+    getInitialAuthSession(),
+  ]);
 
   return (
     <html lang="ru" className={`${comfortaa.variable} ${nunito.variable}`}>
       <body>
-        <AppProviders initialDeviceInfo={initialDeviceInfo}>{children}</AppProviders>
+        <AppProviders initialDeviceInfo={initialDeviceInfo} initialSession={initialSession}>
+          {children}
+        </AppProviders>
       </body>
     </html>
   );
+}
+
+async function getInitialAuthSession(): Promise<AuthSession> {
+  const result = ApiResult.fromDTO(await getAuthSession());
+
+  if (result.isError) {
+    return { user: null };
+  }
+
+  return result.data ?? { user: null };
 }
