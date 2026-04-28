@@ -1,6 +1,8 @@
 import type { ReactNode } from "react";
 import { Comfortaa, Nunito } from "next/font/google";
 
+import { getServerDeviceInfo } from "@/shared/lib/device/server";
+
 import { AppProviders } from "../providers/app-providers";
 
 const comfortaa = Comfortaa({
@@ -21,11 +23,13 @@ type RootLayoutProps = {
   readonly children: ReactNode;
 };
 
-export function RootLayout({ children }: RootLayoutProps) {
+export async function RootLayout({ children }: RootLayoutProps) {
+  const initialDeviceInfo = await getServerDeviceInfo();
+
   return (
     <html lang="ru" className={`${comfortaa.variable} ${nunito.variable}`}>
       <body>
-        <AppProviders>{children}</AppProviders>
+        <AppProviders initialDeviceInfo={initialDeviceInfo}>{children}</AppProviders>
       </body>
     </html>
   );
