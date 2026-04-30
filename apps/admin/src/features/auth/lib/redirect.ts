@@ -7,7 +7,7 @@ export function getSafeRedirectPath(path?: string | null) {
     path.startsWith("//") ||
     isLoginPath(path)
   ) {
-    return routes.dashboard;
+    return routes.users;
   }
 
   return path;

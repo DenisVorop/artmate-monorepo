@@ -21,7 +21,7 @@ type LoginFormProps = {
   readonly nextPath?: string;
 };
 
-export function LoginForm({ nextPath = routes.dashboard }: LoginFormProps) {
+export function LoginForm({ nextPath = routes.users }: LoginFormProps) {
   const [state, formAction, isPending] = useActionState(
     loginAdminAction,
     initialLoginFormState,
@@ -31,7 +31,9 @@ export function LoginForm({ nextPath = routes.dashboard }: LoginFormProps) {
     <Card className="mx-auto w-full max-w-sm rounded-lg">
       <CardHeader>
         <CardTitle>Вход в админ-панель</CardTitle>
-        <CardDescription>Используйте учетную запись с ролью администратора</CardDescription>
+        <CardDescription>
+          Используйте учетную запись с ролью администратора
+        </CardDescription>
       </CardHeader>
       <CardContent>
         <form action={formAction} className="grid gap-4">
@@ -60,14 +62,21 @@ export function LoginForm({ nextPath = routes.dashboard }: LoginFormProps) {
           </label>
 
           {state.error ? (
-            <p className="rounded-lg bg-destructive/10 px-3 py-2 text-sm text-destructive" role="alert">
+            <p
+              className="rounded-lg bg-destructive/10 px-3 py-2 text-sm text-destructive"
+              role="alert"
+            >
               {state.error}
             </p>
           ) : null}
 
           <Button disabled={isPending} type="submit">
             {isPending ? (
-              <LoaderCircle data-icon="inline-start" className="animate-spin" aria-hidden="true" />
+              <LoaderCircle
+                data-icon="inline-start"
+                className="animate-spin"
+                aria-hidden="true"
+              />
             ) : (
               <LogIn data-icon="inline-start" aria-hidden="true" />
             )}

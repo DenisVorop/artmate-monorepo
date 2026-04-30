@@ -1,6 +1,8 @@
 import { redirect } from "next/navigation";
 
+import { UsersPage } from "@/pages/users";
 import { getAdminSession } from "@/shared/actions/auth";
+import { getAdminUsers } from "@/shared/actions/users";
 import { routes } from "@/shared/constants";
 
 export { metadata } from "@/pages/users/metadata";
@@ -12,5 +14,7 @@ export default async function Page() {
     redirect(`${routes.login}?next=${encodeURIComponent(routes.users)}`);
   }
 
-  redirect(routes.users);
+  const users = await getAdminUsers();
+
+  return <UsersPage currentUser={session.user} users={users} />;
 }

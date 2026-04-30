@@ -1,39 +1,30 @@
 import type { ReactNode } from "react";
 import type { LucideIcon } from "lucide-react";
-import {
-  Boxes,
-  ClipboardList,
-  LayoutDashboard,
-  LogOut,
-  Settings,
-  ShoppingBag,
-  Users,
-} from "lucide-react";
+import { LogOut, Users } from "lucide-react";
 
 import { logoutAdminAction } from "@/features/auth/model/logout-action";
+import { routes } from "@/shared/constants";
 import { Badge, Button } from "@/shared/ui";
 
 type NavigationItem = {
   readonly label: string;
   readonly href: string;
   readonly Icon: LucideIcon;
-  readonly active?: boolean;
 };
 
 type AdminShellProps = {
+  readonly activePath?: string;
   readonly children: ReactNode;
 };
 
 const navigation: readonly NavigationItem[] = [
-  { label: "Обзор", href: "#overview", Icon: LayoutDashboard, active: true },
-  { label: "Заказы", href: "#orders", Icon: ClipboardList },
-  { label: "Товары", href: "#products", Icon: ShoppingBag },
-  { label: "Склад", href: "#stock", Icon: Boxes },
-  { label: "Клиенты", href: "#customers", Icon: Users },
-  { label: "Настройки", href: "#settings", Icon: Settings },
+  { label: "Пользователи", href: routes.users, Icon: Users },
 ];
 
-export function AdminShell({ children }: AdminShellProps) {
+export function AdminShell({
+  activePath = routes.users,
+  children,
+}: AdminShellProps) {
   return (
     <main className="min-h-screen bg-muted/30">
       <div className="grid min-h-screen grid-cols-1 lg:grid-cols-[260px_minmax(0,1fr)]">
@@ -48,23 +39,34 @@ export function AdminShell({ children }: AdminShellProps) {
             </div>
 
             <nav className="grid gap-1" aria-label="Основная навигация">
-              {navigation.map((item) => (
-                <Button
-                  key={item.label}
-                  asChild
-                  variant={item.active ? "secondary" : "ghost"}
-                  className="justify-start"
-                >
-                  <a href={item.href} aria-current={item.active ? "page" : undefined}>
-                    <item.Icon data-icon="inline-start" aria-hidden="true" />
-                    {item.label}
-                  </a>
-                </Button>
-              ))}
+              {navigation.map((item) => {
+                const isActive = item.href === activePath;
+
+                return (
+                  <Button
+                    key={item.label}
+                    asChild
+                    variant={isActive ? "secondary" : "ghost"}
+                    className="justify-start"
+                  >
+                    <a
+                      href={item.href}
+                      aria-current={isActive ? "page" : undefined}
+                    >
+                      <item.Icon data-icon="inline-start" aria-hidden="true" />
+                      {item.label}
+                    </a>
+                  </Button>
+                );
+              })}
             </nav>
 
             <form action={logoutAdminAction} className="mt-auto">
-              <Button className="w-full justify-start" type="submit" variant="ghost">
+              <Button
+                className="w-full justify-start"
+                type="submit"
+                variant="ghost"
+              >
                 <LogOut data-icon="inline-start" aria-hidden="true" />
                 Выйти
               </Button>

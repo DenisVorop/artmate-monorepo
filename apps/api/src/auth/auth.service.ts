@@ -5,7 +5,10 @@ import {
 } from "@nestjs/common";
 import { JwtService } from "@nestjs/jwt";
 
+import { UserStatus as PrismaUserStatus } from "../generated/prisma/client";
+import { PrismaService } from "../prisma/prisma.service";
 import { isUserRole } from "../users/users.types";
+import { UsersService } from "../users/users.service";
 
 import {
   AUTH_ACCESS_TOKEN_COOKIE_NAME,
@@ -15,7 +18,11 @@ import type { AuthTokenPayload, AuthUser } from "./auth.types";
 
 @Injectable()
 export class AuthService {
-  constructor(private readonly jwtService: JwtService) {}
+  constructor(
+    private readonly jwtService: JwtService,
+    private readonly prisma: PrismaService,
+    private readonly usersService: UsersService,
+  ) {}
 
   async createAccessToken(user: AuthUser) {
     const payload: AuthTokenPayload = {
@@ -57,7 +64,7 @@ export class AuthService {
         },
       );
 
-      return this.getUserFromPayload(payload);
+      return await this.getUserFromPayload(payload);
     } catch {
       throw new UnauthorizedException("Invalid access token");
     }
@@ -103,7 +110,43 @@ export class AuthService {
     return token;
   }
 
-  private getUserFromPayload(payload: AuthTokenPayload): AuthUser {
+  private async getUserFromPayload(
+    payload: AuthTokenPayload,
+  ): Promise<AuthUser> {
+    const user = this.getPayloadUser(payload);
+    const storedUser = await this.prisma.user.findUnique({
+      where: { id: user.id },
+      select: {
+        email: true,
+        image: true,
+        name: true,
+        roles: true,
+        status: true,
+      },
+    });
+
+    if (!storedUser) {
+      if (user.id === `${user.provider}:${user.providerUserId}`) {
+        return user;
+      }
+
+      throw new UnauthorizedException("Invalid access token");
+    }
+
+    if (storedUser.status !== PrismaUserStatus.ACTIVE) {
+      throw new UnauthorizedException("User account is not active");
+    }
+
+    return {
+      ...user,
+      email: storedUser.email ?? user.email,
+      name: storedUser.name ?? user.name,
+      image: storedUser.image ?? user.image,
+      roles: this.usersService.mapPrismaRoles(storedUser.roles),
+    };
+  }
+
+  private getPayloadUser(payload: AuthTokenPayload): AuthUser {
     if (
       !this.isAuthProvider(payload.provider) ||
       typeof payload.sub !== "string" ||
@@ -133,7 +176,9 @@ export class AuthService {
     const secret = process.env.AUTH_JWT_SECRET;
 
     if (!secret) {
-      throw new InternalServerErrorException("AUTH_JWT_SECRET is not configured");
+      throw new InternalServerErrorException(
+        "AUTH_JWT_SECRET is not configured",
+      );
     }
 
     return secret;

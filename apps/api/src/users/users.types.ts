@@ -4,6 +4,14 @@ export const userRoles = ["customer", "admin"] as const;
 
 export type UserRole = (typeof userRoles)[number];
 
+export const userStatuses = ["active", "blocked", "deleted"] as const;
+
+export type UserStatus = (typeof userStatuses)[number];
+
+export const manageableUserStatuses = ["active", "blocked"] as const;
+
+export type ManageableUserStatus = (typeof manageableUserStatuses)[number];
+
 export const defaultUserRoles: readonly UserRole[] = ["customer"];
 
 export const defaultPrismaUserRoles: readonly PrismaUserRole[] = [
