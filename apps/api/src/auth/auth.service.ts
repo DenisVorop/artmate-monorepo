@@ -5,6 +5,8 @@ import {
 } from "@nestjs/common";
 import { JwtService } from "@nestjs/jwt";
 
+import { isUserRole } from "../users/users.types";
+
 import {
   AUTH_ACCESS_TOKEN_COOKIE_NAME,
   AUTH_ACCESS_TOKEN_EXPIRES_IN,
@@ -106,7 +108,8 @@ export class AuthService {
       !this.isAuthProvider(payload.provider) ||
       typeof payload.sub !== "string" ||
       typeof payload.providerUserId !== "string" ||
-      !Array.isArray(payload.roles)
+      !Array.isArray(payload.roles) ||
+      !payload.roles.every(isUserRole)
     ) {
       throw new UnauthorizedException("Invalid access token payload");
     }

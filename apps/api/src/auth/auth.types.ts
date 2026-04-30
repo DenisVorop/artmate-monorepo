@@ -1,3 +1,5 @@
+import type { UserRole } from "../users/users.types";
+
 export type AuthProvider = "credentials" | "yandex";
 
 export type AuthUser = {
@@ -7,7 +9,7 @@ export type AuthUser = {
   email?: string;
   name?: string;
   image?: string;
-  roles: string[];
+  roles: UserRole[];
 };
 
 export type AuthTokenPayload = {
@@ -17,7 +19,7 @@ export type AuthTokenPayload = {
   email?: string;
   name?: string;
   image?: string;
-  roles: string[];
+  roles: UserRole[];
 };
 
 export type YandexTokenResponse = {

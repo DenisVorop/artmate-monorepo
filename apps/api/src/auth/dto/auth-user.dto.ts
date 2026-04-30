@@ -1,5 +1,7 @@
 import { IsArray, IsIn, IsOptional, IsString } from "class-validator";
 
+import { userRoles, type UserRole } from "../../users/users.types";
+
 export class AuthUserDTO {
   @IsString()
   id!: string;
@@ -23,6 +25,6 @@ export class AuthUserDTO {
   image?: string;
 
   @IsArray()
-  @IsString({ each: true })
-  roles!: string[];
+  @IsIn(userRoles, { each: true })
+  roles!: UserRole[];
 }

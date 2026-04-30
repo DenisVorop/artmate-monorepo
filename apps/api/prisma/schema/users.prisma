@@ -6,12 +6,19 @@ enum UserStatus {
   @@map("user_status")
 }
 
+enum UserRole {
+  CUSTOMER @map("customer")
+  ADMIN    @map("admin")
+
+  @@map("user_role")
+}
+
 model User {
   id        String     @id @default(cuid())
   email     String?    @unique @db.VarChar(320)
   name      String?    @db.VarChar(120)
   image     String?    @db.Text
-  roles     String[]   @default(["customer"])
+  roles     UserRole[] @default([CUSTOMER])
   status    UserStatus @default(ACTIVE)
   createdAt DateTime   @default(now()) @map("created_at")
   updatedAt DateTime   @default(now()) @updatedAt @map("updated_at")

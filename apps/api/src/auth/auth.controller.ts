@@ -16,6 +16,7 @@ import {
 } from "@nestjs/common";
 
 import { ValidateResponse } from "../common/response-validation.interceptor";
+import { UsersService } from "../users/users.service";
 
 import {
   AUTH_ACCESS_TOKEN_COOKIE_NAME,
@@ -69,6 +70,7 @@ export class AuthController {
     private readonly credentialsAuthService: CredentialsAuthService,
     private readonly loginThrottleService: LoginThrottleService,
     private readonly oauthProvidersService: OAuthProvidersService,
+    private readonly usersService: UsersService,
   ) {}
 
   @Get("providers")
@@ -99,41 +101,35 @@ export class AuthController {
     @Ip() requestIp: string | undefined,
     @Res({ passthrough: true }) response: CookieResponse,
   ) {
-    const ipAddress = this.getClientIp(requestIp, forwardedFor, realIp);
+    const user = await this.validateCredentialsLogin(
+      request,
+      forwardedFor,
+      realIp,
+      requestIp,
+    );
 
-    await this.loginThrottleService.assertLoginAllowed({
-      login: request.login,
-      ipAddress,
-    });
+    return this.createCookieSession(response, user);
+  }
 
-    let user: AuthUser;
+  @ValidateResponse(AuthSessionDTO)
+  @Post("admin/login")
+  async loginAdmin(
+    @Body() request: LoginRequestDTO,
+    @Headers("x-forwarded-for") forwardedFor: string | undefined,
+    @Headers("x-real-ip") realIp: string | undefined,
+    @Ip() requestIp: string | undefined,
+    @Res({ passthrough: true }) response: CookieResponse,
+  ) {
+    const user = await this.validateCredentialsLogin(
+      request,
+      forwardedFor,
+      realIp,
+      requestIp,
+    );
 
-    try {
-      user = await this.credentialsAuthService.validateUser(
-        request.login,
-        request.password,
-      );
-    } catch (error) {
-      if (error instanceof UnauthorizedException) {
-        await this.loginThrottleService.recordFailedLogin({
-          login: request.login,
-          ipAddress,
-        });
-      }
+    this.usersService.assertRole(user, "admin");
 
-      throw error;
-    }
-
-    await this.loginThrottleService.recordSuccessfulLogin({
-      login: request.login,
-      ipAddress,
-    });
-
-    const accessToken = await this.authService.createAccessToken(user);
-
-    this.setAccessTokenCookie(response, accessToken);
-
-    return { user };
+    return this.createCookieSession(response, user);
   }
 
   @Get("oauth/:provider")
@@ -189,6 +185,24 @@ export class AuthController {
     return this.authService.getSession(authorizationHeader, cookieHeader);
   }
 
+  @ValidateResponse(AuthSessionDTO)
+  @Get("admin/session")
+  async getAdminSession(
+    @Headers("authorization") authorizationHeader: string | undefined,
+    @Headers("cookie") cookieHeader: string | undefined,
+  ) {
+    const session = await this.authService.getSession(
+      authorizationHeader,
+      cookieHeader,
+    );
+
+    if (!session.user || !this.usersService.hasRole(session.user, "admin")) {
+      return { user: null };
+    }
+
+    return session;
+  }
+
   @ValidateResponse(AuthUserDTO)
   @UseGuards(AuthGuard)
   @Get("me")
@@ -201,6 +215,54 @@ export class AuthController {
     this.clearAccessTokenCookie(response);
 
     return { ok: true };
+  }
+
+  private async validateCredentialsLogin(
+    request: LoginRequestDTO,
+    forwardedFor: string | undefined,
+    realIp: string | undefined,
+    requestIp: string | undefined,
+  ) {
+    const ipAddress = this.getClientIp(requestIp, forwardedFor, realIp);
+
+    await this.loginThrottleService.assertLoginAllowed({
+      login: request.login,
+      ipAddress,
+    });
+
+    try {
+      const user = await this.credentialsAuthService.validateUser(
+        request.login,
+        request.password,
+      );
+
+      await this.loginThrottleService.recordSuccessfulLogin({
+        login: request.login,
+        ipAddress,
+      });
+
+      return user;
+    } catch (error) {
+      if (error instanceof UnauthorizedException) {
+        await this.loginThrottleService.recordFailedLogin({
+          login: request.login,
+          ipAddress,
+        });
+      }
+
+      throw error;
+    }
+  }
+
+  private async createCookieSession(
+    response: CookieResponse,
+    user: AuthUser,
+  ) {
+    const accessToken = await this.authService.createAccessToken(user);
+
+    this.setAccessTokenCookie(response, accessToken);
+
+    return { user };
   }
 
   private validateState(

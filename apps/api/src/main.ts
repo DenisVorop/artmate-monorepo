@@ -54,8 +54,10 @@ function setupSwagger(app: INestApplication) {
 function getCorsOrigins() {
   const origins =
     process.env.CORS_ORIGIN ??
-    process.env.SITE_URL ??
-    "http://localhost:3000";
+    [
+      process.env.SITE_URL ?? "http://localhost:3000",
+      process.env.ADMIN_URL ?? "http://localhost:3003",
+    ].join(",");
 
   return origins.split(",").map((origin) => origin.trim()).filter(Boolean);
 }

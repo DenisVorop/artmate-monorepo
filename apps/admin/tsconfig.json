@@ -3,6 +3,11 @@
   "compilerOptions": {
     "baseUrl": ".",
     "paths": {
+      "@/app/*": ["src/_app/*"],
+      "@/pages/*": ["src/_pages/*"],
+      "@/features/*": ["src/features/*"],
+      "@/entities/*": ["src/entities/*"],
+      "@/widgets/*": ["src/widgets/*"],
       "@/shared/*": ["src/shared/*"]
     },
     "plugins": [

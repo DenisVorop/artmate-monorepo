@@ -11,6 +11,7 @@ import {
   Prisma,
 } from "../generated/prisma/client";
 import { PrismaService } from "../prisma/prisma.service";
+import { UsersService } from "../users/users.service";
 
 import {
   YANDEX_AUTHORIZE_URL,
@@ -33,7 +34,10 @@ type StoredYandexAccount = Prisma.AuthAccountGetPayload<{
 
 @Injectable()
 export class YandexOAuthService {
-  constructor(private readonly prisma: PrismaService) {}
+  constructor(
+    private readonly prisma: PrismaService,
+    private readonly usersService: UsersService,
+  ) {}
 
   createState() {
     return crypto.randomBytes(32).toString("base64url");
@@ -166,7 +170,7 @@ export class YandexOAuthService {
                   email: providerEmail,
                   name,
                   image,
-                  roles: ["customer"],
+                  roles: this.usersService.getDefaultPrismaRoles(),
                 },
               },
         },
@@ -185,7 +189,7 @@ export class YandexOAuthService {
       email: account.user.email ?? account.providerEmail ?? undefined,
       name: account.user.name ?? undefined,
       image: account.user.image ?? undefined,
-      roles: account.user.roles,
+      roles: this.usersService.mapPrismaRoles(account.user.roles),
     };
   }
 

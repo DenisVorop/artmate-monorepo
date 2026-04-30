@@ -12,6 +12,7 @@ import {
   UserStatus,
 } from "../generated/prisma/client";
 import { PrismaService } from "../prisma/prisma.service";
+import { UsersService } from "../users/users.service";
 
 import type { AuthUser } from "./auth.types";
 
@@ -52,7 +53,10 @@ type StoredCredentialsAccount = Prisma.AuthAccountGetPayload<{
 
 @Injectable()
 export class CredentialsAuthService {
-  constructor(private readonly prisma: PrismaService) {}
+  constructor(
+    private readonly prisma: PrismaService,
+    private readonly usersService: UsersService,
+  ) {}
 
   async registerUser(input: RegisterCredentialsUserInput): Promise<AuthUser> {
     const login = this.normalizeLogin(input.login);
@@ -85,7 +89,7 @@ export class CredentialsAuthService {
             create: {
               email,
               name: this.getOptionalString(input.name),
-              roles: ["customer"],
+              roles: this.usersService.getDefaultPrismaRoles(),
             },
           },
           credential: {
@@ -247,7 +251,7 @@ export class CredentialsAuthService {
       email: account.user.email ?? account.providerEmail ?? undefined,
       name: account.user.name ?? undefined,
       image: account.user.image ?? undefined,
-      roles: account.user.roles,
+      roles: this.usersService.mapPrismaRoles(account.user.roles),
     };
   }
 
@@ -272,13 +276,10 @@ export class CredentialsAuthService {
     const roles = this.getOptionalEnv("AUTH_PASSWORD_ROLES");
 
     if (!roles) {
-      return ["customer"];
+      return this.usersService.getDefaultRoles();
     }
 
-    return roles
-      .split(",")
-      .map((role) => role.trim())
-      .filter(Boolean);
+    return this.usersService.normalizeRoles(roles.split(","));
   }
 
   private getOptionalEnv(name: string) {
