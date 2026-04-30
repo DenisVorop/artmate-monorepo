@@ -30,7 +30,7 @@ import {
 } from "../lib";
 
 type CheckoutFormProps = {
-  selectedPickupPointId: string;
+  selectedPickupPointAddress: string;
   customerDefaults?: CheckoutCustomerDefaults;
   isSubmitting: boolean;
   isSubmitDisabled: boolean;
@@ -38,20 +38,24 @@ type CheckoutFormProps = {
 };
 
 export function CheckoutForm({
-  selectedPickupPointId,
+  selectedPickupPointAddress,
   customerDefaults,
   isSubmitting,
   isSubmitDisabled,
   onSubmit,
 }: CheckoutFormProps) {
   const defaultValues = useMemo(
-    () => getDefaultCheckoutFormValues(customerDefaults),
-    [customerDefaults],
+    () => ({
+      ...getDefaultCheckoutFormValues(customerDefaults),
+      pickupPointAddress: selectedPickupPointAddress,
+    }),
+    [customerDefaults, selectedPickupPointAddress],
   );
   const {
     register,
     handleSubmit,
     reset,
+    setValue,
     formState: { errors, isDirty },
   } = useForm<CheckoutFormValues>({
     defaultValues,
@@ -66,12 +70,21 @@ export function CheckoutForm({
     }
   }, [defaultValues, isDirty, reset]);
 
+  useEffect(() => {
+    setValue("pickupPointAddress", selectedPickupPointAddress, {
+      shouldDirty: false,
+      shouldValidate: false,
+    });
+  }, [selectedPickupPointAddress, setValue]);
+
   const submitForm = handleSubmit(async (values) => {
-    await onSubmit(toCreateOrderInput(values, selectedPickupPointId));
+    await onSubmit(toCreateOrderInput(values));
   });
 
   return (
     <form onSubmit={submitForm} className="space-y-4">
+      <input type="hidden" {...register("pickupPointAddress")} />
+
       <Card>
         <CardHeader>
           <CardTitle>Контакты</CardTitle>

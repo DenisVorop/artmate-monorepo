@@ -18,6 +18,11 @@ export const checkoutFormValidationSchema = z.object({
     .min(1, "Укажите телефон")
     .regex(checkoutPhonePattern, `Введите телефон в формате ${checkoutPhonePlaceholder}`),
   email: z.string().trim().min(1, "Укажите email").email("Введите корректный email"),
+  pickupPointAddress: z
+    .string()
+    .trim()
+    .min(1, "Укажите адрес ближайшего ПВЗ Ozon")
+    .max(300, "Адрес должен быть короче 300 символов"),
   comment: z.string().max(1000, "Комментарий должен быть короче 1000 символов"),
   acceptedLegal: z.boolean().refine((value) => value, "Подтвердите согласие с условиями"),
 });
@@ -33,6 +38,7 @@ export function getDefaultCheckoutFormValues(
     name: customerDefaults.name ?? "",
     phone: formatCheckoutPhone(customerDefaults.phone ?? ""),
     email: customerDefaults.email ?? "",
+    pickupPointAddress: "",
     comment: "",
     acceptedLegal: false,
   };
@@ -81,7 +87,6 @@ export function formatCheckoutPhone(value: string) {
 
 export function toCreateOrderInput(
   values: CheckoutFormValues,
-  pickupPointId: string,
 ): CreateOrderInputDTO {
   const comment = values.comment.trim();
 
@@ -93,7 +98,7 @@ export function toCreateOrderInput(
     },
     delivery: {
       provider: "ozon",
-      pickupPointId,
+      pickupPointAddress: values.pickupPointAddress.trim(),
     },
     payment: {
       method: "bank_card_mock",

@@ -62,7 +62,7 @@ export type CreateOrderInputDTO = {
   customer: OrderCustomerDTO;
   delivery: {
     provider: OrderDeliveryProviderDTO;
-    pickupPointId: string;
+    pickupPointAddress: string;
   };
   payment: {
     method: OrderPaymentMethodDTO;

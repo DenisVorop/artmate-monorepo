@@ -33,9 +33,8 @@ export function Checkout() {
   const pickupPoints = useOzonPickupPoints(cityId);
   const pointInfo = useMemo(() => pickupPoints.data?.points ?? [], [pickupPoints.data?.points]);
   const selectedPoint = getSelectedDeliveryPoint(pointInfo, selectedPickupPointId);
-  const calculation = useCheckoutCalculation(
-    selectedPoint?.available ? selectedPickupPointId : undefined,
-  );
+  const selectedPickupPointAddress = selectedPoint?.available ? selectedPoint.address : undefined;
+  const calculation = useCheckoutCalculation(selectedPickupPointAddress);
   const { createOrder, isPending, error } = useCreateOrderMutation();
   const customerDefaults = useMemo<CheckoutCustomerDefaults>(
     () => ({
@@ -169,7 +168,7 @@ export function Checkout() {
             }}
           />
 
-          {calculation.isError && selectedPickupPointId && (
+          {calculation.isError && selectedPickupPointAddress && (
             <DataState
               variant="error"
               title="Не удалось рассчитать доставку"
@@ -179,7 +178,7 @@ export function Checkout() {
           )}
 
           <CheckoutForm
-            selectedPickupPointId={selectedPickupPointId}
+            selectedPickupPointAddress={selectedPickupPointAddress ?? ""}
             customerDefaults={customerDefaults}
             isSubmitting={isPending}
             isSubmitDisabled={!canSubmitOrder}
