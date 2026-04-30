@@ -191,3 +191,23 @@
     @apply relative right-[50%] left-[50%] -mr-[50vw] -ml-[50vw] w-screen;
   }
 }
+
+@media (max-width: 767.98px) {
+  .flex.gap-2.overflow-x-auto.pb-1.md\:hidden {
+    left: 50%;
+    margin-left: -50vw;
+    margin-right: -50vw;
+    overscroll-behavior-x: contain;
+    padding-inline: 1rem;
+    position: relative;
+    right: 50%;
+    scroll-padding-inline: 1rem;
+    scroll-snap-type: x mandatory;
+    scrollbar-width: thin;
+    width: 100vw;
+  }
+
+  .flex.gap-2.overflow-x-auto.pb-1.md\:hidden > button {
+    scroll-snap-align: start;
+  }
+}

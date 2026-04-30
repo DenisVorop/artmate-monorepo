@@ -30,8 +30,8 @@ export function Filters() {
 
   return (
     <div className="sticky top-[55px] z-30 border-b bg-background/95 backdrop-blur supports-[backdrop-filter]:bg-background/80 sm:top-16">
-      <div className="container flex flex-col gap-3 py-3 lg:flex-row lg:items-center">
-        <div className="relative w-full sm:w-64">
+      <div className="container grid grid-cols-[minmax(0,1fr)_auto] items-center gap-x-2 gap-y-2 py-2 sm:gap-x-3 sm:gap-y-3 sm:py-3 lg:flex lg:flex-row lg:items-center">
+        <div className="relative min-w-0 lg:w-64">
           <Search className="pointer-events-none absolute top-1/2 left-2.5 size-4 -translate-y-1/2 text-muted-foreground" />
           <Input
             type="search"
@@ -54,49 +54,21 @@ export function Filters() {
           )}
         </div>
 
-        <Separator orientation="vertical" className="hidden h-8 lg:block" />
-
-        <div className="-mx-1 flex gap-2 overflow-x-auto px-1 pb-1 sm:flex-wrap sm:overflow-visible sm:pb-0">
-          <Button
-            type="button"
-            variant={onlyBestsellers ? "default" : "outline"}
-            aria-pressed={onlyBestsellers}
-            onClick={() => setOnlyBestsellers(!onlyBestsellers)}
-            className={cn(
-              "w-fit",
-              onlyBestsellers &&
-                "bg-rose-500 text-white hover:bg-rose-600 focus-visible:border-rose-300 focus-visible:ring-rose-400/30",
-            )}
-          >
-            <Sparkles data-icon="inline-start" />
-            Хит
-          </Button>
-
-          <Button
-            type="button"
-            variant={onlyPixel ? "default" : "outline"}
-            aria-pressed={onlyPixel}
-            onClick={() => setOnlyPixel(!onlyPixel)}
-            className={cn(
-              "w-fit",
-              onlyPixel &&
-                "bg-stone-900 text-white hover:bg-stone-800 focus-visible:border-stone-400 focus-visible:ring-stone-500/30",
-            )}
-          >
-            <Blocks data-icon="inline-start" />
-            Пиксельная
-          </Button>
-        </div>
-
-        <div className="flex flex-1 justify-start lg:justify-end">
+        <div className="flex justify-end lg:order-4 lg:ml-auto lg:flex-1">
           <DropdownMenu>
             <DropdownMenuTrigger asChild>
-              <Button type="button" variant="outline" className="min-w-44 justify-between">
+              <Button
+                type="button"
+                variant="outline"
+                size="sm"
+                aria-label={`Сортировка: ${sortLabel}`}
+                className="w-8 justify-center p-0 sm:w-auto sm:min-w-36 sm:justify-between sm:px-2.5 lg:min-w-44"
+              >
                 <span className="inline-flex min-w-0 items-center gap-1.5">
                   <SlidersHorizontal data-icon="inline-start" />
-                  <span className="truncate">{sortLabel}</span>
+                  <span className="hidden truncate sm:inline">{sortLabel}</span>
                 </span>
-                <ChevronDown data-icon="inline-end" />
+                <ChevronDown data-icon="inline-end" className="hidden sm:block" />
               </Button>
             </DropdownMenuTrigger>
             <DropdownMenuContent align="end" className="min-w-52">
@@ -112,6 +84,42 @@ export function Filters() {
               </DropdownMenuRadioGroup>
             </DropdownMenuContent>
           </DropdownMenu>
+        </div>
+
+        <Separator orientation="vertical" className="hidden h-8 lg:order-1 lg:block" />
+
+        <div className="col-span-2 -mx-1 flex gap-1.5 overflow-x-auto px-1 pb-0.5 sm:gap-2 sm:pb-0 lg:order-2 lg:col-span-1 lg:flex-wrap lg:overflow-visible">
+          <Button
+            type="button"
+            variant={onlyBestsellers ? "default" : "outline"}
+            size="sm"
+            aria-pressed={onlyBestsellers}
+            onClick={() => setOnlyBestsellers(!onlyBestsellers)}
+            className={cn(
+              "w-fit",
+              onlyBestsellers &&
+                "bg-rose-500 text-white hover:bg-rose-600 focus-visible:border-rose-300 focus-visible:ring-rose-400/30",
+            )}
+          >
+            <Sparkles data-icon="inline-start" />
+            Хит
+          </Button>
+
+          <Button
+            type="button"
+            variant={onlyPixel ? "default" : "outline"}
+            size="sm"
+            aria-pressed={onlyPixel}
+            onClick={() => setOnlyPixel(!onlyPixel)}
+            className={cn(
+              "w-fit",
+              onlyPixel &&
+                "bg-stone-900 text-white hover:bg-stone-800 focus-visible:border-stone-400 focus-visible:ring-stone-500/30",
+            )}
+          >
+            <Blocks data-icon="inline-start" />
+            Пиксельная
+          </Button>
         </div>
       </div>
     </div>

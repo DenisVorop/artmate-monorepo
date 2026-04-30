@@ -1,24 +1,20 @@
-import { Card, CardContent } from "@/shared/ui";
-
 export function CartLineSkeleton() {
   return (
-    <Card className="overflow-hidden py-0" aria-hidden="true">
-      <CardContent className="grid gap-4 p-4 sm:grid-cols-[7rem_minmax(0,1fr)]">
-        <div className="aspect-[3/4] rounded-lg bg-muted motion-safe:animate-pulse" />
+    <div className="rounded-lg border bg-background p-3 sm:p-4" aria-hidden="true">
+      <div className="grid grid-cols-[4.5rem_minmax(0,1fr)] gap-3 sm:grid-cols-[5rem_minmax(0,1fr)_auto] sm:items-center sm:gap-4">
+        <div className="aspect-square rounded-md bg-muted motion-safe:animate-pulse" />
 
-        <div className="grid gap-4 md:grid-cols-[minmax(0,1fr)_auto] md:items-center">
-          <div className="min-w-0 space-y-3">
-            <div className="h-3 w-24 rounded bg-muted motion-safe:animate-pulse" />
-            <div className="h-5 w-full max-w-sm rounded bg-muted motion-safe:animate-pulse" />
-            <div className="h-4 w-32 rounded bg-muted motion-safe:animate-pulse" />
-          </div>
-
-          <div className="flex flex-wrap items-center justify-between gap-3 md:justify-end">
-            <div className="h-10 w-32 rounded-lg border bg-muted/60 motion-safe:animate-pulse" />
-            <div className="h-8 w-28 rounded bg-muted motion-safe:animate-pulse" />
-          </div>
+        <div className="min-w-0 self-center space-y-2">
+          <div className="h-3 w-20 rounded bg-muted motion-safe:animate-pulse" />
+          <div className="h-5 w-full max-w-sm rounded bg-muted motion-safe:animate-pulse" />
+          <div className="h-4 w-28 rounded bg-muted motion-safe:animate-pulse" />
         </div>
-      </CardContent>
-    </Card>
+
+        <div className="col-span-2 flex items-center justify-between gap-3 border-t pt-3 sm:col-span-1 sm:border-t-0 sm:pt-0">
+          <div className="h-8 w-28 rounded-md border bg-muted/60 motion-safe:animate-pulse" />
+          <div className="h-7 w-24 rounded bg-muted motion-safe:animate-pulse" />
+        </div>
+      </div>
+    </div>
   );
 }

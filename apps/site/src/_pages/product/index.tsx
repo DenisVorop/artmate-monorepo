@@ -76,10 +76,10 @@ export function ProductPage({ productId }: ProductPageProps) {
       <div className="container space-y-3 py-4 md:space-y-5 md:py-8">
         <Breadcrumbs product={product} />
 
-        <section className="grid gap-8 lg:grid-cols-[minmax(0,1fr)_minmax(360px,0.86fr)] lg:gap-12">
+        <section className="grid min-w-0 gap-8 lg:grid-cols-[minmax(0,1fr)_minmax(360px,0.86fr)] lg:gap-12">
           <Gallery images={product.images} title={product.title} />
 
-          <div className="space-y-6">
+          <div className="min-w-0 space-y-6">
             {visibleReviewsData && (
               <ReviewRatingSummary stats={visibleReviewsData.stats} className="justify-start" />
             )}
