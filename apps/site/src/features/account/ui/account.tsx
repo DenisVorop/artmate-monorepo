@@ -1,10 +1,8 @@
 "use client";
 
 import {
-  BadgeCheck,
   LogIn,
   Mail,
-  Package,
   Phone,
   ShoppingBag,
   UserRound,
@@ -13,8 +11,6 @@ import {
 
 import {
   getLatestOrder,
-  getOrdersTotal,
-  getPaidOrdersCount,
   getPreferredCustomerEmail,
   getPreferredCustomerPhone,
   OrderCard,
@@ -22,14 +18,9 @@ import {
 } from "@/entities/orders";
 import { useSession } from "@/entities/session";
 import { routes } from "@/shared/constants";
-import { Badge, Button, Card, CardContent, CardHeader, CardTitle, DataState } from "@/shared/ui";
+import { Button, Card, CardContent, CardHeader, CardTitle, DataState } from "@/shared/ui";
 import { Link } from "@/shared/ui/link";
 import { PageTitle, SectionTitle } from "@/shared/ui/typography";
-
-const providerLabels = {
-  credentials: "Почта и пароль",
-  yandex: "Yandex ID",
-} as const;
 
 export function Account() {
   const { user, isPending: isSessionPending } = useSession();
@@ -69,10 +60,7 @@ export function Account() {
   const latestOrder = getLatestOrder(accountOrders);
   const email = user.email ?? getPreferredCustomerEmail(accountOrders);
   const phone = getPreferredCustomerPhone(accountOrders);
-  const ordersTotal = getOrdersTotal(accountOrders);
-  const paidOrdersCount = getPaidOrdersCount(accountOrders);
   const userTitle = user.name ?? email ?? user.providerUserId;
-  const statsPlaceholder = orders.isError ? "Нет данных" : "...";
 
   return (
     <section className="container py-8 md:py-12">
@@ -105,30 +93,8 @@ export function Account() {
             <CardContent className="space-y-4">
               <ContactLine icon={Mail} label="Почта" value={email ?? "Не указана"} />
               <ContactLine icon={Phone} label="Телефон" value={phone ?? "Не указан"} />
-              <ContactLine icon={BadgeCheck} label="Вход" value={providerLabels[user.provider]} />
-
-              <Badge variant="outline" className="rounded-lg border-emerald-200 text-emerald-700">
-                Аккаунт активен
-              </Badge>
             </CardContent>
           </Card>
-
-          <div className="grid gap-3 sm:grid-cols-3 lg:grid-cols-1">
-            <StatCard
-              label="Заказов"
-              value={orders.isPending || orders.isError ? statsPlaceholder : accountOrders.length}
-            />
-            <StatCard
-              label="Оплачено"
-              value={orders.isPending || orders.isError ? statsPlaceholder : paidOrdersCount}
-            />
-            <StatCard
-              label="Сумма"
-              value={
-                orders.isPending || orders.isError ? statsPlaceholder : formatMoney(ordersTotal)
-              }
-            />
-          </div>
         </aside>
 
         <div className="space-y-4">
@@ -197,22 +163,6 @@ function ContactLine({ icon: Icon, label, value }: ContactLineProps) {
   );
 }
 
-function StatCard({ label, value }: { label: string; value: string | number }) {
-  return (
-    <Card>
-      <CardContent className="flex items-center justify-between gap-3 p-4">
-        <div>
-          <p className="text-sm text-muted-foreground">{label}</p>
-          <p className="text-2xl font-semibold">{value}</p>
-        </div>
-        <span className="flex size-10 items-center justify-center rounded-lg bg-rose-50 text-rose-500">
-          <Package className="size-5" />
-        </span>
-      </CardContent>
-    </Card>
-  );
-}
-
 function OrderCardSkeleton() {
   return (
     <Card aria-hidden="true">
@@ -259,10 +209,6 @@ function getOrdersSectionDescription({
   }
 
   return `${count} ${getOrdersWord(count)} в аккаунте, последний от ${formatDate(latestOrderCreatedAt)}.`;
-}
-
-function formatMoney(value: number) {
-  return `${value.toLocaleString("ru-RU")} ₽`;
 }
 
 function formatDate(value: string) {
