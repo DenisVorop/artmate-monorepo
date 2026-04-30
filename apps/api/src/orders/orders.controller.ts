@@ -68,19 +68,19 @@ export class OrdersController {
   @ValidateResponse(CheckoutCalculationDTO)
   @Post("checkout/calculate")
   @ApiOperation({
-    summary: "Calculate checkout totals for selected Ozon pickup point",
+    summary: "Calculate checkout totals for Ozon pickup address",
     description:
-      "Uses the current cart cookie and selected pickup point to calculate delivery and order total on the backend.",
+      "Uses the current cart cookie and provided nearest Ozon pickup address to calculate order total on the backend.",
   })
   @ApiBody({
     type: CalculateCheckoutRequestDTO,
     examples: {
       ozonPickup: {
-        summary: "Ozon pickup point",
+        summary: "Ozon pickup address",
         value: {
           delivery: {
             provider: "ozon",
-            pickupPointId: "100101",
+            pickupPointAddress: "Москва, ул. Примерная, 1",
           },
         },
       },
@@ -102,7 +102,7 @@ export class OrdersController {
   @ApiOperation({
     summary: "Create order from the current cart",
     description:
-      "Creates an order with selected Ozon pickup point and mock bank card payment state.",
+      "Creates an order with provided nearest Ozon pickup address and mock bank card payment state.",
   })
   @ApiOkResponse({ type: OrderDTO })
   async createOrder(

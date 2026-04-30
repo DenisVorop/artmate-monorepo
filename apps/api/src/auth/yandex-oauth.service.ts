@@ -220,7 +220,7 @@ export class YandexOAuthService {
     const lastName = this.getOptionalString(profile.last_name);
     const fullName = [firstName, lastName].filter(Boolean).join(" ");
 
-    return fullName || this.getOptionalString(profile.login);
+    return fullName || undefined;
   }
 
   private getProfileImage(profile: YandexProfileResponse) {

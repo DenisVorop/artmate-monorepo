@@ -60,7 +60,7 @@ export class OrdersService {
       throw new BadRequestException("Cart is empty");
     }
 
-    const pickupPoint = await this.parsePickupPoint(request.delivery);
+    const pickupPoint = this.parsePickupPoint(request.delivery);
     const deliveryPrice = pickupPoint.deliveryPrice;
 
     return {
@@ -90,7 +90,7 @@ export class OrdersService {
     }
 
     const customer = this.parseCustomer(request.customer);
-    const pickupPoint = await this.parsePickupPoint(request.delivery);
+    const pickupPoint = this.parsePickupPoint(request.delivery);
     const paymentMethod = request.payment?.method;
     const comment = this.parseComment(request.comment);
 
@@ -140,7 +140,7 @@ export class OrdersService {
     };
   }
 
-  private async parsePickupPoint(value: unknown): Promise<PickupPointDTO> {
+  private parsePickupPoint(value: unknown): PickupPointDTO {
     if (!value || typeof value !== "object") {
       throw new BadRequestException("delivery is required");
     }
@@ -151,11 +151,18 @@ export class OrdersService {
       throw new BadRequestException("delivery.provider must be ozon");
     }
 
-    const pickupPointId = this.parseRequiredString(
-      delivery.pickupPointId,
-      "delivery.pickupPointId",
+    const pickupPointAddress = this.parseRequiredString(
+      delivery.pickupPointAddress,
+      "delivery.pickupPointAddress",
     );
-    return this.ozonLogisticsService.getPickupPoint(pickupPointId);
+
+    return {
+      id: "manual-ozon-pickup",
+      title: "ПВЗ Ozon",
+      address: pickupPointAddress,
+      workHours: "Уточняется",
+      deliveryPrice: 0,
+    };
   }
 
   private parseOrderId(value: unknown): string {

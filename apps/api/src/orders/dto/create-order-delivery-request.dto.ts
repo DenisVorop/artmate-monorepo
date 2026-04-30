@@ -11,5 +11,5 @@ export class CreateOrderDeliveryRequestDTO {
 
   @IsString()
   @IsNotEmpty()
-  pickupPointId!: string;
+  pickupPointAddress!: string;
 }

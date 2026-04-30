@@ -84,7 +84,7 @@ export class CredentialsAuthService {
           user: {
             create: {
               email,
-              name: this.getOptionalString(input.name) ?? login,
+              name: this.getOptionalString(input.name),
               roles: ["customer"],
             },
           },
@@ -162,7 +162,7 @@ export class CredentialsAuthService {
       provider: "credentials",
       providerUserId: expectedLogin,
       email: this.getOptionalEnv("AUTH_PASSWORD_EMAIL"),
-      name: this.getOptionalEnv("AUTH_PASSWORD_NAME") ?? expectedLogin,
+      name: this.getOptionalEnv("AUTH_PASSWORD_NAME"),
       roles: this.getRoles(),
     };
   }
