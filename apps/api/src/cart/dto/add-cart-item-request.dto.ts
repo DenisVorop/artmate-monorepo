@@ -1,22 +1,18 @@
-import { Type } from "class-transformer";
 import {
-  IsDefined,
   IsInt,
+  IsNotEmpty,
   IsOptional,
+  IsString,
   Max,
   Min,
-  ValidateNested,
 } from "class-validator";
 
 import { CART_ITEM_MAX_QUANTITY } from "../cart.constants";
 
-import { CartProductDTO } from "./cart-product.dto";
-
 export class AddCartItemRequestDTO {
-  @IsDefined()
-  @ValidateNested()
-  @Type(() => CartProductDTO)
-  product!: CartProductDTO;
+  @IsString()
+  @IsNotEmpty()
+  productId!: string;
 
   @IsOptional()
   @IsInt()

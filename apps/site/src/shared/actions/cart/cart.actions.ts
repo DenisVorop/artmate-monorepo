@@ -3,12 +3,10 @@
 import { cookies } from "next/headers";
 
 import { ApiResult, type ApiResultDTO } from "@/shared/lib/api-result";
-import { productsData } from "@/shared/actions/products/products.data";
 
 import type {
   AddCartItemInputDTO,
   CartDTO,
-  CartProductDTO,
   RemoveCartItemInputDTO,
   UpdateCartItemInputDTO,
 } from "./cart.types";
@@ -28,7 +26,7 @@ export async function addCartItem(input: AddCartItemInputDTO): Promise<ApiResult
     requestCart("/cart/items", {
       method: "POST",
       body: JSON.stringify({
-        product: getCartProduct(input.productId),
+        productId: input.productId,
         quantity: input.quantity,
       }),
     }),
@@ -97,24 +95,6 @@ async function requestCart(path: string, init: RequestInit = {}) {
 
 function getApiBaseUrl() {
   return process.env.API_BASE_URL ?? DEFAULT_API_BASE_URL;
-}
-
-function getCartProduct(productId: string): CartProductDTO {
-  const product = productsData.products.find((item) => item.id === productId);
-
-  if (!product) {
-    throw new Error("Product not found");
-  }
-
-  return {
-    id: product.id,
-    title: product.title,
-    slug: product.slug,
-    price: product.price,
-    category: product.category,
-    categorySlug: product.categorySlug,
-    image: product.image,
-  };
 }
 
 async function getErrorMessage(response: Response) {

@@ -6,6 +6,7 @@ import {
 
 import { CART_ITEM_MAX_QUANTITY } from "./cart.constants";
 import { CartStorage } from "./cart.storage";
+import { ProductsService } from "../products/products.service";
 import type {
   AddCartItemRequestDTO,
   CartDTO,
@@ -17,7 +18,10 @@ const MAX_QUANTITY = CART_ITEM_MAX_QUANTITY;
 
 @Injectable()
 export class CartService {
-  constructor(private readonly cartStorage: CartStorage) {}
+  constructor(
+    private readonly cartStorage: CartStorage,
+    private readonly productsService: ProductsService,
+  ) {}
 
   async getCart(cartId?: string): Promise<CartDTO> {
     const cart = await this.cartStorage.ensureCart(cartId);
@@ -29,7 +33,9 @@ export class CartService {
     cartId: string | undefined,
     request: AddCartItemRequestDTO,
   ): Promise<CartDTO> {
-    const product = this.parseProduct(request.product);
+    const product = this.parseProduct(
+      await this.productsService.getCartProductSnapshot(request.productId),
+    );
     const quantity = this.parseQuantity(request.quantity ?? 1);
     const cart = await this.cartStorage.addItem(
       cartId,
