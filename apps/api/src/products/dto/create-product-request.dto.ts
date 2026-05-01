@@ -1,4 +1,5 @@
 import {
+  IsBoolean,
   IsIn,
   IsInt,
   IsOptional,
@@ -30,6 +31,14 @@ export class CreateProductRequestDTO {
   @IsOptional()
   @IsIn(productStatuses)
   status?: ProductStatus;
+
+  @IsOptional()
+  @IsBoolean()
+  isHit?: boolean;
+
+  @IsString()
+  @MaxLength(32)
+  categoryId!: string;
 
   @IsInt()
   @Min(0)

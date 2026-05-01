@@ -1,6 +1,7 @@
 import { Type } from "class-transformer";
 import {
   IsArray,
+  IsBoolean,
   IsISO8601,
   IsIn,
   IsInt,
@@ -17,6 +18,7 @@ import {
   type ProductStatus,
 } from "../products.types";
 
+import { ProductCategoryDTO } from "./product-category.dto";
 import { ProductImageDTO } from "./product-image.dto";
 
 export class ProductDTO {
@@ -35,6 +37,16 @@ export class ProductDTO {
 
   @IsIn(productStatuses)
   status!: ProductStatus;
+
+  @IsBoolean()
+  isHit!: boolean;
+
+  @IsString()
+  categoryId!: string;
+
+  @ValidateNested()
+  @Type(() => ProductCategoryDTO)
+  category!: ProductCategoryDTO;
 
   @IsInt()
   @Min(0)

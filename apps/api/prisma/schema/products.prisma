@@ -12,6 +12,8 @@ model Product {
   title       String        @db.VarChar(220)
   description String?       @db.Text
   status      ProductStatus @default(DRAFT)
+  isHit       Boolean       @default(false) @map("is_hit")
+  categoryId  String        @map("category_id") @db.VarChar(32)
   /// Price is stored in minor currency units.
   /// For RUB this means kopecks: 129000 = 1290 ₽.
   price       Int
@@ -19,10 +21,26 @@ model Product {
   createdAt   DateTime      @default(now()) @map("created_at")
   updatedAt   DateTime      @default(now()) @updatedAt @map("updated_at")
 
-  images ProductImage[]
+  category ProductCategory @relation(fields: [categoryId], references: [id], onDelete: Restrict)
+  images   ProductImage[]
 
+  @@index([categoryId])
   @@index([status, createdAt])
+  @@index([status, isHit, createdAt])
   @@map("products")
+}
+
+model ProductCategory {
+  id        String   @id @default(cuid()) @db.VarChar(32)
+  slug      String   @unique @db.VarChar(160)
+  title     String   @db.VarChar(120)
+  image     String?  @db.Text
+  createdAt DateTime @default(now()) @map("created_at")
+  updatedAt DateTime @default(now()) @updatedAt @map("updated_at")
+
+  products Product[]
+
+  @@map("product_categories")
 }
 
 model ProductImage {

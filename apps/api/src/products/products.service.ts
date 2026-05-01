@@ -15,7 +15,9 @@ import {
 import { PrismaService } from "../prisma/prisma.service";
 
 import type {
+  CreateProductCategoryRequestDTO,
   CreateProductRequestDTO,
+  UpdateProductCategoryRequestDTO,
   UpdateProductImageRequestDTO,
   UpdateProductRequestDTO,
 } from "./dto";
@@ -35,6 +37,7 @@ export type UploadedProductFile = {
 };
 
 const productInclude = {
+  category: true,
   images: {
     orderBy: [
       {
@@ -54,9 +57,48 @@ type StoredProduct = Prisma.ProductGetPayload<{
   include: typeof productInclude;
 }>;
 
+type StoredProductCategory = {
+  id: string;
+  slug: string;
+  title: string;
+  image: string | null;
+  createdAt: Date;
+  updatedAt: Date;
+};
+
 @Injectable()
 export class ProductsService {
   constructor(private readonly prisma: PrismaService) {}
+
+  async getAdminCategories() {
+    const categories = await this.prisma.productCategory.findMany({
+      orderBy: {
+        title: "asc",
+      },
+    });
+
+    return categories.map((category) => this.mapProductCategory(category));
+  }
+
+  async getPublishedCategories() {
+    const categories = await this.prisma.productCategory.findMany({
+      where: {
+        products: {
+          some: {
+            images: {
+              some: {},
+            },
+            status: PrismaProductStatus.PUBLISHED,
+          },
+        },
+      },
+      orderBy: {
+        title: "asc",
+      },
+    });
+
+    return categories.map((category) => this.mapProductCategory(category));
+  }
 
   async getAdminProducts() {
     const products = await this.prisma.product.findMany({
@@ -85,12 +127,20 @@ export class ProductsService {
   async getPublishedProducts() {
     const products = await this.prisma.product.findMany({
       where: {
+        images: {
+          some: {},
+        },
         status: PrismaProductStatus.PUBLISHED,
       },
       include: productInclude,
-      orderBy: {
-        createdAt: "desc",
-      },
+      orderBy: [
+        {
+          isHit: "desc",
+        },
+        {
+          createdAt: "desc",
+        },
+      ],
     });
 
     return products.map((product) => this.mapProduct(product));
@@ -99,6 +149,9 @@ export class ProductsService {
   async getPublishedProductBySlug(slug: string) {
     const product = await this.prisma.product.findFirst({
       where: {
+        images: {
+          some: {},
+        },
         slug,
         status: PrismaProductStatus.PUBLISHED,
       },
@@ -112,16 +165,133 @@ export class ProductsService {
     return this.mapProduct(product);
   }
 
+  async getCartProductSnapshot(productId: string) {
+    const product = await this.prisma.product.findFirst({
+      where: {
+        id: productId,
+        images: {
+          some: {},
+        },
+        status: PrismaProductStatus.PUBLISHED,
+      },
+      include: productInclude,
+    });
+
+    if (!product) {
+      throw new NotFoundException("Product not found");
+    }
+
+    const primaryImage = product.images[0];
+
+    if (!primaryImage) {
+      throw new NotFoundException("Product image not found");
+    }
+
+    return {
+      id: product.id,
+      title: product.title,
+      slug: product.slug,
+      price: Math.trunc(product.price / 100),
+      category: product.category.title,
+      categorySlug: product.category.slug,
+      image: primaryImage.url,
+    };
+  }
+
+  async createCategory(input: CreateProductCategoryRequestDTO) {
+    try {
+      const category = await this.prisma.productCategory.create({
+        data: {
+          title: this.parseRequiredString(input.title, "title"),
+          slug: this.parseSlug(input.slug),
+          image: this.parseOptionalString(input.image),
+        },
+      });
+
+      return this.mapProductCategory(category);
+    } catch (error) {
+      this.handlePrismaMutationError(
+        error,
+        "Product category slug already exists",
+        "Product category not found",
+      );
+    }
+  }
+
+  async updateCategory(
+    categoryId: string,
+    input: UpdateProductCategoryRequestDTO,
+  ) {
+    const data: Prisma.ProductCategoryUpdateInput = {};
+
+    if (input.title !== undefined) {
+      data.title = this.parseRequiredString(input.title, "title");
+    }
+
+    if (input.slug !== undefined) {
+      data.slug = this.parseSlug(input.slug);
+    }
+
+    if (input.image !== undefined) {
+      data.image = this.parseOptionalString(input.image) ?? null;
+    }
+
+    try {
+      const category = await this.prisma.productCategory.update({
+        where: { id: categoryId },
+        data,
+      });
+
+      return this.mapProductCategory(category);
+    } catch (error) {
+      this.handlePrismaMutationError(
+        error,
+        "Product category slug already exists",
+        "Product category not found",
+      );
+    }
+  }
+
+  async deleteCategory(categoryId: string) {
+    try {
+      const category = await this.prisma.productCategory.delete({
+        where: { id: categoryId },
+      });
+
+      return this.mapProductCategory(category);
+    } catch (error) {
+      this.handlePrismaMutationError(
+        error,
+        "Product category slug already exists",
+        "Product category not found",
+      );
+    }
+  }
+
   async createProduct(input: CreateProductRequestDTO) {
+    const status = input.status
+      ? this.mapProductStatus(input.status)
+      : PrismaProductStatus.DRAFT;
+
+    if (status === PrismaProductStatus.PUBLISHED) {
+      throw new BadRequestException(
+        "Published product must have at least one image",
+      );
+    }
+
     try {
       const product = await this.prisma.product.create({
         data: {
           title: this.parseRequiredString(input.title, "title"),
           slug: this.parseSlug(input.slug),
           description: this.parseOptionalString(input.description),
-          status: input.status
-            ? this.mapProductStatus(input.status)
-            : PrismaProductStatus.DRAFT,
+          status,
+          isHit: input.isHit ?? false,
+          category: {
+            connect: {
+              id: this.parseRequiredString(input.categoryId, "categoryId"),
+            },
+          },
           price: this.parsePriceRub(input.priceRub) * 100,
           currency: this.parseCurrency(input.currency),
         },
@@ -130,7 +300,11 @@ export class ProductsService {
 
       return this.mapProduct(product);
     } catch (error) {
-      this.handlePrismaMutationError(error);
+      this.handlePrismaMutationError(
+        error,
+        "Product slug already exists",
+        "Product category not found",
+      );
     }
   }
 
@@ -150,7 +324,24 @@ export class ProductsService {
     }
 
     if (input.status !== undefined) {
-      data.status = this.mapProductStatus(input.status);
+      const status = this.mapProductStatus(input.status);
+      data.status = status;
+
+      if (status === PrismaProductStatus.PUBLISHED) {
+        await this.ensureProductHasImages(productId);
+      }
+    }
+
+    if (input.isHit !== undefined) {
+      data.isHit = input.isHit;
+    }
+
+    if (input.categoryId !== undefined) {
+      data.category = {
+        connect: {
+          id: this.parseRequiredString(input.categoryId, "categoryId"),
+        },
+      };
     }
 
     if (input.priceRub !== undefined) {
@@ -170,7 +361,7 @@ export class ProductsService {
 
       return this.mapProduct(product);
     } catch (error) {
-      this.handlePrismaMutationError(error);
+      this.handlePrismaMutationError(error, "Product slug already exists");
     }
   }
 
@@ -262,6 +453,7 @@ export class ProductsService {
 
   async deleteProductImage(productId: string, imageId: string) {
     const image = await this.ensureProductImage(productId, imageId);
+    await this.ensureImageCanBeDeleted(productId);
 
     await this.prisma.productImage.delete({
       where: { id: imageId },
@@ -279,6 +471,45 @@ export class ProductsService {
 
     if (!product) {
       throw new NotFoundException("Product not found");
+    }
+  }
+
+  private async ensureProductHasImages(productId: string) {
+    const imagesCount = await this.prisma.productImage.count({
+      where: { productId },
+    });
+
+    if (imagesCount === 0) {
+      throw new BadRequestException(
+        "Published product must have at least one image",
+      );
+    }
+  }
+
+  private async ensureImageCanBeDeleted(productId: string) {
+    const product = await this.prisma.product.findUnique({
+      where: { id: productId },
+      select: {
+        status: true,
+        _count: {
+          select: {
+            images: true,
+          },
+        },
+      },
+    });
+
+    if (!product) {
+      throw new NotFoundException("Product not found");
+    }
+
+    if (
+      product.status === PrismaProductStatus.PUBLISHED &&
+      product._count.images <= 1
+    ) {
+      throw new BadRequestException(
+        "Published product must have at least one image",
+      );
     }
   }
 
@@ -403,12 +634,26 @@ export class ProductsService {
       title: product.title,
       description: product.description ?? undefined,
       status: this.mapPrismaProductStatus(product.status),
+      isHit: product.isHit,
+      categoryId: product.categoryId,
+      category: this.mapProductCategory(product.category),
       price: product.price,
       priceRub: Math.trunc(product.price / 100),
       currency: product.currency as ProductCurrency,
       images: product.images.map((image) => this.mapProductImage(image)),
       createdAt: product.createdAt.toISOString(),
       updatedAt: product.updatedAt.toISOString(),
+    };
+  }
+
+  private mapProductCategory(category: StoredProductCategory) {
+    return {
+      id: category.id,
+      slug: category.slug,
+      title: category.title,
+      image: category.image ?? undefined,
+      createdAt: category.createdAt.toISOString(),
+      updatedAt: category.updatedAt.toISOString(),
     };
   }
 
@@ -473,14 +718,24 @@ export class ProductsService {
     return join(this.getUploadsRoot(), relativePath);
   }
 
-  private handlePrismaMutationError(error: unknown): never {
+  private handlePrismaMutationError(
+    error: unknown,
+    duplicateMessage = "Product slug already exists",
+    notFoundMessage = "Product not found",
+  ): never {
     if (error instanceof Prisma.PrismaClientKnownRequestError) {
       if (error.code === "P2002") {
-        throw new BadRequestException("Product slug already exists");
+        throw new BadRequestException(duplicateMessage);
+      }
+
+      if (error.code === "P2003") {
+        throw new BadRequestException(
+          "Product category is used by existing products",
+        );
       }
 
       if (error.code === "P2025") {
-        throw new NotFoundException("Product not found");
+        throw new NotFoundException(notFoundMessage);
       }
     }
 

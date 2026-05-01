@@ -1,6 +1,9 @@
 export { CreateProductImageRequestDTO } from "./create-product-image-request.dto";
+export { CreateProductCategoryRequestDTO } from "./create-product-category-request.dto";
 export { CreateProductRequestDTO } from "./create-product-request.dto";
+export { ProductCategoryDTO } from "./product-category.dto";
 export { ProductDTO } from "./product.dto";
 export { ProductImageDTO } from "./product-image.dto";
+export { UpdateProductCategoryRequestDTO } from "./update-product-category-request.dto";
 export { UpdateProductImageRequestDTO } from "./update-product-image-request.dto";
 export { UpdateProductRequestDTO } from "./update-product-request.dto";

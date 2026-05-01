@@ -27,9 +27,12 @@ import { UsersService } from "../users/users.service";
 
 import {
   CreateProductImageRequestDTO,
+  CreateProductCategoryRequestDTO,
+  ProductCategoryDTO,
   CreateProductRequestDTO,
   ProductDTO,
   ProductImageDTO,
+  UpdateProductCategoryRequestDTO,
   UpdateProductImageRequestDTO,
   UpdateProductRequestDTO,
 } from "./dto";
@@ -51,6 +54,56 @@ export class AdminProductsController {
     private readonly productsService: ProductsService,
     private readonly usersService: UsersService,
   ) {}
+
+  @ValidateResponse(ProductCategoryDTO, { isArray: true })
+  @ApiOperation({ summary: "List product categories for admin panel" })
+  @ApiOkResponse({ type: [ProductCategoryDTO] })
+  @Get("categories")
+  getCategories(@Req() request: AuthenticatedRequest) {
+    this.usersService.assertRole(request.user, "admin");
+
+    return this.productsService.getAdminCategories();
+  }
+
+  @ValidateResponse(ProductCategoryDTO)
+  @ApiOperation({ summary: "Create product category from admin panel" })
+  @ApiCreatedResponse({ type: ProductCategoryDTO })
+  @Post("categories")
+  createCategory(
+    @Body() body: CreateProductCategoryRequestDTO,
+    @Req() request: AuthenticatedRequest,
+  ) {
+    this.usersService.assertRole(request.user, "admin");
+
+    return this.productsService.createCategory(body);
+  }
+
+  @ValidateResponse(ProductCategoryDTO)
+  @ApiOperation({ summary: "Update product category from admin panel" })
+  @ApiOkResponse({ type: ProductCategoryDTO })
+  @Patch("categories/:id")
+  updateCategory(
+    @Param("id") categoryId: string,
+    @Body() body: UpdateProductCategoryRequestDTO,
+    @Req() request: AuthenticatedRequest,
+  ) {
+    this.usersService.assertRole(request.user, "admin");
+
+    return this.productsService.updateCategory(categoryId, body);
+  }
+
+  @ValidateResponse(ProductCategoryDTO)
+  @ApiOperation({ summary: "Delete product category from admin panel" })
+  @ApiOkResponse({ type: ProductCategoryDTO })
+  @Delete("categories/:id")
+  deleteCategory(
+    @Param("id") categoryId: string,
+    @Req() request: AuthenticatedRequest,
+  ) {
+    this.usersService.assertRole(request.user, "admin");
+
+    return this.productsService.deleteCategory(categoryId);
+  }
 
   @ValidateResponse(ProductDTO, { isArray: true })
   @ApiOperation({ summary: "List products for admin panel" })
@@ -172,6 +225,14 @@ export class AdminProductsController {
 @Controller("catalog/products")
 export class CatalogProductsController {
   constructor(private readonly productsService: ProductsService) {}
+
+  @ValidateResponse(ProductCategoryDTO, { isArray: true })
+  @ApiOperation({ summary: "List published product categories" })
+  @ApiOkResponse({ type: [ProductCategoryDTO] })
+  @Get("categories")
+  getCategories() {
+    return this.productsService.getPublishedCategories();
+  }
 
   @ValidateResponse(ProductDTO, { isArray: true })
   @ApiOperation({ summary: "List published products" })

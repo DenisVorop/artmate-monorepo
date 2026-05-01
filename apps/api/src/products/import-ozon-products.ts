@@ -58,6 +58,21 @@ type ImportSummary = {
 };
 
 const ozonProductListLimit = 1000;
+const defaultProductCategoryId = "raskraski";
+const productCategories = [
+  { id: defaultProductCategoryId, slug: "raskraski", title: "Раскраски" },
+  { id: "anime", slug: "anime", title: "Аниме" },
+  { id: "animals", slug: "zhivotnye", title: "Животные" },
+  { id: "cats", slug: "kotiki", title: "Котики" },
+  { id: "city", slug: "gorod", title: "Город" },
+  { id: "flowers", slug: "cvety", title: "Цветы" },
+  { id: "food", slug: "eda", title: "Еда" },
+  { id: "landscapes", slug: "peizazhi", title: "Пейзажи" },
+  { id: "mystic-forest", slug: "misticheskiy-les", title: "Мистический лес" },
+  { id: "pop-art", slug: "pop-art", title: "Поп-арт" },
+  { id: "princesses", slug: "printsessy", title: "Принцессы" },
+  { id: "winter", slug: "zima", title: "Зима" },
+] as const;
 const prisma = new PrismaClient({
   adapter: new PrismaPg({
     connectionString: getRequiredEnv("DATABASE_URL"),
@@ -65,6 +80,8 @@ const prisma = new PrismaClient({
 });
 
 async function main() {
+  await ensureProductCategories();
+
   const products = await loadOzonProducts();
   const summary = await importProducts(products);
 
@@ -78,6 +95,21 @@ async function main() {
       2,
     ),
   );
+}
+
+async function ensureProductCategories() {
+  for (const category of productCategories) {
+    await prisma.productCategory.upsert({
+      where: {
+        id: category.id,
+      },
+      update: {
+        slug: category.slug,
+        title: category.title,
+      },
+      create: category,
+    });
+  }
 }
 
 async function loadOzonProducts() {
@@ -151,6 +183,7 @@ async function importProducts(products: readonly OzonProductInfoItem[]) {
     const title = parseTitle(product);
     const slug = buildProductSlug(product, ozonProductId);
     const status = getProductStatus(product);
+    const categoryId = getProductCategoryId(product);
     const imageUrls = getImageUrls(product);
     const existingProduct = await prisma.product.findUnique({
       where: { slug },
@@ -162,8 +195,10 @@ async function importProducts(products: readonly OzonProductInfoItem[]) {
         ? await transaction.product.update({
             where: { id: existingProduct.id },
             data: {
+              categoryId,
               currency: getCurrency(product.currency_code),
               description: getProductDescription(product, ozonProductId),
+              isHit: false,
               price: parsePrice(product.price ?? product.min_price),
               status,
               title,
@@ -171,8 +206,10 @@ async function importProducts(products: readonly OzonProductInfoItem[]) {
           })
         : await transaction.product.create({
             data: {
+              categoryId,
               currency: getCurrency(product.currency_code),
               description: getProductDescription(product, ozonProductId),
+              isHit: false,
               price: parsePrice(product.price ?? product.min_price),
               slug,
               status,
@@ -290,6 +327,61 @@ function getProductStatus(product: OzonProductInfoItem) {
   }
 
   return PrismaProductStatus.DRAFT;
+}
+
+function getProductCategoryId(product: OzonProductInfoItem) {
+  const source = `${product.name ?? ""} ${product.offer_id ?? ""}`.toLowerCase();
+
+  if (source.includes("аниме") || source.includes("anime")) {
+    return "anime";
+  }
+
+  if (source.includes("живот") || source.includes("zhivot")) {
+    return "animals";
+  }
+
+  if (source.includes("кот") || source.includes("kotik") || source.includes("cat")) {
+    return "cats";
+  }
+
+  if (source.includes("город") || source.includes("gorod")) {
+    return "city";
+  }
+
+  if (source.includes("цвет") || source.includes("flower") || source.includes("cvety")) {
+    return "flowers";
+  }
+
+  if (source.includes("еда") || source.includes("food")) {
+    return "food";
+  }
+
+  if (source.includes("пейзаж") || source.includes("peizaj") || source.includes("landscape")) {
+    return "landscapes";
+  }
+
+  if (
+    source.includes("загадоч") ||
+    source.includes("лес") ||
+    source.includes("mystic") ||
+    source.includes("forest")
+  ) {
+    return "mystic-forest";
+  }
+
+  if (source.includes("поп") || source.includes("popart") || source.includes("pop-art")) {
+    return "pop-art";
+  }
+
+  if (source.includes("принцесс") || source.includes("princess")) {
+    return "princesses";
+  }
+
+  if (source.includes("зима") || source.includes("winter")) {
+    return "winter";
+  }
+
+  return defaultProductCategoryId;
 }
 
 function parsePrice(value: string | undefined) {
