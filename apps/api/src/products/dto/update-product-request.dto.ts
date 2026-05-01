@@ -41,7 +41,7 @@ export class UpdateProductRequestDTO {
   @IsOptional()
   @IsString()
   @MaxLength(32)
-  categoryId?: string;
+  categoryId?: string | null;
 
   @IsOptional()
   @IsInt()

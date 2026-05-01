@@ -50,6 +50,10 @@ async function requestCatalogApi<T>(path: string) {
 
 function mapProducts(products: readonly ApiProductDTO[]): Product[] {
   return products.flatMap((product) => {
+    if (!product.categoryId || !product.category) {
+      return [];
+    }
+
     const images = product.images.map((image) => image.url);
     const primaryImage = images[0] ?? product.category.image;
 

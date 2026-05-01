@@ -36,9 +36,10 @@ export class CreateProductRequestDTO {
   @IsBoolean()
   isHit?: boolean;
 
+  @IsOptional()
   @IsString()
   @MaxLength(32)
-  categoryId!: string;
+  categoryId?: string | null;
 
   @IsInt()
   @Min(0)

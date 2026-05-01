@@ -128,6 +128,9 @@ export class ProductsService {
   async getPublishedProducts() {
     const products = await this.prisma.product.findMany({
       where: {
+        categoryId: {
+          not: null,
+        },
         images: {
           some: {},
         },
@@ -150,6 +153,9 @@ export class ProductsService {
   async getPublishedProductBySlug(slug: string) {
     const product = await this.prisma.product.findFirst({
       where: {
+        categoryId: {
+          not: null,
+        },
         images: {
           some: {},
         },
@@ -169,6 +175,9 @@ export class ProductsService {
   async getCartProductSnapshot(productId: string) {
     const product = await this.prisma.product.findFirst({
       where: {
+        categoryId: {
+          not: null,
+        },
         id: productId,
         images: {
           some: {},
@@ -180,6 +189,10 @@ export class ProductsService {
 
     if (!product) {
       throw new NotFoundException("Product not found");
+    }
+
+    if (!product.category) {
+      throw new NotFoundException("Product category not found");
     }
 
     const primaryImage = product.images[0];
@@ -300,11 +313,7 @@ export class ProductsService {
           description: this.parseOptionalString(input.description),
           status,
           isHit: input.isHit ?? false,
-          category: {
-            connect: {
-              id: this.parseRequiredString(input.categoryId, "categoryId"),
-            },
-          },
+          ...this.getCategoryCreateData(input.categoryId),
           price: this.parsePriceRub(input.priceRub) * 100,
           currency: this.parseCurrency(input.currency),
         },
@@ -350,11 +359,7 @@ export class ProductsService {
     }
 
     if (input.categoryId !== undefined) {
-      data.category = {
-        connect: {
-          id: this.parseRequiredString(input.categoryId, "categoryId"),
-        },
-      };
+      data.category = this.getCategoryUpdateData(input.categoryId);
     }
 
     if (input.priceRub !== undefined) {
@@ -648,14 +653,48 @@ export class ProductsService {
       description: product.description ?? undefined,
       status: this.mapPrismaProductStatus(product.status),
       isHit: product.isHit,
-      categoryId: product.categoryId,
-      category: this.mapProductCategory(product.category),
+      categoryId: product.categoryId ?? undefined,
+      category: product.category
+        ? this.mapProductCategory(product.category)
+        : undefined,
       price: product.price,
       priceRub: Math.trunc(product.price / 100),
       currency: product.currency as ProductCurrency,
       images: product.images.map((image) => this.mapProductImage(image)),
       createdAt: product.createdAt.toISOString(),
       updatedAt: product.updatedAt.toISOString(),
+    };
+  }
+
+  private getCategoryCreateData(categoryId: string | null | undefined) {
+    const parsedCategoryId = this.parseOptionalString(categoryId ?? undefined);
+
+    if (!parsedCategoryId) {
+      return {};
+    }
+
+    return {
+      category: {
+        connect: {
+          id: parsedCategoryId,
+        },
+      },
+    };
+  }
+
+  private getCategoryUpdateData(categoryId: string | null) {
+    const parsedCategoryId = this.parseOptionalString(categoryId ?? undefined);
+
+    if (!parsedCategoryId) {
+      return {
+        disconnect: true,
+      };
+    }
+
+    return {
+      connect: {
+        id: parsedCategoryId,
+      },
     };
   }
 

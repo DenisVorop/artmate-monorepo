@@ -55,8 +55,8 @@ export type ApiProductDTO = {
   description?: string;
   status: "draft" | "published" | "archived";
   isHit: boolean;
-  categoryId: string;
-  category: ApiProductCategoryDTO;
+  categoryId?: string;
+  category?: ApiProductCategoryDTO;
   price: number;
   priceRub: number;
   currency: "RUB";

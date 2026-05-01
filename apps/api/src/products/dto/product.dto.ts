@@ -41,12 +41,14 @@ export class ProductDTO {
   @IsBoolean()
   isHit!: boolean;
 
+  @IsOptional()
   @IsString()
-  categoryId!: string;
+  categoryId?: string;
 
+  @IsOptional()
   @ValidateNested()
   @Type(() => ProductCategoryDTO)
-  category!: ProductCategoryDTO;
+  category?: ProductCategoryDTO;
 
   @IsInt()
   @Min(0)
