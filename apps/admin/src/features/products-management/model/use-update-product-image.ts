@@ -17,6 +17,10 @@ type UpdateProductImageVariables = {
 
 export function useUpdateProductImage({ onSuccess }: MutationOptions = {}) {
   const { isPending, mutate } = useMutation({
+    meta: {
+      errorMessage: "Не удалось сохранить изображение",
+      successMessage: "Изображение сохранено",
+    },
     mutationFn: ({ imageId, input, productId }: UpdateProductImageVariables) =>
       updateProductImage(productId, imageId, input),
     onSuccess,

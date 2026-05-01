@@ -13,6 +13,10 @@ type DeleteProductImageVariables = {
 
 export function useDeleteProductImage({ onSuccess }: MutationOptions = {}) {
   const { isPending, mutate } = useMutation({
+    meta: {
+      errorMessage: "Не удалось удалить изображение",
+      successMessage: "Изображение удалено",
+    },
     mutationFn: ({ imageId, productId }: DeleteProductImageVariables) =>
       deleteProductImage(productId, imageId),
     onSuccess,

@@ -26,3 +26,4 @@ export { Input } from "./input";
 export { Progress } from "./progress";
 export { Separator } from "./separator";
 export { Table, TableBody, TableCell, TableHead, TableHeader, TableRow } from "./table";
+export { Toaster } from "./toaster";

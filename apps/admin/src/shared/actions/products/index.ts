@@ -5,6 +5,7 @@ export {
   deleteProductCategory,
   deleteProduct,
   deleteProductImage,
+  getAdminProduct,
   getAdminProducts,
   getProductCategories,
   updateProductCategory,

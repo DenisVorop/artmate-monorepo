@@ -13,6 +13,10 @@ type AddProductImageVariables = {
 
 export function useAddProductImage({ onSuccess }: MutationOptions = {}) {
   const { isPending, mutate } = useMutation({
+    meta: {
+      errorMessage: "Не удалось загрузить изображение",
+      successMessage: "Изображение загружено",
+    },
     mutationFn: ({ formData, productId }: AddProductImageVariables) =>
       addProductImage(productId, formData),
     onSuccess,

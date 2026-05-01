@@ -13,6 +13,10 @@ type UpdateProductVariables = {
 
 export function useUpdateProduct({ onSuccess }: MutationOptions = {}) {
   const { isPending, mutate } = useMutation({
+    meta: {
+      errorMessage: "Не удалось сохранить товар",
+      successMessage: "Товар сохранен",
+    },
     mutationFn: ({ input, productId }: UpdateProductVariables) =>
       updateProduct(productId, input),
     onSuccess,

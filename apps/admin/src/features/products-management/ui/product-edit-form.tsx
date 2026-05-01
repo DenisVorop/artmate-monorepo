@@ -13,7 +13,6 @@ import {
   getRequiredInteger,
   getRequiredString,
   getString,
-  reportMutationError,
   type ProductsRefreshCallback,
 } from "../lib";
 import { useUpdateProduct } from "../model";
@@ -59,9 +58,6 @@ export function ProductEditForm({
           title: getRequiredString(formData.get("title"), "title"),
         },
         productId: product.id,
-      },
-      {
-        onError: reportMutationError,
       },
     );
   }

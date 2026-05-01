@@ -10,7 +10,6 @@ import {
   getOptionalString,
   getRequiredString,
   getString,
-  reportMutationError,
   type ProductsRefreshCallback,
 } from "../lib";
 import {
@@ -50,7 +49,6 @@ export function ProductCategoriesCard({
         title: getRequiredString(formData.get("title"), "title"),
       },
       {
-        onError: reportMutationError,
         onSuccess: () => form.reset(),
       },
     );
@@ -150,18 +148,13 @@ function ProductCategoryRow({
           title: getRequiredString(formData.get("title"), "title"),
         },
       },
-      {
-        onError: reportMutationError,
-      },
     );
   }
 
   function handleDeleteCategorySubmit(event: FormEvent<HTMLFormElement>) {
     event.preventDefault();
 
-    deleteCategory(category.id, {
-      onError: reportMutationError,
-    });
+    deleteCategory(category.id);
   }
 
   return (

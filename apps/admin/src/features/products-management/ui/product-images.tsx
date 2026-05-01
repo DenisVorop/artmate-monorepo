@@ -11,7 +11,6 @@ import {
   getOptionalString,
   getRequiredFile,
   getString,
-  reportMutationError,
   type ProductsRefreshCallback,
 } from "../lib";
 import {
@@ -55,7 +54,6 @@ export function ProductImages({
         productId: product.id,
       },
       {
-        onError: reportMutationError,
         onSuccess: () => form.reset(),
       },
     );
@@ -141,24 +139,16 @@ function ProductImageRow({
         },
         productId: product.id,
       },
-      {
-        onError: reportMutationError,
-      },
     );
   }
 
   function handleDeleteImageSubmit(event: FormEvent<HTMLFormElement>) {
     event.preventDefault();
 
-    deleteImage(
-      {
-        imageId: image.id,
-        productId: product.id,
-      },
-      {
-        onError: reportMutationError,
-      },
-    );
+    deleteImage({
+      imageId: image.id,
+      productId: product.id,
+    });
   }
 
   return (

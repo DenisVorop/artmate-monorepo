@@ -123,6 +123,10 @@ export function Filters() {
                   </Button>
                 );
               })}
+              <Separator
+                orientation="vertical"
+                className="mx-1 h-7 self-center"
+              />
             </>
           )}
 

@@ -8,6 +8,10 @@ import type { MutationOptions } from "./mutation-options";
 
 export function useCreateProductCategory({ onSuccess }: MutationOptions = {}) {
   const { isPending, mutate } = useMutation({
+    meta: {
+      errorMessage: "Не удалось создать категорию",
+      successMessage: "Категория создана",
+    },
     mutationFn: createProductCategory,
     onSuccess,
   });

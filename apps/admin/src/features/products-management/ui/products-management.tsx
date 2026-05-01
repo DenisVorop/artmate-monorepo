@@ -1,6 +1,6 @@
 "use client";
 
-import { useCallback, useState } from "react";
+import { useCallback } from "react";
 
 import {
   useCategories,
@@ -22,9 +22,6 @@ export function ProductsManagement({
   categories: initialCategories,
   products: initialProducts,
 }: ProductsManagementProps) {
-  const [selectedProductId, setSelectedProductId] = useState<string | null>(
-    initialProducts[0]?.id ?? null,
-  );
   const { products, refetch: refetchProducts } = useProducts({
     initialData: initialProducts,
   });
@@ -46,13 +43,7 @@ export function ProductsManagement({
         categories={categories}
         onProductsChange={refreshProductsView}
       />
-      <ProductsList
-        categories={categories}
-        onProductsChange={refreshProductsView}
-        onSelectProduct={setSelectedProductId}
-        products={products}
-        selectedProductId={selectedProductId}
-      />
+      <ProductsList products={products} />
     </div>
   );
 }

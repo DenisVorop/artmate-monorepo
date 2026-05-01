@@ -12,7 +12,6 @@ import {
   getProductStatus,
   getRequiredInteger,
   getRequiredString,
-  reportMutationError,
   type ProductsRefreshCallback,
 } from "../lib";
 import { useCreateProduct } from "../model";
@@ -56,7 +55,6 @@ export function CreateProductCard({
         title: getRequiredString(formData.get("title"), "title"),
       },
       {
-        onError: reportMutationError,
         onSuccess: () => form.reset(),
       },
     );

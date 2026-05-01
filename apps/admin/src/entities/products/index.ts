@@ -8,6 +8,7 @@ export {
 export {
   productsQueryKeys,
   useCategories,
+  useProduct,
   useProducts,
   type Product,
   type ProductCategory,

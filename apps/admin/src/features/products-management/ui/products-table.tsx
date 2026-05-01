@@ -1,6 +1,7 @@
 "use client";
 
-import { Pencil } from "lucide-react";
+import Link from "next/link";
+import { Eye } from "lucide-react";
 
 import {
   formatProductDate,
@@ -10,6 +11,7 @@ import {
   getProductStatusLabel,
   type Product,
 } from "@/entities/products";
+import { routes } from "@/shared/constants";
 import {
   Badge,
   Button,
@@ -29,22 +31,16 @@ import {
 import { ProductImagePreview } from "./product-image-preview";
 
 type ProductsTableProps = {
-  readonly onSelectProduct: (productId: string) => void;
   readonly products: readonly Product[];
-  readonly selectedProductId: string | null;
 };
 
-export function ProductsTable({
-  onSelectProduct,
-  products,
-  selectedProductId,
-}: ProductsTableProps) {
+export function ProductsTable({ products }: ProductsTableProps) {
   return (
     <Card>
       <CardHeader>
         <CardTitle>Товары</CardTitle>
         <CardDescription>
-          Список товаров каталога. Редактирование открывается в карточке ниже.
+          Список товаров каталога. Поля редактируются в карточке товара.
         </CardDescription>
       </CardHeader>
       <CardContent>
@@ -58,19 +54,15 @@ export function ProductsTable({
               <TableHead>Статус</TableHead>
               <TableHead>Изобр.</TableHead>
               <TableHead>Обновлен</TableHead>
-              <TableHead className="text-right">Редакт.</TableHead>
+              <TableHead className="text-right">Карточка</TableHead>
             </TableRow>
           </TableHeader>
           <TableBody>
             {products.map((product) => {
               const primaryImage = getProductPrimaryImage(product);
-              const isSelected = product.id === selectedProductId;
 
               return (
-                <TableRow
-                  data-state={isSelected ? "selected" : undefined}
-                  key={product.id}
-                >
+                <TableRow key={product.id}>
                   <TableCell>
                     <ProductImagePreview
                       className="size-10 rounded-md"
@@ -104,13 +96,14 @@ export function ProductsTable({
                   <TableCell>{formatProductDate(product.updatedAt)}</TableCell>
                   <TableCell className="text-right">
                     <Button
-                      aria-label={`Редактировать товар ${product.title}`}
-                      onClick={() => onSelectProduct(product.id)}
+                      aria-label={`Открыть карточку товара ${product.title}`}
+                      asChild
                       size="icon-sm"
-                      type="button"
-                      variant={isSelected ? "secondary" : "outline"}
+                      variant="outline"
                     >
-                      <Pencil aria-hidden="true" />
+                      <Link href={routes.product(product.id)}>
+                        <Eye aria-hidden="true" />
+                      </Link>
                     </Button>
                   </TableCell>
                 </TableRow>

@@ -20,6 +20,12 @@ export async function getAdminProducts(): Promise<ProductDTO[]> {
   return requestAdminApi<ProductDTO[]>("/products");
 }
 
+export async function getAdminProduct(productId: string): Promise<ProductDTO> {
+  return requestAdminApi<ProductDTO>(
+    `/products/${encodeURIComponent(productId)}`,
+  );
+}
+
 export async function getProductCategories(): Promise<ProductCategoryDTO[]> {
   return requestAdminApi<ProductCategoryDTO[]>("/products/categories");
 }

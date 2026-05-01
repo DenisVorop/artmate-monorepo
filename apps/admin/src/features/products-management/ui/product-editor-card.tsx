@@ -23,7 +23,7 @@ import {
   CardTitle,
 } from "@/shared/ui";
 
-import { reportMutationError, type ProductsRefreshCallback } from "../lib";
+import type { ProductsRefreshCallback } from "../lib";
 import { useDeleteProduct } from "../model";
 import { ProductEditForm } from "./product-edit-form";
 import { ProductImagePreview } from "./product-image-preview";
@@ -31,27 +31,27 @@ import { ProductImages } from "./product-images";
 
 type ProductEditorCardProps = {
   readonly categories: readonly ProductCategory[];
+  readonly onProductDeleted?: ProductsRefreshCallback;
   readonly onProductsChange: ProductsRefreshCallback;
   readonly product: Product;
 };
 
 export function ProductEditorCard({
   categories,
+  onProductDeleted,
   onProductsChange,
   product,
 }: ProductEditorCardProps) {
   const primaryImage = getProductPrimaryImage(product);
   const { isPending: isDeletingProduct, mutate: deleteProduct } =
     useDeleteProduct({
-      onSuccess: onProductsChange,
+      onSuccess: onProductDeleted ?? onProductsChange,
     });
 
   function handleDeleteProductSubmit(event: FormEvent<HTMLFormElement>) {
     event.preventDefault();
 
-    deleteProduct(product.id, {
-      onError: reportMutationError,
-    });
+    deleteProduct(product.id);
   }
 
   return (

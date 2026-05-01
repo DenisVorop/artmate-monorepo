@@ -16,6 +16,10 @@ type UpdateProductCategoryVariables = {
 
 export function useUpdateProductCategory({ onSuccess }: MutationOptions = {}) {
   const { isPending, mutate } = useMutation({
+    meta: {
+      errorMessage: "Не удалось сохранить категорию",
+      successMessage: "Категория сохранена",
+    },
     mutationFn: ({ categoryId, input }: UpdateProductCategoryVariables) =>
       updateProductCategory(categoryId, input),
     onSuccess,

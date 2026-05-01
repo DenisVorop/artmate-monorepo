@@ -1,3 +1,6 @@
+"use client";
+
+import { useActionState, useEffect } from "react";
 import { Ban, Save, ShieldCheck, Unlock, UserRound } from "lucide-react";
 
 import {
@@ -13,6 +16,7 @@ import {
 import {
   updateAdminUserRolesAction,
   updateAdminUserStatusAction,
+  type AdminUserActionState,
 } from "@/shared/actions/users";
 import {
   Badge,
@@ -30,6 +34,7 @@ import {
   TableHeader,
   TableRow,
 } from "@/shared/ui";
+import { showToast } from "@/shared/lib/toast-store";
 
 type UsersManagementProps = {
   readonly currentUserId: string;
@@ -37,6 +42,9 @@ type UsersManagementProps = {
 };
 
 const roleOptions: readonly AdminUserRole[] = ["customer", "admin"];
+const initialAdminUserActionState: AdminUserActionState = {
+  status: "idle",
+};
 
 export function UsersManagement({
   currentUserId,
@@ -126,56 +134,118 @@ function UsersTableRow({
         </Badge>
       </TableCell>
       <TableCell className="min-w-80">
-        <form
-          action={updateAdminUserRolesAction}
-          className="flex items-center gap-2"
-        >
-          <input name="userId" type="hidden" value={user.id} />
-          {isCurrentUser ? (
-            <input name="roles" type="hidden" value="admin" />
-          ) : null}
-          <div className="flex flex-wrap gap-2">
-            {roleOptions.map((role) => (
-              <RoleCheckbox
-                disabled={isDeleted || (isCurrentUser && role === "admin")}
-                key={role}
-                role={role}
-                selected={user.roles.includes(role)}
-              />
-            ))}
-          </div>
-          <Button
-            aria-label={`Сохранить роли: ${getAdminUserDisplayName(user)}`}
-            disabled={isDeleted}
-            size="icon-sm"
-            type="submit"
-            variant="outline"
-          >
-            <Save aria-hidden="true" />
-          </Button>
-        </form>
+        <UserRolesForm
+          isCurrentUser={isCurrentUser}
+          isDeleted={isDeleted}
+          user={user}
+        />
       </TableCell>
       <TableCell>{formatDate(user.createdAt)}</TableCell>
       <TableCell className="text-right">
-        <form action={updateAdminUserStatusAction}>
-          <input name="userId" type="hidden" value={user.id} />
-          <input name="status" type="hidden" value={nextStatus} />
-          <Button
-            disabled={isCurrentUser || isDeleted}
-            type="submit"
-            variant={user.status === "blocked" ? "outline" : "destructive"}
-          >
-            {user.status === "blocked" ? (
-              <Unlock data-icon="inline-start" aria-hidden="true" />
-            ) : (
-              <Ban data-icon="inline-start" aria-hidden="true" />
-            )}
-            {user.status === "blocked" ? "Разблокировать" : "Заблокировать"}
-          </Button>
-        </form>
+        <UserStatusForm
+          isCurrentUser={isCurrentUser}
+          isDeleted={isDeleted}
+          nextStatus={nextStatus}
+          user={user}
+        />
       </TableCell>
     </TableRow>
   );
+}
+
+function UserRolesForm({
+  isCurrentUser,
+  isDeleted,
+  user,
+}: {
+  readonly isCurrentUser: boolean;
+  readonly isDeleted: boolean;
+  readonly user: AdminUser;
+}) {
+  const [state, formAction, isPending] = useActionState(
+    updateAdminUserRolesAction,
+    initialAdminUserActionState,
+  );
+
+  useAdminUserActionToast(state);
+
+  return (
+    <form action={formAction} className="flex items-center gap-2">
+      <input name="userId" type="hidden" value={user.id} />
+      {isCurrentUser ? <input name="roles" type="hidden" value="admin" /> : null}
+      <div className="flex flex-wrap gap-2">
+        {roleOptions.map((role) => (
+          <RoleCheckbox
+            disabled={isDeleted || (isCurrentUser && role === "admin")}
+            key={role}
+            role={role}
+            selected={user.roles.includes(role)}
+          />
+        ))}
+      </div>
+      <Button
+        aria-label={`Сохранить роли: ${getAdminUserDisplayName(user)}`}
+        disabled={isDeleted || isPending}
+        size="icon-sm"
+        type="submit"
+        variant="outline"
+      >
+        <Save aria-hidden="true" />
+      </Button>
+    </form>
+  );
+}
+
+function UserStatusForm({
+  isCurrentUser,
+  isDeleted,
+  nextStatus,
+  user,
+}: {
+  readonly isCurrentUser: boolean;
+  readonly isDeleted: boolean;
+  readonly nextStatus: Exclude<UserAccountStatus, "deleted">;
+  readonly user: AdminUser;
+}) {
+  const [state, formAction, isPending] = useActionState(
+    updateAdminUserStatusAction,
+    initialAdminUserActionState,
+  );
+
+  useAdminUserActionToast(state);
+
+  return (
+    <form action={formAction}>
+      <input name="userId" type="hidden" value={user.id} />
+      <input name="status" type="hidden" value={nextStatus} />
+      <Button
+        disabled={isCurrentUser || isDeleted || isPending}
+        type="submit"
+        variant={user.status === "blocked" ? "outline" : "destructive"}
+      >
+        {user.status === "blocked" ? (
+          <Unlock data-icon="inline-start" aria-hidden="true" />
+        ) : (
+          <Ban data-icon="inline-start" aria-hidden="true" />
+        )}
+        {user.status === "blocked" ? "Разблокировать" : "Заблокировать"}
+      </Button>
+    </form>
+  );
+}
+
+function useAdminUserActionToast(state: AdminUserActionState) {
+  useEffect(() => {
+    if (state.status === "idle" || !state.title) {
+      return;
+    }
+
+    showToast({
+      description: state.description,
+      title: state.title,
+      variant: state.status === "error" ? "error" : "success",
+    });
+  }, [state.description, state.status, state.submittedAt, state.title]);
 }
 
 function RoleCheckbox({

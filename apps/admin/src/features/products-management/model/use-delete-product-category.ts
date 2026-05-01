@@ -8,6 +8,10 @@ import type { MutationOptions } from "./mutation-options";
 
 export function useDeleteProductCategory({ onSuccess }: MutationOptions = {}) {
   const { isPending, mutate } = useMutation({
+    meta: {
+      errorMessage: "Не удалось удалить категорию",
+      successMessage: "Категория удалена",
+    },
     mutationFn: deleteProductCategory,
     onSuccess,
   });
