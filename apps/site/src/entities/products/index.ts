@@ -8,6 +8,7 @@ export {
 export type { Product, ProductCategory, ProductHighlight, ProductsData } from "./model";
 export { productsQuery, useProductsData } from "./model";
 export type { ProductsDataResult } from "./model";
+export { Description } from "./ui/description";
 export { DetailsTabs } from "./ui/details-tabs";
 export { Gallery } from "./ui/gallery";
 export { Highlights } from "./ui/highlights";

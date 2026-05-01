@@ -22,13 +22,6 @@ export function Summary({ product }: SummaryProps) {
         <PageTitle className="max-w-3xl text-foreground">{product.title}</PageTitle>
         <p className="text-3xl font-bold text-foreground">{price} ₽</p>
       </div>
-
-      {product.description && (
-        <div
-          className="max-w-2xl whitespace-pre-wrap text-base leading-7 text-muted-foreground md:text-lg [&_ol]:my-3 [&_ol]:ml-6 [&_ol]:list-decimal [&_p]:my-3 [&_ul]:my-3 [&_ul]:ml-6 [&_ul]:list-disc"
-          dangerouslySetInnerHTML={{ __html: product.description }}
-        />
-      )}
     </div>
   );
 }

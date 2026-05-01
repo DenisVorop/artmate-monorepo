@@ -3,6 +3,7 @@
 import { useAddProductToCart } from "@/features/cart";
 import { ProductPurchase } from "@/features/product-purchase";
 import {
+  Description,
   DetailsTabs,
   Gallery,
   Highlights,
@@ -109,6 +110,10 @@ export function ProductPage({ productId }: ProductPageProps) {
             />
           </div>
         </section>
+
+        <Separator />
+
+        <Description product={product} />
 
         <Separator />
 
