@@ -1,6 +1,6 @@
 "use client";
 
-import { Blocks, ChevronDown, Search, SlidersHorizontal, Sparkles, X } from "lucide-react";
+import { Blocks, ChevronDown, Search, SlidersHorizontal, Sparkles, Tags, X } from "lucide-react";
 import {
   Button,
   DropdownMenu,
@@ -17,9 +17,12 @@ import { sortOptions, type SortValue } from "../lib/catalog-state";
 
 export function Filters() {
   const {
+    categories,
+    categoryId,
     query,
     onlyBestsellers,
     onlyPixel,
+    setCategory,
     sortBy,
     setQuery,
     setOnlyBestsellers,
@@ -89,6 +92,40 @@ export function Filters() {
         <Separator orientation="vertical" className="hidden h-8 lg:order-1 lg:block" />
 
         <div className="col-span-2 -mx-1 flex gap-1.5 overflow-x-auto px-1 pb-0.5 sm:gap-2 sm:pb-0 lg:order-2 lg:col-span-1 lg:flex-wrap lg:overflow-visible">
+          {categories.length > 0 && (
+            <>
+              <Button
+                type="button"
+                variant={!categoryId ? "default" : "outline"}
+                size="sm"
+                aria-pressed={!categoryId}
+                onClick={() => setCategory(undefined)}
+                className="w-fit shrink-0"
+              >
+                <Tags data-icon="inline-start" />
+                Все
+              </Button>
+
+              {categories.map((category) => {
+                const isActive = category.id === categoryId;
+
+                return (
+                  <Button
+                    type="button"
+                    variant={isActive ? "default" : "outline"}
+                    size="sm"
+                    aria-pressed={isActive}
+                    key={category.id}
+                    onClick={() => setCategory(category.id)}
+                    className="w-fit shrink-0"
+                  >
+                    {category.title}
+                  </Button>
+                );
+              })}
+            </>
+          )}
+
           <Button
             type="button"
             variant={onlyBestsellers ? "default" : "outline"}

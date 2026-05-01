@@ -5,7 +5,7 @@ import Image from "next/image";
 
 import type { CartItem } from "@/entities/cart";
 import { routes } from "@/shared/constants";
-import { cn } from "@/shared/lib";
+import { cn, shouldBypassNextImageOptimization } from "@/shared/lib";
 import { Button } from "@/shared/ui";
 import { Link } from "@/shared/ui/link";
 
@@ -33,6 +33,7 @@ export function CartLine({ item, disabled, onUpdateQuantity, onRemove }: CartLin
             fill
             src={item.image}
             alt={item.title}
+            unoptimized={shouldBypassNextImageOptimization(item.image)}
             sizes="(min-width: 640px) 80px, 72px"
             className="object-cover"
           />

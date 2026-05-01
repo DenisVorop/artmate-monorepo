@@ -5,7 +5,7 @@ import Image from "next/image";
 import { useEffect, useRef, useState, type MouseEvent } from "react";
 import { Badge, Button } from "@/shared/ui";
 import { routes } from "@/shared/constants";
-import { cn } from "@/shared/lib";
+import { cn, shouldBypassNextImageOptimization } from "@/shared/lib";
 import { AspectRatio } from "@/shared/ui/aspect-ratio";
 import { Card, CardContent, CardDescription, CardFooter, CardTitle } from "@/shared/ui/card";
 import { Link } from "@/shared/ui/link";
@@ -72,6 +72,7 @@ export function ProductCard({ product, eagerImage = false, onAddToCart }: Produc
               fill
               src={product.image}
               alt={product.title}
+              unoptimized={shouldBypassNextImageOptimization(product.image)}
               loading={eagerImage ? "eager" : "lazy"}
               fetchPriority={eagerImage ? "high" : undefined}
               sizes="(min-width: 1280px) 25vw, (min-width: 1024px) 33vw, (min-width: 640px) 50vw, 100vw"
@@ -80,7 +81,7 @@ export function ProductCard({ product, eagerImage = false, onAddToCart }: Produc
           </AspectRatio>
         </Link>
 
-        {product.bestseller && (
+        {product.isHit && (
           <Badge className="absolute top-3 left-3 bg-rose-500 text-white shadow-sm">Хит</Badge>
         )}
 

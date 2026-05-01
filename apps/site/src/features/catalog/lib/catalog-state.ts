@@ -48,7 +48,7 @@ export function filterProducts(products: readonly Product[], filters: FiltersSta
   }
 
   if (filters.onlyBestsellers) {
-    list = list.filter((product) => product.bestseller);
+    list = list.filter((product) => product.isHit);
   }
 
   if (filters.onlyPixel) {

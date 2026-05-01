@@ -5,7 +5,7 @@ import Image from "next/image";
 import { useCallback, useEffect, useState, type MouseEvent } from "react";
 
 import { AspectRatio, Button, Dialog, DialogClose, DialogContent, DialogTitle } from "@/shared/ui";
-import { cn } from "@/shared/lib";
+import { cn, shouldBypassNextImageOptimization } from "@/shared/lib";
 
 type GalleryProps = {
   images: string[];
@@ -98,6 +98,7 @@ export function Gallery({ images, title }: GalleryProps) {
                 fill
                 src={image}
                 alt=""
+                unoptimized={shouldBypassNextImageOptimization(image)}
                 sizes="72px"
                 className="object-cover"
                 draggable={false}
@@ -122,6 +123,7 @@ export function Gallery({ images, title }: GalleryProps) {
               fill
               src={activeImage}
               alt={`${title}, фото ${activeIndex + 1}`}
+              unoptimized={shouldBypassNextImageOptimization(activeImage)}
               loading={activeIndex === 0 ? "eager" : "lazy"}
               fetchPriority={activeIndex === 0 ? "high" : undefined}
               sizes="(min-width: 1024px) 48vw, 100vw"
@@ -188,6 +190,7 @@ export function Gallery({ images, title }: GalleryProps) {
                   fill
                   src={image}
                   alt=""
+                  unoptimized={shouldBypassNextImageOptimization(image)}
                   sizes="60px"
                   className="object-cover"
                   draggable={false}
@@ -228,6 +231,7 @@ export function Gallery({ images, title }: GalleryProps) {
                 fill
                 src={lightboxImage}
                 alt={`${title}, фото ${lightboxIndex + 1}`}
+                unoptimized={shouldBypassNextImageOptimization(lightboxImage)}
                 sizes="(min-width: 768px) 42rem, 92vw"
                 className="object-cover"
                 draggable={false}
@@ -276,7 +280,14 @@ export function Gallery({ images, title }: GalleryProps) {
                       : "border-white/20 opacity-60 hover:opacity-100",
                   )}
                 >
-                  <Image fill src={image} alt="" sizes="48px" className="object-cover" />
+                  <Image
+                    fill
+                    src={image}
+                    alt=""
+                    unoptimized={shouldBypassNextImageOptimization(image)}
+                    sizes="48px"
+                    className="object-cover"
+                  />
                 </button>
               ))}
             </div>

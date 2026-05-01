@@ -5,7 +5,7 @@ import { CalendarDays, ChevronDown, ChevronUp, MapPin, PackageCheck } from "luci
 import { useId, useState } from "react";
 
 import { routes } from "@/shared/constants";
-import { cn } from "@/shared/lib";
+import { cn, shouldBypassNextImageOptimization } from "@/shared/lib";
 import {
   Badge,
   Button,
@@ -134,7 +134,14 @@ function OrderItemRow({ item }: { item: OrderItem }) {
         href={routes.product(item.categorySlug, item.slug)}
         className="relative aspect-[3/4] overflow-hidden rounded-lg bg-muted"
       >
-        <Image fill src={item.image} alt={item.title} sizes="64px" className="object-cover" />
+        <Image
+          fill
+          src={item.image}
+          alt={item.title}
+          unoptimized={shouldBypassNextImageOptimization(item.image)}
+          sizes="64px"
+          className="object-cover"
+        />
       </Link>
 
       <div className="min-w-0">

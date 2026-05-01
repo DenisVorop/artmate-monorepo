@@ -1,5 +1,7 @@
 export { getProductsData } from "./products.actions";
 export type {
+  ApiProductDTO,
+  ApiProductImageDTO,
   ProductCategory,
   ProductCategory as ProductCategoryDTO,
   Product,
@@ -8,4 +10,4 @@ export type {
   ProductHighlight as ProductHighlightDTO,
   ProductsData,
   ProductsData as ProductsDataDTO,
-} from "./products.data";
+} from "./products.types";

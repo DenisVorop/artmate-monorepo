@@ -1,7 +1,12 @@
+/* global process */
+
+const apiImageRemotePattern = getApiImageRemotePattern();
+
 /** @type {import('next').NextConfig} */
 const nextConfig = {
   images: {
     remotePatterns: [
+      apiImageRemotePattern,
       {
         protocol: "https",
         hostname: "images.unsplash.com",
@@ -37,6 +42,26 @@ const nextConfig = {
       {
         protocol: "https",
         hostname: "basket-41.wbbasket.ru",
+      },
+      {
+        protocol: "https",
+        hostname: "cdn1.ozone.ru",
+      },
+      {
+        protocol: "https",
+        hostname: "cdn2.ozone.ru",
+      },
+      {
+        protocol: "https",
+        hostname: "cdn3.ozone.ru",
+      },
+      {
+        protocol: "https",
+        hostname: "cdn4.ozone.ru",
+      },
+      {
+        protocol: "https",
+        hostname: "ir.ozone.ru",
       },
     ],
   },
@@ -74,3 +99,26 @@ const nextConfig = {
 };
 
 export default nextConfig;
+
+function getApiImageRemotePattern() {
+  const fallbackUrl = "http://localhost:3002";
+  const rawUrl = process.env.API_PUBLIC_URL ?? process.env.API_BASE_URL ?? fallbackUrl;
+
+  try {
+    const url = new URL(rawUrl);
+
+    return {
+      protocol: url.protocol.replace(":", ""),
+      hostname: url.hostname,
+      port: url.port || undefined,
+      pathname: "/uploads/**",
+    };
+  } catch {
+    return {
+      protocol: "http",
+      hostname: "localhost",
+      port: "3002",
+      pathname: "/uploads/**",
+    };
+  }
+}

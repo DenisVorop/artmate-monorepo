@@ -13,7 +13,7 @@ export function Summary({ product }: SummaryProps) {
     <div className="space-y-4">
       <div className="flex flex-wrap items-center gap-2">
         <Badge variant="secondary">{product.category}</Badge>
-        {product.bestseller && <Badge className="bg-rose-500 text-white">Хит продаж</Badge>}
+        {product.isHit && <Badge className="bg-rose-500 text-white">Хит продаж</Badge>}
       </div>
 
       <div className="space-y-3">

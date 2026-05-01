@@ -12,7 +12,7 @@ type BestsellersProps = {
 };
 
 export function Bestsellers({ products, className, onAddToCart }: BestsellersProps) {
-  const bestsellers = products.filter((p) => p.bestseller).slice(0, 4);
+  const bestsellers = products.filter((product) => product.isHit).slice(0, 4);
 
   return (
     <section

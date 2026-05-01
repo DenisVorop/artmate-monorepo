@@ -4,6 +4,7 @@ import { LoaderCircle } from "lucide-react";
 import type { Cart } from "@/entities/cart";
 import type { CheckoutCalculationDTO } from "@/shared/actions/orders";
 import type { OzonDeliveryPointInfoDTO } from "@/shared/actions/ozon";
+import { shouldBypassNextImageOptimization } from "@/shared/lib";
 import { Card, CardContent, CardDescription, CardHeader, CardTitle, Separator } from "@/shared/ui";
 
 import { formatMoney } from "../lib";
@@ -45,6 +46,7 @@ export function OrderSummary({
                   fill
                   src={item.image}
                   alt={item.title}
+                  unoptimized={shouldBypassNextImageOptimization(item.image)}
                   sizes="48px"
                   className="object-cover"
                 />
