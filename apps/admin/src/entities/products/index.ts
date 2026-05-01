@@ -5,4 +5,4 @@ export {
   getProductStatusBadgeVariant,
   getProductStatusLabel,
 } from "./lib";
-export type { Product, ProductImage, ProductStatus } from "./model";
+export type { Product, ProductCategory, ProductImage, ProductStatus } from "./model";

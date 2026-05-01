@@ -7,6 +7,7 @@ import {
   PackageOpen,
   Plus,
   Save,
+  Tags,
   Trash2,
   Upload,
 } from "lucide-react";
@@ -18,13 +19,17 @@ import {
   getProductStatusBadgeVariant,
   getProductStatusLabel,
   type Product,
+  type ProductCategory,
   type ProductStatus,
 } from "@/entities/products";
 import {
   addProductImageAction,
+  createProductCategoryAction,
   createProductAction,
+  deleteProductCategoryAction,
   deleteProductAction,
   deleteProductImageAction,
+  updateProductCategoryAction,
   updateProductAction,
   updateProductImageAction,
 } from "@/shared/actions/products";
@@ -41,6 +46,7 @@ import {
 } from "@/shared/ui";
 
 type ProductsManagementProps = {
+  readonly categories: readonly ProductCategory[];
   readonly products: readonly Product[];
 };
 
@@ -56,19 +62,25 @@ const fieldClassName =
 const textareaClassName =
   "min-h-20 w-full min-w-0 resize-y rounded-lg border border-input bg-transparent px-2.5 py-2 text-sm outline-none transition-colors placeholder:text-muted-foreground focus-visible:border-ring focus-visible:ring-3 focus-visible:ring-ring/50";
 
-export function ProductsManagement({ products }: ProductsManagementProps) {
+export function ProductsManagement({
+  categories,
+  products,
+}: ProductsManagementProps) {
   return (
     <div className="grid gap-4">
-      <ProductsSummary products={products} />
-      <CreateProductCard />
-      <ProductsList products={products} />
+      <ProductsSummary categories={categories} products={products} />
+      <ProductCategoriesCard categories={categories} />
+      <CreateProductCard categories={categories} />
+      <ProductsList categories={categories} products={products} />
     </div>
   );
 }
 
 function ProductsSummary({
+  categories,
   products,
 }: {
+  readonly categories: readonly ProductCategory[];
   readonly products: readonly Product[];
 }) {
   const publishedCount = products.filter(
@@ -83,9 +95,10 @@ function ProductsSummary({
   );
 
   return (
-    <div className="grid gap-3 md:grid-cols-2 xl:grid-cols-4">
+    <div className="grid gap-3 md:grid-cols-2 xl:grid-cols-5">
       <SummaryCard Icon={Package} label="Всего" value={products.length} />
       <SummaryCard Icon={PackageOpen} label="На сайте" value={publishedCount} />
+      <SummaryCard Icon={Tags} label="Категории" value={categories.length} />
       <SummaryCard Icon={ImageIcon} label="Изображения" value={imagesCount} />
       <SummaryCard Icon={Archive} label="В архиве" value={archivedCount} />
     </div>
@@ -118,7 +131,104 @@ function SummaryCard({
   );
 }
 
-function CreateProductCard() {
+function ProductCategoriesCard({
+  categories,
+}: {
+  readonly categories: readonly ProductCategory[];
+}) {
+  return (
+    <Card>
+      <CardHeader>
+        <CardTitle>Категории</CardTitle>
+        <CardDescription>
+          Разделы каталога, URL и изображение для метаданных
+        </CardDescription>
+      </CardHeader>
+      <CardContent className="grid gap-4">
+        <form
+          action={createProductCategoryAction}
+          className="grid gap-3 lg:grid-cols-[minmax(10rem,1fr)_minmax(10rem,1fr)_minmax(12rem,1.5fr)_auto]"
+        >
+          <LabeledField label="Название">
+            <Input name="title" placeholder="Котики" required />
+          </LabeledField>
+          <LabeledField label="Slug">
+            <Input name="slug" placeholder="kotiki" required />
+          </LabeledField>
+          <LabeledField label="Изображение">
+            <Input name="image" placeholder="https://..." />
+          </LabeledField>
+          <div className="flex items-end">
+            <Button className="w-full" type="submit" variant="outline">
+              <Plus data-icon="inline-start" aria-hidden="true" />
+              Добавить
+            </Button>
+          </div>
+        </form>
+
+        {categories.length > 0 ? (
+          <div className="grid gap-3">
+            {categories.map((category) => (
+              <div
+                className="grid gap-3 rounded-lg border p-3 lg:grid-cols-[3.5rem_minmax(10rem,1fr)_minmax(10rem,1fr)_minmax(12rem,1.5fr)_auto_auto]"
+                key={category.id}
+              >
+                <ProductImagePreview
+                  className="size-14"
+                  imageUrl={category.image}
+                  label={category.title}
+                />
+                <form
+                  action={updateProductCategoryAction}
+                  className="contents"
+                >
+                  <input name="categoryId" type="hidden" value={category.id} />
+                  <Input
+                    aria-label="Название категории"
+                    defaultValue={category.title}
+                    name="title"
+                    required
+                  />
+                  <Input
+                    aria-label="Slug категории"
+                    defaultValue={category.slug}
+                    name="slug"
+                    required
+                  />
+                  <Input
+                    aria-label="Изображение категории"
+                    defaultValue={category.image}
+                    name="image"
+                    placeholder="https://..."
+                  />
+                  <Button size="icon-sm" type="submit" variant="outline">
+                    <Save aria-hidden="true" />
+                  </Button>
+                </form>
+                <form action={deleteProductCategoryAction}>
+                  <input name="categoryId" type="hidden" value={category.id} />
+                  <Button size="icon-sm" type="submit" variant="destructive">
+                    <Trash2 aria-hidden="true" />
+                  </Button>
+                </form>
+              </div>
+            ))}
+          </div>
+        ) : (
+          <div className="rounded-lg border border-dashed p-6 text-center text-sm text-muted-foreground">
+            Создайте категорию, чтобы добавлять товары
+          </div>
+        )}
+      </CardContent>
+    </Card>
+  );
+}
+
+function CreateProductCard({
+  categories,
+}: {
+  readonly categories: readonly ProductCategory[];
+}) {
   return (
     <Card>
       <CardHeader>
@@ -130,7 +240,7 @@ function CreateProductCard() {
       <CardContent>
         <form
           action={createProductAction}
-          className="grid gap-3 lg:grid-cols-[minmax(12rem,1.4fr)_minmax(10rem,1fr)_8rem_11rem_auto]"
+          className="grid gap-3 lg:grid-cols-[minmax(12rem,1.4fr)_minmax(10rem,1fr)_8rem_11rem_minmax(10rem,1fr)_6rem_auto]"
         >
           <LabeledField label="Название">
             <Input name="title" placeholder="Постер Artmate" required />
@@ -151,13 +261,23 @@ function CreateProductCard() {
           <LabeledField label="Статус">
             <ProductStatusSelect defaultValue="draft" />
           </LabeledField>
+          <LabeledField label="Категория">
+            <ProductCategorySelect categories={categories} />
+          </LabeledField>
+          <LabeledCheckbox label="Хит">
+            <input name="isHit" type="checkbox" />
+          </LabeledCheckbox>
           <div className="flex items-end">
-            <Button className="w-full" type="submit">
+            <Button
+              className="w-full"
+              disabled={categories.length === 0}
+              type="submit"
+            >
               <Plus data-icon="inline-start" aria-hidden="true" />
               Создать
             </Button>
           </div>
-          <LabeledField className="lg:col-span-5" label="Описание">
+          <LabeledField className="lg:col-span-7" label="Описание">
             <textarea
               className={textareaClassName}
               name="description"
@@ -171,8 +291,10 @@ function CreateProductCard() {
 }
 
 function ProductsList({
+  categories,
   products,
 }: {
+  readonly categories: readonly ProductCategory[];
   readonly products: readonly Product[];
 }) {
   if (products.length === 0) {
@@ -194,13 +316,23 @@ function ProductsList({
   return (
     <div className="grid gap-4">
       {products.map((product) => (
-        <ProductCard key={product.id} product={product} />
+        <ProductCard
+          categories={categories}
+          key={product.id}
+          product={product}
+        />
       ))}
     </div>
   );
 }
 
-function ProductCard({ product }: { readonly product: Product }) {
+function ProductCard({
+  categories,
+  product,
+}: {
+  readonly categories: readonly ProductCategory[];
+  readonly product: Product;
+}) {
   const primaryImage = getProductPrimaryImage(product);
 
   return (
@@ -214,12 +346,14 @@ function ProductCard({ product }: { readonly product: Product }) {
           <div className="min-w-0">
             <CardTitle className="truncate">{product.title}</CardTitle>
             <CardDescription>
-              {product.slug} · {formatProductPrice(product)} · обновлен{" "}
+              {product.slug} · {product.category.title} ·{" "}
+              {formatProductPrice(product)} · обновлен{" "}
               {formatProductDate(product.updatedAt)}
             </CardDescription>
           </div>
         </div>
         <CardAction className="flex items-start gap-2">
+          {product.isHit && <Badge variant="secondary">Хит</Badge>}
           <Badge variant={getProductStatusBadgeVariant(product.status)}>
             {getProductStatusLabel(product.status)}
           </Badge>
@@ -237,18 +371,24 @@ function ProductCard({ product }: { readonly product: Product }) {
         </CardAction>
       </CardHeader>
       <CardContent className="grid gap-5">
-        <ProductEditForm product={product} />
+        <ProductEditForm categories={categories} product={product} />
         <ProductImages product={product} />
       </CardContent>
     </Card>
   );
 }
 
-function ProductEditForm({ product }: { readonly product: Product }) {
+function ProductEditForm({
+  categories,
+  product,
+}: {
+  readonly categories: readonly ProductCategory[];
+  readonly product: Product;
+}) {
   return (
     <form
       action={updateProductAction}
-      className="grid gap-3 lg:grid-cols-[minmax(12rem,1.4fr)_minmax(10rem,1fr)_8rem_11rem_auto]"
+      className="grid gap-3 lg:grid-cols-[minmax(12rem,1.4fr)_minmax(10rem,1fr)_8rem_11rem_minmax(10rem,1fr)_6rem_auto]"
     >
       <input name="productId" type="hidden" value={product.id} />
       <LabeledField label="Название">
@@ -270,13 +410,22 @@ function ProductEditForm({ product }: { readonly product: Product }) {
       <LabeledField label="Статус">
         <ProductStatusSelect defaultValue={product.status} />
       </LabeledField>
+      <LabeledField label="Категория">
+        <ProductCategorySelect
+          categories={categories}
+          defaultValue={product.categoryId}
+        />
+      </LabeledField>
+      <LabeledCheckbox label="Хит">
+        <input defaultChecked={product.isHit} name="isHit" type="checkbox" />
+      </LabeledCheckbox>
       <div className="flex items-end">
         <Button className="w-full" type="submit" variant="outline">
           <Save data-icon="inline-start" aria-hidden="true" />
           Сохранить
         </Button>
       </div>
-      <LabeledField className="lg:col-span-5" label="Описание">
+      <LabeledField className="lg:col-span-7" label="Описание">
         <textarea
           className={textareaClassName}
           defaultValue={product.description}
@@ -406,6 +555,23 @@ function LabeledField({
   );
 }
 
+function LabeledCheckbox({
+  children,
+  label,
+}: {
+  readonly children: ReactNode;
+  readonly label: string;
+}) {
+  return (
+    <label className="grid content-end gap-1.5">
+      <span className="text-xs font-medium text-muted-foreground">{label}</span>
+      <span className="flex h-8 items-center rounded-lg border border-input px-2.5">
+        {children}
+      </span>
+    </label>
+  );
+}
+
 function ProductStatusSelect({
   defaultValue,
 }: {
@@ -418,6 +584,34 @@ function ProductStatusSelect({
           {getProductStatusLabel(status)}
         </option>
       ))}
+    </select>
+  );
+}
+
+function ProductCategorySelect({
+  categories,
+  defaultValue,
+}: {
+  readonly categories: readonly ProductCategory[];
+  readonly defaultValue?: string;
+}) {
+  return (
+    <select
+      className={fieldClassName}
+      defaultValue={defaultValue ?? categories[0]?.id ?? ""}
+      disabled={categories.length === 0}
+      name="categoryId"
+      required
+    >
+      {categories.length === 0 ? (
+        <option value="">Нет категорий</option>
+      ) : (
+        categories.map((category) => (
+          <option key={category.id} value={category.id}>
+            {category.title}
+          </option>
+        ))
+      )}
     </select>
   );
 }

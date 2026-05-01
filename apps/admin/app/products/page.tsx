@@ -2,7 +2,7 @@ import { redirect } from "next/navigation";
 
 import { ProductsPage } from "@/pages/products";
 import { getAdminSession } from "@/shared/actions/auth";
-import { getAdminProducts } from "@/shared/actions/products";
+import { getAdminProducts, getProductCategories } from "@/shared/actions/products";
 import { routes } from "@/shared/constants";
 
 export { metadata } from "@/pages/products/metadata";
@@ -14,10 +14,14 @@ export default async function Page() {
     redirect(`${routes.login}?next=${encodeURIComponent(routes.products)}`);
   }
 
-  const products = await getAdminProducts();
+  const [products, categories] = await Promise.all([
+    getAdminProducts(),
+    getProductCategories(),
+  ]);
 
   return (
     <ProductsPage
+      categories={categories}
       currentUser={session.user}
       products={products}
     />

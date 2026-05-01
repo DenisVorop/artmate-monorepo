@@ -6,10 +6,13 @@ import { cookies, headers } from "next/headers";
 import { routes } from "@/shared/constants";
 
 import type {
+  CreateProductCategoryInputDTO,
   CreateProductInputDTO,
+  ProductCategoryDTO,
   ProductDTO,
   ProductImageDTO,
   ProductStatusDTO,
+  UpdateProductCategoryInputDTO,
   UpdateProductImageInputDTO,
   UpdateProductInputDTO,
 } from "./products.types";
@@ -19,6 +22,41 @@ const DEFAULT_API_BASE_URL = "http://localhost:3002";
 
 export async function getAdminProducts(): Promise<ProductDTO[]> {
   return requestAdminApi<ProductDTO[]>("/products");
+}
+
+export async function getProductCategories(): Promise<ProductCategoryDTO[]> {
+  return requestAdminApi<ProductCategoryDTO[]>("/products/categories");
+}
+
+export async function createProductCategory(
+  input: CreateProductCategoryInputDTO,
+) {
+  return requestAdminApi<ProductCategoryDTO>("/products/categories", {
+    method: "POST",
+    body: JSON.stringify(input),
+  });
+}
+
+export async function updateProductCategory(
+  categoryId: string,
+  input: UpdateProductCategoryInputDTO,
+) {
+  return requestAdminApi<ProductCategoryDTO>(
+    `/products/categories/${encodeURIComponent(categoryId)}`,
+    {
+      method: "PATCH",
+      body: JSON.stringify(input),
+    },
+  );
+}
+
+export async function deleteProductCategory(categoryId: string) {
+  return requestAdminApi<ProductCategoryDTO>(
+    `/products/categories/${encodeURIComponent(categoryId)}`,
+    {
+      method: "DELETE",
+    },
+  );
 }
 
 export async function createProduct(input: CreateProductInputDTO) {
@@ -79,6 +117,8 @@ export async function createProductAction(formData: FormData) {
     slug: getRequiredString(formData.get("slug"), "slug"),
     description: getOptionalString(formData.get("description")),
     status: getProductStatus(formData.get("status")),
+    isHit: getBoolean(formData.get("isHit")),
+    categoryId: getRequiredString(formData.get("categoryId"), "categoryId"),
     priceRub: getRequiredInteger(formData.get("priceRub"), "priceRub"),
     currency: "RUB",
   });
@@ -94,6 +134,8 @@ export async function updateProductAction(formData: FormData) {
     slug: getRequiredString(formData.get("slug"), "slug"),
     description: getString(formData.get("description")),
     status: getProductStatus(formData.get("status")),
+    isHit: getBoolean(formData.get("isHit")),
+    categoryId: getRequiredString(formData.get("categoryId"), "categoryId"),
     priceRub: getRequiredInteger(formData.get("priceRub"), "priceRub"),
     currency: "RUB",
   });
@@ -103,6 +145,35 @@ export async function updateProductAction(formData: FormData) {
 
 export async function deleteProductAction(formData: FormData) {
   await deleteProduct(getRequiredString(formData.get("productId"), "productId"));
+  revalidatePath(routes.products);
+}
+
+export async function createProductCategoryAction(formData: FormData) {
+  await createProductCategory({
+    title: getRequiredString(formData.get("title"), "title"),
+    slug: getRequiredString(formData.get("slug"), "slug"),
+    image: getOptionalString(formData.get("image")),
+  });
+
+  revalidatePath(routes.products);
+}
+
+export async function updateProductCategoryAction(formData: FormData) {
+  const categoryId = getRequiredString(formData.get("categoryId"), "categoryId");
+
+  await updateProductCategory(categoryId, {
+    title: getRequiredString(formData.get("title"), "title"),
+    slug: getRequiredString(formData.get("slug"), "slug"),
+    image: getString(formData.get("image")),
+  });
+
+  revalidatePath(routes.products);
+}
+
+export async function deleteProductCategoryAction(formData: FormData) {
+  await deleteProductCategory(
+    getRequiredString(formData.get("categoryId"), "categoryId"),
+  );
   revalidatePath(routes.products);
 }
 
@@ -208,6 +279,10 @@ function getOptionalString(value: FormDataEntryValue | null) {
 
 function getString(value: FormDataEntryValue | null) {
   return typeof value === "string" ? value.trim() : "";
+}
+
+function getBoolean(value: FormDataEntryValue | null) {
+  return value === "on" || value === "true";
 }
 
 function getRequiredInteger(value: FormDataEntryValue | null, field: string) {

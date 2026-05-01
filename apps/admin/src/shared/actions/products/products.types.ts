@@ -12,12 +12,24 @@ export type ProductImageDTO = {
   createdAt: string;
 };
 
+export type ProductCategoryDTO = {
+  id: string;
+  slug: string;
+  title: string;
+  image?: string;
+  createdAt: string;
+  updatedAt: string;
+};
+
 export type ProductDTO = {
   id: string;
   slug: string;
   title: string;
   description?: string;
   status: ProductStatusDTO;
+  isHit: boolean;
+  categoryId: string;
+  category: ProductCategoryDTO;
   price: number;
   priceRub: number;
   currency: ProductCurrencyDTO;
@@ -31,11 +43,21 @@ export type CreateProductInputDTO = {
   slug: string;
   description?: string;
   status?: ProductStatusDTO;
+  isHit?: boolean;
+  categoryId: string;
   priceRub: number;
   currency?: ProductCurrencyDTO;
 };
 
 export type UpdateProductInputDTO = Partial<CreateProductInputDTO>;
+
+export type CreateProductCategoryInputDTO = {
+  title: string;
+  slug: string;
+  image?: string;
+};
+
+export type UpdateProductCategoryInputDTO = Partial<CreateProductCategoryInputDTO>;
 
 export type UpdateProductImageInputDTO = {
   alt?: string;

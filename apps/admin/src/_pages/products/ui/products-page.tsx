@@ -1,17 +1,19 @@
 import type { AuthUser } from "@/entities/session";
 import { SessionMenu } from "@/features/auth";
 import { ProductsManagement } from "@/features/products-management";
-import type { Product } from "@/entities/products";
+import type { Product, ProductCategory } from "@/entities/products";
 import { routes } from "@/shared/constants";
 import { AdminShell } from "@/widgets/admin-shell";
 import { Badge } from "@/shared/ui";
 
 type ProductsPageProps = {
+  readonly categories: readonly ProductCategory[];
   readonly currentUser: AuthUser;
   readonly products: readonly Product[];
 };
 
 export function ProductsPage({
+  categories,
   currentUser,
   products,
 }: ProductsPageProps) {
@@ -31,7 +33,7 @@ export function ProductsPage({
           </div>
         </header>
 
-        <ProductsManagement products={products} />
+        <ProductsManagement categories={categories} products={products} />
       </section>
     </AdminShell>
   );
