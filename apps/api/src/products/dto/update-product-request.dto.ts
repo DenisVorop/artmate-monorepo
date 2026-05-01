@@ -28,6 +28,7 @@ export class UpdateProductRequestDTO {
 
   @IsOptional()
   @IsString()
+  @MaxLength(12000)
   description?: string;
 
   @IsOptional()

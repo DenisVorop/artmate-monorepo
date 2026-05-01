@@ -20,8 +20,8 @@ import {
   LabeledField,
   ProductCategorySelect,
   ProductStatusSelect,
-  textareaClassName,
 } from "./form-controls";
+import { ProductDescriptionEditor } from "./product-description-editor";
 
 type CreateProductCardProps = {
   readonly categories: readonly ProductCategory[];
@@ -105,11 +105,7 @@ export function CreateProductCard({
             </Button>
           </div>
           <LabeledField className="lg:col-span-7" label="Описание">
-            <textarea
-              className={textareaClassName}
-              name="description"
-              placeholder="Короткое описание для карточки товара"
-            />
+            <ProductDescriptionEditor name="description" />
           </LabeledField>
         </form>
       </CardContent>

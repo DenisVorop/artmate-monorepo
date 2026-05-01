@@ -8,6 +8,7 @@ import {
   Injectable,
   NotFoundException,
 } from "@nestjs/common";
+import sanitizeHtml from "sanitize-html";
 
 import {
   Prisma,
@@ -52,6 +53,16 @@ const productInclude = {
 } satisfies Prisma.ProductInclude;
 
 const maxPriceRub = 21_474_836;
+const maxProductDescriptionLength = 12_000;
+const productDescriptionSanitizeOptions: sanitizeHtml.IOptions = {
+  allowedAttributes: {},
+  allowedSchemes: [],
+  allowedTags: ["p", "br", "strong", "em", "ul", "ol", "li"],
+  allowProtocolRelative: false,
+  disallowedTagsMode: "discard",
+  nestingLimit: 8,
+  parseStyleAttributes: false,
+};
 export const maxProductImageSizeBytes = 10 * 1024 * 1024;
 
 type StoredProduct = Prisma.ProductGetPayload<{
@@ -297,7 +308,7 @@ export class ProductsService {
         data: {
           title: this.parseRequiredString(input.title, "title"),
           slug: this.parseSlug(input.slug),
-          description: this.parseOptionalString(input.description),
+          description: this.parseProductDescription(input.description),
           status,
           isHit: input.isHit ?? false,
           ...this.getCategoryCreateData(input.categoryId),
@@ -329,7 +340,7 @@ export class ProductsService {
     }
 
     if (input.description !== undefined) {
-      data.description = this.parseOptionalString(input.description) ?? null;
+      data.description = this.parseProductDescription(input.description) ?? null;
     }
 
     if (input.status !== undefined) {
@@ -578,6 +589,39 @@ export class ProductsService {
     return trimmed ? trimmed : undefined;
   }
 
+  private parseProductDescription(value: string | undefined) {
+    const trimmed = value?.trim();
+
+    if (!trimmed) {
+      return undefined;
+    }
+
+    if (trimmed.length > maxProductDescriptionLength) {
+      throw new BadRequestException(
+        `description must be at most ${maxProductDescriptionLength} characters`,
+      );
+    }
+
+    return this.sanitizeProductDescription(trimmed);
+  }
+
+  private sanitizeProductDescription(value: string | undefined) {
+    const sanitized = sanitizeHtml(value ?? "", productDescriptionSanitizeOptions).trim();
+
+    if (!sanitized) {
+      return undefined;
+    }
+
+    const textContent = sanitizeHtml(sanitized, {
+      allowedAttributes: {},
+      allowedTags: [],
+    })
+      .replace(/\u00a0/g, " ")
+      .trim();
+
+    return textContent ? sanitized : undefined;
+  }
+
   private parseSlug(value: string) {
     const slug = this.parseRequiredString(value, "slug").toLowerCase();
 
@@ -637,7 +681,7 @@ export class ProductsService {
       id: product.id,
       slug: product.slug,
       title: product.title,
-      description: product.description ?? undefined,
+      description: this.sanitizeProductDescription(product.description ?? undefined),
       status: this.mapPrismaProductStatus(product.status),
       isHit: product.isHit,
       categoryId: product.categoryId ?? undefined,
