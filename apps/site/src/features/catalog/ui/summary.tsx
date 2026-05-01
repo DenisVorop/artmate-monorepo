@@ -20,11 +20,13 @@ export function Summary() {
   } = useCatalog();
 
   return (
-    <div className="mb-4 flex flex-col justify-between gap-4 sm:flex-row sm:items-start">
-      <div className="flex flex-col gap-3 sm:flex-row sm:items-center">
-        <p className="text-sm text-muted-foreground">{countLabel}</p>
+    <div className="mb-4 flex min-h-7 flex-col justify-between gap-4 sm:flex-row sm:items-start">
+      <div className="flex min-h-7 flex-col gap-3 sm:flex-row sm:items-center">
+        <p className="flex min-h-7 items-center text-sm text-muted-foreground">
+          {countLabel}
+        </p>
 
-        <div className="flex flex-wrap gap-2">
+        <div className="flex min-h-7 flex-wrap items-center gap-2">
           {activeCategory && (
             <Badge variant="secondary" className="h-auto py-1 pr-1">
               {activeCategory.title}
