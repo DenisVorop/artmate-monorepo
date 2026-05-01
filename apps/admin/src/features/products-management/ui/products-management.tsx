@@ -69,7 +69,7 @@ export function ProductsManagement({
   return (
     <div className="grid gap-4">
       <ProductsSummary categories={categories} products={products} />
-      <ProductCategoriesCard categories={categories} />
+      <ProductCategoriesCard categories={categories} products={products} />
       <CreateProductCard categories={categories} />
       <ProductsList categories={categories} products={products} />
     </div>
@@ -133,8 +133,10 @@ function SummaryCard({
 
 function ProductCategoriesCard({
   categories,
+  products,
 }: {
   readonly categories: readonly ProductCategory[];
+  readonly products: readonly Product[];
 }) {
   return (
     <Card>
@@ -168,51 +170,63 @@ function ProductCategoriesCard({
 
         {categories.length > 0 ? (
           <div className="grid gap-3">
-            {categories.map((category) => (
-              <div
-                className="grid gap-3 rounded-lg border p-3 lg:grid-cols-[3.5rem_minmax(10rem,1fr)_minmax(10rem,1fr)_minmax(12rem,1.5fr)_auto_auto]"
-                key={category.id}
-              >
-                <ProductImagePreview
-                  className="size-14"
-                  imageUrl={category.image}
-                  label={category.title}
-                />
-                <form
-                  action={updateProductCategoryAction}
-                  className="contents"
+            {categories.map((category) => {
+              const productsCount = products.filter(
+                (product) => product.categoryId === category.id,
+              ).length;
+
+              return (
+                <div
+                  className="grid gap-3 rounded-lg border p-3 lg:grid-cols-[3.5rem_minmax(10rem,1fr)_minmax(10rem,1fr)_minmax(12rem,1.5fr)_auto_auto_auto]"
+                  key={category.id}
                 >
-                  <input name="categoryId" type="hidden" value={category.id} />
-                  <Input
-                    aria-label="Название категории"
-                    defaultValue={category.title}
-                    name="title"
-                    required
+                  <ProductImagePreview
+                    className="size-14"
+                    imageUrl={category.image}
+                    label={category.title}
                   />
-                  <Input
-                    aria-label="Slug категории"
-                    defaultValue={category.slug}
-                    name="slug"
-                    required
-                  />
-                  <Input
-                    aria-label="Изображение категории"
-                    defaultValue={category.image}
-                    name="image"
-                    placeholder="https://..."
-                  />
-                  <Button size="icon-sm" type="submit" variant="outline">
-                    <Save aria-hidden="true" />
-                  </Button>
-                </form>
-                <form action={deleteProductCategoryAction}>
-                  <input name="categoryId" type="hidden" value={category.id} />
-                  <Button size="icon-sm" type="submit" variant="destructive">
-                    <Trash2 aria-hidden="true" />
-                  </Button>
-                </form>
-              </div>
-            ))}
+                  <form
+                    action={updateProductCategoryAction}
+                    className="contents"
+                  >
+                    <input name="categoryId" type="hidden" value={category.id} />
+                    <Input
+                      aria-label="Название категории"
+                      defaultValue={category.title}
+                      name="title"
+                      required
+                    />
+                    <Input
+                      aria-label="Slug категории"
+                      defaultValue={category.slug}
+                      name="slug"
+                      required
+                    />
+                    <Input
+                      aria-label="Изображение категории"
+                      defaultValue={category.image}
+                      name="image"
+                      placeholder="https://..."
+                    />
+                    <Button size="icon-sm" type="submit" variant="outline">
+                      <Save aria-hidden="true" />
+                    </Button>
+                  </form>
+                  <Badge variant="outline">{productsCount}</Badge>
+                  <form action={deleteProductCategoryAction}>
+                    <input name="categoryId" type="hidden" value={category.id} />
+                    <Button
+                      disabled={productsCount > 0}
+                      size="icon-sm"
+                      type="submit"
+                      variant="destructive"
+                    >
+                      <Trash2 aria-hidden="true" />
+                    </Button>
+                  </form>
+                </div>
+              );
+            })}
           </div>
         ) : (
           <div className="rounded-lg border border-dashed p-6 text-center text-sm text-muted-foreground">

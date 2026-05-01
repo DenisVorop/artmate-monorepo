@@ -4,6 +4,7 @@ import { join } from "node:path";
 
 import {
   BadRequestException,
+  ConflictException,
   Injectable,
   NotFoundException,
 } from "@nestjs/common";
@@ -253,6 +254,18 @@ export class ProductsService {
   }
 
   async deleteCategory(categoryId: string) {
+    const productsCount = await this.prisma.product.count({
+      where: {
+        categoryId,
+      },
+    });
+
+    if (productsCount > 0) {
+      throw new ConflictException(
+        "Product category is used by existing products",
+      );
+    }
+
     try {
       const category = await this.prisma.productCategory.delete({
         where: { id: categoryId },
@@ -729,7 +742,7 @@ export class ProductsService {
       }
 
       if (error.code === "P2003") {
-        throw new BadRequestException(
+        throw new ConflictException(
           "Product category is used by existing products",
         );
       }
