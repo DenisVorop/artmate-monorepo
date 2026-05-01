@@ -100,9 +100,11 @@ export function ProductCard({ product, eagerImage = false, onAddToCart }: Produc
       </div>
 
       <CardContent className="flex flex-1 flex-col gap-1 px-4 pt-4 pb-3">
-        <CardDescription className="text-xs tracking-wide uppercase">
-          {product.category}
-        </CardDescription>
+        {product.category && (
+          <CardDescription className="text-xs tracking-wide uppercase">
+            {product.category}
+          </CardDescription>
+        )}
         <CardTitle role="heading" aria-level={3} className="font-display leading-snug font-bold">
           <Link href={productHref} className="text-stone-900 transition-colors hover:text-rose-500">
             {product.title}

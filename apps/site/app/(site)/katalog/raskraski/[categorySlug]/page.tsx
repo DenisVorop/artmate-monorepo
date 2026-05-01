@@ -3,7 +3,8 @@ import { notFound } from "next/navigation";
 
 import { CatalogDataBuilder } from "@/app/lib/catalog-data-builder";
 import { CatalogPage } from "@/pages/catalog";
-import { getProductCategoryBySlug } from "@/entities/products";
+import { ProductPage } from "@/pages/product";
+import { getProductBySlug, getProductCategoryBySlug } from "@/entities/products";
 import { getProductsData } from "@/shared/actions/products";
 import { routes, siteConfig } from "@/shared/constants";
 import { dehydrateQueryClient } from "@/shared/lib/dehydrate-query-client";
@@ -17,10 +18,19 @@ type CatalogCategoryRouteProps = {
 
 export async function generateStaticParams() {
   const productsData = (await getProductsData()).data;
+  const slugs = new Set<string>();
 
-  return (productsData?.categories ?? []).map((category) => ({
-    categorySlug: category.slug,
-  }));
+  for (const category of productsData?.categories ?? []) {
+    slugs.add(category.slug);
+  }
+
+  for (const product of productsData?.products ?? []) {
+    if (!product.categoryId) {
+      slugs.add(product.slug);
+    }
+  }
+
+  return [...slugs].map((categorySlug) => ({ categorySlug }));
 }
 
 export async function generateMetadata({ params }: CatalogCategoryRouteProps): Promise<Metadata> {
@@ -28,61 +38,114 @@ export async function generateMetadata({ params }: CatalogCategoryRouteProps): P
   const productsData = (await getProductsData()).data;
   const category = getProductCategoryBySlug(productsData?.categories ?? [], categorySlug);
 
-  if (!category) {
+  if (category) {
+    const title = `${category.title} - раскраски по\u00a0номерам Artmate`;
+    const description = `Раскраски Artmate в\u00a0категории «${category.title}»: альбомы A4 на\u00a0плотной бумаге для\u00a0спокойного творческого вечера.`;
+    const url = routes.catalogCategory(category.slug);
+
+    return {
+      title: {
+        absolute: title,
+      },
+      description,
+      alternates: {
+        canonical: url,
+      },
+      openGraph: {
+        title,
+        description,
+        url,
+        siteName: siteConfig.name,
+        locale: siteConfig.locale,
+        type: "website",
+        images: [
+          {
+            url: category.image,
+            width: 900,
+            height: 1200,
+            alt: title,
+          },
+        ],
+      },
+      twitter: {
+        card: "summary_large_image",
+        title,
+        description,
+        images: [category.image],
+      },
+    };
+  }
+
+  const product = getProductBySlug(productsData?.products ?? [], categorySlug);
+
+  if (!product || product.categoryId) {
     return {};
   }
 
-  const title = `${category.title} - раскраски по\u00a0номерам Artmate`;
-  const description = `Раскраски Artmate в\u00a0категории «${category.title}»: альбомы A4 на\u00a0плотной бумаге для\u00a0спокойного творческого вечера.`;
-  const url = routes.catalogCategory(category.slug);
+  const title = `${product.title} - Artmate`;
+  const url = routes.product(undefined, product.slug);
 
   return {
     title: {
       absolute: title,
     },
-    description,
+    description: product.description,
     alternates: {
       canonical: url,
     },
     openGraph: {
       title,
-      description,
+      description: product.description,
       url,
       siteName: siteConfig.name,
       locale: siteConfig.locale,
       type: "website",
       images: [
         {
-          url: category.image,
+          url: product.image,
           width: 900,
           height: 1200,
-          alt: title,
+          alt: product.title,
         },
       ],
     },
     twitter: {
       card: "summary_large_image",
       title,
-      description,
-      images: [category.image],
+      description: product.description,
+      images: [product.image],
     },
   };
 }
 
 export default async function Page({ params }: CatalogCategoryRouteProps) {
   const { categorySlug } = await params;
-  const { queryClient, productsData, category } = await new CatalogDataBuilder()
+  const { queryClient, productsData, category, product } = await new CatalogDataBuilder()
     .withProducts()
+    .withReviews()
     .withCategory(categorySlug)
+    .withProduct(categorySlug)
     .build();
 
-  if (!category || !productsData || productsData.products.length === 0) {
+  if (!productsData || productsData.products.length === 0) {
+    notFound();
+  }
+
+  if (category) {
+    return (
+      <HydrationBoundary state={dehydrateQueryClient(queryClient)}>
+        <CatalogPage initialCategoryId={category.id} />
+      </HydrationBoundary>
+    );
+  }
+
+  if (!product || product.categoryId) {
     notFound();
   }
 
   return (
     <HydrationBoundary state={dehydrateQueryClient(queryClient)}>
-      <CatalogPage initialCategoryId={category.id} />
+      <ProductPage productId={product.id} />
     </HydrationBoundary>
   );
 }

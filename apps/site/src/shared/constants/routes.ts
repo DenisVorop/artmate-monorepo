@@ -15,8 +15,10 @@ export const routes = {
   paymentAndDelivery: "/payment-and-delivery",
   contacts: "/contacts",
   faq: "/faq",
-  product: (categorySlug: string, productSlug: string) =>
-    `/katalog/raskraski/${categorySlug}/${productSlug}`,
+  product: (categorySlug: string | undefined, productSlug: string) =>
+    categorySlug
+      ? `/katalog/raskraski/${categorySlug}/${productSlug}`
+      : `/katalog/raskraski/${productSlug}`,
   legal: {
     privacyPolicy: "/legal/privacy-policy",
     publicOffer: "/legal/public-offer",

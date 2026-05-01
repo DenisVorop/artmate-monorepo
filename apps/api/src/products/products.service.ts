@@ -128,9 +128,6 @@ export class ProductsService {
   async getPublishedProducts() {
     const products = await this.prisma.product.findMany({
       where: {
-        categoryId: {
-          not: null,
-        },
         images: {
           some: {},
         },
@@ -153,9 +150,6 @@ export class ProductsService {
   async getPublishedProductBySlug(slug: string) {
     const product = await this.prisma.product.findFirst({
       where: {
-        categoryId: {
-          not: null,
-        },
         images: {
           some: {},
         },
@@ -175,9 +169,6 @@ export class ProductsService {
   async getCartProductSnapshot(productId: string) {
     const product = await this.prisma.product.findFirst({
       where: {
-        categoryId: {
-          not: null,
-        },
         id: productId,
         images: {
           some: {},
@@ -191,10 +182,6 @@ export class ProductsService {
       throw new NotFoundException("Product not found");
     }
 
-    if (!product.category) {
-      throw new NotFoundException("Product category not found");
-    }
-
     const primaryImage = product.images[0];
 
     if (!primaryImage) {
@@ -206,8 +193,8 @@ export class ProductsService {
       title: product.title,
       slug: product.slug,
       price: Math.trunc(product.price / 100),
-      category: product.category.title,
-      categorySlug: product.category.slug,
+      category: product.category?.title,
+      categorySlug: product.category?.slug,
       image: primaryImage.url,
     };
   }

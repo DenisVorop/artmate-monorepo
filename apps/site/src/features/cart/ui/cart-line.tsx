@@ -40,9 +40,11 @@ export function CartLine({ item, disabled, onUpdateQuantity, onRemove }: CartLin
         </Link>
 
         <div className="min-w-0 self-center">
-          <p className="text-[11px] font-medium tracking-wide text-muted-foreground uppercase">
-            {item.category}
-          </p>
+          {item.category && (
+            <p className="text-[11px] font-medium tracking-wide text-muted-foreground uppercase">
+              {item.category}
+            </p>
+          )}
           <Link
             href={productHref}
             className="mt-1 block truncate font-medium text-foreground hover:text-rose-500"

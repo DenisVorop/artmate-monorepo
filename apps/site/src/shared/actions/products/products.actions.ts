@@ -50,12 +50,8 @@ async function requestCatalogApi<T>(path: string) {
 
 function mapProducts(products: readonly ApiProductDTO[]): Product[] {
   return products.flatMap((product) => {
-    if (!product.categoryId || !product.category) {
-      return [];
-    }
-
     const images = product.images.map((image) => image.url);
-    const primaryImage = images[0] ?? product.category.image;
+    const primaryImage = images[0] ?? product.category?.image;
 
     if (!primaryImage) {
       return [];
@@ -67,9 +63,9 @@ function mapProducts(products: readonly ApiProductDTO[]): Product[] {
         title: product.title,
         slug: product.slug,
         price: product.priceRub,
-        category: product.category.title,
+        category: product.category?.title,
         categoryId: product.categoryId,
-        categorySlug: product.category.slug,
+        categorySlug: product.category?.slug,
         image: primaryImage,
         images: images.length > 0 ? images : [primaryImage],
         description: product.description ?? "",
@@ -83,6 +79,10 @@ function getCategories(products: readonly Product[]): ProductCategory[] {
   const categories = new Map<string, ProductCategory>();
 
   for (const product of products) {
+    if (!product.categoryId || !product.category || !product.categorySlug) {
+      continue;
+    }
+
     if (!categories.has(product.categoryId)) {
       categories.set(product.categoryId, {
         id: product.categoryId,

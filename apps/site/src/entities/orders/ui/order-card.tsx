@@ -146,7 +146,9 @@ function OrderItemRow({ item }: { item: OrderItem }) {
 
       <div className="min-w-0">
         <p className="truncate font-medium">{item.title}</p>
-        <p className="text-sm text-muted-foreground">{item.category}</p>
+        {item.category && (
+          <p className="text-sm text-muted-foreground">{item.category}</p>
+        )}
       </div>
 
       <div className="text-right text-sm">

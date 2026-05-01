@@ -3,8 +3,8 @@ export type CartProductDTO = {
   title: string;
   slug: string;
   price: number;
-  category: string;
-  categorySlug: string;
+  category?: string;
+  categorySlug?: string;
   image: string;
 };
 

@@ -86,11 +86,8 @@ export class CartService {
       id: this.parseRequiredString(product.id, "product.id"),
       title: this.parseRequiredString(product.title, "product.title"),
       slug: this.parseRequiredString(product.slug, "product.slug"),
-      category: this.parseRequiredString(product.category, "product.category"),
-      categorySlug: this.parseRequiredString(
-        product.categorySlug,
-        "product.categorySlug",
-      ),
+      category: this.parseOptionalString(product.category),
+      categorySlug: this.parseOptionalString(product.categorySlug),
       image: this.parseRequiredString(product.image, "product.image"),
       price: this.parsePrice(product.price),
     };
@@ -104,6 +101,20 @@ export class CartService {
     }
 
     return value.trim();
+  }
+
+  private parseOptionalString(value: unknown): string | undefined {
+    if (value === undefined || value === null) {
+      return undefined;
+    }
+
+    if (typeof value !== "string") {
+      return undefined;
+    }
+
+    const trimmedValue = value.trim();
+
+    return trimmedValue.length > 0 ? trimmedValue : undefined;
   }
 
   private parsePrice(value: unknown): number {

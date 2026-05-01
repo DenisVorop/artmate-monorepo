@@ -1,4 +1,4 @@
-import { IsNotEmpty, IsNumber, IsString, Min } from "class-validator";
+import { IsNotEmpty, IsNumber, IsOptional, IsString, Min } from "class-validator";
 
 export class CartProductDTO {
   @IsString()
@@ -17,13 +17,15 @@ export class CartProductDTO {
   @Min(0)
   price!: number;
 
+  @IsOptional()
   @IsString()
   @IsNotEmpty()
-  category!: string;
+  category?: string;
 
+  @IsOptional()
   @IsString()
   @IsNotEmpty()
-  categorySlug!: string;
+  categorySlug?: string;
 
   @IsString()
   @IsNotEmpty()

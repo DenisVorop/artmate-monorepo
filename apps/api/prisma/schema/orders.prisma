@@ -66,8 +66,8 @@ model OrderItem {
   title        String   @db.VarChar(220)
   slug         String   @db.VarChar(180)
   price        Decimal  @db.Decimal(12, 2)
-  category     String   @db.VarChar(120)
-  categorySlug String   @map("category_slug") @db.VarChar(160)
+  category     String?  @db.VarChar(120)
+  categorySlug String?  @map("category_slug") @db.VarChar(160)
   image        String   @db.Text
   quantity     Int
   lineTotal    Decimal  @map("line_total") @db.Decimal(12, 2)

@@ -64,7 +64,7 @@ export function filterProducts(products: readonly Product[], filters: FiltersSta
   if (normalizedQuery) {
     list = list.filter((product) => {
       const title = product.title.toLocaleLowerCase("ru-RU");
-      const category = product.category.toLocaleLowerCase("ru-RU");
+      const category = product.category?.toLocaleLowerCase("ru-RU") ?? "";
       const description = product.description.toLocaleLowerCase("ru-RU");
 
       return (

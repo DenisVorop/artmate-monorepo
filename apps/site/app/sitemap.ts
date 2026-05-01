@@ -96,13 +96,13 @@ export default async function sitemap(): Promise<MetadataRoute.Sitemap> {
   const productRoutes = (productsData?.products ?? []).flatMap((product) => {
     const category = getProductCategory(productsData?.categories ?? [], product.categoryId);
 
-    if (!category) {
+    if (product.categoryId && !category) {
       return [];
     }
 
     return [
       {
-        path: routes.product(category.slug, product.slug),
+        path: routes.product(category?.slug, product.slug),
         changeFrequency: "weekly",
         priority: 0.7,
       },

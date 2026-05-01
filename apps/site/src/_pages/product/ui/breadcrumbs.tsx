@@ -8,7 +8,7 @@ type BreadcrumbsProps = {
 };
 
 export function Breadcrumbs({ product }: BreadcrumbsProps) {
-  const categoryHref = routes.catalogCategory(product.categorySlug);
+  const categorySlug = product.categorySlug;
   const categoryTitle = product.category;
 
   return (
@@ -32,12 +32,16 @@ export function Breadcrumbs({ product }: BreadcrumbsProps) {
           </BreadcrumbLink>
         </BreadcrumbItem>
         <BreadcrumbSeparator />
-        <BreadcrumbItem>
-          <BreadcrumbLink asChild>
-            <Link href={categoryHref}>{categoryTitle}</Link>
-          </BreadcrumbLink>
-        </BreadcrumbItem>
-        <BreadcrumbSeparator />
+        {categorySlug && categoryTitle && (
+          <>
+            <BreadcrumbItem>
+              <BreadcrumbLink asChild>
+                <Link href={routes.catalogCategory(categorySlug)}>{categoryTitle}</Link>
+              </BreadcrumbLink>
+            </BreadcrumbItem>
+            <BreadcrumbSeparator />
+          </>
+        )}
         <BreadcrumbItem>
           <BreadcrumbPage>{product.title}</BreadcrumbPage>
         </BreadcrumbItem>

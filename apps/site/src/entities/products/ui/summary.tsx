@@ -11,10 +11,12 @@ export function Summary({ product }: SummaryProps) {
 
   return (
     <div className="space-y-4">
-      <div className="flex flex-wrap items-center gap-2">
-        <Badge variant="secondary">{product.category}</Badge>
-        {product.isHit && <Badge className="bg-rose-500 text-white">Хит продаж</Badge>}
-      </div>
+      {(product.category || product.isHit) && (
+        <div className="flex flex-wrap items-center gap-2">
+          {product.category && <Badge variant="secondary">{product.category}</Badge>}
+          {product.isHit && <Badge className="bg-rose-500 text-white">Хит продаж</Badge>}
+        </div>
+      )}
 
       <div className="space-y-3">
         <PageTitle className="max-w-3xl text-foreground">{product.title}</PageTitle>
