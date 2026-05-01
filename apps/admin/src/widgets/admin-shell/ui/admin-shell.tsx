@@ -1,6 +1,6 @@
 import type { ReactNode } from "react";
 import type { LucideIcon } from "lucide-react";
-import { LogOut, Users } from "lucide-react";
+import { LogOut, PackageSearch, Users } from "lucide-react";
 
 import { logoutAdminAction } from "@/features/auth/model/logout-action";
 import { routes } from "@/shared/constants";
@@ -18,6 +18,7 @@ type AdminShellProps = {
 };
 
 const navigation: readonly NavigationItem[] = [
+  { label: "Товары", href: routes.products, Icon: PackageSearch },
   { label: "Пользователи", href: routes.users, Icon: Users },
 ];
 
