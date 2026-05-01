@@ -28,8 +28,8 @@ export type ProductDTO = {
   description?: string;
   status: ProductStatusDTO;
   isHit: boolean;
-  categoryId: string;
-  category: ProductCategoryDTO;
+  categoryId?: string;
+  category?: ProductCategoryDTO;
   price: number;
   priceRub: number;
   currency: ProductCurrencyDTO;
@@ -44,12 +44,14 @@ export type CreateProductInputDTO = {
   description?: string;
   status?: ProductStatusDTO;
   isHit?: boolean;
-  categoryId: string;
+  categoryId?: string;
   priceRub: number;
   currency?: ProductCurrencyDTO;
 };
 
-export type UpdateProductInputDTO = Partial<CreateProductInputDTO>;
+export type UpdateProductInputDTO = Partial<Omit<CreateProductInputDTO, "categoryId">> & {
+  categoryId?: string | null;
+};
 
 export type CreateProductCategoryInputDTO = {
   title: string;

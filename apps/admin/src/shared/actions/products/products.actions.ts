@@ -1,9 +1,6 @@
 "use server";
 
-import { revalidatePath } from "next/cache";
 import { cookies, headers } from "next/headers";
-
-import { routes } from "@/shared/constants";
 
 import type {
   CreateProductCategoryInputDTO,
@@ -11,7 +8,6 @@ import type {
   ProductCategoryDTO,
   ProductDTO,
   ProductImageDTO,
-  ProductStatusDTO,
   UpdateProductCategoryInputDTO,
   UpdateProductImageInputDTO,
   UpdateProductInputDTO,
@@ -102,6 +98,13 @@ export async function updateProductImage(
   );
 }
 
+export async function addProductImage(productId: string, formData: FormData) {
+  return requestAdminFormData<ProductImageDTO>(
+    `/products/${encodeURIComponent(productId)}/images`,
+    formData,
+  );
+}
+
 export async function deleteProductImage(productId: string, imageId: string) {
   return requestAdminApi<ProductImageDTO>(
     `/products/${encodeURIComponent(productId)}/images/${encodeURIComponent(imageId)}`,
@@ -109,112 +112,6 @@ export async function deleteProductImage(productId: string, imageId: string) {
       method: "DELETE",
     },
   );
-}
-
-export async function createProductAction(formData: FormData) {
-  await createProduct({
-    title: getRequiredString(formData.get("title"), "title"),
-    slug: getRequiredString(formData.get("slug"), "slug"),
-    description: getOptionalString(formData.get("description")),
-    status: getProductStatus(formData.get("status")),
-    isHit: getBoolean(formData.get("isHit")),
-    categoryId: getRequiredString(formData.get("categoryId"), "categoryId"),
-    priceRub: getRequiredInteger(formData.get("priceRub"), "priceRub"),
-    currency: "RUB",
-  });
-
-  revalidatePath(routes.products);
-}
-
-export async function updateProductAction(formData: FormData) {
-  const productId = getRequiredString(formData.get("productId"), "productId");
-
-  await updateProduct(productId, {
-    title: getRequiredString(formData.get("title"), "title"),
-    slug: getRequiredString(formData.get("slug"), "slug"),
-    description: getString(formData.get("description")),
-    status: getProductStatus(formData.get("status")),
-    isHit: getBoolean(formData.get("isHit")),
-    categoryId: getRequiredString(formData.get("categoryId"), "categoryId"),
-    priceRub: getRequiredInteger(formData.get("priceRub"), "priceRub"),
-    currency: "RUB",
-  });
-
-  revalidatePath(routes.products);
-}
-
-export async function deleteProductAction(formData: FormData) {
-  await deleteProduct(getRequiredString(formData.get("productId"), "productId"));
-  revalidatePath(routes.products);
-}
-
-export async function createProductCategoryAction(formData: FormData) {
-  await createProductCategory({
-    title: getRequiredString(formData.get("title"), "title"),
-    slug: getRequiredString(formData.get("slug"), "slug"),
-    image: getOptionalString(formData.get("image")),
-  });
-
-  revalidatePath(routes.products);
-}
-
-export async function updateProductCategoryAction(formData: FormData) {
-  const categoryId = getRequiredString(formData.get("categoryId"), "categoryId");
-
-  await updateProductCategory(categoryId, {
-    title: getRequiredString(formData.get("title"), "title"),
-    slug: getRequiredString(formData.get("slug"), "slug"),
-    image: getString(formData.get("image")),
-  });
-
-  revalidatePath(routes.products);
-}
-
-export async function deleteProductCategoryAction(formData: FormData) {
-  await deleteProductCategory(
-    getRequiredString(formData.get("categoryId"), "categoryId"),
-  );
-  revalidatePath(routes.products);
-}
-
-export async function addProductImageAction(formData: FormData) {
-  const productId = getRequiredString(formData.get("productId"), "productId");
-  const file = getRequiredFile(formData.get("file"));
-  const uploadFormData = new FormData();
-  const alt = getOptionalString(formData.get("alt"));
-
-  uploadFormData.set("file", file);
-
-  if (alt) {
-    uploadFormData.set("alt", alt);
-  }
-
-  await requestAdminFormData<ProductImageDTO>(
-    `/products/${encodeURIComponent(productId)}/images`,
-    uploadFormData,
-  );
-
-  revalidatePath(routes.products);
-}
-
-export async function updateProductImageAction(formData: FormData) {
-  const productId = getRequiredString(formData.get("productId"), "productId");
-  const imageId = getRequiredString(formData.get("imageId"), "imageId");
-
-  await updateProductImage(productId, imageId, {
-    alt: getString(formData.get("alt")),
-    sortOrder: getOptionalInteger(formData.get("sortOrder")),
-  });
-
-  revalidatePath(routes.products);
-}
-
-export async function deleteProductImageAction(formData: FormData) {
-  const productId = getRequiredString(formData.get("productId"), "productId");
-  const imageId = getRequiredString(formData.get("imageId"), "imageId");
-
-  await deleteProductImage(productId, imageId);
-  revalidatePath(routes.products);
 }
 
 async function requestAdminApi<T>(path: string, init: RequestInit = {}) {
@@ -257,72 +154,6 @@ async function requestAdmin<T>(path: string, init: RequestInit = {}) {
   }
 
   return (await response.json()) as T;
-}
-
-function getRequiredString(value: FormDataEntryValue | null, field: string) {
-  if (typeof value !== "string" || value.trim().length === 0) {
-    throw new Error(`${field} is required`);
-  }
-
-  return value.trim();
-}
-
-function getOptionalString(value: FormDataEntryValue | null) {
-  if (typeof value !== "string") {
-    return undefined;
-  }
-
-  const trimmed = value.trim();
-
-  return trimmed ? trimmed : undefined;
-}
-
-function getString(value: FormDataEntryValue | null) {
-  return typeof value === "string" ? value.trim() : "";
-}
-
-function getBoolean(value: FormDataEntryValue | null) {
-  return value === "on" || value === "true";
-}
-
-function getRequiredInteger(value: FormDataEntryValue | null, field: string) {
-  const parsed = Number(getRequiredString(value, field));
-
-  if (!Number.isSafeInteger(parsed) || parsed < 0) {
-    throw new Error(`${field} must be a non-negative integer`);
-  }
-
-  return parsed;
-}
-
-function getOptionalInteger(value: FormDataEntryValue | null) {
-  if (typeof value !== "string" || value.trim().length === 0) {
-    return undefined;
-  }
-
-  const parsed = Number(value);
-
-  if (!Number.isSafeInteger(parsed) || parsed < 0) {
-    throw new Error("sortOrder must be a non-negative integer");
-  }
-
-  return parsed;
-}
-
-function getProductStatus(value: FormDataEntryValue | null): ProductStatusDTO {
-  if (value === "draft" || value === "published" || value === "archived") {
-    return value;
-  }
-
-  throw new Error("Invalid product status");
-}
-
-function getRequiredFile(value: FormDataEntryValue | null) {
-  if (!(value instanceof File) || value.size === 0) {
-    throw new Error("Product image file is required");
-  }
-
-  return value;
 }
 
 function getApiBaseUrl() {

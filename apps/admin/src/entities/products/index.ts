@@ -5,4 +5,12 @@ export {
   getProductStatusBadgeVariant,
   getProductStatusLabel,
 } from "./lib";
-export type { Product, ProductCategory, ProductImage, ProductStatus } from "./model";
+export {
+  productsQueryKeys,
+  useCategories,
+  useProducts,
+  type Product,
+  type ProductCategory,
+  type ProductImage,
+  type ProductStatus,
+} from "./model";

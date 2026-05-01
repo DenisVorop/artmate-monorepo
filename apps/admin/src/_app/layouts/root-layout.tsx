@@ -1,6 +1,8 @@
 import type { Metadata } from "next";
 import type { ReactNode } from "react";
 
+import { AppProviders } from "@/app/providers";
+
 export const metadata: Metadata = {
   title: "Artmate Admin",
   description: "Административная панель Artmate",
@@ -17,7 +19,9 @@ type RootLayoutProps = {
 export function RootLayout({ children }: RootLayoutProps) {
   return (
     <html lang="ru">
-      <body>{children}</body>
+      <body>
+        <AppProviders>{children}</AppProviders>
+      </body>
     </html>
   );
 }
