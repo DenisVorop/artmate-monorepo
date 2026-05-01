@@ -1,0 +1,40 @@
+enum ProductStatus {
+  DRAFT     @map("draft")
+  PUBLISHED @map("published")
+  ARCHIVED  @map("archived")
+
+  @@map("product_status")
+}
+
+model Product {
+  id          String        @id @default(cuid()) @db.VarChar(32)
+  slug        String        @unique @db.VarChar(180)
+  title       String        @db.VarChar(220)
+  description String?       @db.Text
+  status      ProductStatus @default(DRAFT)
+  /// Price is stored in minor currency units.
+  /// For RUB this means kopecks: 129000 = 1290 ₽.
+  price       Int
+  currency    String        @default("RUB") @db.VarChar(3)
+  createdAt   DateTime      @default(now()) @map("created_at")
+  updatedAt   DateTime      @default(now()) @updatedAt @map("updated_at")
+
+  images ProductImage[]
+
+  @@index([status, createdAt])
+  @@map("products")
+}
+
+model ProductImage {
+  id        String   @id @default(cuid()) @db.VarChar(32)
+  productId String   @map("product_id") @db.VarChar(32)
+  url       String   @db.Text
+  alt       String?  @db.VarChar(220)
+  sortOrder Int      @default(0) @map("sort_order")
+  createdAt DateTime @default(now()) @map("created_at")
+
+  product Product @relation(fields: [productId], references: [id], onDelete: Cascade)
+
+  @@index([productId, sortOrder])
+  @@map("product_images")
+}

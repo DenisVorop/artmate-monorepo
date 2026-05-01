@@ -7,6 +7,7 @@ import { CartModule } from "./cart/cart.module";
 import { OrdersModule } from "./orders/orders.module";
 import { OzonModule } from "./ozon/ozon.module";
 import { PrismaModule } from "./prisma/prisma.module";
+import { ProductsModule } from "./products/products.module";
 import { UsersModule } from "./users/users.module";
 
 @Module({
@@ -16,6 +17,7 @@ import { UsersModule } from "./users/users.module";
     AuthModule,
     CartModule,
     OrdersModule,
+    ProductsModule,
     OzonModule,
   ],
   controllers: [AppController],
