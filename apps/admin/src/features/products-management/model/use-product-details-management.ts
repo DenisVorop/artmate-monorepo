@@ -8,37 +8,32 @@ import {
   productsQueryKeys,
   useCategories,
   useProduct,
-  type Product,
-  type ProductCategory,
 } from "@/entities/products";
 import { routes } from "@/shared/constants";
 
 type UseProductDetailsManagementParams = {
-  readonly categories: readonly ProductCategory[];
-  readonly product: Product;
+  readonly productId: string;
 };
 
 export function useProductDetailsManagement({
-  categories: initialCategories,
-  product: initialProduct,
+  productId,
 }: UseProductDetailsManagementParams) {
   const router = useRouter();
   const queryClient = useQueryClient();
   const {
     isError: isProductError,
+    isPending: isProductPending,
     product,
     refetch: refetchProduct,
   } = useProduct({
-    initialData: initialProduct,
-    productId: initialProduct.id,
+    productId,
   });
   const {
     categories,
     isError: isCategoriesError,
+    isPending: isCategoriesPending,
     refetch: refetchCategories,
-  } = useCategories({
-    initialData: initialCategories,
-  });
+  } = useCategories();
 
   const refreshProductView = useCallback(async () => {
     await Promise.all([
@@ -55,15 +50,16 @@ export function useProductDetailsManagement({
       queryKey: productsQueryKeys.list(),
     });
     queryClient.removeQueries({
-      queryKey: productsQueryKeys.detail(initialProduct.id),
+      queryKey: productsQueryKeys.detail(productId),
     });
     router.push(routes.products);
-  }, [initialProduct.id, queryClient, router]);
+  }, [productId, queryClient, router]);
 
   return {
     categories,
     handleProductDeleted,
     isError: isProductError || isCategoriesError,
+    isPending: isProductPending || isCategoriesPending,
     product,
     refreshProductView,
   };

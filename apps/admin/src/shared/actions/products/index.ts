@@ -12,6 +12,7 @@ export {
   updateProduct,
   updateProductImage,
 } from "./products.actions";
+export { productStatuses } from "./products.types";
 export type {
   CreateProductCategoryInputDTO,
   CreateProductInputDTO,

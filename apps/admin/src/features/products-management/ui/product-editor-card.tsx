@@ -1,5 +1,6 @@
 "use client";
 
+import { zodResolver } from "@hookform/resolvers/zod";
 import { useForm } from "react-hook-form";
 import { Trash2 } from "lucide-react";
 
@@ -23,7 +24,11 @@ import {
   CardTitle,
 } from "@/shared/ui";
 
-import type { ProductsRefreshCallback } from "../lib";
+import {
+  deleteProductFormSchema,
+  type DeleteProductFormValues,
+  type ProductsRefreshCallback,
+} from "../lib";
 import { useDeleteProduct } from "../model";
 import { ProductEditForm } from "./product-edit-form";
 import { ProductImagePreview } from "./product-image-preview";
@@ -34,10 +39,6 @@ type ProductEditorCardProps = {
   readonly onProductDeleted?: ProductsRefreshCallback;
   readonly onProductsChange: ProductsRefreshCallback;
   readonly product: Product;
-};
-
-type DeleteProductFormValues = {
-  readonly productId: string;
 };
 
 export function ProductEditorCard({
@@ -51,6 +52,7 @@ export function ProductEditorCard({
     defaultValues: {
       productId: product.id,
     },
+    resolver: zodResolver(deleteProductFormSchema),
   });
   const { isPending: isDeletingProduct, mutate: deleteProduct } =
     useDeleteProduct({

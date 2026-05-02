@@ -1,5 +1,6 @@
 "use client";
 
+import { zodResolver } from "@hookform/resolvers/zod";
 import { Controller, useForm } from "react-hook-form";
 import { Save } from "lucide-react";
 
@@ -9,6 +10,7 @@ import { Button, Input } from "@/shared/ui";
 import {
   getProductDefaultValues,
   getUpdateProductInput,
+  productFormSchema,
   type ProductFormValues,
   type ProductsRefreshCallback,
 } from "../lib";
@@ -34,6 +36,7 @@ export function ProductEditForm({
 }: ProductEditFormProps) {
   const { control, handleSubmit, register } = useForm<ProductFormValues>({
     defaultValues: getProductDefaultValues(product),
+    resolver: zodResolver(productFormSchema),
   });
   const { isPending: isUpdatingProduct, mutate: updateProduct } =
     useUpdateProduct({
@@ -52,10 +55,10 @@ export function ProductEditForm({
       onSubmit={submitForm}
     >
       <LabeledField label="Название">
-        <Input required {...register("title", { required: true })} />
+        <Input required {...register("title")} />
       </LabeledField>
       <LabeledField label="Slug">
-        <Input required {...register("slug", { required: true })} />
+        <Input required {...register("slug")} />
       </LabeledField>
       <LabeledField label="Цена, ₽">
         <Input
@@ -64,8 +67,6 @@ export function ProductEditForm({
           step={1}
           type="number"
           {...register("priceRub", {
-            min: 0,
-            required: true,
             valueAsNumber: true,
           })}
         />

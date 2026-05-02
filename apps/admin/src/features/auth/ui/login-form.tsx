@@ -2,6 +2,7 @@
 
 import { useState } from "react";
 import { useRouter } from "next/navigation";
+import { zodResolver } from "@hookform/resolvers/zod";
 import { useForm } from "react-hook-form";
 import { LoaderCircle, LogIn } from "lucide-react";
 
@@ -16,8 +17,15 @@ import {
   Input,
 } from "@/shared/ui";
 
-import { getAuthErrorMessage, getSafeRedirectPath } from "../lib";
-import { useLoginAdmin, type AdminLoginInput } from "../model";
+import {
+  adminLoginFormDefaultValues,
+  adminLoginFormSchema,
+  getAuthErrorMessage,
+  getSafeRedirectPath,
+  toAdminLoginInput,
+  type AdminLoginFormValues,
+} from "../lib";
+import { useLoginAdmin } from "../model";
 
 type LoginFormProps = {
   readonly nextPath?: string;
@@ -31,18 +39,16 @@ export function LoginForm({ nextPath = routes.users }: LoginFormProps) {
     register,
     handleSubmit,
     formState: { errors },
-  } = useForm<AdminLoginInput>({
-    defaultValues: {
-      login: "",
-      password: "",
-    },
+  } = useForm<AdminLoginFormValues>({
+    defaultValues: adminLoginFormDefaultValues,
+    resolver: zodResolver(adminLoginFormSchema),
   });
   const redirectPath = getSafeRedirectPath(nextPath);
   const submitForm = handleSubmit(async (values) => {
     setSubmitError(undefined);
 
     try {
-      await login(values);
+      await login(toAdminLoginInput(values));
       router.replace(redirectPath);
       router.refresh();
     } catch (error) {
@@ -67,9 +73,7 @@ export function LoginForm({ nextPath = routes.users }: LoginFormProps) {
               autoFocus
               aria-invalid={Boolean(errors.login)}
               required
-              {...register("login", {
-                required: "Введите логин",
-              })}
+              {...register("login")}
             />
             <FieldError message={errors.login?.message} />
           </label>
@@ -82,9 +86,7 @@ export function LoginForm({ nextPath = routes.users }: LoginFormProps) {
               aria-invalid={Boolean(errors.password)}
               required
               type="password"
-              {...register("password", {
-                required: "Введите пароль",
-              })}
+              {...register("password")}
             />
             <FieldError message={errors.password?.message} />
           </label>

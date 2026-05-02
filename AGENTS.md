@@ -21,7 +21,6 @@ Workspaces:
 - `apps/site` - основной Next.js сайт Artmate.
 - `apps/admin` - административная панель Artmate.
 - `apps/api` - backend на NestJS.
-- `apps/docs` - Next.js docs app.
 - `packages/ui` - stub React UI package для shared workspace-компонентов.
 - `packages/eslint-config`, `packages/typescript-config` - общие конфиги.
 
@@ -43,12 +42,11 @@ Workspace-команды запускай из корня по шаблону:
 yarn workspace <workspace> <script>
 ```
 
-Основные workspaces: `site`, `admin`, `api`, `docs`, `@repo/ui`. Основные scripts: `dev`, `lint`, `check-types`, `build`; у `@repo/ui` сейчас нужны в основном `lint` и `check-types`.
+Основные workspaces: `site`, `admin`, `api`, `@repo/ui`. Основные scripts: `dev`, `lint`, `check-types`, `build`; у `@repo/ui` сейчас нужны в основном `lint` и `check-types`.
 
 Порты по умолчанию:
 
 - `site` - `3000`.
-- `docs` - `3001`.
 - `api` - `3002`, можно переопределить через `PORT`.
 - `admin` - `3003`.
 
@@ -62,7 +60,7 @@ lsof -iTCP:<port> -sTCP:LISTEN -n -P
 
 ## Frontend
 
-Frontend workspaces: `apps/site`, `apps/admin`, `apps/docs`. Все frontend-приложения используют одинаковый базовый стек и FSD-подобную архитектуру.
+Frontend workspaces: `apps/site`, `apps/admin`. Все frontend-приложения используют одинаковый базовый стек и FSD-подобную архитектуру.
 
 Стек:
 
@@ -318,12 +316,11 @@ src/_pages/<page>/
 - Используй стандартные NestJS modules/controllers/services/providers. Не тащи frontend/FSD-паттерны в backend.
 - Для backend изменений запускай минимум `yarn workspace api check-types` и `yarn workspace api lint`; если меняется runtime/build output - `yarn workspace api build`.
 
-## Docs И Packages
+## Packages
 
-- `apps/docs` - frontend workspace с тем же стеком и архитектурными правилами, что `site` и `admin`.
 - `packages/ui` сейчас stub package с экспортом `./* -> ./src/*.tsx`.
 - `apps/site` и `apps/admin` используют shadcn primitives из своего `src/shared/ui`, а не `packages/ui`.
-- Если меняешь `packages/ui`, учитывай потребителей `apps/docs`, `apps/site` и `apps/admin`, запускай `yarn workspace @repo/ui check-types` и при необходимости проверки потребителей.
+- Если меняешь `packages/ui`, учитывай потребителей `apps/site` и `apps/admin`, запускай `yarn workspace @repo/ui check-types` и при необходимости проверки потребителей.
 - Если меняешь shared configs в `packages/eslint-config` или `packages/typescript-config`, запускай релевантные проверки во всех затронутых workspaces или корневые `yarn lint` / `yarn check-types`.
 
 ## Проверки
@@ -334,7 +331,6 @@ src/_pages/<page>/
 | --- | --- | --- |
 | `apps/site` | `yarn workspace site check-types` + `yarn workspace site lint` | `yarn workspace site build`, если затронуты route boundaries, metadata, Next Image, app router, data builders или hydration |
 | `apps/admin` | `yarn workspace admin check-types` + `yarn workspace admin lint` | `yarn workspace admin build`, если затронуты route boundaries, auth redirects, Next Image, app router, query providers или hydration |
-| `apps/docs` | `yarn workspace docs check-types` + `yarn workspace docs lint` | `yarn workspace docs build`, если затронуты route boundaries, metadata, Next Image, app router, data builders или hydration |
 | `apps/api` | `yarn workspace api check-types` + `yarn workspace api lint` | `yarn workspace api build`, если меняется runtime/build output |
 | `packages/ui` | `yarn workspace @repo/ui check-types` + `yarn workspace @repo/ui lint` | проверки потребителей, если меняется публичный UI API |
 | shared configs | релевантные workspace checks | корневые `yarn lint` / `yarn check-types`, если затронуто много workspaces |

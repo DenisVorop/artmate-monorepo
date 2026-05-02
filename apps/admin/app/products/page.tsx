@@ -1,9 +1,12 @@
 import { redirect } from "next/navigation";
+import { HydrationBoundary } from "@tanstack/react-query";
 
+import { productsQuery } from "@/entities/products";
 import { ProductsPage } from "@/pages/products";
 import { getAdminSession } from "@/shared/actions/auth";
-import { getAdminProducts, getProductCategories } from "@/shared/actions/products";
 import { routes } from "@/shared/constants";
+import { dehydrateQueryClient } from "@/shared/lib/dehydrate-query-client";
+import { getQueryClient } from "@/shared/lib/query-client";
 
 export { metadata } from "@/pages/products/metadata";
 
@@ -14,16 +17,16 @@ export default async function Page() {
     redirect(`${routes.login}?next=${encodeURIComponent(routes.products)}`);
   }
 
-  const [products, categories] = await Promise.all([
-    getAdminProducts(),
-    getProductCategories(),
+  const queryClient = getQueryClient();
+
+  await Promise.all([
+    queryClient.prefetchQuery(productsQuery.list()),
+    queryClient.prefetchQuery(productsQuery.categories()),
   ]);
 
   return (
-    <ProductsPage
-      categories={categories}
-      currentUser={session.user}
-      products={products}
-    />
+    <HydrationBoundary state={dehydrateQueryClient(queryClient)}>
+      <ProductsPage currentUser={session.user} />
+    </HydrationBoundary>
   );
 }

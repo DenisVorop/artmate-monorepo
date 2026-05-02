@@ -1,5 +1,6 @@
 "use client";
 
+import { zodResolver } from "@hookform/resolvers/zod";
 import { useForm } from "react-hook-form";
 import { ChevronDown, Save, Trash2, Upload } from "lucide-react";
 
@@ -7,8 +8,13 @@ import type { Product, ProductImage } from "@/entities/products";
 import { Badge, Button, Input } from "@/shared/ui";
 
 import {
+  createProductImageDefaultValues,
+  deleteProductImageFormSchema,
   getCreateProductImageFormData,
   getUpdateProductImageInput,
+  productImageCreateFormSchema,
+  productImageUpdateFormSchema,
+  type DeleteProductImageFormValues,
   type ProductImageCreateFormValues,
   type ProductImageUpdateFormValues,
   type ProductsRefreshCallback,
@@ -25,19 +31,13 @@ type ProductImagesProps = {
   readonly product: Product;
 };
 
-type DeleteProductImageFormValues = {
-  readonly imageId: string;
-  readonly productId: string;
-};
-
 export function ProductImages({
   onProductsChange,
   product,
 }: ProductImagesProps) {
   const { handleSubmit, register, reset } = useForm<ProductImageCreateFormValues>({
-    defaultValues: {
-      alt: "",
-    },
+    defaultValues: createProductImageDefaultValues,
+    resolver: zodResolver(productImageCreateFormSchema),
   });
   const { isPending: isAddingImage, mutate: addProductImage } =
     useAddProductImage({
@@ -94,7 +94,7 @@ export function ProductImages({
             accept="image/jpeg,image/png,image/webp"
             required
             type="file"
-            {...register("file", { required: true })}
+            {...register("file")}
           />
           <Input placeholder="Alt для изображения" {...register("alt")} />
           <Button disabled={isAddingImage} type="submit" variant="outline">
@@ -121,6 +121,7 @@ function ProductImageRow({
       alt: image.alt ?? "",
       sortOrder: image.sortOrder,
     },
+    resolver: zodResolver(productImageUpdateFormSchema),
   });
   const { isPending: isUpdatingImage, mutate: updateImage } =
     useUpdateProductImage({
@@ -136,6 +137,7 @@ function ProductImageRow({
         imageId: image.id,
         productId: product.id,
       },
+      resolver: zodResolver(deleteProductImageFormSchema),
     });
   const deleteImageFormId = `delete-image-${image.id}`;
   const submitUpdateForm = handleSubmit((values) => {

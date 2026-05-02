@@ -3,6 +3,7 @@
 import { useMemo, useState } from "react";
 import { useRouter, useSearchParams } from "next/navigation";
 import { ExternalLink, LoaderCircle, LogIn, UserPlus } from "lucide-react";
+import { zodResolver } from "@hookform/resolvers/zod";
 import { useForm } from "react-hook-form";
 
 import { routes } from "@/shared/constants";
@@ -24,21 +25,17 @@ import { Link } from "@/shared/ui/link";
 
 import {
   getAuthErrorMessage,
-  getOptionalAuthField,
   getSafeAuthRedirectPath,
+  loginFormSchema,
+  registerFormSchema,
+  toLoginInput,
+  toRegisterInput,
+  type LoginFormValues,
+  type RegisterFormValues,
 } from "../lib";
-import {
-  useLoginMutation,
-  useRegisterMutation,
-  type LoginInput,
-  type RegisterInput,
-} from "../model";
+import { useLoginMutation, useRegisterMutation } from "../model";
 
 type AuthMode = "login" | "register";
-
-type RegisterFormValues = RegisterInput & {
-  passwordConfirm: string;
-};
 
 export function AuthForm() {
   const [mode, setMode] = useState<AuthMode>("login");
@@ -80,12 +77,13 @@ function LoginForm() {
     register,
     handleSubmit,
     formState: { errors },
-  } = useForm<LoginInput>({
+  } = useForm<LoginFormValues>({
     defaultValues: {
       login: "",
       password: "",
     },
     mode: "onSubmit",
+    resolver: zodResolver(loginFormSchema),
   });
   const isSubmitting = isPending;
   const redirectPath = useMemo(
@@ -97,7 +95,7 @@ function LoginForm() {
     setSubmitError(undefined);
 
     try {
-      await login(values);
+      await login(toLoginInput(values));
       router.replace(redirectPath);
       router.refresh();
     } catch (error) {
@@ -114,13 +112,7 @@ function LoginForm() {
           type="text"
           autoComplete="username"
           aria-invalid={Boolean(errors.login)}
-          {...register("login", {
-            required: "Укажите логин",
-            minLength: {
-              value: 3,
-              message: "Логин должен быть длиннее 2 символов",
-            },
-          })}
+          {...register("login")}
         />
         <FieldError message={errors.login?.message} />
       </div>
@@ -132,9 +124,7 @@ function LoginForm() {
           type="password"
           autoComplete="current-password"
           aria-invalid={Boolean(errors.password)}
-          {...register("password", {
-            required: "Укажите пароль",
-          })}
+          {...register("password")}
         />
         <FieldError message={errors.password?.message} />
       </div>
@@ -163,7 +153,6 @@ function RegisterForm() {
   const {
     register,
     handleSubmit,
-    watch,
     formState: { errors },
   } = useForm<RegisterFormValues>({
     defaultValues: {
@@ -174,8 +163,8 @@ function RegisterForm() {
       passwordConfirm: "",
     },
     mode: "onSubmit",
+    resolver: zodResolver(registerFormSchema),
   });
-  const password = watch("password");
   const isSubmitting = isPending;
   const redirectPath = useMemo(
     () => getSafeAuthRedirectPath(searchParams.get("next")),
@@ -186,12 +175,7 @@ function RegisterForm() {
     setSubmitError(undefined);
 
     try {
-      await registerUser({
-        login: values.login,
-        password: values.password,
-        email: getOptionalAuthField(values.email),
-        name: getOptionalAuthField(values.name),
-      });
+      await registerUser(toRegisterInput(values));
       router.replace(redirectPath);
       router.refresh();
     } catch (error) {
@@ -208,13 +192,7 @@ function RegisterForm() {
           type="text"
           autoComplete="username"
           aria-invalid={Boolean(errors.login)}
-          {...register("login", {
-            required: "Укажите логин",
-            minLength: {
-              value: 3,
-              message: "Логин должен быть длиннее 2 символов",
-            },
-          })}
+          {...register("login")}
         />
         <FieldError message={errors.login?.message} />
       </div>
@@ -235,12 +213,7 @@ function RegisterForm() {
           type="email"
           autoComplete="email"
           aria-invalid={Boolean(errors.email)}
-          {...register("email", {
-            pattern: {
-              value: /^[^\s@]+@[^\s@]+\.[^\s@]+$/,
-              message: "Введите корректный email",
-            },
-          })}
+          {...register("email")}
         />
         <FieldError message={errors.email?.message} />
       </div>
@@ -252,13 +225,7 @@ function RegisterForm() {
           type="password"
           autoComplete="new-password"
           aria-invalid={Boolean(errors.password)}
-          {...register("password", {
-            required: "Укажите пароль",
-            minLength: {
-              value: 8,
-              message: "Пароль должен быть не короче 8 символов",
-            },
-          })}
+          {...register("password")}
         />
         <FieldError message={errors.password?.message} />
       </div>
@@ -270,9 +237,7 @@ function RegisterForm() {
           type="password"
           autoComplete="new-password"
           aria-invalid={Boolean(errors.passwordConfirm)}
-          {...register("passwordConfirm", {
-            validate: (value) => value === password || "Пароли не совпадают",
-          })}
+          {...register("passwordConfirm")}
         />
         <FieldError message={errors.passwordConfirm?.message} />
       </div>

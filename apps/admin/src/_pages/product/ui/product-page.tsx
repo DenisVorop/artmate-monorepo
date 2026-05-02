@@ -2,7 +2,6 @@ import Link from "next/link";
 import { ArrowLeft } from "lucide-react";
 
 import type { AuthUser } from "@/entities/session";
-import type { Product, ProductCategory } from "@/entities/products";
 import { SessionMenu } from "@/features/auth";
 import { ProductDetailsManagement } from "@/features/products-management";
 import { routes } from "@/shared/constants";
@@ -10,15 +9,13 @@ import { Badge, Button } from "@/shared/ui";
 import { AdminShell } from "@/widgets/admin-shell";
 
 type ProductPageProps = {
-  readonly categories: readonly ProductCategory[];
   readonly currentUser: AuthUser;
-  readonly product: Product;
+  readonly productId: string;
 };
 
 export function ProductPage({
-  categories,
   currentUser,
-  product,
+  productId,
 }: ProductPageProps) {
   return (
     <AdminShell activePath={routes.products}>
@@ -35,9 +32,9 @@ export function ProductPage({
               <Badge variant="outline">Карточка товара</Badge>
             </div>
             <h1 className="truncate text-3xl font-semibold tracking-normal sm:text-4xl">
-              {product.title}
+              Карточка товара
             </h1>
-            <p className="mt-2 text-sm text-muted-foreground">{product.slug}</p>
+            <p className="mt-2 text-sm text-muted-foreground">{productId}</p>
           </div>
 
           <div className="flex flex-col gap-2 sm:flex-row sm:items-center">
@@ -45,7 +42,7 @@ export function ProductPage({
           </div>
         </header>
 
-        <ProductDetailsManagement categories={categories} product={product} />
+        <ProductDetailsManagement productId={productId} />
       </section>
     </AdminShell>
   );

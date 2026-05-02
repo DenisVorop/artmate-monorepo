@@ -1,29 +1,24 @@
 "use client";
 
-import type { Product, ProductCategory } from "@/entities/products";
 import { Card, CardContent, CardHeader, CardTitle } from "@/shared/ui";
 
 import { useProductDetailsManagement } from "../model";
 import { ProductEditorCard } from "./product-editor-card";
 
 type ProductDetailsManagementProps = {
-  readonly categories: readonly ProductCategory[];
-  readonly product: Product;
+  readonly productId: string;
 };
 
-export function ProductDetailsManagement({
-  categories: initialCategories,
-  product: initialProduct,
-}: ProductDetailsManagementProps) {
+export function ProductDetailsManagement({ productId }: ProductDetailsManagementProps) {
   const {
     categories,
     handleProductDeleted,
     isError,
+    isPending,
     product,
     refreshProductView,
   } = useProductDetailsManagement({
-    categories: initialCategories,
-    product: initialProduct,
+    productId,
   });
 
   if (isError) {
@@ -34,6 +29,19 @@ export function ProductDetailsManagement({
         </CardHeader>
         <CardContent className="text-sm text-muted-foreground">
           Перезагрузите страницу и повторите действие.
+        </CardContent>
+      </Card>
+    );
+  }
+
+  if (isPending || !product) {
+    return (
+      <Card>
+        <CardHeader>
+          <CardTitle>Загрузка товара</CardTitle>
+        </CardHeader>
+        <CardContent className="text-sm text-muted-foreground">
+          Получаем данные карточки.
         </CardContent>
       </Card>
     );

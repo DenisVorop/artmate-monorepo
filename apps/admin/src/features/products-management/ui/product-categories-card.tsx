@@ -1,5 +1,6 @@
 "use client";
 
+import { zodResolver } from "@hookform/resolvers/zod";
 import { useForm } from "react-hook-form";
 import { Plus, Save, Trash2 } from "lucide-react";
 
@@ -7,9 +8,13 @@ import type { Product, ProductCategory } from "@/entities/products";
 import { Badge, Button, Card, CardContent, CardDescription, CardHeader, CardTitle, Input } from "@/shared/ui";
 
 import {
+  createProductCategoryDefaultValues,
+  deleteCategoryFormSchema,
   getCategoryProductsCount,
   getCreateCategoryInput,
   getUpdateCategoryInput,
+  productCategoryFormSchema,
+  type DeleteCategoryFormValues,
   type ProductCategoryFormValues,
   type ProductsRefreshCallback,
 } from "../lib";
@@ -27,21 +32,14 @@ type ProductCategoriesCardProps = {
   readonly products: readonly Product[];
 };
 
-type DeleteCategoryFormValues = {
-  readonly categoryId: string;
-};
-
 export function ProductCategoriesCard({
   categories,
   onProductsChange,
   products,
 }: ProductCategoriesCardProps) {
   const { handleSubmit, register, reset } = useForm<ProductCategoryFormValues>({
-    defaultValues: {
-      image: "",
-      slug: "",
-      title: "",
-    },
+    defaultValues: createProductCategoryDefaultValues,
+    resolver: zodResolver(productCategoryFormSchema),
   });
   const { isPending: isCreatingCategory, mutate: createCategory } =
     useCreateProductCategory({
@@ -70,14 +68,14 @@ export function ProductCategoriesCard({
             <Input
               placeholder="Котики"
               required
-              {...register("title", { required: true })}
+              {...register("title")}
             />
           </LabeledField>
           <LabeledField label="Slug">
             <Input
               placeholder="kotiki"
               required
-              {...register("slug", { required: true })}
+              {...register("slug")}
             />
           </LabeledField>
           <LabeledField label="Изображение">
@@ -136,6 +134,7 @@ function ProductCategoryRow({
       slug: category.slug,
       title: category.title,
     },
+    resolver: zodResolver(productCategoryFormSchema),
   });
   const { isPending: isUpdatingCategory, mutate: updateCategory } =
     useUpdateProductCategory({
@@ -150,6 +149,7 @@ function ProductCategoryRow({
       defaultValues: {
         categoryId: category.id,
       },
+      resolver: zodResolver(deleteCategoryFormSchema),
     });
   const submitUpdateForm = handleSubmit((values) => {
     updateCategory({
@@ -172,12 +172,12 @@ function ProductCategoryRow({
         <Input
           aria-label="Название категории"
           required
-          {...register("title", { required: true })}
+          {...register("title")}
         />
         <Input
           aria-label="Slug категории"
           required
-          {...register("slug", { required: true })}
+          {...register("slug")}
         />
         <Input
           aria-label="Изображение категории"

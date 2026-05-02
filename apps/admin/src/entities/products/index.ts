@@ -6,6 +6,7 @@ export {
   getProductStatusLabel,
 } from "./lib";
 export {
+  productsQuery,
   productsQueryKeys,
   useCategories,
   useProduct,

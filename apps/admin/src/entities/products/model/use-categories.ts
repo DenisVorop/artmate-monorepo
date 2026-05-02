@@ -2,24 +2,13 @@
 
 import { useQuery } from "@tanstack/react-query";
 
-import { getProductCategories } from "@/shared/actions/products";
+import { productsQuery } from "./query";
 
-import { productsQueryKeys } from "./query";
-import type { ProductCategory } from "./types";
-
-type UseCategoriesParams = {
-  readonly initialData: readonly ProductCategory[];
-};
-
-export function useCategories({ initialData }: UseCategoriesParams) {
-  const { data, isError, isPending, refetch } = useQuery({
-    initialData: [...initialData],
-    queryFn: getProductCategories,
-    queryKey: productsQueryKeys.categories(),
-  });
+export function useCategories() {
+  const { data, isError, isPending, refetch } = useQuery(productsQuery.categories());
 
   return {
-    categories: data,
+    categories: data ?? [],
     isError,
     isPending,
     refetch,

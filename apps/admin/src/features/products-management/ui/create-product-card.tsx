@@ -1,5 +1,6 @@
 "use client";
 
+import { zodResolver } from "@hookform/resolvers/zod";
 import { Controller, useForm } from "react-hook-form";
 import { Plus } from "lucide-react";
 
@@ -7,7 +8,9 @@ import type { ProductCategory } from "@/entities/products";
 import { Button, Card, CardContent, CardDescription, CardHeader, CardTitle, Input } from "@/shared/ui";
 
 import {
+  createProductDefaultValues,
   getCreateProductInput,
+  productFormSchema,
   type ProductFormValues,
   type ProductsRefreshCallback,
 } from "../lib";
@@ -30,15 +33,8 @@ export function CreateProductCard({
   onProductsChange,
 }: CreateProductCardProps) {
   const { control, handleSubmit, register, reset } = useForm<ProductFormValues>({
-    defaultValues: {
-      categoryId: "",
-      description: "",
-      isHit: false,
-      priceRub: 0,
-      slug: "",
-      status: "draft",
-      title: "",
-    },
+    defaultValues: createProductDefaultValues,
+    resolver: zodResolver(productFormSchema),
   });
   const { isPending: isCreatingProduct, mutate: createProduct } =
     useCreateProduct({
@@ -67,14 +63,14 @@ export function CreateProductCard({
             <Input
               placeholder="Постер Artmate"
               required
-              {...register("title", { required: true })}
+              {...register("title")}
             />
           </LabeledField>
           <LabeledField label="Slug">
             <Input
               placeholder="artmate-poster"
               required
-              {...register("slug", { required: true })}
+              {...register("slug")}
             />
           </LabeledField>
           <LabeledField label="Цена, ₽">
@@ -85,8 +81,6 @@ export function CreateProductCard({
               step={1}
               type="number"
               {...register("priceRub", {
-                min: 0,
-                required: true,
                 valueAsNumber: true,
               })}
             />

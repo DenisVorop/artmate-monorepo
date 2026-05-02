@@ -1,6 +1,7 @@
 "use client";
 
 import { CheckCircle2, Send } from "lucide-react";
+import { zodResolver } from "@hookform/resolvers/zod";
 import { useId, useState } from "react";
 import { useForm } from "react-hook-form";
 
@@ -17,6 +18,12 @@ import {
   Textarea,
 } from "@/shared/ui";
 
+import {
+  contactFormDefaultValues,
+  contactFormSchema,
+  type ContactFormValues,
+} from "../lib";
+
 const topics = [
   "Вопрос о\u00a0заказе",
   "Возврат или\u00a0обмен",
@@ -24,14 +31,6 @@ const topics = [
   "Пресса",
   "Другое",
 ];
-
-type ContactFormValues = {
-  email: string;
-  message: string;
-  name: string;
-  order: string;
-  topic: string;
-};
 
 export function ContactForm() {
   const [sent, setSent] = useState(false);
@@ -43,13 +42,8 @@ export function ContactForm() {
     setValue,
     watch,
   } = useForm<ContactFormValues>({
-    defaultValues: {
-      email: "",
-      message: "",
-      name: "",
-      order: "",
-      topic: "",
-    },
+    defaultValues: contactFormDefaultValues,
+    resolver: zodResolver(contactFormSchema),
   });
   const formId = useId();
   const selectedTopic = watch("topic");
@@ -137,9 +131,7 @@ export function ContactForm() {
                 autoComplete="name"
                 placeholder="Анна"
                 aria-invalid={Boolean(errors.name)}
-                {...register("name", {
-                  required: "Укажите имя",
-                })}
+                {...register("name")}
               />
               <FieldError message={errors.name?.message} />
             </div>
@@ -153,13 +145,7 @@ export function ContactForm() {
                 autoComplete="email"
                 placeholder="anna@example.com"
                 aria-invalid={Boolean(errors.email)}
-                {...register("email", {
-                  pattern: {
-                    value: /^[^\s@]+@[^\s@]+\.[^\s@]+$/,
-                    message: "Введите корректный email",
-                  },
-                  required: "Укажите email",
-                })}
+                {...register("email")}
               />
               <FieldError message={errors.email?.message} />
             </div>
@@ -187,9 +173,7 @@ export function ContactForm() {
               placeholder="Чем можем помочь?"
               className="min-h-32 resize-none"
               aria-invalid={Boolean(errors.message)}
-              {...register("message", {
-                required: "Напишите сообщение",
-              })}
+              {...register("message")}
             />
             <FieldError message={errors.message?.message} />
           </div>

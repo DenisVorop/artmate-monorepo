@@ -1,6 +1,7 @@
 "use client";
 
 import type { ComponentProps } from "react";
+import { zodResolver } from "@hookform/resolvers/zod";
 import { useForm } from "react-hook-form";
 import { Ban, Save, ShieldCheck, Unlock, UserRound } from "lucide-react";
 
@@ -10,10 +11,9 @@ import {
   getAdminUserProviderLabels,
   getAdminUserRoleLabel,
   getAdminUserStatusLabel,
-  type AdminUser,
-  type AdminUserRole,
-  type UserAccountStatus,
+  useUsers,
 } from "@/entities/users";
+import type { AdminUser } from "@/entities/users";
 import {
   Badge,
   Button,
@@ -32,26 +32,44 @@ import {
 } from "@/shared/ui";
 
 import { useUpdateUserRoles, useUpdateUserStatus } from "../model";
+import {
+  adminUserRoleOptions,
+  userAccountStatusFormSchema,
+  userRolesFormSchema,
+  type UserAccountStatusFormValues,
+  type UserRolesFormRole,
+  type UserRolesFormValues,
+} from "../lib";
 
 type UsersManagementProps = {
   readonly currentUserId: string;
-  readonly users: readonly AdminUser[];
 };
 
-const roleOptions: readonly AdminUserRole[] = ["customer", "admin"];
+export function UsersManagement({ currentUserId }: UsersManagementProps) {
+  const { isError, isPending, users } = useUsers();
 
-type UserRolesFormValues = {
-  readonly roles: AdminUserRole[];
-};
+  if (isError) {
+    return (
+      <Card>
+        <CardHeader>
+          <CardTitle>Не удалось загрузить пользователей</CardTitle>
+          <CardDescription>Перезагрузите страницу и повторите действие.</CardDescription>
+        </CardHeader>
+      </Card>
+    );
+  }
 
-type UserStatusFormValues = {
-  readonly status: Exclude<UserAccountStatus, "deleted">;
-};
+  if (isPending) {
+    return (
+      <Card>
+        <CardHeader>
+          <CardTitle>Загрузка пользователей</CardTitle>
+          <CardDescription>Получаем список аккаунтов.</CardDescription>
+        </CardHeader>
+      </Card>
+    );
+  }
 
-export function UsersManagement({
-  currentUserId,
-  users,
-}: UsersManagementProps) {
   return (
     <Card>
       <CardHeader>
@@ -168,11 +186,12 @@ function UserRolesForm({
     defaultValues: {
       roles: [...user.roles],
     },
+    resolver: zodResolver(userRolesFormSchema),
   });
   const { isPending, mutate: updateUserRoles } = useUpdateUserRoles();
   const submitForm = handleSubmit((values) => {
     const roles = isCurrentUser
-      ? Array.from(new Set<AdminUserRole>([...values.roles, "admin"]))
+      ? Array.from(new Set<UserRolesFormRole>([...values.roles, "admin"]))
       : values.roles;
 
     updateUserRoles({
@@ -184,7 +203,7 @@ function UserRolesForm({
   return (
     <form className="flex items-center gap-2" onSubmit={submitForm}>
       <div className="flex flex-wrap gap-2">
-        {roleOptions.map((role) => {
+        {adminUserRoleOptions.map((role) => {
           const roleInput = register("roles");
 
           return (
@@ -218,13 +237,14 @@ function UserStatusForm({
 }: {
   readonly isCurrentUser: boolean;
   readonly isDeleted: boolean;
-  readonly nextStatus: Exclude<UserAccountStatus, "deleted">;
+  readonly nextStatus: UserAccountStatusFormValues["status"];
   readonly user: AdminUser;
 }) {
-  const { handleSubmit, register } = useForm<UserStatusFormValues>({
+  const { handleSubmit, register } = useForm<UserAccountStatusFormValues>({
     defaultValues: {
       status: nextStatus,
     },
+    resolver: zodResolver(userAccountStatusFormSchema),
   });
   const { isPending, mutate: updateUserStatus } = useUpdateUserStatus();
   const submitForm = handleSubmit((values) => {
@@ -260,7 +280,7 @@ function RoleCheckbox({
 }: {
   readonly disabled: boolean;
   readonly inputProps: ComponentProps<"input">;
-  readonly role: AdminUserRole;
+  readonly role: UserRolesFormRole;
 }) {
   return (
     <label className="inline-flex h-7 items-center gap-2 rounded-lg border border-border px-2 text-xs font-medium">
@@ -280,7 +300,7 @@ function RoleCheckbox({
 }
 
 function getStatusBadgeVariant(
-  status: UserAccountStatus,
+  status: AdminUser["status"],
 ): "default" | "destructive" | "outline" {
   switch (status) {
     case "active":

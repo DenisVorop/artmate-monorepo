@@ -1,25 +1,41 @@
 "use client";
 
-import type { Product, ProductCategory } from "@/entities/products";
+import { Card, CardContent, CardHeader, CardTitle } from "@/shared/ui";
 
 import { useProductsManagement } from "../model";
 import { CreateProductCard } from "./create-product-card";
 import { ProductCategoriesCard } from "./product-categories-card";
 import { ProductsList } from "./products-list";
 
-type ProductsManagementProps = {
-  readonly categories: readonly ProductCategory[];
-  readonly products: readonly Product[];
-};
+export function ProductsManagement() {
+  const { categories, isError, isPending, products, refreshProductsView } =
+    useProductsManagement();
 
-export function ProductsManagement({
-  categories: initialCategories,
-  products: initialProducts,
-}: ProductsManagementProps) {
-  const { categories, products, refreshProductsView } = useProductsManagement({
-    categories: initialCategories,
-    products: initialProducts,
-  });
+  if (isError) {
+    return (
+      <Card>
+        <CardHeader>
+          <CardTitle>Не удалось загрузить каталог</CardTitle>
+        </CardHeader>
+        <CardContent className="text-sm text-muted-foreground">
+          Перезагрузите страницу и повторите действие.
+        </CardContent>
+      </Card>
+    );
+  }
+
+  if (isPending) {
+    return (
+      <Card>
+        <CardHeader>
+          <CardTitle>Загрузка каталога</CardTitle>
+        </CardHeader>
+        <CardContent className="text-sm text-muted-foreground">
+          Получаем товары и категории.
+        </CardContent>
+      </Card>
+    );
+  }
 
   return (
     <div className="grid gap-4">

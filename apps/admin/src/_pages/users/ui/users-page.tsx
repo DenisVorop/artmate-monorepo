@@ -1,5 +1,4 @@
 import type { AuthUser } from "@/entities/session";
-import type { AdminUser } from "@/entities/users";
 import { SessionMenu } from "@/features/auth";
 import { UsersManagement } from "@/features/users-management";
 import { routes } from "@/shared/constants";
@@ -8,10 +7,9 @@ import { Badge } from "@/shared/ui";
 
 type UsersPageProps = {
   readonly currentUser: AuthUser;
-  readonly users: readonly AdminUser[];
 };
 
-export function UsersPage({ currentUser, users }: UsersPageProps) {
+export function UsersPage({ currentUser }: UsersPageProps) {
   return (
     <AdminShell activePath={routes.users}>
       <section className="min-w-0 p-4 sm:p-6 lg:p-8">
@@ -28,7 +26,7 @@ export function UsersPage({ currentUser, users }: UsersPageProps) {
           </div>
         </header>
 
-        <UsersManagement currentUserId={currentUser.id} users={users} />
+        <UsersManagement currentUserId={currentUser.id} />
       </section>
     </AdminShell>
   );

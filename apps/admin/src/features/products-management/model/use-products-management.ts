@@ -5,31 +5,29 @@ import { useCallback } from "react";
 import {
   useCategories,
   useProducts,
-  type Product,
-  type ProductCategory,
 } from "@/entities/products";
 
-type UseProductsManagementParams = {
-  readonly categories: readonly ProductCategory[];
-  readonly products: readonly Product[];
-};
-
-export function useProductsManagement({
-  categories: initialCategories,
-  products: initialProducts,
-}: UseProductsManagementParams) {
-  const { products, refetch: refetchProducts } = useProducts({
-    initialData: initialProducts,
-  });
-  const { categories, refetch: refetchCategories } = useCategories({
-    initialData: initialCategories,
-  });
+export function useProductsManagement() {
+  const {
+    isError: isProductsError,
+    isPending: isProductsPending,
+    products,
+    refetch: refetchProducts,
+  } = useProducts();
+  const {
+    categories,
+    isError: isCategoriesError,
+    isPending: isCategoriesPending,
+    refetch: refetchCategories,
+  } = useCategories();
   const refreshProductsView = useCallback(async () => {
     await Promise.all([refetchProducts(), refetchCategories()]);
   }, [refetchCategories, refetchProducts]);
 
   return {
     categories,
+    isError: isProductsError || isCategoriesError,
+    isPending: isProductsPending || isCategoriesPending,
     products,
     refreshProductsView,
   };

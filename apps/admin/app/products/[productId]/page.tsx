@@ -1,10 +1,13 @@
 import type { Metadata } from "next";
 import { notFound, redirect } from "next/navigation";
+import { HydrationBoundary } from "@tanstack/react-query";
 
+import { productsQuery } from "@/entities/products";
 import { ProductPage } from "@/pages/product";
 import { getAdminSession } from "@/shared/actions/auth";
-import { getAdminProduct, getProductCategories } from "@/shared/actions/products";
 import { routes } from "@/shared/constants";
+import { dehydrateQueryClient } from "@/shared/lib/dehydrate-query-client";
+import { getQueryClient } from "@/shared/lib/query-client";
 
 export const metadata: Metadata = {
   title: "Товар - Artmate Admin",
@@ -26,23 +29,24 @@ export default async function Page({ params }: ProductRouteProps) {
     );
   }
 
-  const [product, categories] = await Promise.all([
-    getAdminProductOrNotFound(productId),
-    getProductCategories(),
-  ]);
+  const queryClient = getQueryClient();
+
+  await fetchAdminProductOrNotFound(queryClient, productId);
+  await queryClient.prefetchQuery(productsQuery.categories());
 
   return (
-    <ProductPage
-      categories={categories}
-      currentUser={session.user}
-      product={product}
-    />
+    <HydrationBoundary state={dehydrateQueryClient(queryClient)}>
+      <ProductPage currentUser={session.user} productId={productId} />
+    </HydrationBoundary>
   );
 }
 
-async function getAdminProductOrNotFound(productId: string) {
+async function fetchAdminProductOrNotFound(
+  queryClient: ReturnType<typeof getQueryClient>,
+  productId: string,
+) {
   try {
-    return await getAdminProduct(productId);
+    await queryClient.fetchQuery(productsQuery.detail(productId));
   } catch (error) {
     if (isProductNotFoundError(error)) {
       notFound();

@@ -1,9 +1,12 @@
 import { redirect } from "next/navigation";
+import { HydrationBoundary } from "@tanstack/react-query";
 
+import { usersQuery } from "@/entities/users";
 import { UsersPage } from "@/pages/users";
 import { getAdminSession } from "@/shared/actions/auth";
-import { getAdminUsers } from "@/shared/actions/users";
 import { routes } from "@/shared/constants";
+import { dehydrateQueryClient } from "@/shared/lib/dehydrate-query-client";
+import { getQueryClient } from "@/shared/lib/query-client";
 
 export { metadata } from "@/pages/users/metadata";
 
@@ -14,7 +17,13 @@ export default async function Page() {
     redirect(`${routes.login}?next=${encodeURIComponent(routes.users)}`);
   }
 
-  const users = await getAdminUsers();
+  const queryClient = getQueryClient();
 
-  return <UsersPage currentUser={session.user} users={users} />;
+  await queryClient.prefetchQuery(usersQuery.list());
+
+  return (
+    <HydrationBoundary state={dehydrateQueryClient(queryClient)}>
+      <UsersPage currentUser={session.user} />
+    </HydrationBoundary>
+  );
 }

@@ -1,4 +1,6 @@
-import type { ProductStatus } from "@/entities/products";
+import { z } from "zod";
+
+import { productStatuses, type ProductStatusDTO } from "@/shared/actions/products";
 import type {
   CreateProductCategoryInputDTO,
   CreateProductInputDTO,
@@ -7,31 +9,88 @@ import type {
   UpdateProductInputDTO,
 } from "@/shared/actions/products";
 
-export type ProductFormValues = {
-  categoryId: string;
-  description: string;
-  isHit: boolean;
-  priceRub: number;
-  slug: string;
-  status: ProductStatus;
-  title: string;
-};
+const requiredTextSchema = (message: string) => z.string().trim().min(1, message);
+const optionalTextSchema = z.string().trim();
 
-export type ProductCategoryFormValues = {
-  image: string;
-  slug: string;
-  title: string;
-};
+export const productFormSchema = z.object({
+  categoryId: optionalTextSchema,
+  description: optionalTextSchema,
+  isHit: z.boolean(),
+  priceRub: z.number().finite("Укажите цену").min(0, "Цена не может быть отрицательной"),
+  slug: requiredTextSchema("Укажите slug"),
+  status: z.enum(productStatuses),
+  title: requiredTextSchema("Укажите название"),
+});
 
-export type ProductImageCreateFormValues = {
-  alt: string;
-  file: FileList;
-};
+export const productCategoryFormSchema = z.object({
+  image: optionalTextSchema,
+  slug: requiredTextSchema("Укажите slug"),
+  title: requiredTextSchema("Укажите название"),
+});
 
-export type ProductImageUpdateFormValues = {
-  alt: string;
-  sortOrder?: number;
-};
+export const productImageCreateFormSchema = z.object({
+  alt: optionalTextSchema,
+  file: z.custom<FileList>(
+    (value) =>
+      typeof FileList !== "undefined" &&
+      value instanceof FileList &&
+      Boolean(value.item(0)) &&
+      (value.item(0)?.size ?? 0) > 0,
+    "Выберите изображение",
+  ),
+});
+
+export const productImageUpdateFormSchema = z.object({
+  alt: optionalTextSchema,
+  sortOrder: z.number().int().min(0).optional(),
+});
+
+export const deleteProductFormSchema = z.object({
+  productId: requiredTextSchema("Не указан товар"),
+});
+
+export const deleteCategoryFormSchema = z.object({
+  categoryId: requiredTextSchema("Не указана категория"),
+});
+
+export const deleteProductImageFormSchema = z.object({
+  imageId: requiredTextSchema("Не указано изображение"),
+  productId: requiredTextSchema("Не указан товар"),
+});
+
+export type ProductFormValues = z.infer<typeof productFormSchema>;
+
+export type ProductCategoryFormValues = z.infer<typeof productCategoryFormSchema>;
+
+export type ProductImageCreateFormValues = z.infer<typeof productImageCreateFormSchema>;
+
+export type ProductImageUpdateFormValues = z.infer<typeof productImageUpdateFormSchema>;
+
+export type DeleteProductFormValues = z.infer<typeof deleteProductFormSchema>;
+
+export type DeleteCategoryFormValues = z.infer<typeof deleteCategoryFormSchema>;
+
+export type DeleteProductImageFormValues = z.infer<typeof deleteProductImageFormSchema>;
+
+export const createProductDefaultValues = {
+  categoryId: "",
+  description: "",
+  isHit: false,
+  priceRub: 0,
+  slug: "",
+  status: "draft",
+  title: "",
+} satisfies ProductFormValues;
+
+export const createProductCategoryDefaultValues = {
+  image: "",
+  slug: "",
+  title: "",
+} satisfies ProductCategoryFormValues;
+
+export const createProductImageDefaultValues = {
+  alt: "",
+} satisfies Partial<ProductImageCreateFormValues>;
 
 export function getProductDefaultValues({
   categoryId,
@@ -47,7 +106,7 @@ export function getProductDefaultValues({
   readonly isHit: boolean;
   readonly priceRub: number;
   readonly slug: string;
-  readonly status: ProductStatus;
+  readonly status: ProductStatusDTO;
   readonly title: string;
 }): ProductFormValues {
   return {
