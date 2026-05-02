@@ -1,5 +1,3 @@
-"use client";
-
 import { Catalog } from "@/features/catalog";
 import { Separator } from "@/shared/ui";
 import { Hero } from "./ui/hero";
