@@ -2,10 +2,20 @@
 
 import { CheckCircle2, Send } from "lucide-react";
 import { useId, useState } from "react";
-import type { FormEvent } from "react";
+import { useForm } from "react-hook-form";
 
-import { Button, Card, CardContent, CardDescription, CardHeader, CardTitle, Input, Label, Textarea } from "@/shared/ui";
 import { cn } from "@/shared/lib";
+import {
+  Button,
+  Card,
+  CardContent,
+  CardDescription,
+  CardHeader,
+  CardTitle,
+  Input,
+  Label,
+  Textarea,
+} from "@/shared/ui";
 
 const topics = [
   "Вопрос о\u00a0заказе",
@@ -15,14 +25,41 @@ const topics = [
   "Другое",
 ];
 
-export function ContactForm() {
-  const [activeTopic, setActiveTopic] = useState<string | null>(null);
-  const [sent, setSent] = useState(false);
-  const formId = useId();
+type ContactFormValues = {
+  email: string;
+  message: string;
+  name: string;
+  order: string;
+  topic: string;
+};
 
-  const handleSubmit = (event: FormEvent<HTMLFormElement>) => {
-    event.preventDefault();
+export function ContactForm() {
+  const [sent, setSent] = useState(false);
+  const {
+    formState: { errors },
+    handleSubmit,
+    register,
+    reset,
+    setValue,
+    watch,
+  } = useForm<ContactFormValues>({
+    defaultValues: {
+      email: "",
+      message: "",
+      name: "",
+      order: "",
+      topic: "",
+    },
+  });
+  const formId = useId();
+  const selectedTopic = watch("topic");
+
+  const submitForm = handleSubmit(() => {
     setSent(true);
+  });
+  const handleSendAnother = () => {
+    reset();
+    setSent(false);
   };
 
   if (sent) {
@@ -39,7 +76,7 @@ export function ContactForm() {
               в&nbsp;Telegram.
             </CardDescription>
           </div>
-          <Button type="button" variant="outline" onClick={() => setSent(false)}>
+          <Button type="button" variant="outline" onClick={handleSendAnother}>
             Отправить ещё одно
           </Button>
         </CardContent>
@@ -56,14 +93,14 @@ export function ContactForm() {
         </CardDescription>
       </CardHeader>
       <CardContent>
-        <form onSubmit={handleSubmit} className="space-y-6">
-          <input hidden type="hidden" name="topic" value={activeTopic ?? ""} aria-hidden="true" />
+        <form onSubmit={submitForm} className="space-y-6">
+          <input hidden type="hidden" aria-hidden="true" {...register("topic")} />
 
           <fieldset className="space-y-3">
             <legend className="text-sm font-medium text-foreground">Тема обращения</legend>
             <div className="flex flex-wrap gap-2">
               {topics.map((topic) => {
-                const selected = activeTopic === topic;
+                const selected = selectedTopic === topic;
 
                 return (
                   <Button
@@ -72,7 +109,12 @@ export function ContactForm() {
                     size="sm"
                     variant={selected ? "default" : "outline"}
                     aria-pressed={selected}
-                    onClick={() => setActiveTopic(selected ? null : topic)}
+                    onClick={() =>
+                      setValue("topic", selected ? "" : topic, {
+                        shouldDirty: true,
+                        shouldTouch: true,
+                      })
+                    }
                     className={cn(
                       selected &&
                         "bg-rose-500 text-white hover:bg-rose-600 focus-visible:border-rose-300 focus-visible:ring-rose-400/30",
@@ -90,24 +132,36 @@ export function ContactForm() {
               <Label htmlFor={`${formId}-name`}>Имя</Label>
               <Input
                 id={`${formId}-name`}
-                name="name"
                 type="text"
                 required
                 autoComplete="name"
                 placeholder="Анна"
+                aria-invalid={Boolean(errors.name)}
+                {...register("name", {
+                  required: "Укажите имя",
+                })}
               />
+              <FieldError message={errors.name?.message} />
             </div>
 
             <div className="space-y-2">
               <Label htmlFor={`${formId}-email`}>Email</Label>
               <Input
                 id={`${formId}-email`}
-                name="email"
                 type="email"
                 required
                 autoComplete="email"
                 placeholder="anna@example.com"
+                aria-invalid={Boolean(errors.email)}
+                {...register("email", {
+                  pattern: {
+                    value: /^[^\s@]+@[^\s@]+\.[^\s@]+$/,
+                    message: "Введите корректный email",
+                  },
+                  required: "Укажите email",
+                })}
               />
+              <FieldError message={errors.email?.message} />
             </div>
           </div>
 
@@ -117,10 +171,10 @@ export function ContactForm() {
             </Label>
             <Input
               id={`${formId}-order`}
-              name="order"
               type="text"
               inputMode="text"
               placeholder="#12345"
+              {...register("order")}
             />
           </div>
 
@@ -128,12 +182,16 @@ export function ContactForm() {
             <Label htmlFor={`${formId}-message`}>Сообщение</Label>
             <Textarea
               id={`${formId}-message`}
-              name="message"
               required
               rows={5}
               placeholder="Чем можем помочь?"
               className="min-h-32 resize-none"
+              aria-invalid={Boolean(errors.message)}
+              {...register("message", {
+                required: "Напишите сообщение",
+              })}
             />
+            <FieldError message={errors.message?.message} />
           </div>
 
           <Button
@@ -148,4 +206,12 @@ export function ContactForm() {
       </CardContent>
     </Card>
   );
+}
+
+function FieldError({ message }: { readonly message?: string }) {
+  if (!message) {
+    return null;
+  }
+
+  return <p className="text-sm text-destructive">{message}</p>;
 }

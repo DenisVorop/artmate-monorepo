@@ -2,7 +2,7 @@
 
 import {
   useEffect,
-  useMemo,
+  useRef,
   useState,
   type InputHTMLAttributes,
   type ReactNode,
@@ -41,14 +41,14 @@ export function ProductDescriptionEditor({
   placeholder = "Описание товара",
   value: controlledValue,
 }: ProductDescriptionEditorProps) {
-  const initialContent = useMemo(
-    () => toEditorHtml(controlledValue ?? defaultValue),
-    [controlledValue, defaultValue],
+  const [value, setValue] = useState(() =>
+    toEditorHtml(controlledValue ?? defaultValue),
   );
-  const [value, setValue] = useState(initialContent);
+  const syncedValueRef = useRef(value);
+  const didNormalizeInitialValueRef = useRef(false);
 
   const editor = useEditor({
-    content: initialContent,
+    content: value,
     editable: !disabled,
     editorProps: {
       attributes: {
@@ -72,6 +72,7 @@ export function ProductDescriptionEditor({
     onUpdate: ({ editor: updatedEditor }) => {
       const nextValue = normalizeEditorHtml(updatedEditor.getHTML());
 
+      syncedValueRef.current = nextValue;
       setValue(nextValue);
       onValueChange?.(nextValue);
     },
@@ -82,28 +83,43 @@ export function ProductDescriptionEditor({
   }, [disabled, editor]);
 
   useEffect(() => {
-    setValue(initialContent);
-    editor?.commands.setContent(initialContent, { emitUpdate: false });
-    onValueChange?.(initialContent);
-  }, [editor, initialContent, onValueChange]);
-
-  useEffect(() => {
-    const form = editor?.view.dom.closest("form");
-
-    if (!form) {
+    if (didNormalizeInitialValueRef.current) {
       return;
     }
 
-    function handleReset() {
-      setValue(initialContent);
-      editor?.commands.setContent(initialContent, { emitUpdate: false });
-      onValueChange?.(initialContent);
+    didNormalizeInitialValueRef.current = true;
+
+    if (
+      controlledValue !== undefined &&
+      controlledValue !== syncedValueRef.current
+    ) {
+      onValueChange?.(syncedValueRef.current);
+    }
+  }, [controlledValue, onValueChange]);
+
+  useEffect(() => {
+    const nextValue = toEditorHtml(controlledValue ?? defaultValue);
+
+    if (nextValue === syncedValueRef.current) {
+      return;
     }
 
-    form.addEventListener("reset", handleReset);
+    syncedValueRef.current = nextValue;
+    setValue(nextValue);
+    editor?.commands.setContent(nextValue, { emitUpdate: false });
+  }, [controlledValue, defaultValue, editor]);
 
-    return () => form.removeEventListener("reset", handleReset);
-  }, [editor, initialContent, onValueChange]);
+  useEffect(() => {
+    if (!editor) {
+      return;
+    }
+
+    const editorValue = normalizeEditorHtml(editor.getHTML());
+
+    if (editorValue !== syncedValueRef.current) {
+      editor.commands.setContent(syncedValueRef.current, { emitUpdate: false });
+    }
+  }, [editor]);
 
   const isEmpty = !editor || editor.isEmpty;
 

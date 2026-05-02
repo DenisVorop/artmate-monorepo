@@ -22,7 +22,11 @@ import {
 } from "@/shared/ui";
 import { Link } from "@/shared/ui/link";
 
-import { getAuthErrorMessage } from "../lib";
+import {
+  getAuthErrorMessage,
+  getOptionalAuthField,
+  getSafeAuthRedirectPath,
+} from "../lib";
 import {
   useLoginMutation,
   useRegisterMutation,
@@ -84,7 +88,10 @@ function LoginForm() {
     mode: "onSubmit",
   });
   const isSubmitting = isPending;
-  const redirectPath = useMemo(() => getSafeRedirectPath(searchParams.get("next")), [searchParams]);
+  const redirectPath = useMemo(
+    () => getSafeAuthRedirectPath(searchParams.get("next")),
+    [searchParams],
+  );
 
   const submitForm = handleSubmit(async (values) => {
     setSubmitError(undefined);
@@ -170,7 +177,10 @@ function RegisterForm() {
   });
   const password = watch("password");
   const isSubmitting = isPending;
-  const redirectPath = useMemo(() => getSafeRedirectPath(searchParams.get("next")), [searchParams]);
+  const redirectPath = useMemo(
+    () => getSafeAuthRedirectPath(searchParams.get("next")),
+    [searchParams],
+  );
 
   const submitForm = handleSubmit(async (values) => {
     setSubmitError(undefined);
@@ -179,8 +189,8 @@ function RegisterForm() {
       await registerUser({
         login: values.login,
         password: values.password,
-        email: getOptionalValue(values.email),
-        name: getOptionalValue(values.name),
+        email: getOptionalAuthField(values.email),
+        name: getOptionalAuthField(values.name),
       });
       router.replace(redirectPath);
       router.refresh();
@@ -311,28 +321,5 @@ function FormError({ message }: { message?: string }) {
     <div className="rounded-lg border border-destructive/20 bg-destructive/10 px-3 py-2 text-sm text-destructive">
       {message}
     </div>
-  );
-}
-
-function getOptionalValue(value?: string) {
-  const normalizedValue = value?.trim();
-
-  return normalizedValue ? normalizedValue : undefined;
-}
-
-function getSafeRedirectPath(path: string | null) {
-  if (!path || !path.startsWith("/") || path.startsWith("//") || isAuthPath(path)) {
-    return routes.home;
-  }
-
-  return path;
-}
-
-function isAuthPath(path: string) {
-  return (
-    path === routes.auth ||
-    path.startsWith(`${routes.auth}/`) ||
-    path.startsWith(`${routes.auth}?`) ||
-    path.startsWith(`${routes.auth}#`)
   );
 }
