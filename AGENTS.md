@@ -18,12 +18,12 @@
 
 Workspaces:
 
-- `apps/site` — основной Next.js сайт Artmate.
-- `apps/admin` — административная панель Artmate.
-- `apps/api` — backend на NestJS.
-- `apps/docs` — Next.js docs app, сейчас близко к starter-шаблону.
-- `packages/ui` — stub React UI package для shared workspace-компонентов.
-- `packages/eslint-config` и `packages/typescript-config` — общие конфиги.
+- `apps/site` - основной Next.js сайт Artmate.
+- `apps/admin` - административная панель Artmate.
+- `apps/api` - backend на NestJS.
+- `apps/docs` - Next.js docs app.
+- `packages/ui` - stub React UI package для shared workspace-компонентов.
+- `packages/eslint-config`, `packages/typescript-config` - общие конфиги.
 
 Основные команды из корня:
 
@@ -37,60 +37,43 @@ yarn format
 
 `yarn format` пишет изменения во все `**/*.{ts,tsx,md}`, поэтому не запускай его без необходимости, если задача точечная.
 
-Workspace-команды:
+Workspace-команды запускай из корня по шаблону:
 
 ```bash
-yarn workspace site dev
-yarn workspace site lint
-yarn workspace site check-types
-yarn workspace site build
-
-yarn workspace admin dev
-yarn workspace admin lint
-yarn workspace admin check-types
-yarn workspace admin build
-
-yarn workspace api dev
-yarn workspace api lint
-yarn workspace api check-types
-yarn workspace api build
-
-yarn workspace docs dev
-yarn workspace docs lint
-yarn workspace docs check-types
-yarn workspace docs build
-
-yarn workspace @repo/ui lint
-yarn workspace @repo/ui check-types
+yarn workspace <workspace> <script>
 ```
+
+Основные workspaces: `site`, `admin`, `api`, `docs`, `@repo/ui`. Основные scripts: `dev`, `lint`, `check-types`, `build`; у `@repo/ui` сейчас нужны в основном `lint` и `check-types`.
 
 Порты по умолчанию:
 
-- `site` — `3000`.
-- `docs` — `3001`.
-- `api` — `3002`, можно переопределить через `PORT`.
-- `admin` — `3003`.
+- `site` - `3000`.
+- `docs` - `3001`.
+- `api` - `3002`, можно переопределить через `PORT`.
+- `admin` - `3003`.
 
-Если запускаешь dev-серверы для проверки задачи, после проверки останавливай все процессы, которые сам поднял, и проверяй, что соответствующие порты свободны через `lsof -iTCP:<port> -sTCP:LISTEN -n -P`.
+Если запускаешь dev-серверы для проверки задачи, после проверки останавливай все процессы, которые сам поднял, и проверяй порт:
+
+```bash
+lsof -iTCP:<port> -sTCP:LISTEN -n -P
+```
 
 Коммиты должны быть Conventional Commits. Husky запускает `yarn commitlint --edit "$1"`.
 
-## Архитектура frontend-приложений
+## Frontend
 
-Frontend workspaces: `apps/site`, `apps/admin`, `apps/docs`.
+Frontend workspaces: `apps/site`, `apps/admin`, `apps/docs`. Все frontend-приложения используют одинаковый базовый стек и FSD-подобную архитектуру.
 
-Основной frontend stack:
+Стек:
 
 - Next.js 16, App Router, React 19, TypeScript.
 - Tailwind CSS v4 через `app/globals.css`.
-- shadcn/ui (`radix-nova`) и `radix-ui` primitives, иконки `lucide-react`.
+- shadcn/ui (`radix-nova`), `radix-ui` primitives, `lucide-react`.
 - TanStack Query для client/server data cache и mutations.
-- React Hook Form для форм. Не добавляй новые формы на raw `FormData`, `useActionState` или ручном `useState`-парсинге, если нет сильной причины.
-- `apps/site` дополнительно использует `zod` и `@hookform/resolvers` для сложной валидации форм.
-- `apps/admin` использует тот же FSD-подход, TanStack Query mutations и React Hook Form для CRUD/login форм.
-- `apps/docs` пока starter app; если превращаешь его в продуктовую frontend app, приводи к этим же правилам.
+- React Hook Form для форм. Не добавляй новые формы на raw `FormData`, `useActionState` или ручном `useState`-парсинге без сильной причины.
+- `zod` используй для схем форм, `@hookform/resolvers` - для подключения этих схем к React Hook Form.
 
-Алиасы frontend-приложений с FSD-структурой (`apps/site`, `apps/admin`):
+Алиасы frontend-приложений:
 
 ```text
 @/app/*       -> src/_app/*
@@ -101,68 +84,65 @@ Frontend workspaces: `apps/site`, `apps/admin`, `apps/docs`.
 @/shared/*    -> src/shared/*
 ```
 
-Frontend apps используют FSD-подобную структуру. Импорты между слоями идут только вниз.
+Импорты между слоями идут только вниз. Внешние импорты slice делай через public API (`index.ts`), если он есть. Внутри одного feature/entity/ui-слайса sibling UI-компоненты могут импортировать друг друга напрямую относительными путями.
+
+Слои:
 
 ```text
-app/                         Next.js App Router, route binding
-src/_app/                    root layouts, providers, data builders, app-level types
-src/_pages/                  сборка страниц, page-local static UI, metadata
-src/features/                пользовательские сценарии и клиентская orchestration
-src/entities/                доменные типы, query options/hooks, selectors, read UI
-src/widgets/                 крупные layout widgets
-src/shared/                  shared ui, constants, lib, actions, primitives
+app/             route binding: metadata, generateStaticParams, generateMetadata,
+                 data builder, HydrationBoundary, notFound
+src/_app/        root layouts, providers, data builders, app-level types
+src/_pages/      сборка страницы из features/widgets/page-local static UI, metadata
+src/features/    сценарии, query/mutation orchestration, client state, формы,
+                 фильтры, provider/context, loading/error/empty states сценария
+src/entities/    доменные read-модели, query options/hooks, selectors, read-only UI
+src/widgets/     переиспользуемые крупные layout-блоки
+src/shared/      ui primitives, constants, lib, server actions
 ```
 
-`apps/docs` может оставаться проще, пока это starter/docs app без доменных сценариев. При появлении доменной логики добавляй те же слои и public API.
+Запрещено:
 
-### Правила слоев
+- `app/` не содержит page UI и бизнес-сценарии.
+- `src/_pages/` не читает hydrated entity query, не вызывает query/mutation hooks, не показывает query-driven `DataState` и не оркестрирует сценарии. Страница только собирает features, widgets и page-local static UI.
+- `src/entities/` не координирует пользовательские сценарии.
+- `src/shared/` не импортирует `_pages`, `features`, `entities` или `widgets`.
 
-- `app/` содержит route binding: экспорт metadata, `generateStaticParams`, `generateMetadata`, вызов data builder, `HydrationBoundary`, `notFound`-валидацию. Не размещай здесь page UI и бизнес-сценарии.
-- `src/_app/` содержит root layout, providers и data builders. Data builders могут импортировать query options/actions нужных slices для prehydrate, но не должны становиться UI-слоем.
-- `src/_pages/` собирает страницу из статичных page-ui блоков, entities и features. Логика фильтрации, форм, мутаций и пользовательских сценариев здесь запрещена. Page wrapper может читать hydrated entity query для page-level `DataState`.
-- `src/features/` содержит интерактивные сценарии, client state, context/provider, формы, фильтры, списки и orchestration.
-- `src/entities/` содержит доменные типы, query options/hooks, selectors, read-модели, карточки и entity UI. Entity не должна координировать сценарии.
-- `src/widgets/` содержит переиспользуемые крупные блоки layout уровня.
-- `src/shared/` не импортирует верхние слои. `shared/actions` — текущий server/mock API слой.
+## Data Flow И Формы
 
-Внешние импорты slice делай через public API (`index.ts`), если он есть. Внутри одного feature/entity/ui-слайса sibling UI-компоненты могут импортировать друг друга напрямую относительными путями.
+`shared/actions` - только слой запросов на сервер: server actions/API proxy. Здесь не должно быть UI orchestration, toast state, success/error UI contracts, feature-specific form logic и сценарных `revalidatePath(...)`.
 
-## Data Flow, Query и формы
-
-Базовый read data flow для hydrated frontend страниц:
+Базовый read data flow для hydrated frontend данных:
 
 ```text
 src/shared/actions/<domain>/*.actions.ts
   -> src/entities/<domain>/model/query.ts
   -> src/entities/<domain>/model/use-*.ts
-  -> src/_app/lib/*-data-builder.ts
+  -> src/_app/lib/*-data-builder.ts       optional SSR/RSC prefetch
   -> app/**/page.tsx + HydrationBoundary
-  -> src/_pages/** и src/features/**
+  -> src/_pages/**                        только сборка страницы
+  -> src/features/**                      чтение query hook и UI состояния данных
 ```
 
 Правила:
 
-- `shared/actions` сейчас хранит server/API proxy actions и mock/read data. Actions помечаются `"use server"` и возвращают `ApiResultDTO<T>` через `ApiResult.prepareApi(...)`, если это доменные read-запросы и app использует `ApiResult`.
-- Не клади feature-specific form actions, toast state, success/error UI contracts и `revalidatePath(...)` сценария в `shared/actions`. Это слой API-вызова; orchestration должна жить в `features/<feature>/model` или `features/<feature>/lib`.
-- Entity `model/query.ts` экспортирует `queryOptions(...)` со стабильным `queryKey`, обычно `staleTime: Infinity` и `retryOnMount: false` для статичных read/mock данных.
+- Entity `model/query.ts` экспортирует `queryOptions(...)` со стабильным `queryKey`, обычно `staleTime: Infinity` и `retryOnMount: false` для статичных read/server данных.
 - Entity hook (`use-*.ts`) должен быть отдельным `"use client"` файлом и оборачивать `useQuery(...)`.
-- Entity hook возвращает только те поля query result, которые реально нужны потребителям (`data`, `isError`, `isPending` и т.п.), а не весь объект `useQuery(...)` целиком без необходимости.
+- Entity hook возвращает только нужные потребителям поля (`data`, `isError`, `isPending` и т.п.), а не весь объект `useQuery(...)` без необходимости.
 - Для SSR/RSC prefetch используй data builders из `src/_app/lib`. Они кладут данные в `QueryClient` через `setApiResultQueryData(...)` или `prefetchQuery(...)`.
 - В route-файлах обезвоживай query client только через `dehydrateQueryClient(queryClient)`, потому что он сохраняет и error-состояния.
 - Для динамических страниц проверяй данные после build/prefetch и вызывай `notFound()` в route, если route params невалидны.
-- Новую hydrated страницу добавляй по цепочке: `shared/actions` -> entity query/hook -> data builder -> route `HydrationBoundary` -> page/feature UI.
 - `QueryStateProvider` в `shared/lib/query-state-manager` уже подключен в `AppProviders`; используй его для URL search params только когда состояние действительно должно жить в URL.
 - Feature mutations оформляй как hooks в `features/<feature>/model/use-<action>.ts`. UI не должен напрямую импортировать mutation actions из `shared/actions`.
-- Формы в frontend apps пиши через `react-hook-form`. Сборку DTO/payload выноси в `features/<feature>/lib`, mutation вызов — в `features/<feature>/model`, а UI оставляй за разметкой, регистрацией полей и отображением ошибок.
+- Формы пиши через `react-hook-form`. Сборку DTO/payload выноси в `features/<feature>/lib`, mutation hook - в `features/<feature>/model`, UI - за разметку, регистрацию полей и отображение ошибок.
 
-## `model` и `lib`
+## `model` И `lib`
 
-- В feature `model` используется для data/query слоя: query options, mutations, contracts, запросы к backend/DB.
-- UI-state, фильтрация на клиенте, форматтеры, URL helpers и provider logic не должны лежать в `model`.
+- В feature `model` держи только data/query/mutation слой сценария: query options, mutations, contracts, запросы к backend/DB.
+- UI-state, client-side фильтрацию/сортировку, форматтеры, URL helpers и provider logic держи в `lib`.
 - Для UI-state используй `lib/<domain>-state.ts`.
-- Все, что относится к provider, хранится в папке `lib/<feature>-provider/`.
+- Pure form value mappers/builders (`FormValues -> DTO`, validation helpers) держи в `features/<feature>/lib`.
 
-Provider-структура должна быть предсказуемой:
+Если feature нужен provider, структура обязательна:
 
 ```text
 src/features/<feature>/lib/<feature>-provider/
@@ -173,7 +153,7 @@ src/features/<feature>/lib/<feature>-provider/
   index.ts
 ```
 
-Provider подключай через HOC:
+Provider подключай только через HOC:
 
 ```tsx
 function BaseFeature() {
@@ -192,7 +172,7 @@ export const Feature = withFeature(BaseFeature);
 
 Каждый domain slice должен иметь ясную границу ответственности и public API.
 
-### Entity slice
+### Entity
 
 Рекомендуемая форма:
 
@@ -214,15 +194,15 @@ src/entities/<entity>/
 
 Правила:
 
-- `model/types.ts` описывает доменную read model. Если source of truth временно находится в `shared/actions`, entity может переэкспортировать типы оттуда.
+- `model/types.ts` описывает доменную read model или переэкспортирует generated/API types, если они являются source of truth.
 - `model/query.ts` содержит query options и query keys, но не client UI-state.
 - `model/use-*.ts` содержит client query hooks и всегда помечается `"use client"`.
 - `lib/*-selectors.ts` содержит чистые selectors и derived read helpers.
 - `ui/*` содержит read-only отображение entity. Допустим локальный UI-state для презентации, но не orchestration пользовательского сценария.
-- Entity UI не должен принимать scenario callbacks вроде `onAddToCart`, `onSave`, `onDelete`. Для действий используй generic slots/render props или feature wrapper, а сценарную логику держи в feature.
-- `index.ts` экспортирует только внешний контракт slice; не экспортируй внутренние детали без необходимости.
+- Entity UI может принимать action callbacks вроде `onAddToCart`, `onSave`, `onDelete`, если это простой публичный контракт отображения. Сценарная логика, mutations и orchestration остаются в feature; slots/render props используй только когда они реально упрощают композицию.
+- `index.ts` экспортирует только внешний контракт slice.
 
-### Feature slice
+### Feature
 
 Рекомендуемая форма:
 
@@ -245,18 +225,16 @@ src/features/<feature>/
 Правила:
 
 - Feature отвечает за сценарий: пользовательские действия, filters/search/sort, form state, mutations, active selection, optimistic UI, composition нескольких entities.
+- Feature сама читает нужные данные через entity/query hooks и сама показывает loading/error/empty states сценария.
 - `ui/<feature>.tsx` собирает feature из sibling UI-компонентов и подключает provider/HOC, если он нужен.
-- `lib/<feature>-state.ts` содержит чистую client-side логику состояния, фильтрации, сортировки и derived view data.
-- `lib` также подходит для pure form value mappers/builders: `FormValues -> DTO`, `FormValues -> FormData`, validation helpers.
-- `model` в feature используй только для data/query/mutation слоя сценария. Не клади туда форматтеры, URL helpers и client-only filters.
 - Каждую feature mutation выноси в отдельный файл с именем hook/action, например `use-update-cart-item-quantity.ts`. Не собирай несколько разных mutation hooks в общий `mutation.ts`.
-- Feature mutation hook не должен возвращать весь объект `useMutation(...)` без необходимости. Сразу деструктурируй из него только нужные поля, обычно `{ mutate, isPending }`, и возвращай их в таком же виде.
-- Если в компоненте используется несколько mutation hooks одновременно, одинаковые имена (`mutate`, `isPending`) переименовывай точечно при деструктуризации в компоненте, а не меняй контракт самих hooks.
-- Не выделяй мелкие одноразовые helper-функции вокруг mutation/query cache updates, например обертку только для `queryClient.setQueryData(...)`; inline-код в hook читается лучше. Выноси helper только если он переиспользуется или содержит нетривиальную логику.
-- Empty/error/loading states сценария должны жить в feature, если они зависят от состояния сценария. Общие dumb states можно брать из `shared/ui`.
+- Feature mutation hook не должен возвращать весь объект `useMutation(...)` без необходимости. Возвращай только нужные поля, обычно `{ mutate, isPending }`.
+- Feature mutation hook может принимать callbacks вроде `{ onSuccess, onError }` и прокидывать их в `useMutation(...)`, если потребителю нужна нетривиальная реакция. Простые локальные эффекты сценария, например toast, можно держать прямо в `onSuccess` / `onError` внутри mutation hook.
+- Если в компоненте используется несколько mutation hooks одновременно, одинаковые имена (`mutate`, `isPending`) переименовывай при деструктуризации в компоненте.
+- Не выделяй мелкие одноразовые helper-функции вокруг mutation/query cache updates. Выноси helper только если он переиспользуется или содержит нетривиальную логику.
 - Feature может передавать entity UI display/optimization props, но entity UI не должна знать, из какой feature она вызвана.
 
-### Page slice
+### Page
 
 Рекомендуемая форма:
 
@@ -272,28 +250,39 @@ src/_pages/<page>/
 
 Правила:
 
-- Page slice собирает route-level experience из page-local static UI, entities, widgets и features.
-- Page-local `ui` подходит для статичных секций, layout и контента, привязанного к одной странице.
-- Не размещай в `_pages` бизнес-сценарии, фильтрацию, form mutations и provider orchestration.
-- Page wrapper может показывать page-level `DataState`, если hydrated data отсутствует или пришла с ошибкой.
+- Page slice только собирает route-level experience из features, widgets и page-local static UI.
+- Не размещай в `_pages` query/mutation hooks, бизнес-сценарии, фильтрацию, form mutations, provider orchestration и query-driven `DataState`.
+- Не прокидывай через `_pages` данные, которые feature может получить сама через entity/query hook.
+- Не прокидывай callbacks сценария через page, если action принадлежит feature.
+- Props page -> feature оставляй только для настоящей конфигурации страницы: `initialCategoryId`, `className`, slots/render props, статичные route-level параметры.
+- Если feature используется в разных местах и должна оставаться prop-driven, разделяй `<Feature>` - контейнер с query/mutation orchestration, и `Base<Feature>` - чистый UI по props для внутреннего переиспользования.
 
-### Shared slice
+### Page-Local Static UI
 
-- `shared/ui` — shadcn primitives и общие dumb-компоненты без доменной логики.
-- `shared/lib` — инфраструктурные helpers, query client, hydration, event/query-state managers, API result wrappers.
-- `shared/constants` — маршруты, внешние ссылки и site config.
-- `shared/actions` — временный server/mock API слой. Не импортируй из него напрямую в UI, если для домена уже есть entity query/hook.
-- `shared` не должен импортировать `_pages`, `features`, `entities` или `widgets`.
+Если блок страницы является статичной версткой или маркетинговой секцией, привязанной к одной странице, держи его в `src/_pages/<page>/ui`.
 
-## UI и shadcn/ui
+- Не выноси page-local static blocks в `features`, `entities`, `shared/actions` или `widgets`.
+- Не создавай `entity query`, `useQuery`, `DataBuilder`, `shared/actions` и `ApiResult` для данных, которые являются локальными константами одной страницы.
+- Константы и типы для такого блока держи рядом с блоком: `src/_pages/<page>/ui/<block>/constants.ts`, либо прямо в компоненте, если данных мало.
+- Если статичные данные раньше лежали в `shared/actions`, но больше не являются серверным запросом, удаляй мертвый action/query/entity слой.
+
+### Widgets И Shared
+
+- `widgets` используй только для обособленных крупных layout-блоков, которые реально переиспользуются на разных страницах: header, footer, global nav и похожие элементы.
+- Не переноси page-local секции в `widgets` только ради уменьшения файла страницы.
+- `shared/ui` - shadcn primitives и общие dumb-компоненты без доменной логики.
+- `shared/lib` - инфраструктурные helpers, query client, hydration, event/query-state managers, API result wrappers.
+- `shared/constants` - маршруты, внешние ссылки и site config.
+- `shared/actions` - только server actions/API proxy.
+
+## UI И Styling
 
 - Максимально используй существующие shadcn/ui компоненты из `@/shared/ui`.
-- Если нужен новый shadcn primitive, добавляй через `npx shadcn add <component>` из конкретного frontend app (`apps/site` или `apps/admin`), где он нужен.
+- Если нужен новый shadcn primitive, добавляй через `npx shadcn add <component>` из конкретного frontend app, где он нужен.
 - `components.json` в frontend apps настроен на `style: "radix-nova"`, `rsc: false`, `iconLibrary: "lucide"`, aliases в `@/shared`.
 - Не пиши самодельные inputs/dropdowns/cards/buttons, если есть shadcn/ui аналог.
-- Локальные стили допустимы, но сначала держись дефолтной стилистики библиотеки и проекта.
 - Используй `cn` из `@/shared/lib` или `@/shared/lib/utils`.
-- Для статусов загрузки/ошибки/пустых данных используй общий `DataState`, если он подходит.
+- Для статусов загрузки/ошибки/пустых данных используй общий `DataState`, если он подходит и находится внутри feature.
 - Иконки бери из `lucide-react`, если подходящая иконка уже есть.
 - Не создавай папку с `index.tsx`, если внутри фактически один компонент. Предпочитай `component-name.tsx`.
 - Tailwind v4 подключен через `app/globals.css`, без отдельного `tailwind.config`.
@@ -308,30 +297,30 @@ src/_pages/<page>/
 - Названия должны отражать роль в текущем slice, а не весь путь.
 - Константы именуй в `camelCase`, не используй `SCREAMING_SNAKE_CASE`.
 - Для query hooks используй форму `use-<domain-data>.ts`.
-- Для query options используй `query.ts`; для типов модели — `types.ts`; для public API slice — `index.ts`.
+- Для query options используй `query.ts`; для типов модели - `types.ts`; для public API slice - `index.ts`.
 
-## Metadata, Routes и SEO
+## Metadata, Routes И SEO
 
 - Route constants держи в `src/shared/constants/routes.ts`.
 - Site-wide config и `getAbsoluteUrl` держи в `src/shared/constants/site.ts`.
 - Page metadata держи рядом со страницей в `src/_pages/<page>/metadata`.
 - Route files могут экспортировать metadata из `_pages`.
-- `app/sitemap.ts` должен использовать `routes`, `getAbsoluteUrl` и реальные read actions/selectors, не хардкодить динамические paths.
+- `app/sitemap.ts` должен использовать `routes`, `getAbsoluteUrl` и реальные server read actions/selectors, не хардкодить динамические paths.
 - `app/robots.ts` использует `siteConfig.url`; при изменении домена обновляй `NEXT_PUBLIC_SITE_URL` или default в `site.ts`.
 
-## `apps/api`
+## Backend
 
-`apps/api` — минимальное NestJS приложение.
+`apps/api` - минимальное NestJS приложение.
 
 - Entry point: `src/main.ts`.
 - Root module/controller/service: `src/app.module.ts`, `src/app.controller.ts`, `src/app.service.ts`.
 - Default port: `3002`, `PORT` валидируется как integer в диапазоне `0..65535`.
 - Используй стандартные NestJS modules/controllers/services/providers. Не тащи frontend/FSD-паттерны в backend.
-- Для backend изменений запускай минимум `yarn workspace api check-types` и `yarn workspace api lint`; если меняется runtime/build output — `yarn workspace api build`.
+- Для backend изменений запускай минимум `yarn workspace api check-types` и `yarn workspace api lint`; если меняется runtime/build output - `yarn workspace api build`.
 
-## `apps/docs` и `packages/ui`
+## Docs И Packages
 
-- `apps/docs` сейчас starter Next.js app на порту `3001`.
+- `apps/docs` - frontend workspace с тем же стеком и архитектурными правилами, что `site` и `admin`.
 - `packages/ui` сейчас stub package с экспортом `./* -> ./src/*.tsx`.
 - `apps/site` и `apps/admin` используют shadcn primitives из своего `src/shared/ui`, а не `packages/ui`.
 - Если меняешь `packages/ui`, учитывай потребителей `apps/docs`, `apps/site` и `apps/admin`, запускай `yarn workspace @repo/ui check-types` и при необходимости проверки потребителей.
@@ -339,45 +328,16 @@ src/_pages/<page>/
 
 ## Проверки
 
-После изменений в `apps/site` запускай минимум:
+Минимальные проверки после изменений:
 
-```bash
-yarn workspace site check-types
-yarn workspace site lint
-```
-
-Если затронуты route boundaries, metadata, Next Image, app router, data builders, hydration или imports между слоями, дополнительно запускай:
-
-```bash
-yarn workspace site build
-```
-
-После изменений в `apps/admin` запускай минимум:
-
-```bash
-yarn workspace admin check-types
-yarn workspace admin lint
-```
-
-Если затронуты route boundaries, auth redirects, Next Image, app router, query providers или imports между слоями, дополнительно запускай:
-
-```bash
-yarn workspace admin build
-```
-
-После изменений в `apps/api`:
-
-```bash
-yarn workspace api check-types
-yarn workspace api lint
-```
-
-После изменений в `apps/docs`:
-
-```bash
-yarn workspace docs check-types
-yarn workspace docs lint
-```
+| Изменения | Минимум | Дополнительно |
+| --- | --- | --- |
+| `apps/site` | `yarn workspace site check-types` + `yarn workspace site lint` | `yarn workspace site build`, если затронуты route boundaries, metadata, Next Image, app router, data builders или hydration |
+| `apps/admin` | `yarn workspace admin check-types` + `yarn workspace admin lint` | `yarn workspace admin build`, если затронуты route boundaries, auth redirects, Next Image, app router, query providers или hydration |
+| `apps/docs` | `yarn workspace docs check-types` + `yarn workspace docs lint` | `yarn workspace docs build`, если затронуты route boundaries, metadata, Next Image, app router, data builders или hydration |
+| `apps/api` | `yarn workspace api check-types` + `yarn workspace api lint` | `yarn workspace api build`, если меняется runtime/build output |
+| `packages/ui` | `yarn workspace @repo/ui check-types` + `yarn workspace @repo/ui lint` | проверки потребителей, если меняется публичный UI API |
+| shared configs | релевантные workspace checks | корневые `yarn lint` / `yarn check-types`, если затронуто много workspaces |
 
 После изменений только в документации (`*.md`) кодовые проверки обычно не нужны. Достаточно проверить diff и форматирование затронутого файла, если есть сомнения.
 
@@ -386,4 +346,4 @@ yarn workspace docs lint
 - Не откатывай чужие изменения.
 - Перед commit проверяй `git status --short` и staged diff.
 - Коммиты делай только по явному запросу пользователя.
-- В грязном worktree меняй только файлы, относящиеся к задаче. Сейчас в репозитории могут быть пользовательские изменения, не связанные с твоей задачей.
+- В грязном worktree меняй только файлы, относящиеся к задаче.
