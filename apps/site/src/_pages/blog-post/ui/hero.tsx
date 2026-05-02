@@ -14,7 +14,7 @@ export function Hero({ post }: HeroProps) {
     <section className="border-b bg-gradient-to-b from-muted/60 via-background to-background">
       <div className="container py-6 md:py-8">
         <div className="mx-auto flex max-w-4xl flex-col gap-5 md:gap-6">
-          <Breadcrumbs post={post} currentLabel={post.category} />
+          <Breadcrumbs post={post} />
 
           <div className="flex flex-col items-center gap-4 text-center">
             <Badge className="w-fit bg-rose-500 text-white">
