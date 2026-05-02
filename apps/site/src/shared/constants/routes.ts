@@ -4,9 +4,9 @@ export const routes = {
   authOAuth: (provider: string) => `/auth/oauth/${provider}`,
   account: "/account",
   cart: "/cart",
-  catalog: "/katalog",
-  raskraski: "/katalog/raskraski",
-  catalogCategory: (categorySlug: string) => `/katalog/raskraski/${categorySlug}`,
+  catalog: "/catalog",
+  raskraski: "/catalog/raskraski",
+  catalogCategory: (categorySlug: string) => `/catalog/raskraski/${categorySlug}`,
   blog: "/blog",
   blogPost: (id: string) => `/blog/${id}`,
   gallery: "/gallery",
@@ -17,8 +17,8 @@ export const routes = {
   faq: "/faq",
   product: (categorySlug: string | undefined, productSlug: string) =>
     categorySlug
-      ? `/katalog/raskraski/${categorySlug}/${productSlug}`
-      : `/katalog/raskraski/${productSlug}`,
+      ? `/catalog/raskraski/${categorySlug}/${productSlug}`
+      : `/catalog/raskraski/${productSlug}`,
   legal: {
     privacyPolicy: "/legal/privacy-policy",
     publicOffer: "/legal/public-offer",
