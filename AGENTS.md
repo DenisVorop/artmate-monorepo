@@ -19,6 +19,7 @@
 Workspaces:
 
 - `apps/site` — основной Next.js сайт Artmate.
+- `apps/admin` — административная панель Artmate.
 - `apps/api` — backend на NestJS.
 - `apps/docs` — Next.js docs app, сейчас близко к starter-шаблону.
 - `packages/ui` — stub React UI package для shared workspace-компонентов.
@@ -44,6 +45,11 @@ yarn workspace site lint
 yarn workspace site check-types
 yarn workspace site build
 
+yarn workspace admin dev
+yarn workspace admin lint
+yarn workspace admin check-types
+yarn workspace admin build
+
 yarn workspace api dev
 yarn workspace api lint
 yarn workspace api check-types
@@ -63,16 +69,28 @@ yarn workspace @repo/ui check-types
 - `site` — `3000`.
 - `docs` — `3001`.
 - `api` — `3002`, можно переопределить через `PORT`.
+- `admin` — `3003`.
 
 Если запускаешь dev-серверы для проверки задачи, после проверки останавливай все процессы, которые сам поднял, и проверяй, что соответствующие порты свободны через `lsof -iTCP:<port> -sTCP:LISTEN -n -P`.
 
 Коммиты должны быть Conventional Commits. Husky запускает `yarn commitlint --edit "$1"`.
 
-## Архитектура `apps/site`
+## Архитектура frontend-приложений
 
-`apps/site` — Next.js 16 + React 19, App Router, TypeScript, Tailwind CSS v4, shadcn/ui (`radix-nova`), TanStack Query.
+Frontend workspaces: `apps/site`, `apps/admin`, `apps/docs`.
 
-Алиасы из `apps/site/tsconfig.json`:
+Основной frontend stack:
+
+- Next.js 16, App Router, React 19, TypeScript.
+- Tailwind CSS v4 через `app/globals.css`.
+- shadcn/ui (`radix-nova`) и `radix-ui` primitives, иконки `lucide-react`.
+- TanStack Query для client/server data cache и mutations.
+- React Hook Form для форм. Не добавляй новые формы на raw `FormData`, `useActionState` или ручном `useState`-парсинге, если нет сильной причины.
+- `apps/site` дополнительно использует `zod` и `@hookform/resolvers` для сложной валидации форм.
+- `apps/admin` использует тот же FSD-подход, TanStack Query mutations и React Hook Form для CRUD/login форм.
+- `apps/docs` пока starter app; если превращаешь его в продуктовую frontend app, приводи к этим же правилам.
+
+Алиасы frontend-приложений с FSD-структурой (`apps/site`, `apps/admin`):
 
 ```text
 @/app/*       -> src/_app/*
@@ -83,7 +101,7 @@ yarn workspace @repo/ui check-types
 @/shared/*    -> src/shared/*
 ```
 
-Проект использует FSD-подобную структуру. Импорты между слоями идут только вниз.
+Frontend apps используют FSD-подобную структуру. Импорты между слоями идут только вниз.
 
 ```text
 app/                         Next.js App Router, route binding
@@ -94,6 +112,8 @@ src/entities/                доменные типы, query options/hooks, sel
 src/widgets/                 крупные layout widgets
 src/shared/                  shared ui, constants, lib, actions, primitives
 ```
+
+`apps/docs` может оставаться проще, пока это starter/docs app без доменных сценариев. При появлении доменной логики добавляй те же слои и public API.
 
 ### Правила слоев
 
@@ -107,9 +127,9 @@ src/shared/                  shared ui, constants, lib, actions, primitives
 
 Внешние импорты slice делай через public API (`index.ts`), если он есть. Внутри одного feature/entity/ui-слайса sibling UI-компоненты могут импортировать друг друга напрямую относительными путями.
 
-## Data Flow и Query
+## Data Flow, Query и формы
 
-Текущий read data flow в `site`:
+Базовый read data flow для hydrated frontend страниц:
 
 ```text
 src/shared/actions/<domain>/*.actions.ts
@@ -122,7 +142,8 @@ src/shared/actions/<domain>/*.actions.ts
 
 Правила:
 
-- `shared/actions` сейчас хранит server actions и mock/read data. Actions помечаются `"use server"` и возвращают `ApiResultDTO<T>` через `ApiResult.prepareApi(...)`, если это доменные read-запросы.
+- `shared/actions` сейчас хранит server/API proxy actions и mock/read data. Actions помечаются `"use server"` и возвращают `ApiResultDTO<T>` через `ApiResult.prepareApi(...)`, если это доменные read-запросы и app использует `ApiResult`.
+- Не клади feature-specific form actions, toast state, success/error UI contracts и `revalidatePath(...)` сценария в `shared/actions`. Это слой API-вызова; orchestration должна жить в `features/<feature>/model` или `features/<feature>/lib`.
 - Entity `model/query.ts` экспортирует `queryOptions(...)` со стабильным `queryKey`, обычно `staleTime: Infinity` и `retryOnMount: false` для статичных read/mock данных.
 - Entity hook (`use-*.ts`) должен быть отдельным `"use client"` файлом и оборачивать `useQuery(...)`.
 - Entity hook возвращает только те поля query result, которые реально нужны потребителям (`data`, `isError`, `isPending` и т.п.), а не весь объект `useQuery(...)` целиком без необходимости.
@@ -131,6 +152,8 @@ src/shared/actions/<domain>/*.actions.ts
 - Для динамических страниц проверяй данные после build/prefetch и вызывай `notFound()` в route, если route params невалидны.
 - Новую hydrated страницу добавляй по цепочке: `shared/actions` -> entity query/hook -> data builder -> route `HydrationBoundary` -> page/feature UI.
 - `QueryStateProvider` в `shared/lib/query-state-manager` уже подключен в `AppProviders`; используй его для URL search params только когда состояние действительно должно жить в URL.
+- Feature mutations оформляй как hooks в `features/<feature>/model/use-<action>.ts`. UI не должен напрямую импортировать mutation actions из `shared/actions`.
+- Формы в frontend apps пиши через `react-hook-form`. Сборку DTO/payload выноси в `features/<feature>/lib`, mutation вызов — в `features/<feature>/model`, а UI оставляй за разметкой, регистрацией полей и отображением ошибок.
 
 ## `model` и `lib`
 
@@ -196,6 +219,7 @@ src/entities/<entity>/
 - `model/use-*.ts` содержит client query hooks и всегда помечается `"use client"`.
 - `lib/*-selectors.ts` содержит чистые selectors и derived read helpers.
 - `ui/*` содержит read-only отображение entity. Допустим локальный UI-state для презентации, но не orchestration пользовательского сценария.
+- Entity UI не должен принимать scenario callbacks вроде `onAddToCart`, `onSave`, `onDelete`. Для действий используй generic slots/render props или feature wrapper, а сценарную логику держи в feature.
 - `index.ts` экспортирует только внешний контракт slice; не экспортируй внутренние детали без необходимости.
 
 ### Feature slice
@@ -223,6 +247,7 @@ src/features/<feature>/
 - Feature отвечает за сценарий: пользовательские действия, filters/search/sort, form state, mutations, active selection, optimistic UI, composition нескольких entities.
 - `ui/<feature>.tsx` собирает feature из sibling UI-компонентов и подключает provider/HOC, если он нужен.
 - `lib/<feature>-state.ts` содержит чистую client-side логику состояния, фильтрации, сортировки и derived view data.
+- `lib` также подходит для pure form value mappers/builders: `FormValues -> DTO`, `FormValues -> FormData`, validation helpers.
 - `model` в feature используй только для data/query/mutation слоя сценария. Не клади туда форматтеры, URL helpers и client-only filters.
 - Каждую feature mutation выноси в отдельный файл с именем hook/action, например `use-update-cart-item-quantity.ts`. Не собирай несколько разных mutation hooks в общий `mutation.ts`.
 - Feature mutation hook не должен возвращать весь объект `useMutation(...)` без необходимости. Сразу деструктурируй из него только нужные поля, обычно `{ mutate, isPending }`, и возвращай их в таком же виде.
@@ -263,8 +288,8 @@ src/_pages/<page>/
 ## UI и shadcn/ui
 
 - Максимально используй существующие shadcn/ui компоненты из `@/shared/ui`.
-- Если нужен новый shadcn primitive, добавляй через `npx shadcn add <component>` из `apps/site`.
-- `components.json` настроен на `style: "radix-nova"`, `rsc: false`, `iconLibrary: "lucide"`, aliases в `@/shared`.
+- Если нужен новый shadcn primitive, добавляй через `npx shadcn add <component>` из конкретного frontend app (`apps/site` или `apps/admin`), где он нужен.
+- `components.json` в frontend apps настроен на `style: "radix-nova"`, `rsc: false`, `iconLibrary: "lucide"`, aliases в `@/shared`.
 - Не пиши самодельные inputs/dropdowns/cards/buttons, если есть shadcn/ui аналог.
 - Локальные стили допустимы, но сначала держись дефолтной стилистики библиотеки и проекта.
 - Используй `cn` из `@/shared/lib` или `@/shared/lib/utils`.
@@ -273,8 +298,8 @@ src/_pages/<page>/
 - Не создавай папку с `index.tsx`, если внутри фактически один компонент. Предпочитай `component-name.tsx`.
 - Tailwind v4 подключен через `app/globals.css`, без отдельного `tailwind.config`.
 - Глобальные design tokens и utilities держи в `app/globals.css` только если они действительно общие.
-- SVG в `apps/site` настроены через SVGR: обычный import дает React-компонент, import с `?url` используй для URL-файла.
-- `next.config.js` разрешает remote images только с `images.unsplash.com`; для других remote images обнови `images.remotePatterns`.
+- SVG в `apps/site` настроены через SVGR: обычный import дает React-компонент, import с `?url` используй для URL-файла. В других frontend apps сначала проверь `next.config.js`.
+- Для remote images обновляй `images.remotePatterns` в `next.config.js` того app, где используется `next/image`.
 
 ## Naming
 
@@ -308,8 +333,8 @@ src/_pages/<page>/
 
 - `apps/docs` сейчас starter Next.js app на порту `3001`.
 - `packages/ui` сейчас stub package с экспортом `./* -> ./src/*.tsx`.
-- Основной сайт использует shadcn primitives из `apps/site/src/shared/ui`, а не `packages/ui`.
-- Если меняешь `packages/ui`, учитывай потребителей `apps/docs` и `apps/site`, запускай `yarn workspace @repo/ui check-types` и при необходимости проверки потребителей.
+- `apps/site` и `apps/admin` используют shadcn primitives из своего `src/shared/ui`, а не `packages/ui`.
+- Если меняешь `packages/ui`, учитывай потребителей `apps/docs`, `apps/site` и `apps/admin`, запускай `yarn workspace @repo/ui check-types` и при необходимости проверки потребителей.
 - Если меняешь shared configs в `packages/eslint-config` или `packages/typescript-config`, запускай релевантные проверки во всех затронутых workspaces или корневые `yarn lint` / `yarn check-types`.
 
 ## Проверки
@@ -325,6 +350,19 @@ yarn workspace site lint
 
 ```bash
 yarn workspace site build
+```
+
+После изменений в `apps/admin` запускай минимум:
+
+```bash
+yarn workspace admin check-types
+yarn workspace admin lint
+```
+
+Если затронуты route boundaries, auth redirects, Next Image, app router, query providers или imports между слоями, дополнительно запускай:
+
+```bash
+yarn workspace admin build
 ```
 
 После изменений в `apps/api`:

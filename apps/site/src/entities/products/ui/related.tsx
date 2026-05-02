@@ -1,13 +1,15 @@
+import type { ReactNode } from "react";
+
 import { SectionSubtitle, SectionTitle } from "@/shared/ui/typography";
 import type { Product } from "../model";
 import { ProductCard } from "./product-card";
 
 type RelatedProps = {
   products: Product[];
-  onAddToCart?: (_product: Product, _quantity?: number) => Promise<void> | void;
+  renderProductCard?: (_product: Product) => ReactNode;
 };
 
-export function Related({ products, onAddToCart }: RelatedProps) {
+export function Related({ products, renderProductCard }: RelatedProps) {
   if (products.length === 0) {
     return null;
   }
@@ -28,7 +30,7 @@ export function Related({ products, onAddToCart }: RelatedProps) {
               key={product.id}
               className="w-[min(82vw,20rem)] flex-none snap-start sm:w-auto sm:flex-auto"
             >
-              <ProductCard product={product} onAddToCart={onAddToCart} />
+              {renderProductCard ? renderProductCard(product) : <ProductCard product={product} />}
             </li>
           ))}
         </ul>

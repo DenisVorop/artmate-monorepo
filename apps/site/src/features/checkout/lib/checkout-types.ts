@@ -1,0 +1,10 @@
+export type {
+  CheckoutCalculationDTO as CheckoutCalculation,
+  CreateOrderInputDTO as CheckoutCreateOrderInput,
+  OrderDTO as CheckoutOrder,
+} from "@/shared/actions/orders";
+export type {
+  OzonDeliveryMapResponseDTO as CheckoutDeliveryMap,
+  OzonDeliveryPointInfoDTO as CheckoutDeliveryPoint,
+  OzonDeliveryViewportDTO as CheckoutDeliveryViewport,
+} from "@/shared/actions/ozon";

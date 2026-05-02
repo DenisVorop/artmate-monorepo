@@ -1,6 +1,6 @@
 "use client";
 
-import { createContext } from "react";
+import { createContext, type ReactNode } from "react";
 import type { Product, ProductCategory } from "@/entities/products";
 import type { SortValue } from "../catalog-state";
 
@@ -8,7 +8,7 @@ export type CatalogContextValue = {
   categories: readonly ProductCategory[];
   products: readonly Product[];
   filteredProducts: Product[];
-  onAddToCart?: (_product: Product, _quantity?: number) => Promise<void> | void;
+  renderProductCard?: (_product: Product, _index: number) => ReactNode;
   activeCategory?: ProductCategory;
   categoryId?: string;
   query: string;

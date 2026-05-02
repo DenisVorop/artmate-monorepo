@@ -2,7 +2,6 @@
 
 import { LoaderCircle, RotateCw } from "lucide-react";
 
-import type { OzonDeliveryMapResponseDTO, OzonDeliveryPointInfoDTO } from "@/shared/actions/ozon";
 import {
   Badge,
   Button,
@@ -21,6 +20,8 @@ import {
   checkoutDeliveryCities,
   getCheckoutDeliveryCity,
   getDeliveryPointKindLabel,
+  type CheckoutDeliveryMap,
+  type CheckoutDeliveryPoint,
   type CheckoutDeliveryCityId,
 } from "../lib";
 
@@ -30,8 +31,8 @@ import { PickupPointSkeleton } from "./pickup-point-skeleton";
 
 type PickupPointSelectorProps = {
   cityId: CheckoutDeliveryCityId;
-  map?: OzonDeliveryMapResponseDTO;
-  points: OzonDeliveryPointInfoDTO[];
+  map?: CheckoutDeliveryMap;
+  points: CheckoutDeliveryPoint[];
   selectedPickupPointId: string;
   isPending: boolean;
   isFetching: boolean;

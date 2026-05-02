@@ -3,7 +3,7 @@
 import { useHomeData } from "@/entities/home";
 import { useProductsData } from "@/entities/products";
 import { useReviewsData } from "@/entities/reviews";
-import { useAddProductToCart } from "@/features/cart";
+import { CartProductCard, useAddProductToCart } from "@/features/cart";
 import { DataState } from "@/shared/ui";
 import { HeroSection } from "./ui/hero-section";
 import { AdvantagesCarousel } from "./ui/advantages-carousel";
@@ -68,7 +68,9 @@ export function HomePage() {
         <Bestsellers
           products={visibleProductsData.products}
           className="py-4 md:py-8"
-          onAddToCart={addProductToCart}
+          renderProductCard={(product) => (
+            <CartProductCard product={product} onAddToCart={addProductToCart} />
+          )}
         />
       ) : (
         <section className="container py-4 md:py-8">

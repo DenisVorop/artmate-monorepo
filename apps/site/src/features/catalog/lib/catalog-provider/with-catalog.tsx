@@ -1,6 +1,6 @@
 "use client";
 
-import type { ComponentType } from "react";
+import type { ComponentType, ReactNode } from "react";
 import type { Product, ProductCategory } from "@/entities/products";
 import { CatalogProvider } from "./catalog-provider";
 
@@ -8,7 +8,7 @@ type WithCatalogProps = {
   categories: ProductCategory[];
   products: Product[];
   initialCategoryId?: string;
-  onAddToCart?: (_product: Product, _quantity?: number) => Promise<void> | void;
+  renderProductCard?: (_product: Product, _index: number) => ReactNode;
 };
 
 export function withCatalog(Component: ComponentType) {
@@ -16,14 +16,14 @@ export function withCatalog(Component: ComponentType) {
     categories,
     products,
     initialCategoryId,
-    onAddToCart,
+    renderProductCard,
   }: WithCatalogProps) {
     return (
       <CatalogProvider
         categories={categories}
         products={products}
         initialCategoryId={initialCategoryId}
-        onAddToCart={onAddToCart}
+        renderProductCard={renderProductCard}
       >
         <Component />
       </CatalogProvider>

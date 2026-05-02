@@ -2,17 +2,15 @@ import Image from "next/image";
 import { LoaderCircle } from "lucide-react";
 
 import type { Cart } from "@/entities/cart";
-import type { CheckoutCalculationDTO } from "@/shared/actions/orders";
-import type { OzonDeliveryPointInfoDTO } from "@/shared/actions/ozon";
 import { shouldBypassNextImageOptimization } from "@/shared/lib";
 import { Card, CardContent, CardDescription, CardHeader, CardTitle, Separator } from "@/shared/ui";
 
-import { formatMoney } from "../lib";
+import { formatMoney, type CheckoutCalculation, type CheckoutDeliveryPoint } from "../lib";
 
 type OrderSummaryProps = {
   cart: Cart;
-  calculation?: CheckoutCalculationDTO;
-  selectedPoint?: OzonDeliveryPointInfoDTO;
+  calculation?: CheckoutCalculation;
+  selectedPoint?: CheckoutDeliveryPoint;
   isCalculationPending: boolean;
   isCalculationError: boolean;
 };

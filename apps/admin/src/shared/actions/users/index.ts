@@ -1,11 +1,8 @@
 export {
   getAdminUsers,
   updateAdminUserRoles,
-  updateAdminUserRolesAction,
   updateAdminUserStatus,
-  updateAdminUserStatusAction,
 } from "./users.actions";
-export type { AdminUserActionState } from "./users.actions";
 export type {
   AdminUserAuthAccountDTO,
   AdminUserDTO,

@@ -2,19 +2,20 @@
 
 import { MapPin, Navigation } from "lucide-react";
 
-import type {
-  OzonDeliveryMapResponseDTO,
-  OzonDeliveryPointInfoDTO,
-  OzonDeliveryViewportDTO,
-} from "@/shared/actions/ozon";
 import { cn } from "@/shared/lib";
 
-import { getCheckoutDeliveryCity, type CheckoutDeliveryCityId } from "../lib";
+import {
+  getCheckoutDeliveryCity,
+  type CheckoutDeliveryCityId,
+  type CheckoutDeliveryMap,
+  type CheckoutDeliveryPoint,
+  type CheckoutDeliveryViewport,
+} from "../lib";
 
 type DeliveryMapProps = {
   cityId: CheckoutDeliveryCityId;
-  map?: OzonDeliveryMapResponseDTO;
-  points: OzonDeliveryPointInfoDTO[];
+  map?: CheckoutDeliveryMap;
+  points: CheckoutDeliveryPoint[];
   selectedPickupPointId: string;
   onPickupPointChange: (_pickupPointId: string) => void;
 };
@@ -83,7 +84,7 @@ export function DeliveryMap({
 
 function getMapPosition(
   coordinate: { lat: number; long: number },
-  viewport: OzonDeliveryViewportDTO,
+  viewport: CheckoutDeliveryViewport,
 ) {
   const minLat = Math.min(viewport.left_bottom.lat, viewport.right_top.lat);
   const maxLat = Math.max(viewport.left_bottom.lat, viewport.right_top.lat);

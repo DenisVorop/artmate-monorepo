@@ -3,7 +3,6 @@
 import { CheckCircle2, ShoppingBag } from "lucide-react";
 import { useEffect, useRef, useState, type ReactNode } from "react";
 
-import type { OrderDTO } from "@/shared/actions/orders";
 import { routes } from "@/shared/constants";
 import {
   Button,
@@ -16,7 +15,7 @@ import {
 } from "@/shared/ui";
 import { Link } from "@/shared/ui/link";
 
-import { canConfirmPendingOrderPayment, formatMoney } from "../lib";
+import { canConfirmPendingOrderPayment, formatMoney, type CheckoutOrder } from "../lib";
 import { useConfirmOrderPaymentMutation } from "../model";
 
 type CheckoutSuccessProps = {
@@ -88,7 +87,7 @@ export function CheckoutSuccess({ orderId }: CheckoutSuccessProps) {
   return <CheckoutSuccessDetails order={order} />;
 }
 
-function CheckoutSuccessDetails({ order }: { order: OrderDTO }) {
+function CheckoutSuccessDetails({ order }: { order: CheckoutOrder }) {
   return (
     <section className="container py-10 md:py-14">
       <Card className="mx-auto max-w-3xl">

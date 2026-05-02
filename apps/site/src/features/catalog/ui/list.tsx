@@ -6,7 +6,7 @@ import { EmptyState } from "./empty-state";
 import { Summary } from "./summary";
 
 export function List() {
-  const { filteredProducts, onAddToCart } = useCatalog();
+  const { filteredProducts, renderProductCard } = useCatalog();
 
   return (
     <section className="container py-6">
@@ -16,11 +16,11 @@ export function List() {
         <ul className="grid gap-5 sm:grid-cols-2 lg:grid-cols-3 xl:grid-cols-4">
           {filteredProducts.map((product, index) => (
             <li key={product.id} className="h-full">
-              <ProductCard
-                product={product}
-                eagerImage={index === 0}
-                onAddToCart={onAddToCart}
-              />
+              {renderProductCard ? (
+                renderProductCard(product, index)
+              ) : (
+                <ProductCard product={product} eagerImage={index === 0} />
+              )}
             </li>
           ))}
         </ul>

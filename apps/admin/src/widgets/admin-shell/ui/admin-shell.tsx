@@ -2,7 +2,7 @@ import type { ReactNode } from "react";
 import type { LucideIcon } from "lucide-react";
 import { LogOut, PackageSearch, Users } from "lucide-react";
 
-import { logoutAdminAction } from "@/features/auth/model/logout-action";
+import { logoutAdminAction } from "@/features/auth";
 import { routes } from "@/shared/constants";
 import { Badge, Button } from "@/shared/ui";
 

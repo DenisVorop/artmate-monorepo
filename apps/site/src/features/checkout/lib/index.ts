@@ -8,6 +8,14 @@ export {
   type CheckoutFormValues,
 } from "./checkout-form";
 export { canConfirmPendingOrderPayment, markPendingOrderPayment } from "./checkout-payment-session";
+export type {
+  CheckoutCalculation,
+  CheckoutCreateOrderInput,
+  CheckoutDeliveryMap,
+  CheckoutDeliveryPoint,
+  CheckoutDeliveryViewport,
+  CheckoutOrder,
+} from "./checkout-types";
 export {
   checkoutDeliveryCities,
   getCheckoutDeliveryCity,

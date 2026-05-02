@@ -1,6 +1,8 @@
 "use client";
 
-import { useActionState } from "react";
+import { useState } from "react";
+import { useRouter } from "next/navigation";
+import { useForm } from "react-hook-form";
 import { LoaderCircle, LogIn } from "lucide-react";
 
 import { routes } from "@/shared/constants";
@@ -14,18 +16,39 @@ import {
   Input,
 } from "@/shared/ui";
 
-import { loginAdminAction } from "../model/login-action";
-import { initialLoginFormState } from "../model/login-state";
+import { getAuthErrorMessage, getSafeRedirectPath } from "../lib";
+import { useLoginAdmin, type AdminLoginInput } from "../model";
 
 type LoginFormProps = {
   readonly nextPath?: string;
 };
 
 export function LoginForm({ nextPath = routes.users }: LoginFormProps) {
-  const [state, formAction, isPending] = useActionState(
-    loginAdminAction,
-    initialLoginFormState,
-  );
+  const router = useRouter();
+  const [submitError, setSubmitError] = useState<string>();
+  const { isPending, mutate: login } = useLoginAdmin();
+  const {
+    register,
+    handleSubmit,
+    formState: { errors },
+  } = useForm<AdminLoginInput>({
+    defaultValues: {
+      login: "",
+      password: "",
+    },
+  });
+  const redirectPath = getSafeRedirectPath(nextPath);
+  const submitForm = handleSubmit(async (values) => {
+    setSubmitError(undefined);
+
+    try {
+      await login(values);
+      router.replace(redirectPath);
+      router.refresh();
+    } catch (error) {
+      setSubmitError(getAuthErrorMessage(error));
+    }
+  });
 
   return (
     <Card className="mx-auto w-full max-w-sm rounded-lg">
@@ -36,18 +59,19 @@ export function LoginForm({ nextPath = routes.users }: LoginFormProps) {
         </CardDescription>
       </CardHeader>
       <CardContent>
-        <form action={formAction} className="grid gap-4">
-          <input name="next" type="hidden" value={nextPath} />
-
+        <form className="grid gap-4" onSubmit={submitForm}>
           <label className="grid gap-1.5">
             <span className="text-sm font-medium">Логин</span>
             <Input
               autoComplete="username"
               autoFocus
-              defaultValue={state.values.login}
-              name="login"
+              aria-invalid={Boolean(errors.login)}
               required
+              {...register("login", {
+                required: "Введите логин",
+              })}
             />
+            <FieldError message={errors.login?.message} />
           </label>
 
           <label className="grid gap-1.5">
@@ -55,18 +79,22 @@ export function LoginForm({ nextPath = routes.users }: LoginFormProps) {
             <Input
               autoComplete="current-password"
               minLength={1}
-              name="password"
+              aria-invalid={Boolean(errors.password)}
               required
               type="password"
+              {...register("password", {
+                required: "Введите пароль",
+              })}
             />
+            <FieldError message={errors.password?.message} />
           </label>
 
-          {state.error ? (
+          {submitError ? (
             <p
               className="rounded-lg bg-destructive/10 px-3 py-2 text-sm text-destructive"
               role="alert"
             >
-              {state.error}
+              {submitError}
             </p>
           ) : null}
 
@@ -86,4 +114,12 @@ export function LoginForm({ nextPath = routes.users }: LoginFormProps) {
       </CardContent>
     </Card>
   );
+}
+
+function FieldError({ message }: { readonly message?: string }) {
+  if (!message) {
+    return null;
+  }
+
+  return <p className="text-sm text-destructive">{message}</p>;
 }

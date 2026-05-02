@@ -1,6 +1,6 @@
 "use client";
 
-import type { FormEvent } from "react";
+import { useForm } from "react-hook-form";
 import { Trash2 } from "lucide-react";
 
 import {
@@ -36,6 +36,10 @@ type ProductEditorCardProps = {
   readonly product: Product;
 };
 
+type DeleteProductFormValues = {
+  readonly productId: string;
+};
+
 export function ProductEditorCard({
   categories,
   onProductDeleted,
@@ -43,16 +47,18 @@ export function ProductEditorCard({
   product,
 }: ProductEditorCardProps) {
   const primaryImage = getProductPrimaryImage(product);
+  const { handleSubmit, register } = useForm<DeleteProductFormValues>({
+    defaultValues: {
+      productId: product.id,
+    },
+  });
   const { isPending: isDeletingProduct, mutate: deleteProduct } =
     useDeleteProduct({
       onSuccess: onProductDeleted ?? onProductsChange,
     });
-
-  function handleDeleteProductSubmit(event: FormEvent<HTMLFormElement>) {
-    event.preventDefault();
-
-    deleteProduct(product.id);
-  }
+  const submitDeleteForm = handleSubmit((values) => {
+    deleteProduct(values.productId);
+  });
 
   return (
     <Card>
@@ -76,7 +82,8 @@ export function ProductEditorCard({
           <Badge variant={getProductStatusBadgeVariant(product.status)}>
             {getProductStatusLabel(product.status)}
           </Badge>
-          <form onSubmit={handleDeleteProductSubmit}>
+          <form onSubmit={submitDeleteForm}>
+            <input type="hidden" {...register("productId")} />
             <Button
               aria-label={`Удалить товар ${product.title}`}
               disabled={isDeletingProduct}

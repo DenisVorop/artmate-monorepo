@@ -1,18 +1,15 @@
 "use client";
 
-import type { FormEvent } from "react";
+import { Controller, useForm } from "react-hook-form";
 import { Save } from "lucide-react";
 
 import type { Product, ProductCategory } from "@/entities/products";
 import { Button, Input } from "@/shared/ui";
 
 import {
-  getBoolean,
-  getNullableString,
-  getProductStatus,
-  getRequiredInteger,
-  getRequiredString,
-  getString,
+  getProductDefaultValues,
+  getUpdateProductInput,
+  type ProductFormValues,
   type ProductsRefreshCallback,
 } from "../lib";
 import { useUpdateProduct } from "../model";
@@ -35,65 +32,59 @@ export function ProductEditForm({
   onProductsChange,
   product,
 }: ProductEditFormProps) {
+  const { control, handleSubmit, register } = useForm<ProductFormValues>({
+    defaultValues: getProductDefaultValues(product),
+  });
   const { isPending: isUpdatingProduct, mutate: updateProduct } =
     useUpdateProduct({
       onSuccess: onProductsChange,
     });
-
-  function handleUpdateProductSubmit(event: FormEvent<HTMLFormElement>) {
-    event.preventDefault();
-
-    const formData = new FormData(event.currentTarget);
-
-    updateProduct(
-      {
-        input: {
-          categoryId: getNullableString(formData.get("categoryId")),
-          currency: "RUB",
-          description: getString(formData.get("description")),
-          isHit: getBoolean(formData.get("isHit")),
-          priceRub: getRequiredInteger(formData.get("priceRub"), "priceRub"),
-          slug: getRequiredString(formData.get("slug"), "slug"),
-          status: getProductStatus(formData.get("status")),
-          title: getRequiredString(formData.get("title"), "title"),
-        },
-        productId: product.id,
-      },
-    );
-  }
+  const submitForm = handleSubmit((values) => {
+    updateProduct({
+      input: getUpdateProductInput(values),
+      productId: product.id,
+    });
+  });
 
   return (
     <form
       className="grid gap-3 lg:grid-cols-[minmax(12rem,1.4fr)_minmax(10rem,1fr)_8rem_11rem_minmax(10rem,1fr)_6rem_auto]"
-      onSubmit={handleUpdateProductSubmit}
+      onSubmit={submitForm}
     >
       <LabeledField label="Название">
-        <Input name="title" required defaultValue={product.title} />
+        <Input required {...register("title", { required: true })} />
       </LabeledField>
       <LabeledField label="Slug">
-        <Input name="slug" required defaultValue={product.slug} />
+        <Input required {...register("slug", { required: true })} />
       </LabeledField>
       <LabeledField label="Цена, ₽">
         <Input
-          defaultValue={product.priceRub}
           min={0}
-          name="priceRub"
           required
           step={1}
           type="number"
+          {...register("priceRub", {
+            min: 0,
+            required: true,
+            valueAsNumber: true,
+          })}
         />
       </LabeledField>
       <LabeledField label="Статус">
-        <ProductStatusSelect defaultValue={product.status} />
+        <ProductStatusSelect
+          defaultValue={product.status}
+          selectProps={register("status")}
+        />
       </LabeledField>
       <LabeledField label="Категория">
         <ProductCategorySelect
           categories={categories}
           defaultValue={product.categoryId}
+          selectProps={register("categoryId")}
         />
       </LabeledField>
       <LabeledCheckbox label="Хит">
-        <input defaultChecked={product.isHit} name="isHit" type="checkbox" />
+        <input type="checkbox" {...register("isHit")} />
       </LabeledCheckbox>
       <div className="flex items-end">
         <Button
@@ -107,9 +98,16 @@ export function ProductEditForm({
         </Button>
       </div>
       <LabeledField className="lg:col-span-7" label="Описание">
-        <ProductDescriptionEditor
-          defaultValue={product.description}
+        <Controller
+          control={control}
           name="description"
+          render={({ field }) => (
+            <ProductDescriptionEditor
+              name={field.name}
+              onValueChange={field.onChange}
+              value={field.value}
+            />
+          )}
         />
       </LabeledField>
     </form>

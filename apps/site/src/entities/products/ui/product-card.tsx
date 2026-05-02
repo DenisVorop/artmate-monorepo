@@ -1,11 +1,9 @@
-"use client";
-
-import { Check, LoaderCircle, ShoppingBag } from "lucide-react";
 import Image from "next/image";
-import { useEffect, useRef, useState, type MouseEvent } from "react";
-import { Badge, Button } from "@/shared/ui";
+import type { ReactNode } from "react";
+
+import { Badge } from "@/shared/ui";
 import { routes } from "@/shared/constants";
-import { cn, shouldBypassNextImageOptimization } from "@/shared/lib";
+import { shouldBypassNextImageOptimization } from "@/shared/lib";
 import { AspectRatio } from "@/shared/ui/aspect-ratio";
 import { Card, CardContent, CardDescription, CardFooter, CardTitle } from "@/shared/ui/card";
 import { Link } from "@/shared/ui/link";
@@ -14,54 +12,18 @@ import type { Product } from "../model";
 interface ProductCardProps {
   product: Product;
   eagerImage?: boolean;
-  onAddToCart?: (_product: Product, _quantity?: number) => Promise<void> | void;
+  footerAction?: ReactNode;
+  mediaAction?: ReactNode;
 }
 
-export function ProductCard({ product, eagerImage = false, onAddToCart }: ProductCardProps) {
-  const [added, setAdded] = useState(false);
-  const [isAdding, setIsAdding] = useState(false);
-  const resetTimer = useRef<ReturnType<typeof setTimeout> | null>(null);
-
-  useEffect(() => {
-    return () => {
-      if (resetTimer.current) {
-        clearTimeout(resetTimer.current);
-      }
-    };
-  }, []);
-
-  const handleAdd = async (event: MouseEvent<HTMLButtonElement>) => {
-    event.preventDefault();
-    event.stopPropagation();
-
-    if (!onAddToCart || isAdding) {
-      return;
-    }
-
-    setIsAdding(true);
-
-    try {
-      await onAddToCart(product, 1);
-    } finally {
-      setIsAdding(false);
-    }
-
-    setAdded(true);
-
-    if (resetTimer.current) {
-      clearTimeout(resetTimer.current);
-    }
-
-    resetTimer.current = setTimeout(() => setAdded(false), 1800);
-  };
-
+export function ProductCard({
+  product,
+  eagerImage = false,
+  footerAction,
+  mediaAction,
+}: ProductCardProps) {
   const price = product.price.toLocaleString("ru-RU");
   const productHref = routes.product(product.categorySlug, product.slug);
-  const addButtonLabel = isAdding ? "Добавляем" : added ? "Добавлено" : "В корзину";
-  const AddIcon = isAdding ? LoaderCircle : added ? Check : ShoppingBag;
-  const addButtonClassName = added
-    ? "bg-emerald-500 text-white shadow-lg shadow-emerald-500/20 hover:bg-emerald-500 focus-visible:border-emerald-300 focus-visible:ring-emerald-400/30"
-    : "bg-gradient-to-r from-rose-500 to-orange-400 text-white shadow-lg shadow-rose-500/20 hover:from-rose-600 hover:to-orange-500 hover:shadow-rose-500/30 focus-visible:border-rose-300 focus-visible:ring-rose-400/30";
 
   return (
     <Card className="group/product h-full gap-0 py-0 transition-shadow duration-300 hover:shadow-md">
@@ -85,18 +47,11 @@ export function ProductCard({ product, eagerImage = false, onAddToCart }: Produc
           <Badge className="absolute top-3 left-3 bg-rose-500 text-white shadow-sm">Хит</Badge>
         )}
 
-        <div className="pointer-events-none absolute inset-0 hidden items-end bg-stone-900/20 p-4 opacity-0 transition-opacity duration-200 group-focus-within/product:opacity-100 group-hover/product:opacity-100 md:flex">
-          <Button
-            type="button"
-            size="lg"
-            onClick={handleAdd}
-            disabled={!onAddToCart || isAdding}
-            className={cn("pointer-events-auto w-full", addButtonClassName)}
-          >
-            <AddIcon data-icon="inline-start" className={cn(isAdding && "animate-spin")} />
-            {addButtonLabel}
-          </Button>
-        </div>
+        {mediaAction ? (
+          <div className="pointer-events-none absolute inset-0 hidden items-end bg-stone-900/20 p-4 opacity-0 transition-opacity duration-200 group-focus-within/product:opacity-100 group-hover/product:opacity-100 md:flex">
+            {mediaAction}
+          </div>
+        ) : null}
       </div>
 
       <CardContent className="flex flex-1 flex-col gap-1 px-4 pt-4 pb-3">
@@ -114,22 +69,7 @@ export function ProductCard({ product, eagerImage = false, onAddToCart }: Produc
 
       <CardFooter className="mt-auto justify-between gap-3 border-t-0 bg-transparent px-4 pt-0 pb-4">
         <p className="font-semibold text-stone-700">{price} ₽</p>
-        <Button
-          type="button"
-          size="icon-lg"
-          aria-label={
-            isAdding
-              ? `Добавляем ${product.title} в\u00a0корзину`
-              : added
-                ? "Добавлено в\u00a0корзину"
-                : `Добавить ${product.title} в\u00a0корзину`
-          }
-          onClick={handleAdd}
-          disabled={!onAddToCart || isAdding}
-          className={cn("md:hidden", addButtonClassName)}
-        >
-          <AddIcon className={cn(isAdding && "animate-spin")} />
-        </Button>
+        {footerAction}
       </CardFooter>
     </Card>
   );

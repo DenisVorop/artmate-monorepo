@@ -1,15 +1,16 @@
 "use client";
 
-import type { FormEvent } from "react";
+import { useForm } from "react-hook-form";
 import { Plus, Save, Trash2 } from "lucide-react";
 
 import type { Product, ProductCategory } from "@/entities/products";
 import { Badge, Button, Card, CardContent, CardDescription, CardHeader, CardTitle, Input } from "@/shared/ui";
 
 import {
-  getOptionalString,
-  getRequiredString,
-  getString,
+  getCategoryProductsCount,
+  getCreateCategoryInput,
+  getUpdateCategoryInput,
+  type ProductCategoryFormValues,
   type ProductsRefreshCallback,
 } from "../lib";
 import {
@@ -26,33 +27,31 @@ type ProductCategoriesCardProps = {
   readonly products: readonly Product[];
 };
 
+type DeleteCategoryFormValues = {
+  readonly categoryId: string;
+};
+
 export function ProductCategoriesCard({
   categories,
   onProductsChange,
   products,
 }: ProductCategoriesCardProps) {
+  const { handleSubmit, register, reset } = useForm<ProductCategoryFormValues>({
+    defaultValues: {
+      image: "",
+      slug: "",
+      title: "",
+    },
+  });
   const { isPending: isCreatingCategory, mutate: createCategory } =
     useCreateProductCategory({
       onSuccess: onProductsChange,
     });
-
-  function handleCreateCategorySubmit(event: FormEvent<HTMLFormElement>) {
-    event.preventDefault();
-
-    const form = event.currentTarget;
-    const formData = new FormData(form);
-
-    createCategory(
-      {
-        image: getOptionalString(formData.get("image")),
-        slug: getRequiredString(formData.get("slug"), "slug"),
-        title: getRequiredString(formData.get("title"), "title"),
-      },
-      {
-        onSuccess: () => form.reset(),
-      },
-    );
-  }
+  const submitForm = handleSubmit((values) => {
+    createCategory(getCreateCategoryInput(values), {
+      onSuccess: () => reset(),
+    });
+  });
 
   return (
     <Card>
@@ -65,16 +64,24 @@ export function ProductCategoriesCard({
       <CardContent className="grid gap-4">
         <form
           className="grid gap-3 lg:grid-cols-[minmax(10rem,1fr)_minmax(10rem,1fr)_minmax(12rem,1.5fr)_auto]"
-          onSubmit={handleCreateCategorySubmit}
+          onSubmit={submitForm}
         >
           <LabeledField label="Название">
-            <Input name="title" placeholder="Котики" required />
+            <Input
+              placeholder="Котики"
+              required
+              {...register("title", { required: true })}
+            />
           </LabeledField>
           <LabeledField label="Slug">
-            <Input name="slug" placeholder="kotiki" required />
+            <Input
+              placeholder="kotiki"
+              required
+              {...register("slug", { required: true })}
+            />
           </LabeledField>
           <LabeledField label="Изображение">
-            <Input name="image" placeholder="https://..." />
+            <Input placeholder="https://..." {...register("image")} />
           </LabeledField>
           <div className="flex items-end">
             <Button
@@ -92,9 +99,7 @@ export function ProductCategoriesCard({
         {categories.length > 0 ? (
           <div className="grid gap-3">
             {categories.map((category) => {
-              const productsCount = products.filter(
-                (product) => product.categoryId === category.id,
-              ).length;
+              const productsCount = getCategoryProductsCount(products, category.id);
 
               return (
                 <ProductCategoryRow
@@ -125,6 +130,13 @@ function ProductCategoryRow({
   readonly onProductsChange: ProductsRefreshCallback;
   readonly productsCount: number;
 }) {
+  const { handleSubmit, register } = useForm<ProductCategoryFormValues>({
+    defaultValues: {
+      image: category.image ?? "",
+      slug: category.slug,
+      title: category.title,
+    },
+  });
   const { isPending: isUpdatingCategory, mutate: updateCategory } =
     useUpdateProductCategory({
       onSuccess: onProductsChange,
@@ -133,29 +145,21 @@ function ProductCategoryRow({
     useDeleteProductCategory({
       onSuccess: onProductsChange,
     });
-
-  function handleUpdateCategorySubmit(event: FormEvent<HTMLFormElement>) {
-    event.preventDefault();
-
-    const formData = new FormData(event.currentTarget);
-
-    updateCategory(
-      {
+  const { handleSubmit: handleDeleteSubmit, register: registerDelete } =
+    useForm<DeleteCategoryFormValues>({
+      defaultValues: {
         categoryId: category.id,
-        input: {
-          image: getString(formData.get("image")),
-          slug: getRequiredString(formData.get("slug"), "slug"),
-          title: getRequiredString(formData.get("title"), "title"),
-        },
       },
-    );
-  }
-
-  function handleDeleteCategorySubmit(event: FormEvent<HTMLFormElement>) {
-    event.preventDefault();
-
-    deleteCategory(category.id);
-  }
+    });
+  const submitUpdateForm = handleSubmit((values) => {
+    updateCategory({
+      categoryId: category.id,
+      input: getUpdateCategoryInput(values),
+    });
+  });
+  const submitDeleteForm = handleDeleteSubmit((values) => {
+    deleteCategory(values.categoryId);
+  });
 
   return (
     <div className="grid gap-3 rounded-lg border p-3 lg:grid-cols-[3.5rem_minmax(10rem,1fr)_minmax(10rem,1fr)_minmax(12rem,1.5fr)_auto_auto_auto]">
@@ -164,24 +168,21 @@ function ProductCategoryRow({
         imageUrl={category.image}
         label={category.title}
       />
-      <form className="contents" onSubmit={handleUpdateCategorySubmit}>
+      <form className="contents" onSubmit={submitUpdateForm}>
         <Input
           aria-label="Название категории"
-          defaultValue={category.title}
-          name="title"
           required
+          {...register("title", { required: true })}
         />
         <Input
           aria-label="Slug категории"
-          defaultValue={category.slug}
-          name="slug"
           required
+          {...register("slug", { required: true })}
         />
         <Input
           aria-label="Изображение категории"
-          defaultValue={category.image}
-          name="image"
           placeholder="https://..."
+          {...register("image")}
         />
         <Button
           disabled={isUpdatingCategory}
@@ -193,7 +194,8 @@ function ProductCategoryRow({
         </Button>
       </form>
       <Badge variant="outline">{productsCount}</Badge>
-      <form onSubmit={handleDeleteCategorySubmit}>
+      <form onSubmit={submitDeleteForm}>
+        <input type="hidden" {...registerDelete("categoryId")} />
         <Button
           disabled={productsCount > 0 || isDeletingCategory}
           size="icon-sm"

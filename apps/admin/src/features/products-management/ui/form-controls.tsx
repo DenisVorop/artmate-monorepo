@@ -1,4 +1,4 @@
-import type { ReactNode } from "react";
+import type { ComponentProps, ReactNode } from "react";
 
 import { getProductStatusLabel, type ProductCategory, type ProductStatus } from "@/entities/products";
 
@@ -47,11 +47,17 @@ export function LabeledCheckbox({
 
 export function ProductStatusSelect({
   defaultValue,
+  selectProps,
 }: {
   readonly defaultValue: ProductStatus;
+  readonly selectProps?: ComponentProps<"select">;
 }) {
   return (
-    <select className={fieldClassName} defaultValue={defaultValue} name="status">
+    <select
+      className={fieldClassName}
+      defaultValue={defaultValue}
+      {...selectProps}
+    >
       {productStatusOptions.map((status) => (
         <option key={status} value={status}>
           {getProductStatusLabel(status)}
@@ -64,15 +70,17 @@ export function ProductStatusSelect({
 export function ProductCategorySelect({
   categories,
   defaultValue,
+  selectProps,
 }: {
   readonly categories: readonly ProductCategory[];
   readonly defaultValue?: string;
+  readonly selectProps?: ComponentProps<"select">;
 }) {
   return (
     <select
       className={fieldClassName}
       defaultValue={defaultValue ?? ""}
-      name="categoryId"
+      {...selectProps}
     >
       <option value="">Без категории</option>
       {categories.map((category) => (

@@ -1,6 +1,6 @@
 "use client";
 
-import { useAddProductToCart } from "@/features/cart";
+import { CartProductCard, useAddProductToCart } from "@/features/cart";
 import { ProductPurchase } from "@/features/product-purchase";
 import {
   Description,
@@ -117,7 +117,12 @@ export function ProductPage({ productId }: ProductPageProps) {
 
         <Separator />
 
-        <Related products={relatedProducts} onAddToCart={addProductToCart} />
+        <Related
+          products={relatedProducts}
+          renderProductCard={(relatedProduct) => (
+            <CartProductCard product={relatedProduct} onAddToCart={addProductToCart} />
+          )}
+        />
       </div>
     </main>
   );

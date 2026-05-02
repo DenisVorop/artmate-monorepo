@@ -6,7 +6,6 @@ import { useRouter } from "next/navigation";
 
 import { useCartData } from "@/entities/cart";
 import { useUser } from "@/entities/session";
-import type { CreateOrderInputDTO } from "@/shared/actions/orders";
 import { routes } from "@/shared/constants";
 import { Button, DataState } from "@/shared/ui";
 import { Link } from "@/shared/ui/link";
@@ -16,6 +15,7 @@ import { useCheckoutCalculation, useCreateOrderMutation, useOzonPickupPoints } f
 import {
   getSelectedDeliveryPoint,
   markPendingOrderPayment,
+  type CheckoutCreateOrderInput,
   type CheckoutCustomerDefaults,
   type CheckoutDeliveryCityId,
 } from "../lib";
@@ -69,7 +69,7 @@ export function Checkout() {
     setSelectedPickupPointId(firstAvailablePoint ? String(firstAvailablePoint.map_point_id) : "");
   }, [pointInfo, selectedPickupPointId]);
 
-  const handleSubmit = async (input: CreateOrderInputDTO) => {
+  const handleSubmit = async (input: CheckoutCreateOrderInput) => {
     if (!canSubmitOrder) {
       return;
     }

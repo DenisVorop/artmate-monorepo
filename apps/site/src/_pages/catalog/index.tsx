@@ -1,7 +1,7 @@
 "use client";
 
 import { useProductsData } from "@/entities/products";
-import { useAddProductToCart } from "@/features/cart";
+import { CartProductCard, useAddProductToCart } from "@/features/cart";
 import { Catalog } from "@/features/catalog";
 import { DataState, Separator } from "@/shared/ui";
 import { Hero } from "./ui/hero";
@@ -42,7 +42,13 @@ export function CatalogPage({ initialCategoryId }: CatalogPageProps) {
           categories={data.categories}
           products={data.products}
           initialCategoryId={initialCategoryId}
-          onAddToCart={addProductToCart}
+          renderProductCard={(product, index) => (
+            <CartProductCard
+              product={product}
+              eagerImage={index === 0}
+              onAddToCart={addProductToCart}
+            />
+          )}
         />
       )}
     </main>

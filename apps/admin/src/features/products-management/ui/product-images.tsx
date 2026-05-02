@@ -1,16 +1,16 @@
 "use client";
 
-import type { FormEvent } from "react";
+import { useForm } from "react-hook-form";
 import { ChevronDown, Save, Trash2, Upload } from "lucide-react";
 
 import type { Product, ProductImage } from "@/entities/products";
 import { Badge, Button, Input } from "@/shared/ui";
 
 import {
-  getOptionalInteger,
-  getOptionalString,
-  getRequiredFile,
-  getString,
+  getCreateProductImageFormData,
+  getUpdateProductImageInput,
+  type ProductImageCreateFormValues,
+  type ProductImageUpdateFormValues,
   type ProductsRefreshCallback,
 } from "../lib";
 import {
@@ -25,39 +25,35 @@ type ProductImagesProps = {
   readonly product: Product;
 };
 
+type DeleteProductImageFormValues = {
+  readonly imageId: string;
+  readonly productId: string;
+};
+
 export function ProductImages({
   onProductsChange,
   product,
 }: ProductImagesProps) {
+  const { handleSubmit, register, reset } = useForm<ProductImageCreateFormValues>({
+    defaultValues: {
+      alt: "",
+    },
+  });
   const { isPending: isAddingImage, mutate: addProductImage } =
     useAddProductImage({
       onSuccess: onProductsChange,
     });
-
-  function handleAddImageSubmit(event: FormEvent<HTMLFormElement>) {
-    event.preventDefault();
-
-    const form = event.currentTarget;
-    const formData = new FormData(form);
-    const uploadFormData = new FormData();
-    const alt = getOptionalString(formData.get("alt"));
-
-    uploadFormData.set("file", getRequiredFile(formData.get("file")));
-
-    if (alt) {
-      uploadFormData.set("alt", alt);
-    }
-
+  const submitForm = handleSubmit((values) => {
     addProductImage(
       {
-        formData: uploadFormData,
+        formData: getCreateProductImageFormData(values),
         productId: product.id,
       },
       {
-        onSuccess: () => form.reset(),
+        onSuccess: () => reset(),
       },
     );
-  }
+  });
 
   return (
     <details className="group border-t pt-3">
@@ -92,10 +88,15 @@ export function ProductImages({
 
         <form
           className="grid gap-2 rounded-lg border border-dashed p-2 md:grid-cols-[minmax(0,1fr)_minmax(9rem,0.7fr)_auto]"
-          onSubmit={handleAddImageSubmit}
+          onSubmit={submitForm}
         >
-          <Input accept="image/jpeg,image/png,image/webp" name="file" required type="file" />
-          <Input name="alt" placeholder="Alt для изображения" />
+          <Input
+            accept="image/jpeg,image/png,image/webp"
+            required
+            type="file"
+            {...register("file", { required: true })}
+          />
+          <Input placeholder="Alt для изображения" {...register("alt")} />
           <Button disabled={isAddingImage} type="submit" variant="outline">
             <Upload data-icon="inline-start" aria-hidden="true" />
             Загрузить
@@ -115,6 +116,12 @@ function ProductImageRow({
   readonly onProductsChange: ProductsRefreshCallback;
   readonly product: Product;
 }) {
+  const { handleSubmit, register } = useForm<ProductImageUpdateFormValues>({
+    defaultValues: {
+      alt: image.alt ?? "",
+      sortOrder: image.sortOrder,
+    },
+  });
   const { isPending: isUpdatingImage, mutate: updateImage } =
     useUpdateProductImage({
       onSuccess: onProductsChange,
@@ -123,33 +130,24 @@ function ProductImageRow({
     useDeleteProductImage({
       onSuccess: onProductsChange,
     });
-  const deleteImageFormId = `delete-image-${image.id}`;
-
-  function handleUpdateImageSubmit(event: FormEvent<HTMLFormElement>) {
-    event.preventDefault();
-
-    const formData = new FormData(event.currentTarget);
-
-    updateImage(
-      {
+  const { handleSubmit: handleDeleteSubmit, register: registerDelete } =
+    useForm<DeleteProductImageFormValues>({
+      defaultValues: {
         imageId: image.id,
-        input: {
-          alt: getString(formData.get("alt")),
-          sortOrder: getOptionalInteger(formData.get("sortOrder")),
-        },
         productId: product.id,
       },
-    );
-  }
-
-  function handleDeleteImageSubmit(event: FormEvent<HTMLFormElement>) {
-    event.preventDefault();
-
-    deleteImage({
+    });
+  const deleteImageFormId = `delete-image-${image.id}`;
+  const submitUpdateForm = handleSubmit((values) => {
+    updateImage({
       imageId: image.id,
+      input: getUpdateProductImageInput(values),
       productId: product.id,
     });
-  }
+  });
+  const submitDeleteForm = handleDeleteSubmit((values) => {
+    deleteImage(values);
+  });
 
   return (
     <div className="grid items-center gap-2 rounded-md border p-2 md:grid-cols-[2.5rem_minmax(0,1fr)_5rem_auto_auto]">
@@ -158,22 +156,31 @@ function ProductImageRow({
         imageUrl={image.url}
         label={image.alt ?? product.title}
       />
-      <form className="contents" onSubmit={handleUpdateImageSubmit}>
+      <form className="contents" onSubmit={submitUpdateForm}>
         <Input
           aria-label="Alt"
           className="h-8"
-          defaultValue={image.alt}
-          name="alt"
           placeholder="Alt"
+          {...register("alt")}
         />
         <Input
           aria-label="Порядок"
           className="h-8"
-          defaultValue={image.sortOrder}
           min={0}
-          name="sortOrder"
           step={1}
           type="number"
+          {...register("sortOrder", {
+            min: 0,
+            setValueAs: (value) => {
+              if (value === "") {
+                return undefined;
+              }
+
+              const parsed = Number(value);
+
+              return Number.isSafeInteger(parsed) && parsed >= 0 ? parsed : undefined;
+            },
+          })}
         />
         <Button
           disabled={isUpdatingImage}
@@ -193,7 +200,10 @@ function ProductImageRow({
           <Trash2 aria-hidden="true" />
         </Button>
       </form>
-      <form id={deleteImageFormId} onSubmit={handleDeleteImageSubmit} />
+      <form id={deleteImageFormId} onSubmit={submitDeleteForm}>
+        <input type="hidden" {...registerDelete("imageId")} />
+        <input type="hidden" {...registerDelete("productId")} />
+      </form>
     </div>
   );
 }

@@ -1,17 +1,14 @@
 "use client";
 
-import type { FormEvent } from "react";
+import { Controller, useForm } from "react-hook-form";
 import { Plus } from "lucide-react";
 
 import type { ProductCategory } from "@/entities/products";
 import { Button, Card, CardContent, CardDescription, CardHeader, CardTitle, Input } from "@/shared/ui";
 
 import {
-  getBoolean,
-  getOptionalString,
-  getProductStatus,
-  getRequiredInteger,
-  getRequiredString,
+  getCreateProductInput,
+  type ProductFormValues,
   type ProductsRefreshCallback,
 } from "../lib";
 import { useCreateProduct } from "../model";
@@ -32,33 +29,26 @@ export function CreateProductCard({
   categories,
   onProductsChange,
 }: CreateProductCardProps) {
+  const { control, handleSubmit, register, reset } = useForm<ProductFormValues>({
+    defaultValues: {
+      categoryId: "",
+      description: "",
+      isHit: false,
+      priceRub: 0,
+      slug: "",
+      status: "draft",
+      title: "",
+    },
+  });
   const { isPending: isCreatingProduct, mutate: createProduct } =
     useCreateProduct({
       onSuccess: onProductsChange,
     });
-
-  function handleCreateProductSubmit(event: FormEvent<HTMLFormElement>) {
-    event.preventDefault();
-
-    const form = event.currentTarget;
-    const formData = new FormData(form);
-
-    createProduct(
-      {
-        categoryId: getOptionalString(formData.get("categoryId")),
-        currency: "RUB",
-        description: getOptionalString(formData.get("description")),
-        isHit: getBoolean(formData.get("isHit")),
-        priceRub: getRequiredInteger(formData.get("priceRub"), "priceRub"),
-        slug: getRequiredString(formData.get("slug"), "slug"),
-        status: getProductStatus(formData.get("status")),
-        title: getRequiredString(formData.get("title"), "title"),
-      },
-      {
-        onSuccess: () => form.reset(),
-      },
-    );
-  }
+  const submitForm = handleSubmit((values) => {
+    createProduct(getCreateProductInput(values), {
+      onSuccess: () => reset(),
+    });
+  });
 
   return (
     <Card>
@@ -71,32 +61,50 @@ export function CreateProductCard({
       <CardContent>
         <form
           className="grid gap-3 lg:grid-cols-[minmax(12rem,1.4fr)_minmax(10rem,1fr)_8rem_11rem_minmax(10rem,1fr)_6rem_auto]"
-          onSubmit={handleCreateProductSubmit}
+          onSubmit={submitForm}
         >
           <LabeledField label="Название">
-            <Input name="title" placeholder="Постер Artmate" required />
+            <Input
+              placeholder="Постер Artmate"
+              required
+              {...register("title", { required: true })}
+            />
           </LabeledField>
           <LabeledField label="Slug">
-            <Input name="slug" placeholder="artmate-poster" required />
+            <Input
+              placeholder="artmate-poster"
+              required
+              {...register("slug", { required: true })}
+            />
           </LabeledField>
           <LabeledField label="Цена, ₽">
             <Input
               min={0}
-              name="priceRub"
               placeholder="1290"
               required
               step={1}
               type="number"
+              {...register("priceRub", {
+                min: 0,
+                required: true,
+                valueAsNumber: true,
+              })}
             />
           </LabeledField>
           <LabeledField label="Статус">
-            <ProductStatusSelect defaultValue="draft" />
+            <ProductStatusSelect
+              defaultValue="draft"
+              selectProps={register("status")}
+            />
           </LabeledField>
           <LabeledField label="Категория">
-            <ProductCategorySelect categories={categories} />
+            <ProductCategorySelect
+              categories={categories}
+              selectProps={register("categoryId")}
+            />
           </LabeledField>
           <LabeledCheckbox label="Хит">
-            <input name="isHit" type="checkbox" />
+            <input type="checkbox" {...register("isHit")} />
           </LabeledCheckbox>
           <div className="flex items-end">
             <Button className="w-full" disabled={isCreatingProduct} type="submit">
@@ -105,7 +113,17 @@ export function CreateProductCard({
             </Button>
           </div>
           <LabeledField className="lg:col-span-7" label="Описание">
-            <ProductDescriptionEditor name="description" />
+            <Controller
+              control={control}
+              name="description"
+              render={({ field }) => (
+                <ProductDescriptionEditor
+                  name={field.name}
+                  onValueChange={field.onChange}
+                  value={field.value}
+                />
+              )}
+            />
           </LabeledField>
         </form>
       </CardContent>

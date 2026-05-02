@@ -1,4 +1,6 @@
 import { ArrowRight } from "lucide-react";
+import type { ReactNode } from "react";
+
 import { SectionLabel, SectionTitle } from "@/shared/ui/typography";
 import { Button, CtaGradientLink, DataState, DecorDots } from "@/shared/ui";
 import { routes } from "@/shared/constants";
@@ -8,10 +10,10 @@ import { ProductCard, type Product } from "@/entities/products";
 type BestsellersProps = {
   products: Product[];
   className?: string;
-  onAddToCart?: (_product: Product, _quantity?: number) => Promise<void> | void;
+  renderProductCard?: (_product: Product) => ReactNode;
 };
 
-export function Bestsellers({ products, className, onAddToCart }: BestsellersProps) {
+export function Bestsellers({ products, className, renderProductCard }: BestsellersProps) {
   const bestsellers = products.filter((product) => product.isHit).slice(0, 4);
 
   return (
@@ -61,7 +63,7 @@ export function Bestsellers({ products, className, onAddToCart }: BestsellersPro
           <ul className="grid gap-5 sm:grid-cols-2 lg:grid-cols-3 xl:grid-cols-4">
             {bestsellers.map((product) => (
               <li key={product.id} className="h-full">
-                <ProductCard product={product} onAddToCart={onAddToCart} />
+                {renderProductCard ? renderProductCard(product) : <ProductCard product={product} />}
               </li>
             ))}
           </ul>

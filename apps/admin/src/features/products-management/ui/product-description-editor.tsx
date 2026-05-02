@@ -28,16 +28,23 @@ import { Button } from "@/shared/ui";
 type ProductDescriptionEditorProps = {
   readonly defaultValue?: string;
   readonly name: string;
+  readonly onValueChange?: (_value: string) => void;
   readonly placeholder?: string;
+  readonly value?: string;
 } & Pick<InputHTMLAttributes<HTMLInputElement>, "disabled">;
 
 export function ProductDescriptionEditor({
   defaultValue = "",
   disabled,
   name,
+  onValueChange,
   placeholder = "Описание товара",
+  value: controlledValue,
 }: ProductDescriptionEditorProps) {
-  const initialContent = useMemo(() => toEditorHtml(defaultValue), [defaultValue]);
+  const initialContent = useMemo(
+    () => toEditorHtml(controlledValue ?? defaultValue),
+    [controlledValue, defaultValue],
+  );
   const [value, setValue] = useState(initialContent);
 
   const editor = useEditor({
@@ -63,7 +70,10 @@ export function ProductDescriptionEditor({
     ],
     immediatelyRender: false,
     onUpdate: ({ editor: updatedEditor }) => {
-      setValue(normalizeEditorHtml(updatedEditor.getHTML()));
+      const nextValue = normalizeEditorHtml(updatedEditor.getHTML());
+
+      setValue(nextValue);
+      onValueChange?.(nextValue);
     },
   });
 
@@ -74,7 +84,8 @@ export function ProductDescriptionEditor({
   useEffect(() => {
     setValue(initialContent);
     editor?.commands.setContent(initialContent, { emitUpdate: false });
-  }, [editor, initialContent]);
+    onValueChange?.(initialContent);
+  }, [editor, initialContent, onValueChange]);
 
   useEffect(() => {
     const form = editor?.view.dom.closest("form");
@@ -86,12 +97,13 @@ export function ProductDescriptionEditor({
     function handleReset() {
       setValue(initialContent);
       editor?.commands.setContent(initialContent, { emitUpdate: false });
+      onValueChange?.(initialContent);
     }
 
     form.addEventListener("reset", handleReset);
 
     return () => form.removeEventListener("reset", handleReset);
-  }, [editor, initialContent]);
+  }, [editor, initialContent, onValueChange]);
 
   const isEmpty = !editor || editor.isEmpty;
 

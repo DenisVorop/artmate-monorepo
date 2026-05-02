@@ -1,13 +1,17 @@
 "use client";
 
-import type { OzonDeliveryPointInfoDTO } from "@/shared/actions/ozon";
 import { cn } from "@/shared/lib";
 import { Badge } from "@/shared/ui";
 
-import { formatMoney, getDeliveryPointKindLabel, getDeliveryPointStatusLabel } from "../lib";
+import {
+  formatMoney,
+  getDeliveryPointKindLabel,
+  getDeliveryPointStatusLabel,
+  type CheckoutDeliveryPoint,
+} from "../lib";
 
 type PickupPointOptionProps = {
-  point: OzonDeliveryPointInfoDTO;
+  point: CheckoutDeliveryPoint;
   selected: boolean;
   onSelect: () => void;
 };

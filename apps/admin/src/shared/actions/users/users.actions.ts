@@ -1,26 +1,15 @@
 "use server";
 
-import { revalidatePath } from "next/cache";
 import { cookies, headers } from "next/headers";
-
-import { routes } from "@/shared/constants";
 
 import type {
   AdminUserDTO,
   UpdateAdminUserRolesInputDTO,
   UpdateAdminUserStatusInputDTO,
-  UserRole,
 } from "./users.types";
 
 const AUTH_ACCESS_TOKEN_COOKIE_NAME = "artmate_access_token";
 const DEFAULT_API_BASE_URL = "http://localhost:3002";
-
-export type AdminUserActionState = {
-  readonly description?: string;
-  readonly status: "idle" | "success" | "error";
-  readonly submittedAt?: number;
-  readonly title?: string;
-};
 
 export async function getAdminUsers(): Promise<AdminUserDTO[]> {
   return requestAdminApi<AdminUserDTO[]>("/users");
@@ -52,66 +41,6 @@ export async function updateAdminUserStatus(
   );
 }
 
-export async function updateAdminUserRolesAction(
-  _state: AdminUserActionState,
-  formData: FormData,
-): Promise<AdminUserActionState> {
-  try {
-    const userId = getRequiredString(formData.get("userId"));
-    const roles = formData
-      .getAll("roles")
-      .filter(
-        (role): role is UserRole => role === "customer" || role === "admin",
-      );
-
-    await updateAdminUserRoles(userId, { roles });
-    revalidatePath(routes.users);
-
-    return {
-      status: "success",
-      submittedAt: Date.now(),
-      title: "Роли сохранены",
-    };
-  } catch (error) {
-    return {
-      description: getActionErrorDescription(error),
-      status: "error",
-      submittedAt: Date.now(),
-      title: "Не удалось сохранить роли",
-    };
-  }
-}
-
-export async function updateAdminUserStatusAction(
-  _state: AdminUserActionState,
-  formData: FormData,
-): Promise<AdminUserActionState> {
-  try {
-    const userId = getRequiredString(formData.get("userId"));
-    const status = getRequiredString(formData.get("status"));
-
-    if (status !== "active" && status !== "blocked") {
-      throw new Error("Invalid user status");
-    }
-
-    await updateAdminUserStatus(userId, { status });
-    revalidatePath(routes.users);
-
-    return {
-      status: "success",
-      submittedAt: Date.now(),
-      title: "Статус пользователя сохранен",
-    };
-  } catch (error) {
-    return {
-      description: getActionErrorDescription(error),
-      status: "error",
-      submittedAt: Date.now(),
-      title: "Не удалось изменить статус пользователя",
-    };
-  }
-}
-
 async function requestAdminApi<T>(path: string, init: RequestInit = {}) {
   const cookieStore = await cookies();
   const headerStore = await headers();
@@ -136,22 +65,6 @@ async function requestAdminApi<T>(path: string, init: RequestInit = {}) {
   }
 
   return (await response.json()) as T;
-}
-
-function getRequiredString(value: FormDataEntryValue | null) {
-  if (typeof value !== "string" || value.length === 0) {
-    throw new Error("Invalid user form data");
-  }
-
-  return value;
-}
-
-function getActionErrorDescription(error: unknown) {
-  if (error instanceof Error && error.message) {
-    return error.message;
-  }
-
-  return "Запрос не выполнен";
 }
 
 function getApiBaseUrl() {

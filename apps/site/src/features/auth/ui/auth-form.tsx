@@ -5,7 +5,6 @@ import { useRouter, useSearchParams } from "next/navigation";
 import { ExternalLink, LoaderCircle, LogIn, UserPlus } from "lucide-react";
 import { useForm } from "react-hook-form";
 
-import type { LoginInputDTO, RegisterInputDTO } from "@/shared/actions/auth";
 import { routes } from "@/shared/constants";
 import {
   Button,
@@ -24,11 +23,16 @@ import {
 import { Link } from "@/shared/ui/link";
 
 import { getAuthErrorMessage } from "../lib";
-import { useLoginMutation, useRegisterMutation } from "../model";
+import {
+  useLoginMutation,
+  useRegisterMutation,
+  type LoginInput,
+  type RegisterInput,
+} from "../model";
 
 type AuthMode = "login" | "register";
 
-type RegisterFormValues = RegisterInputDTO & {
+type RegisterFormValues = RegisterInput & {
   passwordConfirm: string;
 };
 
@@ -72,7 +76,7 @@ function LoginForm() {
     register,
     handleSubmit,
     formState: { errors },
-  } = useForm<LoginInputDTO>({
+  } = useForm<LoginInput>({
     defaultValues: {
       login: "",
       password: "",

@@ -1,19 +1,9 @@
 "use client";
 
-import { useCallback } from "react";
-import { useRouter } from "next/navigation";
-import { useQueryClient } from "@tanstack/react-query";
-
-import {
-  productsQueryKeys,
-  useCategories,
-  useProduct,
-  type Product,
-  type ProductCategory,
-} from "@/entities/products";
-import { routes } from "@/shared/constants";
+import type { Product, ProductCategory } from "@/entities/products";
 import { Card, CardContent, CardHeader, CardTitle } from "@/shared/ui";
 
+import { useProductDetailsManagement } from "../model";
 import { ProductEditorCard } from "./product-editor-card";
 
 type ProductDetailsManagementProps = {
@@ -25,45 +15,18 @@ export function ProductDetailsManagement({
   categories: initialCategories,
   product: initialProduct,
 }: ProductDetailsManagementProps) {
-  const router = useRouter();
-  const queryClient = useQueryClient();
-  const {
-    isError: isProductError,
-    product,
-    refetch: refetchProduct,
-  } = useProduct({
-    initialData: initialProduct,
-    productId: initialProduct.id,
-  });
   const {
     categories,
-    isError: isCategoriesError,
-    refetch: refetchCategories,
-  } = useCategories({
-    initialData: initialCategories,
+    handleProductDeleted,
+    isError,
+    product,
+    refreshProductView,
+  } = useProductDetailsManagement({
+    categories: initialCategories,
+    product: initialProduct,
   });
 
-  const refreshProductView = useCallback(async () => {
-    await Promise.all([
-      refetchProduct(),
-      refetchCategories(),
-      queryClient.invalidateQueries({
-        queryKey: productsQueryKeys.list(),
-      }),
-    ]);
-  }, [queryClient, refetchCategories, refetchProduct]);
-
-  const handleProductDeleted = useCallback(async () => {
-    await queryClient.invalidateQueries({
-      queryKey: productsQueryKeys.list(),
-    });
-    queryClient.removeQueries({
-      queryKey: productsQueryKeys.detail(initialProduct.id),
-    });
-    router.push(routes.products);
-  }, [initialProduct.id, queryClient, router]);
-
-  if (isProductError || isCategoriesError) {
+  if (isError) {
     return (
       <Card>
         <CardHeader>
