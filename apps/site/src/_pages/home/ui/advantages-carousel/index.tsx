@@ -1,6 +1,7 @@
 import { InfiniteCarousel } from "@/shared/ui/infinite-carousel";
+import { advantages } from "./constants";
 
-export function AdvantagesCarousel({ advantages }: { advantages: string[] }) {
+export function AdvantagesCarousel() {
   return (
     <InfiniteCarousel
       className="border-y border-stone-200 bg-white py-3 select-none"

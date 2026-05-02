@@ -1,17 +1,15 @@
-import type { HomeHowItWorksStep as HomeHowItWorksStepDTO } from "@/entities/home";
 import { Badge } from "@/shared/ui";
 import { cn } from "@/shared/lib";
 import { SectionSubtitle, SectionTitle } from "@/shared/ui/typography";
+import { howItWorksSteps } from "./constants";
 import { StepCard } from "./ui/card";
 import { Connector } from "./ui/connector";
 
-export function HowItWorks({
-  steps,
-  className,
-}: {
-  steps: HomeHowItWorksStepDTO[];
+type HowItWorksProps = {
   className?: string;
-}) {
+};
+
+export function HowItWorks({ className }: HowItWorksProps) {
   return (
     <section className={cn("relative overflow-hidden bg-[#faf9f7]", className)}>
       <div className="pointer-events-none absolute top-0 left-0 h-[500px] w-[500px] -translate-x-1/2 -translate-y-1/3 rounded-full bg-rose-100/40 blur-3xl" />
@@ -49,12 +47,12 @@ export function HowItWorks({
         </div>
 
         <div className="grid items-stretch gap-5 md:grid-cols-2 min-[1040px]:flex min-[1040px]:gap-5">
-          {steps.map((step, i) => (
+          {howItWorksSteps.map((step, i) => (
             <div key={step.num} className="contents">
               <div className="min-[1040px]:flex-1">
                 <StepCard step={step} />
               </div>
-              {i < steps.length - 1 && <Connector />}
+              {i < howItWorksSteps.length - 1 && <Connector />}
             </div>
           ))}
         </div>

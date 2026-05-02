@@ -1,22 +1,19 @@
-import type { HomeHeroMetrics as HomeHeroMetricsDTO } from "@/entities/home";
-import type { ReviewStats } from "@/entities/reviews";
+import { reviewsData } from "@/shared/actions/reviews/reviews.data";
+import { DecorDots } from "@/shared/ui";
+import { cn } from "@/shared/lib";
+
+import { heroMetrics } from "./constants";
 import { Heading } from "./ui/heading";
 import { Subheading } from "./ui/subheading";
 import { Collage } from "./ui/collage";
 import { Reviews } from "./ui/reviews";
 import { CTA } from "./ui/cta";
-import { DecorDots } from "@/shared/ui";
-import { cn } from "@/shared/lib";
 
-export function HeroSection({
-  metrics,
-  reviewStats,
-  className,
-}: {
-  metrics: HomeHeroMetricsDTO;
-  reviewStats?: ReviewStats;
+type HeroSectionProps = {
   className?: string;
-}) {
+};
+
+export function HeroSection({ className }: HeroSectionProps) {
   return (
     <section className={cn("relative z-10 container flex flex-1 items-center", className)}>
       <div className="grid w-full items-center gap-8 lg:grid-cols-[1fr_1.1fr] xl:gap-16">
@@ -34,7 +31,7 @@ export function HeroSection({
 
             <CTA />
 
-            <Reviews stats={reviewStats} />
+            <Reviews stats={reviewsData.stats} />
           </div>
         </div>
 
@@ -49,7 +46,7 @@ export function HeroSection({
           />
 
           <div className="relative z-10">
-            <Collage metrics={metrics} />
+            <Collage metrics={heroMetrics} />
           </div>
         </div>
       </div>

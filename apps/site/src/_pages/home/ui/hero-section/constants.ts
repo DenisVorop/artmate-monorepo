@@ -1,5 +1,17 @@
 import FlowersCover from "./assets/flowers-cover.png";
 
+export type HeroMetrics = {
+  ratingLabel: string;
+  paintedCountLabel: string;
+  progressValue: number;
+};
+
+export const heroMetrics = {
+  ratingLabel: "4.9 / 5",
+  paintedCountLabel: "30 000+ человек",
+  progressValue: 80,
+} satisfies HeroMetrics;
+
 export const heroImages = {
   workspace: {
     src: FlowersCover,

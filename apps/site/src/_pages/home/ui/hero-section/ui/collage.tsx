@@ -4,10 +4,10 @@ import { cn } from "@/shared/lib";
 import { AspectRatio } from "@/shared/ui/aspect-ratio";
 import { Card, CardContent, CardDescription, CardTitle } from "@/shared/ui/card";
 import { Progress } from "@/shared/ui/progress";
-import type { HomeHeroMetrics as HomeHeroMetricsDTO } from "@/entities/home";
 import { Star } from "lucide-react";
 import Image from "next/image";
 import type { CSSProperties, ReactNode } from "react";
+import type { HeroMetrics } from "../constants";
 
 type CollageImage = (typeof heroImages)[keyof typeof heroImages];
 
@@ -98,7 +98,7 @@ function PaintedMetricCard({
   metrics,
   className,
 }: {
-  metrics: HomeHeroMetricsDTO;
+  metrics: HeroMetrics;
   className?: string;
 }) {
   return (
@@ -125,7 +125,7 @@ function PaintedMetricCard({
   );
 }
 
-export function Collage({ metrics }: { metrics: HomeHeroMetricsDTO }) {
+export function Collage({ metrics }: { metrics: HeroMetrics }) {
   return (
     <div className="order-1 lg:order-2">
       <div className="relative flex min-h-[320px] items-center justify-center sm:min-h-[360px] lg:min-h-0">

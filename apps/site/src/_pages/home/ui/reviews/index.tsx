@@ -1,17 +1,14 @@
-import { ReviewRatingSummary, type Review, type ReviewStats } from "@/entities/reviews";
+import { ReviewRatingSummary } from "@/entities/reviews";
+import { reviewsData } from "@/shared/actions/reviews/reviews.data";
 import { cn } from "@/shared/lib";
 import { SectionLabel, SectionTitle } from "@/shared/ui/typography";
 import { ReviewsRail } from "./ui/reviews-rail";
 
-export function Reviews({
-  reviews,
-  stats,
-  className,
-}: {
-  reviews: Review[];
-  stats: ReviewStats;
+type ReviewsProps = {
   className?: string;
-}) {
+};
+
+export function Reviews({ className }: ReviewsProps) {
   return (
     <section
       aria-labelledby="reviews-title"
@@ -25,9 +22,9 @@ export function Reviews({
           <SectionTitle id="reviews-title">Что говорят наши покупатели</SectionTitle>
         </div>
 
-        <ReviewsRail reviews={reviews} />
+        <ReviewsRail reviews={reviewsData.reviews} />
 
-        <ReviewRatingSummary stats={stats} className="mt-6" />
+        <ReviewRatingSummary stats={reviewsData.stats} className="mt-6" />
       </div>
     </section>
   );
