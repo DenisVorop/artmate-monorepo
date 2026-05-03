@@ -1482,7 +1482,7 @@
 
 "@microsoft/tsdoc@0.16.0":
   version "0.16.0"
-  resolved "https://artifactory.yc.prod.infra.sravni.market/artifactory/api/npm/sravni_npm_group/@microsoft/tsdoc/-/tsdoc-0.16.0.tgz#2249090633e04063176863a050c8f0808d2b6d2b"
+  resolved "https://registry.npmjs.org/@microsoft/tsdoc/-/tsdoc-0.16.0.tgz#2249090633e04063176863a050c8f0808d2b6d2b"
   integrity sha512-xgAyonlVVS+q7Vc7qLW0UrJU7rSFcETRWsqdXZtjzRU8dF+6CkozTK4V4y1LwOX7j8r/vHphjDeMeGI4tNGeGA==
 
 "@modelcontextprotocol/sdk@^1.26.0":
@@ -1560,7 +1560,7 @@
 
 "@nestjs/mapped-types@2.1.1":
   version "2.1.1"
-  resolved "https://artifactory.yc.prod.infra.sravni.market/artifactory/api/npm/sravni_npm_group/@nestjs/mapped-types/-/mapped-types-2.1.1.tgz#9530ac3250ab433ba6ef831e9dd5d483f5fc8144"
+  resolved "https://registry.npmjs.org/@nestjs/mapped-types/-/mapped-types-2.1.1.tgz#9530ac3250ab433ba6ef831e9dd5d483f5fc8144"
   integrity sha512-SCCoMEJ6jdeI5h/N+KCVF1+pmg/hmEkNA5nHTS8Gvww7T/LCl4o1gFLinw2iQ60w7slFkszHcGLKGdazVI4F8A==
 
 "@nestjs/platform-express@^11.1.19":
@@ -1576,7 +1576,7 @@
 
 "@nestjs/swagger@^11.2.0":
   version "11.4.1"
-  resolved "https://artifactory.yc.prod.infra.sravni.market/artifactory/api/npm/sravni_npm_group/@nestjs/swagger/-/swagger-11.4.1.tgz#046f2831732bc15c724e50534836c5f505236b43"
+  resolved "https://registry.npmjs.org/@nestjs/swagger/-/swagger-11.4.1.tgz#046f2831732bc15c724e50534836c5f505236b43"
   integrity sha512-GuGzs8F1Cb3n+eEarmOqB4nt2ai+x4XGOYUXNYplOtDeB59DaFY5E16bsHsBWXiWgD1ywbyKQ5OVv02bQtB1Dw==
   dependencies:
     "@microsoft/tsdoc" "0.16.0"
@@ -1708,7 +1708,7 @@
 
 "@prisma/adapter-pg@^7.8.0":
   version "7.8.0"
-  resolved "https://artifactory.yc.prod.infra.sravni.market/artifactory/api/npm/sravni_npm_group/@prisma/adapter-pg/-/adapter-pg-7.8.0.tgz#8f39dc10ec0fa3d5914e09df385977ce0500fbec"
+  resolved "https://registry.npmjs.org/@prisma/adapter-pg/-/adapter-pg-7.8.0.tgz#8f39dc10ec0fa3d5914e09df385977ce0500fbec"
   integrity sha512-ygb3UkerK3v8MDpXVgCISdRNDozpxh6+JVJgiIGbSr5KBgz10LLf5ejUskPGoXlsIjxsOu6nuy1JVQr2EKGSlg==
   dependencies:
     "@prisma/driver-adapter-utils" "7.8.0"
@@ -1773,7 +1773,7 @@
 
 "@prisma/driver-adapter-utils@7.8.0":
   version "7.8.0"
-  resolved "https://artifactory.yc.prod.infra.sravni.market/artifactory/api/npm/sravni_npm_group/@prisma/driver-adapter-utils/-/driver-adapter-utils-7.8.0.tgz#60f42a5bfb257d01185c27d8022a2a500d71d56b"
+  resolved "https://registry.npmjs.org/@prisma/driver-adapter-utils/-/driver-adapter-utils-7.8.0.tgz#60f42a5bfb257d01185c27d8022a2a500d71d56b"
   integrity sha512-/Q13o0ZT0rjc1Xk0Q9KhZYwuq2EW/vSbWUBKfgEKkaCuB/Sg6bqnjmTZqC5cD4d6y1vfFAEwBRzfzoSMIVJ55A==
   dependencies:
     "@prisma/debug" "7.8.0"
@@ -2506,7 +2506,7 @@
 
 "@scarf/scarf@=1.4.0":
   version "1.4.0"
-  resolved "https://artifactory.yc.prod.infra.sravni.market/artifactory/api/npm/sravni_npm_group/@scarf/scarf/-/scarf-1.4.0.tgz#3bbb984085dbd6d982494538b523be1ce6562972"
+  resolved "https://registry.npmjs.org/@scarf/scarf/-/scarf-1.4.0.tgz#3bbb984085dbd6d982494538b523be1ce6562972"
   integrity sha512-xxeapPiUXdZAE3che6f3xogoJPeZgig6omHEy1rIY5WVsB3H2BHNnZH+gHG6x91SCWyQCzWGsuL2Hh3ClO5/qQ==
 
 "@sec-ant/readable-stream@^0.4.1":
@@ -3099,7 +3099,7 @@
 
 "@types/pg@^8.16.0":
   version "8.20.0"
-  resolved "https://artifactory.yc.prod.infra.sravni.market/artifactory/api/npm/sravni_npm_group/@types/pg/-/pg-8.20.0.tgz#8bd03d3ac6b19143a8de7d66a9d13da32cd91526"
+  resolved "https://registry.npmjs.org/@types/pg/-/pg-8.20.0.tgz#8bd03d3ac6b19143a8de7d66a9d13da32cd91526"
   integrity sha512-bEPFOaMAHTEP1EzpvHTbmwR8UsFyHSKsRisLIHVMXnpNefSbGA1bD6CVy+qKjGSqmZqNqBDV2azOBo8TgkcVow==
   dependencies:
     "@types/node" "*"
@@ -4294,7 +4294,7 @@ entities@^4.2.0, entities@^4.4.0:
 
 entities@^7.0.1:
   version "7.0.1"
-  resolved "https://artifactory.yc.prod.infra.sravni.market/artifactory/api/npm/sravni_npm_group/entities/-/entities-7.0.1.tgz#26e8a88889db63417dcb9a1e79a3f1bc92b5976b"
+  resolved "https://registry.npmjs.org/entities/-/entities-7.0.1.tgz#26e8a88889db63417dcb9a1e79a3f1bc92b5976b"
   integrity sha512-TWrgLOFUQTH994YUyl1yT4uyavY5nNB5muff+RtWaqNVCAK408b5ZnnbNAUEWLTCpum9w6arT70i1XdQ4UeOPA==
 
 env-paths@^2.2.1:
@@ -5206,7 +5206,7 @@ hono@^4.12.8:
 
 htmlparser2@^10.1, htmlparser2@^10.1.0:
   version "10.1.0"
-  resolved "https://artifactory.yc.prod.infra.sravni.market/artifactory/api/npm/sravni_npm_group/htmlparser2/-/htmlparser2-10.1.0.tgz#fe3f2e12c73b6e462d4e10395db9c1119e4d6ae4"
+  resolved "https://registry.npmjs.org/htmlparser2/-/htmlparser2-10.1.0.tgz#fe3f2e12c73b6e462d4e10395db9c1119e4d6ae4"
   integrity sha512-VTZkM9GWRAtEpveh7MSF6SjjrpNVNNVJfFup7xTY3UpFtm67foy9HDVXneLtFVt4pMz5kZtgNcvCniNFb1hlEQ==
   dependencies:
     domelementtype "^2.3.0"
@@ -5493,7 +5493,7 @@ is-plain-obj@^4.1.0:
 
 is-plain-object@^5.0.0:
   version "5.0.0"
-  resolved "https://artifactory.yc.prod.infra.sravni.market/artifactory/api/npm/sravni_npm_group/is-plain-object/-/is-plain-object-5.0.0.tgz#4427f50ab3429e9025ea7d52e9043a9ef4159344"
+  resolved "https://registry.npmjs.org/is-plain-object/-/is-plain-object-5.0.0.tgz#4427f50ab3429e9025ea7d52e9043a9ef4159344"
   integrity sha512-VRSzKkbMm5jMDoKLbltAkFQ5Qr7VDiTFGXxYFXXowVj387GeGNOCsOH6Msy00SGZ3Fp84b1Naa1psqgcCIEP5Q==
 
 is-promise@^4.0.0:
@@ -6503,7 +6503,7 @@ parse-ms@^4.0.0:
 
 parse-srcset@^1.0.2:
   version "1.0.2"
-  resolved "https://artifactory.yc.prod.infra.sravni.market/artifactory/api/npm/sravni_npm_group/parse-srcset/-/parse-srcset-1.0.2.tgz#f2bd221f6cc970a938d88556abc589caaaa2bde1"
+  resolved "https://registry.npmjs.org/parse-srcset/-/parse-srcset-1.0.2.tgz#f2bd221f6cc970a938d88556abc589caaaa2bde1"
   integrity sha512-/2qh0lav6CmI15FzA3i/2Bzk2zCgQhGMkvhOhKNcBVQ1ldgpbfiNTVslmooUmWJcADi1f1kIeynbDRVzNlfR6Q==
 
 parseurl@^1.3.3:
@@ -6563,32 +6563,32 @@ perfect-debounce@^2.1.0:
 
 pg-cloudflare@^1.3.0:
   version "1.3.0"
-  resolved "https://artifactory.yc.prod.infra.sravni.market/artifactory/api/npm/sravni_npm_group/pg-cloudflare/-/pg-cloudflare-1.3.0.tgz#386035d4bfcf1a7045b026f8b21acf5353f14d65"
+  resolved "https://registry.npmjs.org/pg-cloudflare/-/pg-cloudflare-1.3.0.tgz#386035d4bfcf1a7045b026f8b21acf5353f14d65"
   integrity sha512-6lswVVSztmHiRtD6I8hw4qP/nDm1EJbKMRhf3HCYaqud7frGysPv7FYJ5noZQdhQtN2xJnimfMtvQq21pdbzyQ==
 
 pg-connection-string@^2.12.0:
   version "2.12.0"
-  resolved "https://artifactory.yc.prod.infra.sravni.market/artifactory/api/npm/sravni_npm_group/pg-connection-string/-/pg-connection-string-2.12.0.tgz#4084f917902bb2daae3dc1376fe24ac7b4eaccf2"
+  resolved "https://registry.npmjs.org/pg-connection-string/-/pg-connection-string-2.12.0.tgz#4084f917902bb2daae3dc1376fe24ac7b4eaccf2"
   integrity sha512-U7qg+bpswf3Cs5xLzRqbXbQl85ng0mfSV/J0nnA31MCLgvEaAo7CIhmeyrmJpOr7o+zm0rXK+hNnT5l9RHkCkQ==
 
 pg-int8@1.0.1:
   version "1.0.1"
-  resolved "https://artifactory.yc.prod.infra.sravni.market/artifactory/api/npm/sravni_npm_group/pg-int8/-/pg-int8-1.0.1.tgz#943bd463bf5b71b4170115f80f8efc9a0c0eb78c"
+  resolved "https://registry.npmjs.org/pg-int8/-/pg-int8-1.0.1.tgz#943bd463bf5b71b4170115f80f8efc9a0c0eb78c"
   integrity sha512-WCtabS6t3c8SkpDBUlb1kjOs7l66xsGdKpIPZsg4wR+B3+u9UAum2odSsF9tnvxg80h4ZxLWMy4pRjOsFIqQpw==
 
 pg-pool@^3.13.0:
   version "3.13.0"
-  resolved "https://artifactory.yc.prod.infra.sravni.market/artifactory/api/npm/sravni_npm_group/pg-pool/-/pg-pool-3.13.0.tgz#416482e9700e8f80c685a6ae5681697a413c13a3"
+  resolved "https://registry.npmjs.org/pg-pool/-/pg-pool-3.13.0.tgz#416482e9700e8f80c685a6ae5681697a413c13a3"
   integrity sha512-gB+R+Xud1gLFuRD/QgOIgGOBE2KCQPaPwkzBBGC9oG69pHTkhQeIuejVIk3/cnDyX39av2AxomQiyPT13WKHQA==
 
 pg-protocol@*, pg-protocol@^1.13.0:
   version "1.13.0"
-  resolved "https://artifactory.yc.prod.infra.sravni.market/artifactory/api/npm/sravni_npm_group/pg-protocol/-/pg-protocol-1.13.0.tgz#fdaf6d020bca590d58bb991b4b16fc448efe0511"
+  resolved "https://registry.npmjs.org/pg-protocol/-/pg-protocol-1.13.0.tgz#fdaf6d020bca590d58bb991b4b16fc448efe0511"
   integrity sha512-zzdvXfS6v89r6v7OcFCHfHlyG/wvry1ALxZo4LqgUoy7W9xhBDMaqOuMiF3qEV45VqsN6rdlcehHrfDtlCPc8w==
 
 pg-types@2.2.0, pg-types@^2.2.0:
   version "2.2.0"
-  resolved "https://artifactory.yc.prod.infra.sravni.market/artifactory/api/npm/sravni_npm_group/pg-types/-/pg-types-2.2.0.tgz#2d0250d636454f7cfa3b6ae0382fdfa8063254a3"
+  resolved "https://registry.npmjs.org/pg-types/-/pg-types-2.2.0.tgz#2d0250d636454f7cfa3b6ae0382fdfa8063254a3"
   integrity sha512-qTAAlrEsl8s4OiEQY69wDvcMIdQN6wdz5ojQiOy6YRMuynxenON0O5oCpJI6lshc6scgAY8qvJ2On/p+CXY0GA==
   dependencies:
     pg-int8 "1.0.1"
@@ -6599,7 +6599,7 @@ pg-types@2.2.0, pg-types@^2.2.0:
 
 pg@^8.16.3, pg@^8.20.0:
   version "8.20.0"
-  resolved "https://artifactory.yc.prod.infra.sravni.market/artifactory/api/npm/sravni_npm_group/pg/-/pg-8.20.0.tgz#1a274de944cb329fd6dd77a6d371a005ba6b136d"
+  resolved "https://registry.npmjs.org/pg/-/pg-8.20.0.tgz#1a274de944cb329fd6dd77a6d371a005ba6b136d"
   integrity sha512-ldhMxz2r8fl/6QkXnBD3CR9/xg694oT6DZQ2s6c/RI28OjtSOpxnPrUCGOBJ46RCUxcWdx3p6kw/xnDHjKvaRA==
   dependencies:
     pg-connection-string "^2.12.0"
@@ -6612,7 +6612,7 @@ pg@^8.16.3, pg@^8.20.0:
 
 pgpass@1.0.5:
   version "1.0.5"
-  resolved "https://artifactory.yc.prod.infra.sravni.market/artifactory/api/npm/sravni_npm_group/pgpass/-/pgpass-1.0.5.tgz#9b873e4a564bb10fa7a7dbd55312728d422a223d"
+  resolved "https://registry.npmjs.org/pgpass/-/pgpass-1.0.5.tgz#9b873e4a564bb10fa7a7dbd55312728d422a223d"
   integrity sha512-FdW9r/jQZhSeohs1Z3sI1yxFQNFvMcnmfuj4WBMUTxOrAyLMaTcE1aAMBiTlbMNaXvBCQuVi0R7hd8udDSP7ug==
   dependencies:
     split2 "^4.1.0"
@@ -6670,7 +6670,7 @@ postcss@8.4.31:
 
 postcss@^8.3.11:
   version "8.5.13"
-  resolved "https://artifactory.yc.prod.infra.sravni.market/artifactory/api/npm/sravni_npm_group/postcss/-/postcss-8.5.13.tgz#6cfaf647f2e7ef69850208eccd849e0d3f65d420"
+  resolved "https://registry.npmjs.org/postcss/-/postcss-8.5.13.tgz#6cfaf647f2e7ef69850208eccd849e0d3f65d420"
   integrity sha512-qif0+jGGZoLWdHey3UFHHWP0H7Gbmsk8T5VEqyYFbWqPr1XqvLGBbk/sl8V5exGmcYJklJOhOQq1pV9IcsiFag==
   dependencies:
     nanoid "^3.3.11"
@@ -6688,27 +6688,27 @@ postcss@^8.5.6:
 
 postgres-array@3.0.4:
   version "3.0.4"
-  resolved "https://artifactory.yc.prod.infra.sravni.market/artifactory/api/npm/sravni_npm_group/postgres-array/-/postgres-array-3.0.4.tgz#4efcaf4d2c688d8bcaa8620ed13f35f299f7528c"
+  resolved "https://registry.npmjs.org/postgres-array/-/postgres-array-3.0.4.tgz#4efcaf4d2c688d8bcaa8620ed13f35f299f7528c"
   integrity sha512-nAUSGfSDGOaOAEGwqsRY27GPOea7CNipJPOA7lPbdEpx5Kg3qzdP0AaWC5MlhTWV9s4hFX39nomVZ+C4tnGOJQ==
 
 postgres-array@~2.0.0:
   version "2.0.0"
-  resolved "https://artifactory.yc.prod.infra.sravni.market/artifactory/api/npm/sravni_npm_group/postgres-array/-/postgres-array-2.0.0.tgz#48f8fce054fbc69671999329b8834b772652d82e"
+  resolved "https://registry.npmjs.org/postgres-array/-/postgres-array-2.0.0.tgz#48f8fce054fbc69671999329b8834b772652d82e"
   integrity sha512-VpZrUqU5A69eQyW2c5CA1jtLecCsN2U/bD6VilrFDWq5+5UIEVO7nazS3TEcHf1zuPYO/sqGvUvW62g86RXZuA==
 
 postgres-bytea@~1.0.0:
   version "1.0.1"
-  resolved "https://artifactory.yc.prod.infra.sravni.market/artifactory/api/npm/sravni_npm_group/postgres-bytea/-/postgres-bytea-1.0.1.tgz#c40b3da0222c500ff1e51c5d7014b60b79697c7a"
+  resolved "https://registry.npmjs.org/postgres-bytea/-/postgres-bytea-1.0.1.tgz#c40b3da0222c500ff1e51c5d7014b60b79697c7a"
   integrity sha512-5+5HqXnsZPE65IJZSMkZtURARZelel2oXUEO8rH83VS/hxH5vv1uHquPg5wZs8yMAfdv971IU+kcPUczi7NVBQ==
 
 postgres-date@~1.0.4:
   version "1.0.7"
-  resolved "https://artifactory.yc.prod.infra.sravni.market/artifactory/api/npm/sravni_npm_group/postgres-date/-/postgres-date-1.0.7.tgz#51bc086006005e5061c591cee727f2531bf641a8"
+  resolved "https://registry.npmjs.org/postgres-date/-/postgres-date-1.0.7.tgz#51bc086006005e5061c591cee727f2531bf641a8"
   integrity sha512-suDmjLVQg78nMK2UZ454hAG+OAW+HQPZ6n++TNDUX+L0+uUlLywnoxJKDou51Zm+zTCjrCl0Nq6J9C5hP9vK/Q==
 
 postgres-interval@^1.1.0:
   version "1.2.0"
-  resolved "https://artifactory.yc.prod.infra.sravni.market/artifactory/api/npm/sravni_npm_group/postgres-interval/-/postgres-interval-1.2.0.tgz#b460c82cb1587507788819a06aa0fffdb3544695"
+  resolved "https://registry.npmjs.org/postgres-interval/-/postgres-interval-1.2.0.tgz#b460c82cb1587507788819a06aa0fffdb3544695"
   integrity sha512-9ZhXKM/rw350N1ovuWHbGxnGh/SNJ4cnxHiM0rxE4VN41wsg8P8zWn9hv/buK00RP4WvlOyr/RBDiptyxVbkZQ==
   dependencies:
     xtend "^4.0.0"
@@ -7293,7 +7293,7 @@ safe-regex-test@^1.0.3, safe-regex-test@^1.1.0:
 
 sanitize-html@^2.17.3:
   version "2.17.3"
-  resolved "https://artifactory.yc.prod.infra.sravni.market/artifactory/api/npm/sravni_npm_group/sanitize-html/-/sanitize-html-2.17.3.tgz#b2f79f75afeda3a90e87d480052dfc1601b7aeee"
+  resolved "https://registry.npmjs.org/sanitize-html/-/sanitize-html-2.17.3.tgz#b2f79f75afeda3a90e87d480052dfc1601b7aeee"
   integrity sha512-Kn4srCAo2+wZyvCNKCSyB2g8RQ8IkX/gQs2uqoSRNu5t9I2qvUyAVvRDiFUVAiX3N3PNuwStY0eNr+ooBHVWEg==
   dependencies:
     deepmerge "^4.2.2"
@@ -7557,7 +7557,7 @@ source-map@~0.6.1:
 
 split2@^4.1.0:
   version "4.2.0"
-  resolved "https://artifactory.yc.prod.infra.sravni.market/artifactory/api/npm/sravni_npm_group/split2/-/split2-4.2.0.tgz#c9c5920904d148bab0b9f67145f245a86aadbfa4"
+  resolved "https://registry.npmjs.org/split2/-/split2-4.2.0.tgz#c9c5920904d148bab0b9f67145f245a86aadbfa4"
   integrity sha512-UcjcJOWknrNkF6PLX83qcHM6KHgVKNkV62Y8a5uYDVv9ydGQVwAHMKqHdJje1VTWpljG0WYpCDhrCdAOYH4TWg==
 
 sqlstring@^2.3.2:
@@ -7780,7 +7780,7 @@ svgo@^3.0.2:
 
 swagger-ui-dist@5.32.4:
   version "5.32.4"
-  resolved "https://artifactory.yc.prod.infra.sravni.market/artifactory/api/npm/sravni_npm_group/swagger-ui-dist/-/swagger-ui-dist-5.32.4.tgz#e397dd0e24067f9ed6787ec31f6ed902874a9839"
+  resolved "https://registry.npmjs.org/swagger-ui-dist/-/swagger-ui-dist-5.32.4.tgz#e397dd0e24067f9ed6787ec31f6ed902874a9839"
   integrity sha512-0AADFFQNJzExEN49SrD/34Nn9cxNxVLiydYl2MBwSZFPVXNkVwC/EFAjoezGGqE8oDegiDC+p47t8lKObCinMQ==
   dependencies:
     "@scarf/scarf" "=1.4.0"
@@ -8273,7 +8273,7 @@ wsl-utils@^0.3.0:
 
 xtend@^4.0.0:
   version "4.0.2"
-  resolved "https://artifactory.yc.prod.infra.sravni.market/artifactory/api/npm/sravni_npm_group/xtend/-/xtend-4.0.2.tgz#bb72779f5fa465186b1f438f674fa347fdb5db54"
+  resolved "https://registry.npmjs.org/xtend/-/xtend-4.0.2.tgz#bb72779f5fa465186b1f438f674fa347fdb5db54"
   integrity sha512-LKYU1iAXJXUgAXn9URjiu+MWhyUXHsvfp7mcuYm9dSUKK0/CjtrUwFAxD82/mCWbtLsGjFIad0wIsod4zrTAEQ==
 
 y18n@^5.0.5:

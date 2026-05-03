@@ -14,6 +14,7 @@
 
 - Node: ориентируйся на `.nvmrc` (`22.13`), при этом `package.json` допускает `>=18`.
 - Package manager: `yarn@1.22.22`. Не добавляй lock-файлы других менеджеров.
+- Registry для зависимостей: только `https://registry.npmjs.org/`. Не оставляй `sravni` / Artifactory URL в `yarn.lock`; если они появились в `resolved`, замени их на npm registry URL.
 - `README.md` пока в основном starter-шаблон Turborepo, не используй его как единственный источник правды.
 
 Workspaces:
