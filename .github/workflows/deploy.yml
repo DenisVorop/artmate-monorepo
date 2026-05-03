@@ -1,0 +1,103 @@
+name: Deploy Production
+
+on:
+  release:
+    types:
+      - published
+  workflow_dispatch:
+    inputs:
+      tag:
+        description: Docker image tag to deploy
+        required: true
+        default: latest
+
+concurrency:
+  group: production
+  cancel-in-progress: false
+
+permissions:
+  contents: read
+
+jobs:
+  deploy:
+    runs-on: ubuntu-latest
+    environment: production
+    timeout-minutes: 20
+
+    steps:
+      - name: Checkout
+        uses: actions/checkout@v4
+
+      - name: Resolve image tag
+        id: image
+        shell: bash
+        run: |
+          if [ "${{ github.event_name }}" = "release" ]; then
+            raw_tag="${{ github.event.release.tag_name }}"
+            image_tag="${raw_tag#v}"
+          else
+            image_tag="${{ inputs.tag }}"
+          fi
+
+          printf 'tag=%s\n' "$image_tag" >> "$GITHUB_OUTPUT"
+
+      - name: Prepare SSH
+        env:
+          PRODUCTION_HOST: ${{ secrets.PRODUCTION_HOST }}
+          PRODUCTION_SSH_KEY: ${{ secrets.PRODUCTION_SSH_KEY }}
+        shell: bash
+        run: |
+          install -d -m 700 ~/.ssh
+          printf '%s\n' "$PRODUCTION_SSH_KEY" > ~/.ssh/id_ed25519
+          chmod 600 ~/.ssh/id_ed25519
+          ssh-keyscan -H "$PRODUCTION_HOST" >> ~/.ssh/known_hosts
+
+      - name: Upload compose files
+        env:
+          PRODUCTION_HOST: ${{ secrets.PRODUCTION_HOST }}
+          PRODUCTION_USER: ${{ secrets.PRODUCTION_USER }}
+        shell: bash
+        run: |
+          ssh "$PRODUCTION_USER@$PRODUCTION_HOST" 'sudo mkdir -p /opt/artmate/infra/caddy && sudo chown -R "$USER:$USER" /opt/artmate'
+          scp docker-compose.prod.yml "$PRODUCTION_USER@$PRODUCTION_HOST:/opt/artmate/docker-compose.prod.yml"
+          scp infra/caddy/Caddyfile "$PRODUCTION_USER@$PRODUCTION_HOST:/opt/artmate/infra/caddy/Caddyfile"
+
+      - name: Upload production env
+        env:
+          PRODUCTION_ENV_FILE: ${{ secrets.PRODUCTION_ENV_FILE }}
+          PRODUCTION_HOST: ${{ secrets.PRODUCTION_HOST }}
+          PRODUCTION_USER: ${{ secrets.PRODUCTION_USER }}
+        shell: bash
+        run: |
+          printf '%s\n' "$PRODUCTION_ENV_FILE" | ssh "$PRODUCTION_USER@$PRODUCTION_HOST" 'cat > /opt/artmate/.env && chmod 600 /opt/artmate/.env'
+
+      - name: Login to GHCR on server
+        env:
+          GHCR_READ_TOKEN: ${{ secrets.GHCR_READ_TOKEN }}
+          GHCR_USERNAME: ${{ secrets.GHCR_USERNAME }}
+          PRODUCTION_HOST: ${{ secrets.PRODUCTION_HOST }}
+          PRODUCTION_USER: ${{ secrets.PRODUCTION_USER }}
+        shell: bash
+        run: |
+          if [ -n "$GHCR_READ_TOKEN" ]; then
+            printf '%s\n' "$GHCR_READ_TOKEN" | ssh "$PRODUCTION_USER@$PRODUCTION_HOST" "docker login ghcr.io -u '$GHCR_USERNAME' --password-stdin"
+          fi
+
+      - name: Deploy
+        env:
+          IMAGE_TAG: ${{ steps.image.outputs.tag }}
+          PRODUCTION_HOST: ${{ secrets.PRODUCTION_HOST }}
+          PRODUCTION_USER: ${{ secrets.PRODUCTION_USER }}
+        shell: bash
+        run: |
+          printf 'IMAGE_TAG=%s\n' "$IMAGE_TAG" | ssh "$PRODUCTION_USER@$PRODUCTION_HOST" 'cat > /opt/artmate/.image.env'
+
+          ssh "$PRODUCTION_USER@$PRODUCTION_HOST" '
+            set -eu
+            cd /opt/artmate
+            docker compose --env-file .env --env-file .image.env -f docker-compose.prod.yml pull
+            docker compose --env-file .env --env-file .image.env -f docker-compose.prod.yml up -d postgres
+            docker compose --env-file .env --env-file .image.env -f docker-compose.prod.yml --profile migrate run --rm api-migrate
+            docker compose --env-file .env --env-file .image.env -f docker-compose.prod.yml up -d --remove-orphans
+            docker image prune -f
+          '
