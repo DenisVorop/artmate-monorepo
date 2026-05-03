@@ -1,5 +1,14 @@
 # Changelog
 
+## [0.2.1](https://github.com/DenisVorop/artmate-monorepo/compare/v0.2.0...v0.2.1) (2026-05-03)
+
+
+### Bug Fixes
+
+* **infra:** redirect apex domain to www ([f2af9b5](https://github.com/DenisVorop/artmate-monorepo/commit/f2af9b513f9a5edffdae9bc43a9aa563e86724f2))
+* **site:** show development purchase banner ([75d30d9](https://github.com/DenisVorop/artmate-monorepo/commit/75d30d925beb399407196d54af75605bd47cd1ba))
+* **site:** update public legal details ([54a15b1](https://github.com/DenisVorop/artmate-monorepo/commit/54a15b1cde72cbf0c874045cd991e30b05a95b40))
+
 ## [0.2.0](https://github.com/DenisVorop/artmate-monorepo/compare/v0.1.0...v0.2.0) (2026-05-03)
 
 
