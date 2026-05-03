@@ -1,9 +1,11 @@
 name: Deploy Production
 
 on:
-  release:
+  workflow_run:
+    workflows:
+      - Docker Publish
     types:
-      - published
+      - completed
   workflow_dispatch:
     inputs:
       tag:
@@ -20,6 +22,7 @@ permissions:
 
 jobs:
   deploy:
+    if: github.event_name == 'workflow_dispatch' || github.event.workflow_run.conclusion == 'success'
     runs-on: ubuntu-latest
     environment: production
     timeout-minutes: 20
@@ -32,11 +35,10 @@ jobs:
         id: image
         shell: bash
         run: |
-          if [ "${{ github.event_name }}" = "release" ]; then
-            raw_tag="${{ github.event.release.tag_name }}"
-            image_tag="${raw_tag#v}"
-          else
+          if [ "${{ github.event_name }}" = "workflow_dispatch" ]; then
             image_tag="${{ inputs.tag }}"
+          else
+            image_tag="latest"
           fi
 
           printf 'tag=%s\n' "$image_tag" >> "$GITHUB_OUTPUT"
