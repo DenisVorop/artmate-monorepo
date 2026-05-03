@@ -3,13 +3,19 @@ export {
   createBlogCategory,
   createBlogPost,
   createBlogTag,
+  deleteBlogAuthor,
+  deleteBlogCategory,
   deleteBlogPost,
+  deleteBlogTag,
   getAdminBlogPost,
   getAdminBlogPosts,
   getBlogAuthors,
   getBlogCategories,
   getBlogTags,
+  updateBlogAuthor,
+  updateBlogCategory,
   updateBlogPost,
+  updateBlogTag,
 } from "./blog.actions";
 export {
   blogPostStatuses,
@@ -31,5 +37,8 @@ export {
   type CreateBlogCategoryInputDTO,
   type CreateBlogPostInputDTO,
   type CreateBlogTagInputDTO,
+  type UpdateBlogAuthorInputDTO,
+  type UpdateBlogCategoryInputDTO,
   type UpdateBlogPostInputDTO,
+  type UpdateBlogTagInputDTO,
 } from "./blog.types";

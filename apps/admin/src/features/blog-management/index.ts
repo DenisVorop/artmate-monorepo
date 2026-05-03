@@ -1,1 +1,7 @@
-export { BlogManagement, BlogPostDetailsManagement } from "./ui";
+export {
+  BlogAuthorsDirectory,
+  BlogCategoriesDirectory,
+  BlogPostDetailsManagement,
+  BlogPostsManagement,
+  BlogTagsDirectory,
+} from "./ui";

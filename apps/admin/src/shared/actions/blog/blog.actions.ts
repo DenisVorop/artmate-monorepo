@@ -11,7 +11,10 @@ import type {
   CreateBlogCategoryInputDTO,
   CreateBlogPostInputDTO,
   CreateBlogTagInputDTO,
+  UpdateBlogAuthorInputDTO,
+  UpdateBlogCategoryInputDTO,
   UpdateBlogPostInputDTO,
+  UpdateBlogTagInputDTO,
 } from "./blog.types";
 
 const authAccessTokenCookieName = "artmate_access_token";
@@ -46,6 +49,28 @@ export async function createBlogAuthor(input: CreateBlogAuthorInputDTO) {
   });
 }
 
+export async function updateBlogAuthor(
+  authorId: string,
+  input: UpdateBlogAuthorInputDTO,
+) {
+  return requestAdminApi<BlogAuthorDTO>(
+    `/blog/admin/authors/${encodeURIComponent(authorId)}`,
+    {
+      method: "PATCH",
+      body: JSON.stringify(input),
+    },
+  );
+}
+
+export async function deleteBlogAuthor(authorId: string) {
+  return requestAdminApi<BlogAuthorDTO>(
+    `/blog/admin/authors/${encodeURIComponent(authorId)}`,
+    {
+      method: "DELETE",
+    },
+  );
+}
+
 export async function createBlogCategory(input: CreateBlogCategoryInputDTO) {
   return requestAdminApi<BlogCategoryDTO>("/blog/admin/categories", {
     method: "POST",
@@ -53,11 +78,55 @@ export async function createBlogCategory(input: CreateBlogCategoryInputDTO) {
   });
 }
 
+export async function updateBlogCategory(
+  categoryId: string,
+  input: UpdateBlogCategoryInputDTO,
+) {
+  return requestAdminApi<BlogCategoryDTO>(
+    `/blog/admin/categories/${encodeURIComponent(categoryId)}`,
+    {
+      method: "PATCH",
+      body: JSON.stringify(input),
+    },
+  );
+}
+
+export async function deleteBlogCategory(categoryId: string) {
+  return requestAdminApi<BlogCategoryDTO>(
+    `/blog/admin/categories/${encodeURIComponent(categoryId)}`,
+    {
+      method: "DELETE",
+    },
+  );
+}
+
 export async function createBlogTag(input: CreateBlogTagInputDTO) {
   return requestAdminApi<BlogTagDTO>("/blog/admin/tags", {
     method: "POST",
     body: JSON.stringify(input),
   });
+}
+
+export async function updateBlogTag(
+  tagId: string,
+  input: UpdateBlogTagInputDTO,
+) {
+  return requestAdminApi<BlogTagDTO>(
+    `/blog/admin/tags/${encodeURIComponent(tagId)}`,
+    {
+      method: "PATCH",
+      body: JSON.stringify(input),
+    },
+  );
+}
+
+export async function deleteBlogTag(tagId: string) {
+  return requestAdminApi<BlogTagDTO>(
+    `/blog/admin/tags/${encodeURIComponent(tagId)}`,
+    {
+      method: "DELETE",
+    },
+  );
 }
 
 export async function createBlogPost(input: CreateBlogPostInputDTO) {

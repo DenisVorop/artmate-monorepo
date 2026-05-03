@@ -1,1 +1,5 @@
-export { ProductDetailsManagement, ProductsManagement } from "./ui";
+export {
+  ProductCategoriesManagement,
+  ProductDetailsManagement,
+  ProductsManagement,
+} from "./ui";

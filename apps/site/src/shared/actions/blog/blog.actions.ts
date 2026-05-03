@@ -207,12 +207,12 @@ function mapAuthor(author: BlogAuthorDTO): BlogAuthor {
   };
 }
 
-function mapCategory(category: BlogCategoryDTO) {
+function mapCategory(category: BlogCategoryDTO | undefined) {
   if (typeof category === "string") {
     return category;
   }
 
-  return category?.title || category?.name || "Блог";
+  return category?.title || category?.name || "Без категории";
 }
 
 function mapTag(tag: BlogTagDTO) {

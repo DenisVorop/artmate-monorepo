@@ -4,7 +4,6 @@ import { Card, CardContent, CardHeader, CardTitle } from "@/shared/ui";
 
 import { useProductsManagement } from "../model";
 import { CreateProductCard } from "./create-product-card";
-import { ProductCategoriesCard } from "./product-categories-card";
 import { ProductsList } from "./products-list";
 
 export function ProductsManagement() {
@@ -39,11 +38,6 @@ export function ProductsManagement() {
 
   return (
     <div className="grid gap-4">
-      <ProductCategoriesCard
-        categories={categories}
-        onProductsChange={refreshProductsView}
-        products={products}
-      />
       <CreateProductCard
         categories={categories}
         onProductsChange={refreshProductsView}

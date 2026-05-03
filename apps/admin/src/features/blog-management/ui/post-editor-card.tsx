@@ -68,7 +68,8 @@ export function BlogPostEditorCard({
         <div className="min-w-0">
           <CardTitle className="truncate">{post.title}</CardTitle>
           <CardDescription>
-            {post.slug} · {post.category.title} · {post.author.name} · обновлен{" "}
+            {post.slug} · {post.category?.title ?? "Без категории"} ·{" "}
+            {post.author.name} · обновлен{" "}
             {formatBlogPostDate(post.updatedAt)}
           </CardDescription>
         </div>

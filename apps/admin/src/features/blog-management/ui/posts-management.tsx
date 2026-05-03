@@ -4,10 +4,9 @@ import { Card, CardContent, CardHeader, CardTitle } from "@/shared/ui";
 
 import { useBlogManagement } from "../model";
 import { CreateBlogPostCard } from "./create-post-card";
-import { BlogDictionariesCard } from "./dictionaries-card";
 import { BlogPostsList } from "./posts-list";
 
-export function BlogManagement() {
+export function BlogPostsManagement() {
   const {
     authors,
     categories,
@@ -22,7 +21,7 @@ export function BlogManagement() {
     return (
       <Card>
         <CardHeader>
-          <CardTitle>Не удалось загрузить блог</CardTitle>
+          <CardTitle>Не удалось загрузить посты</CardTitle>
         </CardHeader>
         <CardContent className="text-sm text-muted-foreground">
           Перезагрузите страницу и повторите действие.
@@ -35,7 +34,7 @@ export function BlogManagement() {
     return (
       <Card>
         <CardHeader>
-          <CardTitle>Загрузка блога</CardTitle>
+          <CardTitle>Загрузка постов</CardTitle>
         </CardHeader>
         <CardContent className="text-sm text-muted-foreground">
           Получаем посты, авторов, категории и теги.
@@ -46,12 +45,6 @@ export function BlogManagement() {
 
   return (
     <div className="grid gap-4">
-      <BlogDictionariesCard
-        authors={authors}
-        categories={categories}
-        onBlogChange={refreshBlogView}
-        tags={tags}
-      />
       <CreateBlogPostCard
         authors={authors}
         categories={categories}

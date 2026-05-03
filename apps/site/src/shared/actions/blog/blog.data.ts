@@ -117,7 +117,7 @@ export type BlogPostDTO = {
   createdAt: string;
   updatedAt: string;
   author: BlogAuthorDTO;
-  category: BlogCategoryDTO;
+  category?: BlogCategoryDTO;
   tags: BlogTagDTO[];
   content?: BlogArticleContent | null;
 };

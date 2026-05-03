@@ -117,9 +117,9 @@ export type BlogPostDTO = {
   createdAt: string;
   updatedAt: string;
   authorId: string;
-  categoryId: string;
+  categoryId?: string | null;
   author: BlogAuthorDTO;
-  category: BlogCategoryDTO;
+  category?: BlogCategoryDTO | null;
   tags: BlogTagDTO[];
   content?: BlogPostContentDTO | null;
 };
@@ -146,7 +146,7 @@ export type UpdateBlogPostInputDTO = Partial<
   Omit<CreateBlogPostInputDTO, "authorId" | "categoryId" | "tagIds">
 > & {
   authorId?: string;
-  categoryId?: string;
+  categoryId?: string | null;
   tagIds?: string[];
 };
 
@@ -169,3 +169,9 @@ export type CreateBlogTagInputDTO = {
   slug: string;
   title: string;
 };
+
+export type UpdateBlogAuthorInputDTO = Partial<CreateBlogAuthorInputDTO>;
+
+export type UpdateBlogCategoryInputDTO = Partial<CreateBlogCategoryInputDTO>;
+
+export type UpdateBlogTagInputDTO = Partial<CreateBlogTagInputDTO>;

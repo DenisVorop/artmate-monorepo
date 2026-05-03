@@ -66,7 +66,7 @@ export function BlogPostsTable({ posts }: BlogPostsTableProps) {
                     </span>
                   </div>
                 </TableCell>
-                <TableCell>{post.category.title}</TableCell>
+                <TableCell>{post.category?.title ?? "Без категории"}</TableCell>
                 <TableCell>{post.author.name}</TableCell>
                 <TableCell>
                   <div className="flex flex-wrap gap-1">

@@ -1,13 +1,58 @@
+import Link from "next/link";
+import type { LucideIcon } from "lucide-react";
+import { ArrowRight, FileText, FolderTree, Tags, UserRound } from "lucide-react";
+
 import type { AuthUser } from "@/entities/session";
 import { SessionMenu } from "@/features/auth";
-import { BlogManagement } from "@/features/blog-management";
 import { routes } from "@/shared/constants";
-import { Badge } from "@/shared/ui";
+import {
+  Badge,
+  Button,
+  Card,
+  CardContent,
+  CardDescription,
+  CardHeader,
+  CardTitle,
+} from "@/shared/ui";
 import { AdminShell } from "@/widgets/admin-shell";
 
 type BlogPageProps = {
   readonly currentUser: AuthUser;
 };
+
+type BlogSection = {
+  readonly description: string;
+  readonly href: string;
+  readonly Icon: LucideIcon;
+  readonly title: string;
+};
+
+const blogSections: readonly BlogSection[] = [
+  {
+    description: "Список добавленных статей и панель создания нового поста.",
+    href: routes.blogPosts,
+    Icon: FileText,
+    title: "Посты",
+  },
+  {
+    description: "Авторы, которые доступны в карточке поста.",
+    href: routes.blogAuthors,
+    Icon: UserRound,
+    title: "Авторы",
+  },
+  {
+    description: "Категории для группировки статей блога.",
+    href: routes.blogCategories,
+    Icon: FolderTree,
+    title: "Категории",
+  },
+  {
+    description: "Теги для связей между статьями.",
+    href: routes.blogTags,
+    Icon: Tags,
+    title: "Теги",
+  },
+];
 
 export function BlogPage({ currentUser }: BlogPageProps) {
   return (
@@ -26,7 +71,27 @@ export function BlogPage({ currentUser }: BlogPageProps) {
           </div>
         </header>
 
-        <BlogManagement />
+        <div className="grid gap-4 sm:grid-cols-2 xl:grid-cols-4">
+          {blogSections.map((section) => (
+            <Card key={section.href}>
+              <CardHeader>
+                <div className="mb-2 flex size-9 items-center justify-center rounded-lg bg-muted text-muted-foreground">
+                  <section.Icon aria-hidden="true" className="size-4" />
+                </div>
+                <CardTitle>{section.title}</CardTitle>
+                <CardDescription>{section.description}</CardDescription>
+              </CardHeader>
+              <CardContent>
+                <Button asChild variant="outline">
+                  <Link href={section.href}>
+                    Открыть
+                    <ArrowRight data-icon="inline-end" aria-hidden="true" />
+                  </Link>
+                </Button>
+              </CardContent>
+            </Card>
+          ))}
+        </div>
       </section>
     </AdminShell>
   );

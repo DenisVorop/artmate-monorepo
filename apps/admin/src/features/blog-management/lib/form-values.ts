@@ -13,7 +13,10 @@ import {
   type CreateBlogCategoryInputDTO,
   type CreateBlogPostInputDTO,
   type CreateBlogTagInputDTO,
+  type UpdateBlogAuthorInputDTO,
+  type UpdateBlogCategoryInputDTO,
   type UpdateBlogPostInputDTO,
+  type UpdateBlogTagInputDTO,
 } from "@/shared/actions/blog";
 
 const requiredTextSchema = (message: string) =>
@@ -44,6 +47,18 @@ export const deleteBlogPostFormSchema = z.object({
   postId: requiredTextSchema("Не указан пост"),
 });
 
+export const deleteBlogAuthorFormSchema = z.object({
+  authorId: requiredTextSchema("Не указан автор"),
+});
+
+export const deleteBlogCategoryFormSchema = z.object({
+  categoryId: requiredTextSchema("Не указана категория"),
+});
+
+export const deleteBlogTagFormSchema = z.object({
+  tagId: requiredTextSchema("Не указан тег"),
+});
+
 export const blogAuthorFormSchema = z.object({
   avatar: optionalTextSchema,
   bio: optionalTextSchema,
@@ -66,6 +81,13 @@ export const blogTagFormSchema = z.object({
 
 export type BlogPostFormValues = z.infer<typeof blogPostFormSchema>;
 export type DeleteBlogPostFormValues = z.infer<typeof deleteBlogPostFormSchema>;
+export type DeleteBlogAuthorFormValues = z.infer<
+  typeof deleteBlogAuthorFormSchema
+>;
+export type DeleteBlogCategoryFormValues = z.infer<
+  typeof deleteBlogCategoryFormSchema
+>;
+export type DeleteBlogTagFormValues = z.infer<typeof deleteBlogTagFormSchema>;
 export type BlogAuthorFormValues = z.infer<typeof blogAuthorFormSchema>;
 export type BlogCategoryFormValues = z.infer<typeof blogCategoryFormSchema>;
 export type BlogTagFormValues = z.infer<typeof blogTagFormSchema>;
@@ -123,7 +145,7 @@ export function getCreateBlogPostDefaultValues({
 export function getBlogPostDefaultValues(post: BlogPost): BlogPostFormValues {
   return {
     authorId: post.authorId,
-    categoryId: post.categoryId,
+    categoryId: post.categoryId ?? "",
     excerpt: post.excerpt,
     featured: post.featured,
     imageAlt: post.imageAlt ?? "",
@@ -182,6 +204,12 @@ export function getCreateBlogAuthorInput(
   };
 }
 
+export function getUpdateBlogAuthorInput(
+  values: BlogAuthorFormValues,
+): UpdateBlogAuthorInputDTO {
+  return getCreateBlogAuthorInput(values);
+}
+
 export function getCreateBlogCategoryInput(
   values: BlogCategoryFormValues,
 ): CreateBlogCategoryInputDTO {
@@ -192,6 +220,12 @@ export function getCreateBlogCategoryInput(
   };
 }
 
+export function getUpdateBlogCategoryInput(
+  values: BlogCategoryFormValues,
+): UpdateBlogCategoryInputDTO {
+  return getCreateBlogCategoryInput(values);
+}
+
 export function getCreateBlogTagInput(
   values: BlogTagFormValues,
 ): CreateBlogTagInputDTO {
@@ -199,6 +233,12 @@ export function getCreateBlogTagInput(
     slug: values.slug.trim(),
     title: values.title.trim(),
   };
+}
+
+export function getUpdateBlogTagInput(
+  values: BlogTagFormValues,
+): UpdateBlogTagInputDTO {
+  return getCreateBlogTagInput(values);
 }
 
 export function normalizeBlogPostContent(content?: BlogPostContent | null) {

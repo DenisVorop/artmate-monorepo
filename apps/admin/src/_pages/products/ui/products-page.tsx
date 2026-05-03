@@ -1,9 +1,12 @@
+import Link from "next/link";
+import { FolderTree } from "lucide-react";
+
 import type { AuthUser } from "@/entities/session";
 import { SessionMenu } from "@/features/auth";
 import { ProductsManagement } from "@/features/products-management";
 import { routes } from "@/shared/constants";
 import { AdminShell } from "@/widgets/admin-shell";
-import { Badge } from "@/shared/ui";
+import { Badge, Button } from "@/shared/ui";
 
 type ProductsPageProps = {
   readonly currentUser: AuthUser;
@@ -22,6 +25,12 @@ export function ProductsPage({ currentUser }: ProductsPageProps) {
           </div>
 
           <div className="flex flex-col gap-2 sm:flex-row sm:items-center">
+            <Button asChild variant="outline">
+              <Link href={routes.productCategories}>
+                <FolderTree data-icon="inline-start" aria-hidden="true" />
+                Категории
+              </Link>
+            </Button>
             <SessionMenu user={currentUser} />
           </div>
         </header>

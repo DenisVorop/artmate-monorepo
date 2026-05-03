@@ -66,7 +66,7 @@ export function useBlogPostDetailsManagement(postId: string) {
     queryClient.removeQueries({
       queryKey: blogQueryKeys.detail(postId),
     });
-    router.push(routes.blog);
+    router.push(routes.blogPosts);
   }, [postId, queryClient, router]);
 
   return {
