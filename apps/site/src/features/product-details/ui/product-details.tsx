@@ -127,9 +127,7 @@ export function ProductDetails({ productId }: ProductDetailsProps) {
 
         <Related
           products={relatedProducts}
-          renderProductCard={(relatedProduct) => (
-            <CartProductCard product={relatedProduct} onAddToCart={addProductToCart} />
-          )}
+          renderProductCard={(relatedProduct) => <CartProductCard product={relatedProduct} />}
         />
       </div>
     </main>

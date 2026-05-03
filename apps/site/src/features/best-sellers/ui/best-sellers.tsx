@@ -1,7 +1,7 @@
 "use client";
 
 import { useProductsData } from "@/entities/products";
-import { CartProductCard, useAddProductToCart } from "@/features/cart";
+import { CartProductCard } from "@/features/cart";
 import { DataState } from "@/shared/ui";
 
 import { BaseBestsellers } from "./base-bestsellers";
@@ -12,7 +12,6 @@ type BestsellersProps = {
 
 export function Bestsellers({ className }: BestsellersProps) {
   const products = useProductsData();
-  const addProductToCart = useAddProductToCart();
 
   if (products.isError || !products.data || products.data.products.length === 0) {
     return (
@@ -36,9 +35,7 @@ export function Bestsellers({ className }: BestsellersProps) {
     <BaseBestsellers
       products={products.data.products}
       className={className}
-      renderProductCard={(product) => (
-        <CartProductCard product={product} onAddToCart={addProductToCart} />
-      )}
+      renderProductCard={(product) => <CartProductCard product={product} />}
     />
   );
 }

@@ -3,7 +3,7 @@ import type { ReactNode } from "react";
 
 import { Badge } from "@/shared/ui";
 import { routes } from "@/shared/constants";
-import { shouldBypassNextImageOptimization } from "@/shared/lib";
+import { cn, shouldBypassNextImageOptimization } from "@/shared/lib";
 import { AspectRatio } from "@/shared/ui/aspect-ratio";
 import { Card, CardContent, CardDescription, CardFooter, CardTitle } from "@/shared/ui/card";
 import { Link } from "@/shared/ui/link";
@@ -14,6 +14,7 @@ interface ProductCardProps {
   eagerImage?: boolean;
   footerAction?: ReactNode;
   mediaAction?: ReactNode;
+  mediaActionVisibility?: "always" | "hover";
 }
 
 export function ProductCard({
@@ -21,9 +22,11 @@ export function ProductCard({
   eagerImage = false,
   footerAction,
   mediaAction,
+  mediaActionVisibility = "hover",
 }: ProductCardProps) {
   const price = product.price.toLocaleString("ru-RU");
   const productHref = routes.product(product.categorySlug, product.slug);
+  const showMediaActionAlways = mediaActionVisibility === "always";
 
   return (
     <Card className="group/product h-full gap-0 py-0 transition-shadow duration-300 hover:shadow-md">
@@ -48,7 +51,14 @@ export function ProductCard({
         )}
 
         {mediaAction ? (
-          <div className="pointer-events-none absolute inset-0 hidden items-end bg-stone-900/20 p-4 opacity-0 transition-opacity duration-200 group-focus-within/product:opacity-100 group-hover/product:opacity-100 md:flex">
+          <div
+            className={cn(
+              "pointer-events-none absolute inset-0 items-end p-4 transition-opacity duration-200",
+              showMediaActionAlways
+                ? "flex bg-gradient-to-t from-stone-900/30 via-transparent to-transparent opacity-100"
+                : "flex bg-gradient-to-t from-stone-900/30 via-transparent to-transparent opacity-100 md:bg-stone-900/20 md:opacity-0 md:group-focus-within/product:opacity-100 md:group-hover/product:opacity-100",
+            )}
+          >
             {mediaAction}
           </div>
         ) : null}

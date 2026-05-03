@@ -1,7 +1,7 @@
 "use client";
 
 import { useProductsData } from "@/entities/products";
-import { CartProductCard, useAddProductToCart } from "@/features/cart";
+import { CartProductCard } from "@/features/cart";
 import { DataState } from "@/shared/ui";
 
 import { BaseCatalog } from "./base-catalog";
@@ -12,7 +12,6 @@ type CatalogProps = {
 
 export function Catalog({ initialCategoryId }: CatalogProps) {
   const { data, isError } = useProductsData();
-  const addProductToCart = useAddProductToCart();
 
   if (isError) {
     return (
@@ -47,11 +46,7 @@ export function Catalog({ initialCategoryId }: CatalogProps) {
       products={data.products}
       initialCategoryId={initialCategoryId}
       renderProductCard={(product, index) => (
-        <CartProductCard
-          product={product}
-          eagerImage={index === 0}
-          onAddToCart={addProductToCart}
-        />
+        <CartProductCard product={product} eagerImage={index === 0} />
       )}
     />
   );
