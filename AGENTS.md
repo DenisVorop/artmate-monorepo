@@ -325,6 +325,13 @@ src/_pages/<page>/
 
 ## Проверки
 
+После больших фич во frontend-проектах обязательно делай отдельную архитектурную сверку перед финальным ответом или коммитом:
+
+- проверь, что `app/`, `_pages`, `features`, `entities`, `widgets`, `shared` соблюдают свои границы ответственности;
+- проверь data flow для query/server actions/hydration и отсутствие сценарной логики в `_pages` или `shared/actions`;
+- проверь, что формы используют `react-hook-form` + `zod`, а DTO/value mappers лежат в `features/<feature>/lib`;
+- проверь public API slice (`index.ts`) и импорты между слоями, особенно после добавления новых routes/features/entities.
+
 Минимальные проверки после изменений:
 
 | Изменения | Минимум | Дополнительно |
