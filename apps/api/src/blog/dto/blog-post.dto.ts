@@ -75,16 +75,18 @@ export class BlogPostDTO {
   @IsString()
   authorId!: string;
 
+  @IsOptional()
   @IsString()
-  categoryId!: string;
+  categoryId?: string | null;
 
   @ValidateNested()
   @Type(() => BlogAuthorDTO)
   author!: BlogAuthorDTO;
 
+  @IsOptional()
   @ValidateNested()
   @Type(() => BlogCategoryDTO)
-  category!: BlogCategoryDTO;
+  category?: BlogCategoryDTO | null;
 
   @IsArray()
   @ValidateNested({ each: true })

@@ -1,5 +1,6 @@
 import {
   BadRequestException,
+  ConflictException,
   Injectable,
   NotFoundException,
 } from "@nestjs/common";
@@ -22,7 +23,10 @@ import {
   type CreateBlogCategoryRequestDTO,
   type CreateBlogPostRequestDTO,
   type CreateBlogTagRequestDTO,
+  type UpdateBlogAuthorRequestDTO,
+  type UpdateBlogCategoryRequestDTO,
   type UpdateBlogPostRequestDTO,
+  type UpdateBlogTagRequestDTO,
 } from "./dto";
 
 const blogPostInclude = {
@@ -268,11 +272,16 @@ export class BlogService {
     }
 
     if (input.categoryId !== undefined) {
-      data.category = {
-        connect: {
-          id: this.parseRequiredString(input.categoryId, "categoryId", 32),
-        },
-      };
+      data.category =
+        input.categoryId === null
+          ? {
+              disconnect: true,
+            }
+          : {
+              connect: {
+                id: this.parseRequiredString(input.categoryId, "categoryId", 32),
+              },
+            };
     }
 
     if (
@@ -366,6 +375,74 @@ export class BlogService {
     }
   }
 
+  async updateAuthor(authorId: string, input: UpdateBlogAuthorRequestDTO) {
+    const data: Prisma.BlogAuthorUpdateInput = {};
+
+    if (input.slug !== undefined) {
+      data.slug = this.parseSlug(input.slug);
+    }
+
+    if (input.name !== undefined) {
+      data.name = this.parseRequiredString(input.name, "name", 120);
+    }
+
+    if (input.role !== undefined) {
+      data.role = this.parseOptionalString(input.role, "role", 160) ?? null;
+    }
+
+    if (input.avatar !== undefined) {
+      data.avatar =
+        this.parseOptionalString(input.avatar, "avatar", 40) ?? null;
+    }
+
+    if (input.image !== undefined) {
+      data.image =
+        this.parseOptionalString(input.image, "image", 2048) ?? null;
+    }
+
+    if (input.bio !== undefined) {
+      data.bio = this.parseOptionalString(input.bio, "bio", 12000) ?? null;
+    }
+
+    try {
+      const author = await this.prisma.blogAuthor.update({
+        where: { id: authorId },
+        data,
+      });
+
+      return this.mapAuthor(author);
+    } catch (error) {
+      this.handlePrismaMutationError(error, {
+        duplicateMessage: "Blog author slug already exists",
+        notFoundMessage: "Blog author not found",
+      });
+    }
+  }
+
+  async deleteAuthor(authorId: string) {
+    const author = await this.prisma.blogAuthor.findUnique({
+      where: { id: authorId },
+    });
+
+    if (!author) {
+      throw new NotFoundException("Blog author not found");
+    }
+
+    try {
+      await this.prisma.blogAuthor.delete({
+        where: { id: authorId },
+      });
+
+      return this.mapAuthor(author);
+    } catch (error) {
+      this.handlePrismaMutationError(error, {
+        duplicateMessage: "Blog author slug already exists",
+        notFoundMessage: "Blog author not found",
+        relationMessage: "Blog author is used by existing posts",
+      });
+    }
+  }
+
   async getCategories() {
     const categories = await this.prisma.blogCategory.findMany({
       orderBy: {
@@ -396,6 +473,65 @@ export class BlogService {
     }
   }
 
+  async updateCategory(
+    categoryId: string,
+    input: UpdateBlogCategoryRequestDTO,
+  ) {
+    const data: Prisma.BlogCategoryUpdateInput = {};
+
+    if (input.slug !== undefined) {
+      data.slug = this.parseSlug(input.slug);
+    }
+
+    if (input.title !== undefined) {
+      data.title = this.parseRequiredString(input.title, "title", 120);
+    }
+
+    if (input.description !== undefined) {
+      data.description =
+        this.parseOptionalString(input.description, "description", 12000) ??
+        null;
+    }
+
+    try {
+      const category = await this.prisma.blogCategory.update({
+        where: { id: categoryId },
+        data,
+      });
+
+      return this.mapCategory(category);
+    } catch (error) {
+      this.handlePrismaMutationError(error, {
+        duplicateMessage: "Blog category slug already exists",
+        notFoundMessage: "Blog category not found",
+      });
+    }
+  }
+
+  async deleteCategory(categoryId: string) {
+    const category = await this.prisma.blogCategory.findUnique({
+      where: { id: categoryId },
+    });
+
+    if (!category) {
+      throw new NotFoundException("Blog category not found");
+    }
+
+    try {
+      await this.prisma.blogCategory.delete({
+        where: { id: categoryId },
+      });
+
+      return this.mapCategory(category);
+    } catch (error) {
+      this.handlePrismaMutationError(error, {
+        duplicateMessage: "Blog category slug already exists",
+        notFoundMessage: "Blog category not found",
+        relationMessage: "Blog category is used by existing posts",
+      });
+    }
+  }
+
   async getTags() {
     const tags = await this.prisma.blogTag.findMany({
       orderBy: {
@@ -418,6 +554,56 @@ export class BlogService {
       return this.mapTag(tag);
     } catch (error) {
       this.handlePrismaMutationError(error, "Blog tag slug already exists");
+    }
+  }
+
+  async updateTag(tagId: string, input: UpdateBlogTagRequestDTO) {
+    const data: Prisma.BlogTagUpdateInput = {};
+
+    if (input.slug !== undefined) {
+      data.slug = this.parseSlug(input.slug);
+    }
+
+    if (input.title !== undefined) {
+      data.title = this.parseRequiredString(input.title, "title", 120);
+    }
+
+    try {
+      const tag = await this.prisma.blogTag.update({
+        where: { id: tagId },
+        data,
+      });
+
+      return this.mapTag(tag);
+    } catch (error) {
+      this.handlePrismaMutationError(error, {
+        duplicateMessage: "Blog tag slug already exists",
+        notFoundMessage: "Blog tag not found",
+      });
+    }
+  }
+
+  async deleteTag(tagId: string) {
+    const tag = await this.prisma.blogTag.findUnique({
+      where: { id: tagId },
+    });
+
+    if (!tag) {
+      throw new NotFoundException("Blog tag not found");
+    }
+
+    try {
+      await this.prisma.blogTag.delete({
+        where: { id: tagId },
+      });
+
+      return this.mapTag(tag);
+    } catch (error) {
+      this.handlePrismaMutationError(error, {
+        duplicateMessage: "Blog tag slug already exists",
+        notFoundMessage: "Blog tag not found",
+        relationMessage: "Blog tag is used by existing posts",
+      });
     }
   }
 
@@ -832,9 +1018,9 @@ export class BlogService {
       createdAt: post.createdAt.toISOString(),
       updatedAt: post.updatedAt.toISOString(),
       authorId: post.authorId,
-      categoryId: post.categoryId,
+      categoryId: post.categoryId ?? undefined,
       author: this.mapAuthor(post.author),
-      category: this.mapCategory(post.category),
+      category: post.category ? this.mapCategory(post.category) : undefined,
       tags: post.tags.map((postTag) => this.mapTag(postTag.tag)),
       content: this.mapContent(post.content),
     };
@@ -877,19 +1063,36 @@ export class BlogService {
 
   private handlePrismaMutationError(
     error: unknown,
-    duplicateMessage: string,
+    options:
+      | string
+      | {
+          readonly duplicateMessage: string;
+          readonly notFoundMessage?: string;
+          readonly relationMessage?: string;
+        },
   ): never {
+    const {
+      duplicateMessage,
+      notFoundMessage = "Blog post not found",
+      relationMessage = "Blog post relation not found",
+    } =
+      typeof options === "string"
+        ? {
+            duplicateMessage: options,
+          }
+        : options;
+
     if (error instanceof Prisma.PrismaClientKnownRequestError) {
       if (error.code === "P2002") {
         throw new BadRequestException(duplicateMessage);
       }
 
       if (error.code === "P2003") {
-        throw new BadRequestException("Blog post relation not found");
+        throw new ConflictException(relationMessage);
       }
 
       if (error.code === "P2025") {
-        throw new NotFoundException("Blog post not found");
+        throw new NotFoundException(notFoundMessage);
       }
     }
 

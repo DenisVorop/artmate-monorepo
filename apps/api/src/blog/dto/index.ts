@@ -6,4 +6,7 @@ export { CreateBlogAuthorRequestDTO } from "./create-blog-author-request.dto";
 export { CreateBlogCategoryRequestDTO } from "./create-blog-category-request.dto";
 export { CreateBlogPostRequestDTO } from "./create-blog-post-request.dto";
 export { CreateBlogTagRequestDTO } from "./create-blog-tag-request.dto";
+export { UpdateBlogAuthorRequestDTO } from "./update-blog-author-request.dto";
+export { UpdateBlogCategoryRequestDTO } from "./update-blog-category-request.dto";
 export { UpdateBlogPostRequestDTO } from "./update-blog-post-request.dto";
+export { UpdateBlogTagRequestDTO } from "./update-blog-tag-request.dto";

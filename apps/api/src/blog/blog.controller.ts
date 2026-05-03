@@ -31,7 +31,10 @@ import {
   CreateBlogCategoryRequestDTO,
   CreateBlogPostRequestDTO,
   CreateBlogTagRequestDTO,
+  UpdateBlogAuthorRequestDTO,
+  UpdateBlogCategoryRequestDTO,
   UpdateBlogPostRequestDTO,
+  UpdateBlogTagRequestDTO,
 } from "./dto";
 
 type AuthenticatedRequest = {
@@ -152,6 +155,33 @@ export class AdminBlogController {
     return this.blogService.createAuthor(body);
   }
 
+  @ValidateResponse(BlogAuthorDTO)
+  @ApiOperation({ summary: "Update blog author from admin panel" })
+  @ApiOkResponse({ type: BlogAuthorDTO })
+  @Patch("authors/:id")
+  updateAuthor(
+    @Param("id") authorId: string,
+    @Body() body: UpdateBlogAuthorRequestDTO,
+    @Req() request: AuthenticatedRequest,
+  ) {
+    this.usersService.assertRole(request.user, "admin");
+
+    return this.blogService.updateAuthor(authorId, body);
+  }
+
+  @ValidateResponse(BlogAuthorDTO)
+  @ApiOperation({ summary: "Delete blog author from admin panel" })
+  @ApiOkResponse({ type: BlogAuthorDTO })
+  @Delete("authors/:id")
+  deleteAuthor(
+    @Param("id") authorId: string,
+    @Req() request: AuthenticatedRequest,
+  ) {
+    this.usersService.assertRole(request.user, "admin");
+
+    return this.blogService.deleteAuthor(authorId);
+  }
+
   @ValidateResponse(BlogCategoryDTO, { isArray: true })
   @ApiOperation({ summary: "List blog categories for admin panel" })
   @ApiOkResponse({ type: [BlogCategoryDTO] })
@@ -175,6 +205,33 @@ export class AdminBlogController {
     return this.blogService.createCategory(body);
   }
 
+  @ValidateResponse(BlogCategoryDTO)
+  @ApiOperation({ summary: "Update blog category from admin panel" })
+  @ApiOkResponse({ type: BlogCategoryDTO })
+  @Patch("categories/:id")
+  updateCategory(
+    @Param("id") categoryId: string,
+    @Body() body: UpdateBlogCategoryRequestDTO,
+    @Req() request: AuthenticatedRequest,
+  ) {
+    this.usersService.assertRole(request.user, "admin");
+
+    return this.blogService.updateCategory(categoryId, body);
+  }
+
+  @ValidateResponse(BlogCategoryDTO)
+  @ApiOperation({ summary: "Delete blog category from admin panel" })
+  @ApiOkResponse({ type: BlogCategoryDTO })
+  @Delete("categories/:id")
+  deleteCategory(
+    @Param("id") categoryId: string,
+    @Req() request: AuthenticatedRequest,
+  ) {
+    this.usersService.assertRole(request.user, "admin");
+
+    return this.blogService.deleteCategory(categoryId);
+  }
+
   @ValidateResponse(BlogTagDTO, { isArray: true })
   @ApiOperation({ summary: "List blog tags for admin panel" })
   @ApiOkResponse({ type: [BlogTagDTO] })
@@ -196,5 +253,29 @@ export class AdminBlogController {
     this.usersService.assertRole(request.user, "admin");
 
     return this.blogService.createTag(body);
+  }
+
+  @ValidateResponse(BlogTagDTO)
+  @ApiOperation({ summary: "Update blog tag from admin panel" })
+  @ApiOkResponse({ type: BlogTagDTO })
+  @Patch("tags/:id")
+  updateTag(
+    @Param("id") tagId: string,
+    @Body() body: UpdateBlogTagRequestDTO,
+    @Req() request: AuthenticatedRequest,
+  ) {
+    this.usersService.assertRole(request.user, "admin");
+
+    return this.blogService.updateTag(tagId, body);
+  }
+
+  @ValidateResponse(BlogTagDTO)
+  @ApiOperation({ summary: "Delete blog tag from admin panel" })
+  @ApiOkResponse({ type: BlogTagDTO })
+  @Delete("tags/:id")
+  deleteTag(@Param("id") tagId: string, @Req() request: AuthenticatedRequest) {
+    this.usersService.assertRole(request.user, "admin");
+
+    return this.blogService.deleteTag(tagId);
   }
 }
