@@ -147,6 +147,174 @@ yarn exec turbo link
 yarn exec turbo link
 ```
 
+## Production Deploy
+
+Production is deployed from GitHub Actions to a VPS by SSH. Runtime configuration is passed to the server as one `.env` file and is used by `docker-compose.prod.yml`.
+
+GitHub secrets are configured in:
+
+```text
+Settings -> Environments -> production -> Environment secrets
+```
+
+### Required GitHub Secrets
+
+| Secret | Where to get it |
+| --- | --- |
+| `PRODUCTION_HOST` | VPS IP address, for example `193.233.244.12`. |
+| `PRODUCTION_USER` | SSH user on the VPS, currently `codex`. |
+| `PRODUCTION_SSH_KEY` | Private deploy SSH key. Generate it locally, add the public key to `/home/codex/.ssh/authorized_keys` on the VPS, and paste the private key into this secret. |
+| `PRODUCTION_ENV_FILE` | Full production `.env` content. Use `.env.example` as the base and replace placeholders with real values. |
+
+### Optional GitHub Secrets
+
+These are needed only if GHCR packages are private:
+
+| Secret | Where to get it |
+| --- | --- |
+| `GHCR_USERNAME` | GitHub username that can read packages, for example `DenisVorop`. |
+| `GHCR_READ_TOKEN` | GitHub Personal Access Token with `read:packages`. The VPS uses it for `docker pull` from GHCR. |
+
+Do not add `GITHUB_TOKEN` manually. GitHub Actions provides it automatically.
+
+### Generate Deploy SSH Key
+
+Generate a dedicated key on your local machine:
+
+```bash
+ssh-keygen -t ed25519 -C "artmate-github-actions-deploy" -f ~/.ssh/artmate-github-actions-deploy -N ""
+```
+
+Add the public key to the VPS:
+
+```bash
+cat ~/.ssh/artmate-github-actions-deploy.pub
+```
+
+Paste the output into:
+
+```text
+/home/codex/.ssh/authorized_keys
+```
+
+Add the private key to GitHub as `PRODUCTION_SSH_KEY`:
+
+```bash
+cat ~/.ssh/artmate-github-actions-deploy
+```
+
+Paste the whole block, including:
+
+```text
+-----BEGIN OPENSSH PRIVATE KEY-----
+...
+-----END OPENSSH PRIVATE KEY-----
+```
+
+### Build PRODUCTION_ENV_FILE
+
+Use `.env.example` as the source of truth. For production deploy, the required values are:
+
+```env
+ACME_EMAIL=admin@art-mate.ru
+
+POSTGRES_DB=artmate
+POSTGRES_USER=artmate
+POSTGRES_PASSWORD=change-me
+DATABASE_URL=postgresql://artmate:change-me@postgres:5432/artmate
+
+SITE_URL=https://art-mate.ru
+ADMIN_URL=https://admin.art-mate.ru
+API_PUBLIC_URL=https://api.art-mate.ru
+API_BASE_URL=http://api:3002
+NEXT_PUBLIC_SITE_URL=https://art-mate.ru
+AUTH_SUCCESS_REDIRECT_URL=https://art-mate.ru
+CORS_ORIGIN=https://art-mate.ru,https://admin.art-mate.ru
+SWAGGER_ENABLED=false
+
+AUTH_JWT_SECRET=change-me
+```
+
+The PostgreSQL database and user are created automatically by the `postgres` Docker image on the first start from:
+
+```env
+POSTGRES_DB=artmate
+POSTGRES_USER=artmate
+POSTGRES_PASSWORD=change-me
+```
+
+`DATABASE_URL` must use the same password:
+
+```env
+DATABASE_URL=postgresql://artmate:change-me@postgres:5432/artmate
+```
+
+If `POSTGRES_PASSWORD` contains characters like `@`, `:`, `/`, or `#`, URL-encode it in `DATABASE_URL`. To avoid this during setup, use a password with letters, digits, hyphens, and underscores.
+
+Generate safe random values:
+
+```bash
+openssl rand -hex 24
+openssl rand -hex 32
+```
+
+Use the first value for `POSTGRES_PASSWORD` and the second for `AUTH_JWT_SECRET`.
+
+### Password Login
+
+The API supports a password login backed by env variables. In production, use a hash, not a plain password:
+
+```env
+AUTH_PASSWORD_LOGIN=admin
+AUTH_PASSWORD_EMAIL=admin@art-mate.ru
+AUTH_PASSWORD_NAME=Admin
+AUTH_PASSWORD_HASH=scrypt:...
+AUTH_PASSWORD_ROLES=admin,customer
+```
+
+Generate `AUTH_PASSWORD_HASH` locally:
+
+```bash
+node -e 'const crypto=require("node:crypto"); const password=process.argv[1]; if(!password){throw new Error("Password argument is required")} const salt=crypto.randomBytes(16).toString("hex"); crypto.scrypt(password,salt,64,(error,key)=>{ if(error) throw error; console.log(`scrypt:${salt}:${key.toString("hex")}`); });' 'your-password'
+```
+
+`AUTH_PASSWORD` is for local development only. Do not put it in `PRODUCTION_ENV_FILE`.
+
+### Optional Provider Secrets
+
+These values can stay empty for a basic deploy, but related features will not work until they are set:
+
+```env
+YANDEX_OAUTH_CLIENT_ID=
+YANDEX_OAUTH_CLIENT_SECRET=
+YANDEX_OAUTH_REDIRECT_URI=https://api.art-mate.ru/auth/oauth/yandex/callback
+
+OZON_API=
+OZON_API_KEY=
+OZON_CLIENT_ID=
+OZON_LOGISTICS_MODE=mock
+OZON_OAUTH_ACCESS_TYPE=offline
+OZON_OAUTH_CLIENT_ID=
+OZON_OAUTH_CLIENT_SECRET=
+OZON_OAUTH_PROMPT=consent
+OZON_OAUTH_REDIRECT_URI=https://api.art-mate.ru/ozon/oauth/callback
+OZON_OAUTH_REFRESH_TOKEN=
+OZON_OAUTH_SCOPE=
+
+TELEGRAM_BOT_TOKEN=
+TELEGRAM_CONTACTS_CHAT_ID=
+```
+
+Provider sources:
+
+- `YANDEX_*`: Yandex OAuth application settings.
+- `OZON_API_KEY` and `OZON_CLIENT_ID`: Ozon Seller API settings.
+- `OZON_OAUTH_*`: Ozon OAuth application and OAuth flow.
+- `TELEGRAM_BOT_TOKEN`: BotFather.
+- `TELEGRAM_CONTACTS_CHAT_ID`: target Telegram chat id for contact form messages.
+
+If any real secret was pasted into chat, logs, or committed by mistake, rotate it in the provider dashboard before production use.
+
 ## Useful Links
 
 Learn more about the power of Turborepo:
