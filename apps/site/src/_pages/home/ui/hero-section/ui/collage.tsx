@@ -30,6 +30,7 @@ function CollagePhoto({
   className,
   frameClassName,
   frameRingClassName,
+  eager,
   children,
 }: {
   image: CollageImage;
@@ -38,6 +39,7 @@ function CollagePhoto({
   className?: string;
   frameClassName?: string;
   frameRingClassName?: string;
+  eager?: boolean;
   children?: ReactNode;
 }) {
   return (
@@ -45,10 +47,12 @@ function CollagePhoto({
       <AspectRatio ratio={ratio} className={cn("relative overflow-hidden", frameClassName)}>
         <Image
           fill
-          preload
+          preload={eager}
           src={image.src}
           alt={image.alt}
           sizes={sizes}
+          loading={eager ? "eager" : "lazy"}
+          fetchPriority={eager ? "high" : undefined}
           className="object-cover"
         />
         {children}
@@ -136,6 +140,7 @@ export function Collage({ metrics }: { metrics: HeroMetrics }) {
           className="z-20 w-[58%] rotate-[-2deg] sm:w-[52%] lg:w-[55%]"
           frameClassName="rounded-[2rem] shadow-2xl shadow-stone-300/60"
           frameRingClassName={frameGradients.workspace}
+          eager
         >
           <div className="absolute inset-0 bg-gradient-to-t from-stone-900/20 to-transparent" />
         </CollagePhoto>

@@ -96,10 +96,11 @@ export function PaymentAndDeliveryPage() {
                 label={companyDetails.registrationNumberLabel}
                 value={companyDetails.registrationNumber}
               />
-              <Detail label="Юридический адрес" value={companyDetails.legalAddress} />
-              <Detail label="Страна регистрации" value={companyDetails.registrationCountry} />
-              <Detail label="Телефон" value={companyDetails.supportPhone} />
               <Detail label="Email" value={companyDetails.supportEmail} />
+              <Detail label="Банк" value={companyDetails.bankName} />
+              <Detail label="БИК" value={companyDetails.bankBik} />
+              <Detail label="Корреспондентский счет" value={companyDetails.correspondentAccount} />
+              <Detail label="Расчетный счет" value={companyDetails.checkingAccount} />
             </dl>
           </div>
         </div>
@@ -155,9 +156,9 @@ export function PaymentAndDeliveryPage() {
 
 function Detail({ label, value }: { label: string; value: string }) {
   return (
-    <div className="grid gap-1 sm:grid-cols-[10rem_1fr]">
-      <dt className="text-muted-foreground">{label}</dt>
-      <dd className="font-medium text-foreground">{value}</dd>
+    <div className="grid gap-1 sm:grid-cols-[max-content_minmax(0,1fr)] sm:gap-4">
+      <dt className="text-muted-foreground sm:whitespace-nowrap">{label}</dt>
+      <dd className="font-medium break-words text-foreground sm:whitespace-nowrap">{value}</dd>
     </div>
   );
 }

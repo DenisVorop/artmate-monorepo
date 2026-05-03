@@ -1,6 +1,7 @@
 import { ArrowUpRight, Mail, MessageCircle } from "lucide-react";
 
 import { Badge, Card, CardAction, CardDescription, CardHeader, CardTitle } from "@/shared/ui";
+import { companyDetails } from "@/shared/constants";
 import { cn } from "@/shared/lib";
 import { SectionSubtitle, SectionTitle } from "@/shared/ui/typography";
 
@@ -16,9 +17,9 @@ const channels = [
   },
   {
     label: "Email",
-    handle: "artmate.official@outlook.com",
+    handle: companyDetails.supportEmail,
     description: "Для\u00a0возвратов, обменов, документов и\u00a0сотрудничества.",
-    href: "mailto:artmate.official@outlook.com",
+    href: `mailto:${companyDetails.supportEmail}`,
     icon: Mail,
     tone: "text-rose-600 bg-rose-50 ring-rose-200/70",
     external: false,

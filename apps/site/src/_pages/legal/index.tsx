@@ -28,6 +28,7 @@ type LegalDocument = {
 };
 
 const sellerName = `${companyDetails.legalName}, ИНН ${companyDetails.inn}, ${companyDetails.registrationNumberLabel} ${companyDetails.registrationNumber}`;
+const legalDocumentsUpdatedAt = "04.05.2026";
 
 export const legalDocuments = {
   publicOffer: {
@@ -35,7 +36,7 @@ export const legalDocuments = {
     description:
       "Условия продажи товаров Artmate, оформления заказа, оплаты, доставки и возврата.",
     href: routes.legal.publicOffer,
-    updatedAt: "26.04.2026",
+    updatedAt: legalDocumentsUpdatedAt,
     sections: [
       {
         title: "1. Общие положения",
@@ -92,7 +93,7 @@ export const legalDocuments = {
     description:
       "Правила обработки персональных данных покупателей и посетителей сайта Artmate.",
     href: routes.legal.privacyPolicy,
-    updatedAt: "26.04.2026",
+    updatedAt: legalDocumentsUpdatedAt,
     sections: [
       {
         title: "1. Оператор персональных данных",
@@ -145,7 +146,7 @@ export const legalDocuments = {
     title: "Пользовательское соглашение",
     description: "Правила использования сайта Artmate, каталога, корзины и личного кабинета.",
     href: routes.legal.userAgreement,
-    updatedAt: "26.04.2026",
+    updatedAt: legalDocumentsUpdatedAt,
     sections: [
       {
         title: "1. Использование сайта",
@@ -186,7 +187,7 @@ export const legalDocuments = {
     description:
       "Согласие покупателя на обработку персональных данных при оформлении заказа Artmate.",
     href: routes.legal.personalDataConsent,
-    updatedAt: "26.04.2026",
+    updatedAt: legalDocumentsUpdatedAt,
     sections: [
       {
         title: "1. Согласие пользователя",
@@ -221,7 +222,7 @@ export const legalDocuments = {
     title: "Политика Cookie",
     description: "Информация об использовании cookie и технических данных на сайте Artmate.",
     href: routes.legal.cookiePolicy,
-    updatedAt: "26.04.2026",
+    updatedAt: legalDocumentsUpdatedAt,
     sections: [
       {
         title: "1. Что такое cookie",
@@ -250,7 +251,7 @@ export const legalDocuments = {
     title: "Правила возврата",
     description: "Порядок отмены заказа, возврата товара и возврата денежных средств Artmate.",
     href: routes.legal.returnPolicy,
-    updatedAt: "26.04.2026",
+    updatedAt: legalDocumentsUpdatedAt,
     sections: [
       {
         title: "1. Отмена заказа",
@@ -283,7 +284,6 @@ export const legalDocuments = {
         title: "5. Контакты для возврата",
         items: [
           `Email: ${companyDetails.supportEmail}`,
-          `Телефон: ${companyDetails.supportPhone}`,
           `Время обработки обращений: ${companyDetails.businessHours}`,
         ],
       },
@@ -392,12 +392,14 @@ export function getLegalMetadata(documentId: LegalDocumentId): Metadata {
 function getCompanyItems() {
   return [
     `Полное наименование: ${companyDetails.legalName}`,
+    `Краткое наименование: ${companyDetails.shortName}`,
     `ИНН: ${companyDetails.inn}`,
     `${companyDetails.registrationNumberLabel}: ${companyDetails.registrationNumber}`,
-    `Юридический адрес: ${companyDetails.legalAddress}`,
-    `Фактический адрес: ${companyDetails.actualAddress}`,
-    `Страна регистрации: ${companyDetails.registrationCountry}`,
-    `Телефон: ${companyDetails.supportPhone}`,
+    `Дата присвоения ${companyDetails.registrationNumberLabel}: ${companyDetails.registrationDate}`,
     `Email: ${companyDetails.supportEmail}`,
+    `Банк: ${companyDetails.bankName}`,
+    `БИК: ${companyDetails.bankBik}`,
+    `Корреспондентский счет: ${companyDetails.correspondentAccount}`,
+    `Расчетный счет: ${companyDetails.checkingAccount}`,
   ];
 }
