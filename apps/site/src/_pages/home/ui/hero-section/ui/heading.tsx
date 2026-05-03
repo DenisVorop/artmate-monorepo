@@ -5,7 +5,9 @@ export function Heading() {
     <PageTitle className="mb-4 tracking-tight">
       Раскраски по&nbsp;номерам{" "}
       <span className="relative inline-block">
-        <span className="relative z-10 text-rose-400">Artmate</span>
+        <span className="relative z-10 bg-gradient-to-r from-rose-500 via-rose-400 to-orange-400 bg-clip-text text-transparent">
+          Artmate
+        </span>
         <svg
           className="absolute -bottom-1 left-0 w-full"
           height="6"

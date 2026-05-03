@@ -14,6 +14,7 @@ interface ProductCardProps {
   eagerImage?: boolean;
   footerAction?: ReactNode;
   mediaAction?: ReactNode;
+  mediaActionViewport?: "all" | "desktop";
   mediaActionVisibility?: "always" | "hover";
 }
 
@@ -22,6 +23,7 @@ export function ProductCard({
   eagerImage = false,
   footerAction,
   mediaAction,
+  mediaActionViewport = "all",
   mediaActionVisibility = "hover",
 }: ProductCardProps) {
   const price = product.price.toLocaleString("ru-RU");
@@ -54,9 +56,10 @@ export function ProductCard({
           <div
             className={cn(
               "pointer-events-none absolute inset-0 items-end p-4 transition-opacity duration-200",
+              mediaActionViewport === "desktop" ? "hidden md:flex" : "flex",
               showMediaActionAlways
-                ? "flex bg-gradient-to-t from-stone-900/30 via-transparent to-transparent opacity-100"
-                : "flex bg-gradient-to-t from-stone-900/30 via-transparent to-transparent opacity-100 md:bg-stone-900/20 md:opacity-0 md:group-focus-within/product:opacity-100 md:group-hover/product:opacity-100",
+                ? "bg-gradient-to-t from-stone-900/30 via-transparent to-transparent opacity-100"
+                : "bg-gradient-to-t from-stone-900/30 via-transparent to-transparent opacity-100 md:bg-stone-900/20 md:opacity-0 md:group-focus-within/product:opacity-100 md:group-hover/product:opacity-100",
             )}
           >
             {mediaAction}
@@ -78,7 +81,7 @@ export function ProductCard({
       </CardContent>
 
       <CardFooter className="mt-auto justify-between gap-3 border-t-0 bg-transparent px-4 pt-0 pb-4">
-        <p className="font-semibold text-stone-700">{price} ₽</p>
+        <p className="shrink-0 text-base font-semibold text-stone-700 md:text-sm">{price} ₽</p>
         {footerAction}
       </CardFooter>
     </Card>

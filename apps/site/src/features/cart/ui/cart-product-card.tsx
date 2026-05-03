@@ -22,6 +22,7 @@ type CartProductCardProps = {
 };
 
 type CartQuantityControlsProps = {
+  readonly className?: string;
   readonly disabled: boolean;
   readonly onDecrease: MouseEventHandler<HTMLButtonElement>;
   readonly onIncrease: MouseEventHandler<HTMLButtonElement>;
@@ -82,38 +83,42 @@ export function CartProductCard({ eagerImage = false, product }: CartProductCard
   const AddIcon = isAdding ? LoaderCircle : ShoppingBag;
   const addButtonClassName =
     "bg-gradient-to-r from-rose-500 to-orange-400 text-white shadow-lg shadow-rose-500/20 hover:from-rose-600 hover:to-orange-500 hover:shadow-rose-500/30 focus-visible:border-rose-300 focus-visible:ring-rose-400/30";
-  const quantityControls = (
-    <CartQuantityControls
-      disabled={isMutating}
-      onDecrease={handleDecrease}
-      onIncrease={handleIncrease}
-      productTitle={product.title}
-      quantity={quantity}
-    />
-  );
-  const addButton = (
-    <Button
-      className={cn("pointer-events-auto w-full", addButtonClassName)}
-      disabled={isMutating}
-      onClick={handleAdd}
-      size="lg"
-      type="button"
-    >
-      <AddIcon data-icon="inline-start" className={cn(isAdding && "animate-spin")} />
-      {addButtonLabel}
-    </Button>
-  );
+  const renderCartAction = () =>
+    isInCart ? (
+      <CartQuantityControls
+        disabled={isMutating}
+        onDecrease={handleDecrease}
+        onIncrease={handleIncrease}
+        productTitle={product.title}
+        quantity={quantity}
+      />
+    ) : (
+      <Button
+        className={cn("pointer-events-auto w-full", addButtonClassName)}
+        disabled={isMutating}
+        onClick={handleAdd}
+        size="lg"
+        type="button"
+      >
+        <AddIcon data-icon="inline-start" className={cn(isAdding && "animate-spin")} />
+        {addButtonLabel}
+      </Button>
+    );
+
   return (
     <ProductCard
       eagerImage={eagerImage}
+      footerAction={<div className="w-[min(9.75rem,58%)] md:hidden">{renderCartAction()}</div>}
       product={product}
-      mediaAction={isInCart ? quantityControls : addButton}
+      mediaAction={renderCartAction()}
+      mediaActionViewport="desktop"
       mediaActionVisibility={isInCart ? "always" : "hover"}
     />
   );
 }
 
 function CartQuantityControls({
+  className,
   disabled,
   onDecrease,
   onIncrease,
@@ -122,7 +127,10 @@ function CartQuantityControls({
 }: CartQuantityControlsProps) {
   return (
     <div
-      className="pointer-events-auto grid h-9 w-full grid-cols-[1.75rem_minmax(0,1fr)_1.75rem] items-center rounded-lg border border-white/70 bg-white/95 p-1 shadow-lg backdrop-blur"
+      className={cn(
+        "pointer-events-auto grid h-9 w-full grid-cols-[1.75rem_minmax(0,1fr)_1.75rem] items-center rounded-lg border border-white/70 bg-white/95 p-1 shadow-lg backdrop-blur",
+        className,
+      )}
       aria-label={`${productTitle}: ${quantity} в\u00a0корзине`}
     >
       <Button
