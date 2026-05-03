@@ -23,6 +23,7 @@ import {
   contactFormSchema,
   type ContactFormValues,
 } from "../lib";
+import { useSubmitContactMessageMutation } from "../model";
 
 const topics = [
   "Вопрос о\u00a0заказе",
@@ -34,6 +35,12 @@ const topics = [
 
 export function ContactForm() {
   const [sent, setSent] = useState(false);
+  const {
+    submitContactMessage,
+    isPending,
+    error: submitError,
+    reset: resetSubmitState,
+  } = useSubmitContactMessageMutation();
   const {
     formState: { errors },
     handleSubmit,
@@ -48,11 +55,18 @@ export function ContactForm() {
   const formId = useId();
   const selectedTopic = watch("topic");
 
-  const submitForm = handleSubmit(() => {
-    setSent(true);
+  const submitForm = handleSubmit(async (values) => {
+    try {
+      await submitContactMessage(values);
+      reset();
+      setSent(true);
+    } catch {
+      // The mutation error is rendered below the form controls.
+    }
   });
   const handleSendAnother = () => {
     reset();
+    resetSubmitState();
     setSent(false);
   };
 
@@ -102,6 +116,7 @@ export function ContactForm() {
                     type="button"
                     size="sm"
                     variant={selected ? "default" : "outline"}
+                    disabled={isPending}
                     aria-pressed={selected}
                     onClick={() =>
                       setValue("topic", selected ? "" : topic, {
@@ -160,8 +175,10 @@ export function ContactForm() {
               type="text"
               inputMode="text"
               placeholder="#12345"
+              aria-invalid={Boolean(errors.order)}
               {...register("order")}
             />
+            <FieldError message={errors.order?.message} />
           </div>
 
           <div className="space-y-2">
@@ -181,11 +198,13 @@ export function ContactForm() {
           <Button
             type="submit"
             size="lg"
+            disabled={isPending}
             className="h-11 bg-gradient-to-r from-rose-500 to-orange-400 text-white shadow-lg shadow-rose-500/20 hover:from-rose-600 hover:to-orange-500"
           >
-            Отправить
+            {isPending ? "Отправляем" : "Отправить"}
             <Send data-icon="inline-end" />
           </Button>
+          <FormError message={submitError?.message} />
         </form>
       </CardContent>
     </Card>
@@ -198,4 +217,16 @@ function FieldError({ message }: { readonly message?: string }) {
   }
 
   return <p className="text-sm text-destructive">{message}</p>;
+}
+
+function FormError({ message }: { readonly message?: string }) {
+  if (!message) {
+    return null;
+  }
+
+  return (
+    <p className="rounded-md border border-destructive/30 bg-destructive/10 px-3 py-2 text-sm text-destructive">
+      {message}
+    </p>
+  );
 }

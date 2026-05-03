@@ -5,6 +5,7 @@ import { AppService } from "./app.service";
 import { AuthModule } from "./auth/auth.module";
 import { BlogModule } from "./blog/blog.module";
 import { CartModule } from "./cart/cart.module";
+import { ContactsModule } from "./contacts/contacts.module";
 import { OrdersModule } from "./orders/orders.module";
 import { OzonModule } from "./ozon/ozon.module";
 import { PrismaModule } from "./prisma/prisma.module";
@@ -21,6 +22,7 @@ import { UsersModule } from "./users/users.module";
     ProductsModule,
     BlogModule,
     OzonModule,
+    ContactsModule,
   ],
   controllers: [AppController],
   providers: [AppService],
