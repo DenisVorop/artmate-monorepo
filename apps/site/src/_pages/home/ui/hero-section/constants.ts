@@ -7,8 +7,8 @@ export type HeroMetrics = {
 };
 
 export const heroMetrics = {
-  ratingLabel: "4.9 / 5",
-  paintedCountLabel: "30 000+ человек",
+  ratingLabel: "4.95 из 5",
+  paintedCountLabel: "33 000+ человек",
   progressValue: 80,
 } satisfies HeroMetrics;
 
@@ -26,5 +26,3 @@ export const heroImages = {
     alt: "Мандала",
   },
 } as const;
-
-export const reviewAvatars = [heroImages.hands, heroImages.workspace, heroImages.mandala] as const;

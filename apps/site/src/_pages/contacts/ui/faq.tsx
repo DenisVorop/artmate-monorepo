@@ -1,7 +1,7 @@
 import { ArrowRight } from "lucide-react";
 
 import { Accordion, AccordionContent, AccordionItem, AccordionTrigger, Button } from "@/shared/ui";
-import { routes } from "@/shared/constants";
+import { externalLinks, routes } from "@/shared/constants";
 import { Link } from "@/shared/ui/link";
 import { SectionSubtitle, SectionTitle } from "@/shared/ui/typography";
 
@@ -12,7 +12,29 @@ const faqItems = [
   },
   {
     question: "Где ещё купить книги ARTMATE?",
-    answer: "На\u00a0Ozon и\u00a0Wildberries, с\u00a0доставкой через удобный пункт выдачи.",
+    answer: (
+      <>
+        На{" "}
+        <a
+          href={externalLinks.marketplaces.ozon}
+          target="_blank"
+          rel="noreferrer"
+          className="font-medium text-foreground underline-offset-4 hover:underline"
+        >
+          Ozon
+        </a>{" "}
+        и{" "}
+        <a
+          href={externalLinks.marketplaces.wildberries}
+          target="_blank"
+          rel="noreferrer"
+          className="font-medium text-foreground underline-offset-4 hover:underline"
+        >
+          Wildberries
+        </a>
+        {", с\u00a0доставкой через удобный пункт выдачи."}
+      </>
+    ),
   },
   {
     question: "Есть ли возврат?",

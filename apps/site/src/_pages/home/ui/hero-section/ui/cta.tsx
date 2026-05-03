@@ -21,7 +21,7 @@ export function CTA() {
       </Button>
 
       <Button asChild size="lg" variant="outline">
-        <Link href={routes.gallery}>Галерея работ</Link>
+        <Link href={routes.blog}>Блог Artmate</Link>
       </Button>
     </div>
   );

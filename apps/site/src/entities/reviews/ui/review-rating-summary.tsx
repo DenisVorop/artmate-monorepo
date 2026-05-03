@@ -1,4 +1,5 @@
 import { Badge } from "@/shared/ui";
+import { externalLinks } from "@/shared/constants";
 import { cn } from "@/shared/lib";
 import type { ReviewStats } from "../model";
 import { RatingStars } from "./rating-stars";
@@ -19,10 +20,26 @@ export function ReviewRatingSummary({
         </Badge>
       </div>
       <div className="flex flex-wrap items-center justify-center gap-2 text-stone-400">
-        <span aria-hidden="true" className="hidden sm:inline">
-          ·
+        <span>
+          {stats.reviewsLabel} на{" "}
+          <a
+            href={externalLinks.marketplaces.ozon}
+            target="_blank"
+            rel="noreferrer"
+            className="font-medium text-stone-500 underline-offset-4 hover:text-stone-900 hover:underline"
+          >
+            Ozon
+          </a>{" "}
+          и{" "}
+          <a
+            href={externalLinks.marketplaces.wildberries}
+            target="_blank"
+            rel="noreferrer"
+            className="font-medium text-stone-500 underline-offset-4 hover:text-stone-900 hover:underline"
+          >
+            Wildberries
+          </a>
         </span>
-        <span>{stats.reviewsLabel}</span>
       </div>
     </div>
   );

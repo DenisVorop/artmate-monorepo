@@ -80,7 +80,6 @@ export function Footer() {
               <ul className="space-y-3">
                 {[
                   { label: "Блог", to: routes.blog },
-                  { label: "Галерея работ", to: routes.gallery },
                   { label: "FAQ", to: routes.faq },
                   { label: "Контакты", to: routes.contacts },
                 ].map((l) => (

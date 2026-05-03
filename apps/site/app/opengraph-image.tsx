@@ -192,7 +192,7 @@ export default async function Image() {
                 fontWeight: 800,
               }}
             >
-              Галерея работ
+              Блог
             </div>
           </div>
 
@@ -208,7 +208,7 @@ export default async function Image() {
                 fontWeight: 900,
               }}
             >
-              4.9 / 5
+              4.95 из 5
             </div>
             <div
               style={{
@@ -218,7 +218,7 @@ export default async function Image() {
                 fontWeight: 700,
               }}
             >
-              4 500+ отзывов на&nbsp;маркетплейсах
+              5 500+ отзывов на&nbsp;Ozon и&nbsp;Wildberries
             </div>
           </div>
         </div>
@@ -323,7 +323,9 @@ export default async function Image() {
             }}
           >
             <span style={{ fontSize: "18px", color: "#a8a29e", fontWeight: 700 }}>Рейтинг</span>
-            <span style={{ fontSize: "32px", color: "#1c1917", fontWeight: 900 }}>4.9 / 5</span>
+            <span style={{ fontSize: "32px", color: "#1c1917", fontWeight: 900 }}>
+              4.95 из 5
+            </span>
           </div>
           <div
             style={{
@@ -343,7 +345,9 @@ export default async function Image() {
             <span style={{ fontSize: "18px", color: "#a8a29e", fontWeight: 700 }}>
               Уже раскрасили
             </span>
-            <span style={{ fontSize: "30px", color: "#1c1917", fontWeight: 900 }}>30 000+</span>
+            <span style={{ fontSize: "30px", color: "#1c1917", fontWeight: 900 }}>
+              33 000+ человек
+            </span>
           </div>
         </div>
       </div>

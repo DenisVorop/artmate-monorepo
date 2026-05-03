@@ -28,8 +28,8 @@ const reviews = [
 
 const stats = {
   rating: 5,
-  ratingLabel: "4.9",
-  reviewsLabel: "4 500+ отзывов на\u00a0Ozon и\u00a0Wildberries",
+  ratingLabel: "4.95",
+  reviewsLabel: "5 500+ отзывов",
 } satisfies ReviewStats;
 
 export const reviewsData = {
