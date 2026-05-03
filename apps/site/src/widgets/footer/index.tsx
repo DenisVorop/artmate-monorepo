@@ -129,10 +129,7 @@ export function Footer() {
                 </h4>
               </div>
               <ul className="space-y-3">
-                {[
-                  { label: "Ozon Pay", to: routes.paymentAndDelivery },
-                  { label: "Подробнее", to: routes.paymentAndDelivery },
-                ].map((l) => (
+                {[{ label: "Ozon Pay", to: routes.paymentAndDelivery }].map((l) => (
                   <li key={l.label}>
                     <Link
                       href={l.to}

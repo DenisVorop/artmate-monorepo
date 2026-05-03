@@ -117,7 +117,8 @@ export function ReviewsRail({ reviews }: ReviewsRailProps) {
         id={railId}
         aria-label="Лента отзывов покупателей"
         className={cn(
-          "flex snap-x gap-4 overflow-x-auto scroll-smooth pb-2",
+          "relative right-[50%] left-[50%] -mr-[50vw] -ml-[50vw] flex w-screen snap-x snap-mandatory scroll-px-4 gap-4 overflow-x-auto scroll-smooth px-4 pb-2",
+          "sm:right-auto sm:left-auto sm:mr-0 sm:ml-0 sm:w-auto sm:scroll-px-0 sm:px-0",
           "[-ms-overflow-style:none] [scrollbar-width:none] [&::-webkit-scrollbar]:hidden",
         )}
       >
@@ -125,7 +126,7 @@ export function ReviewsRail({ reviews }: ReviewsRailProps) {
           <li
             key={review.id}
             data-review-card
-            className="w-[min(22rem,calc(100vw-3rem))] shrink-0 snap-start sm:w-[22rem] md:w-[24rem] lg:w-[26rem]"
+            className="w-[calc(100vw-2rem)] shrink-0 snap-start sm:w-[22rem] md:w-[24rem] lg:w-[26rem]"
           >
             <ReviewCard review={review} />
           </li>
@@ -133,7 +134,7 @@ export function ReviewsRail({ reviews }: ReviewsRailProps) {
 
         <li
           data-review-card
-          className="w-[min(22rem,calc(100vw-3rem))] shrink-0 snap-start sm:w-[22rem] md:w-[24rem] lg:w-[26rem]"
+          className="w-[calc(100vw-2rem)] shrink-0 snap-start sm:w-[22rem] md:w-[24rem] lg:w-[26rem]"
         >
           <MoreReviewsCard />
         </li>
