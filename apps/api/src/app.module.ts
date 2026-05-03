@@ -3,6 +3,7 @@ import { Module } from "@nestjs/common";
 import { AppController } from "./app.controller";
 import { AppService } from "./app.service";
 import { AuthModule } from "./auth/auth.module";
+import { BlogModule } from "./blog/blog.module";
 import { CartModule } from "./cart/cart.module";
 import { OrdersModule } from "./orders/orders.module";
 import { OzonModule } from "./ozon/ozon.module";
@@ -18,6 +19,7 @@ import { UsersModule } from "./users/users.module";
     CartModule,
     OrdersModule,
     ProductsModule,
+    BlogModule,
     OzonModule,
   ],
   controllers: [AppController],

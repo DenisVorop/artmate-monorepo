@@ -5,7 +5,7 @@ import { routes, siteConfig } from "@/shared/constants";
 
 export function getBlogPostMetadata(post: BlogPost): Metadata {
   const title = `${post.title} - Блог Artmate`;
-  const url = routes.blogPost(post.id);
+  const url = routes.blogPost(post.slug);
 
   return {
     title: {
@@ -27,7 +27,7 @@ export function getBlogPostMetadata(post: BlogPost): Metadata {
           url: post.image,
           width: 1200,
           height: 630,
-          alt: post.title,
+          alt: post.imageAlt,
         },
       ],
     },

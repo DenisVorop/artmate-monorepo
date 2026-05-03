@@ -13,7 +13,7 @@ type PostCardProps = {
 export function PostCard({ post }: PostCardProps) {
   return (
     <Card className="group/blog-post h-full gap-0 py-0 transition-shadow hover:shadow-md">
-      <Link href={routes.blogPost(post.id)} className="block overflow-hidden bg-muted">
+      <Link href={routes.blogPost(post.slug)} className="block overflow-hidden bg-muted">
         <AspectRatio ratio={16 / 10} className="relative">
           <Image
             fill
@@ -39,7 +39,7 @@ export function PostCard({ post }: PostCardProps) {
 
         <CardTitle className="text-lg leading-snug">
           <Link
-            href={routes.blogPost(post.id)}
+            href={routes.blogPost(post.slug)}
             className="text-foreground transition-colors hover:text-rose-500"
           >
             {post.title}
@@ -52,7 +52,7 @@ export function PostCard({ post }: PostCardProps) {
       <CardFooter className="mt-auto justify-between gap-3 border-t-0 bg-transparent px-4 pt-0 pb-4">
         <span className="text-xs text-muted-foreground">{post.date}</span>
         <Link
-          href={routes.blogPost(post.id)}
+          href={routes.blogPost(post.slug)}
           className="inline-flex items-center gap-1 text-xs font-semibold text-foreground transition-colors hover:text-rose-500 group-hover/blog-post:text-rose-500"
         >
           Читать

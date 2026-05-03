@@ -13,7 +13,7 @@ type FeaturedPostProps = {
 export function FeaturedPost({ post }: FeaturedPostProps) {
   return (
     <Card className="grid gap-0 overflow-hidden py-0 md:grid-cols-2">
-      <Link href={routes.blogPost(post.id)} className="block bg-muted">
+      <Link href={routes.blogPost(post.slug)} className="block bg-muted">
         <AspectRatio ratio={16 / 10} className="relative h-full md:aspect-auto">
           <Image
             fill
@@ -37,7 +37,7 @@ export function FeaturedPost({ post }: FeaturedPostProps) {
 
         <div className="space-y-3">
           <CardTitle className="text-2xl leading-tight md:text-3xl">
-            <Link href={routes.blogPost(post.id)} className="hover:text-rose-500">
+            <Link href={routes.blogPost(post.slug)} className="hover:text-rose-500">
               {post.title}
             </Link>
           </CardTitle>
@@ -47,7 +47,7 @@ export function FeaturedPost({ post }: FeaturedPostProps) {
         <div className="flex flex-wrap items-center justify-between gap-4">
           <span className="text-sm text-muted-foreground">{post.date}</span>
           <Button asChild variant="outline">
-            <Link href={routes.blogPost(post.id)}>
+            <Link href={routes.blogPost(post.slug)}>
               Читать статью
               <ArrowRight data-icon="inline-end" />
             </Link>

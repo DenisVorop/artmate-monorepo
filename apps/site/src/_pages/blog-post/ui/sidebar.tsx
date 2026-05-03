@@ -1,21 +1,27 @@
 import { ArrowRight, Calendar, Clock } from "lucide-react";
 
-import type { BlogArticleContent, BlogArticleSection, BlogPost } from "@/entities/blog";
+import type { BlogArticleContent, BlogCtaBlock, BlogPost } from "@/entities/blog";
 import { TableOfContents } from "@/features/blog-post";
 import { Badge, Button, Card, CardContent, CardDescription, CardHeader, CardTitle } from "@/shared/ui";
 import { Link } from "@/shared/ui/link";
 
 type SidebarProps = {
   post: BlogPost;
-  sections: BlogArticleSection[];
-  cta: BlogArticleContent["cta"];
+  content: BlogArticleContent;
 };
 
-export function Sidebar({ post, sections, cta }: SidebarProps) {
-  const tocItems = sections.map((section) => ({
-    id: section.id,
-    label: section.label ?? section.heading,
-  }));
+export function Sidebar({ post, content }: SidebarProps) {
+  const tocItems = content.blocks.flatMap((block) =>
+    block.type === "heading"
+      ? [
+          {
+            id: block.anchor ?? block.id,
+            label: block.text,
+          },
+        ]
+      : [],
+  );
+  const cta = content.blocks.find((block): block is BlogCtaBlock => block.type === "cta");
 
   return (
     <aside className="hidden space-y-4 xl:sticky xl:top-24 xl:block">
@@ -59,23 +65,25 @@ export function Sidebar({ post, sections, cta }: SidebarProps) {
         </Card>
       ) : null}
 
-      <Card className="bg-muted/30">
-        <CardHeader>
-          <CardTitle>{cta.title}</CardTitle>
-          <CardDescription>{cta.description}</CardDescription>
-        </CardHeader>
-        <CardContent>
-          <Button
-            asChild
-            className="w-full border-0 bg-gradient-to-r from-rose-500 via-rose-400 to-orange-400 font-semibold text-white shadow-sm shadow-rose-500/20 hover:from-rose-500/90 hover:via-rose-400/90 hover:to-orange-400/90"
-          >
-            <Link href={cta.href}>
-              {cta.label}
-              <ArrowRight />
-            </Link>
-          </Button>
-        </CardContent>
-      </Card>
+      {cta ? (
+        <Card className="bg-muted/30">
+          <CardHeader>
+            <CardTitle>{cta.title}</CardTitle>
+            <CardDescription>{cta.description}</CardDescription>
+          </CardHeader>
+          <CardContent>
+            <Button
+              asChild
+              className="w-full border-0 bg-gradient-to-r from-rose-500 via-rose-400 to-orange-400 font-semibold text-white shadow-sm shadow-rose-500/20 hover:from-rose-500/90 hover:via-rose-400/90 hover:to-orange-400/90"
+            >
+              <Link href={cta.href}>
+                {cta.label}
+                <ArrowRight />
+              </Link>
+            </Button>
+          </CardContent>
+        </Card>
+      ) : null}
     </aside>
   );
 }

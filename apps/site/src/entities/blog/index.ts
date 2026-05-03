@@ -3,6 +3,9 @@ export type {
   BlogArticleHighlight,
   BlogArticleSection,
   BlogArticleTip,
+  BlogCtaBlock,
+  BlogHeadingBlock,
+  BlogPostBlock,
 } from "./model";
 export {
   type BlogAuthor,

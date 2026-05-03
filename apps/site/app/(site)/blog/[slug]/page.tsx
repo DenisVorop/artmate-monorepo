@@ -19,7 +19,7 @@ export async function generateStaticParams() {
   const posts = (await getBlogPosts()).data?.items ?? [];
 
   return posts.map((post) => ({
-    slug: post.id,
+    slug: post.slug,
   }));
 }
 

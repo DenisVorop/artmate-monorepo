@@ -1,7 +1,7 @@
 import Image from "next/image";
 import { ArrowLeft, Quote, Share2, Tag } from "lucide-react";
 
-import type { BlogArticleContent, BlogPost } from "@/entities/blog";
+import type { BlogArticleContent, BlogPost, BlogPostBlock } from "@/entities/blog";
 import { ShareActions } from "@/features/blog-post";
 import { AspectRatio, Avatar, AvatarFallback, Badge, Button, Card, CardContent, CardDescription, CardHeader, CardTitle, Separator } from "@/shared/ui";
 import { getAbsoluteUrl, routes } from "@/shared/constants";
@@ -15,7 +15,7 @@ type ArticleProps = {
 };
 
 export function Article({ articleId, post, content }: ArticleProps) {
-  const shareUrl = getAbsoluteUrl(routes.blogPost(post.id));
+  const shareUrl = getAbsoluteUrl(routes.blogPost(post.slug));
 
   return (
     <article id={articleId} className="space-y-8">
@@ -26,106 +26,8 @@ export function Article({ articleId, post, content }: ArticleProps) {
       </Card>
 
       <div className="space-y-10">
-        {content.sections.map((section, index) => (
-          <section key={section.id} id={section.id} className="scroll-mt-24 space-y-5">
-            {index > 0 ? <Separator /> : null}
-
-            <div className="space-y-4">
-              <SectionTitle className="text-foreground">{section.heading}</SectionTitle>
-
-              {section.paragraphs ? (
-                <div className="space-y-4">
-                  {section.paragraphs.map((paragraph, paragraphIndex) => (
-                    <p
-                      key={`${section.id}-${paragraphIndex}`}
-                      className="text-base leading-7 text-muted-foreground"
-                    >
-                      {paragraph}
-                    </p>
-                  ))}
-                </div>
-              ) : null}
-            </div>
-
-            {section.image ? (
-              <Card className="overflow-hidden py-0">
-                <figure>
-                  <AspectRatio ratio={16 / 9} className="relative bg-muted">
-                    <Image
-                      fill
-                      src={section.image.src}
-                      alt={section.image.alt}
-                      sizes="(min-width: 1280px) 720px, (min-width: 768px) 80vw, 100vw"
-                      className="object-cover"
-                    />
-                  </AspectRatio>
-                  {section.image.caption ? (
-                    <figcaption className="border-t px-4 py-3 text-sm leading-relaxed text-muted-foreground">
-                      {section.image.caption}
-                    </figcaption>
-                  ) : null}
-                </figure>
-              </Card>
-            ) : null}
-
-            {section.quote ? (
-              <Card className="bg-rose-50/60 ring-rose-200">
-                <CardContent className="pt-6">
-                  <Quote className="mb-3 size-5 text-rose-500" />
-                  <blockquote className="space-y-3">
-                    <p className="text-base leading-7 text-foreground italic">
-                      {section.quote.text}
-                    </p>
-                    <cite className="text-sm text-muted-foreground not-italic">
-                      {section.quote.author}
-                    </cite>
-                  </blockquote>
-                </CardContent>
-              </Card>
-            ) : null}
-
-            {section.highlights ? (
-              <div className="grid gap-4 sm:grid-cols-2">
-                {section.highlights.map((item) => (
-                  <Card key={item.title} size="sm">
-                    <CardContent className="pt-4">
-                      <div className="flex gap-3">
-                        <span className="text-2xl leading-none">{item.emoji}</span>
-                        <div className="space-y-1.5">
-                          <p className="font-medium text-foreground">{item.title}</p>
-                          <p className="text-sm leading-6 text-muted-foreground">
-                            {item.description}
-                          </p>
-                        </div>
-                      </div>
-                    </CardContent>
-                  </Card>
-                ))}
-              </div>
-            ) : null}
-
-            {section.tips ? (
-              <div className="space-y-3">
-                {section.tips.map((tip) => (
-                  <Card key={tip.step} size="sm">
-                    <CardContent className="pt-4">
-                      <div className="flex gap-4">
-                        <div className="flex size-10 shrink-0 items-center justify-center rounded-lg bg-gradient-to-br from-rose-500 via-rose-400 to-orange-400 font-semibold text-white shadow-sm shadow-rose-500/20">
-                          {tip.step}
-                        </div>
-                        <div className="space-y-1.5">
-                          <p className="font-medium text-foreground">{tip.title}</p>
-                          <p className="text-sm leading-6 text-muted-foreground">
-                            {tip.description}
-                          </p>
-                        </div>
-                      </div>
-                    </CardContent>
-                  </Card>
-                ))}
-              </div>
-            ) : null}
-          </section>
+        {content.blocks.map((block, index) => (
+          <BlockRenderer key={block.id} block={block} showSeparator={index > 0} />
         ))}
       </div>
 
@@ -179,5 +81,126 @@ export function Article({ articleId, post, content }: ArticleProps) {
         </Button>
       </div>
     </article>
+  );
+}
+
+function BlockRenderer({ block, showSeparator }: { block: BlogPostBlock; showSeparator: boolean }) {
+  if (block.type === "heading") {
+    const headingId = block.anchor ?? block.id;
+
+    return (
+      <section id={headingId} className="scroll-mt-24 space-y-5">
+        {showSeparator ? <Separator /> : null}
+        <SectionTitle className="text-foreground">{block.text}</SectionTitle>
+      </section>
+    );
+  }
+
+  if (block.type === "paragraph") {
+    return (
+      <p className="text-base leading-7 text-muted-foreground">
+        {block.text}
+      </p>
+    );
+  }
+
+  if (block.type === "image") {
+    return (
+      <Card className="overflow-hidden py-0">
+        <figure>
+          <AspectRatio ratio={16 / 9} className="relative bg-muted">
+            <Image
+              fill
+              src={block.src}
+              alt={block.alt}
+              sizes="(min-width: 1280px) 720px, (min-width: 768px) 80vw, 100vw"
+              className="object-cover"
+            />
+          </AspectRatio>
+          {block.caption ? (
+            <figcaption className="border-t px-4 py-3 text-sm leading-relaxed text-muted-foreground">
+              {block.caption}
+            </figcaption>
+          ) : null}
+        </figure>
+      </Card>
+    );
+  }
+
+  if (block.type === "quote") {
+    return (
+      <Card className="bg-rose-50/60 ring-rose-200">
+        <CardContent className="pt-6">
+          <Quote className="mb-3 size-5 text-rose-500" />
+          <blockquote className="space-y-3">
+            <p className="text-base leading-7 text-foreground italic">{block.text}</p>
+            {block.author ? (
+              <cite className="text-sm text-muted-foreground not-italic">{block.author}</cite>
+            ) : null}
+          </blockquote>
+        </CardContent>
+      </Card>
+    );
+  }
+
+  if (block.type === "highlights") {
+    return (
+      <div className="grid gap-4 sm:grid-cols-2">
+        {block.items.map((item) => (
+          <Card key={item.title} size="sm">
+            <CardContent className="pt-4">
+              <div className="flex gap-3">
+                {item.emoji ? (
+                  <span className="text-2xl leading-none">{item.emoji}</span>
+                ) : null}
+                <div className="space-y-1.5">
+                  <p className="font-medium text-foreground">{item.title}</p>
+                  <p className="text-sm leading-6 text-muted-foreground">{item.description}</p>
+                </div>
+              </div>
+            </CardContent>
+          </Card>
+        ))}
+      </div>
+    );
+  }
+
+  if (block.type === "steps") {
+    return (
+      <div className="space-y-3">
+        {block.items.map((item, index) => (
+          <Card key={`${item.title}-${index}`} size="sm">
+            <CardContent className="pt-4">
+              <div className="flex gap-4">
+                <div className="flex size-10 shrink-0 items-center justify-center rounded-lg bg-gradient-to-br from-rose-500 via-rose-400 to-orange-400 font-semibold text-white shadow-sm shadow-rose-500/20">
+                  {String(index + 1).padStart(2, "0")}
+                </div>
+                <div className="space-y-1.5">
+                  <p className="font-medium text-foreground">{item.title}</p>
+                  <p className="text-sm leading-6 text-muted-foreground">{item.description}</p>
+                </div>
+              </div>
+            </CardContent>
+          </Card>
+        ))}
+      </div>
+    );
+  }
+
+  return (
+    <Card className="bg-muted/30">
+      <CardHeader>
+        <CardTitle>{block.title}</CardTitle>
+        <CardDescription>{block.description}</CardDescription>
+      </CardHeader>
+      <CardContent>
+        <Button
+          asChild
+          className="border-0 bg-gradient-to-r from-rose-500 via-rose-400 to-orange-400 font-semibold text-white shadow-sm shadow-rose-500/20 hover:from-rose-500/90 hover:via-rose-400/90 hover:to-orange-400/90"
+        >
+          <Link href={block.href}>{block.label}</Link>
+        </Button>
+      </CardContent>
+    </Card>
   );
 }
