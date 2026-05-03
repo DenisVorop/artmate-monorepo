@@ -1,4 +1,4 @@
-const defaultSiteUrl = "https://artmate.ru";
+const defaultSiteUrl = "https://www.art-mate.ru";
 
 function normalizeSiteUrl(url: string) {
   return url.replace(/\/+$/, "");

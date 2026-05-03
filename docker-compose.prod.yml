@@ -41,10 +41,10 @@ services:
       DATABASE_URL: ${DATABASE_URL:?DATABASE_URL is required}
       NODE_ENV: production
       PORT: 3002
-      SITE_URL: https://art-mate.ru
+      SITE_URL: https://www.art-mate.ru
       ADMIN_URL: https://admin.art-mate.ru
       API_PUBLIC_URL: https://api.art-mate.ru
-      CORS_ORIGIN: https://art-mate.ru,https://admin.art-mate.ru
+      CORS_ORIGIN: https://www.art-mate.ru,https://admin.art-mate.ru
       SWAGGER_ENABLED: ${SWAGGER_ENABLED:-false}
     volumes:
       - api-uploads:/app/apps/api/uploads
@@ -64,7 +64,7 @@ services:
       HOSTNAME: 0.0.0.0
       API_BASE_URL: http://api:3002
       API_PUBLIC_URL: https://api.art-mate.ru
-      NEXT_PUBLIC_SITE_URL: https://art-mate.ru
+      NEXT_PUBLIC_SITE_URL: https://www.art-mate.ru
     depends_on:
       - api
 
@@ -80,7 +80,7 @@ services:
       HOSTNAME: 0.0.0.0
       API_BASE_URL: http://api:3002
       API_PUBLIC_URL: https://api.art-mate.ru
-      NEXT_PUBLIC_SITE_URL: https://art-mate.ru
+      NEXT_PUBLIC_SITE_URL: https://www.art-mate.ru
     depends_on:
       - api
 

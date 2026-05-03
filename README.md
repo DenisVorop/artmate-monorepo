@@ -223,13 +223,13 @@ POSTGRES_USER=artmate
 POSTGRES_PASSWORD=change-me
 DATABASE_URL=postgresql://artmate:change-me@postgres:5432/artmate
 
-SITE_URL=https://art-mate.ru
+SITE_URL=https://www.art-mate.ru
 ADMIN_URL=https://admin.art-mate.ru
 API_PUBLIC_URL=https://api.art-mate.ru
 API_BASE_URL=http://api:3002
-NEXT_PUBLIC_SITE_URL=https://art-mate.ru
-AUTH_SUCCESS_REDIRECT_URL=https://art-mate.ru
-CORS_ORIGIN=https://art-mate.ru,https://admin.art-mate.ru
+NEXT_PUBLIC_SITE_URL=https://www.art-mate.ru
+AUTH_SUCCESS_REDIRECT_URL=https://www.art-mate.ru
+CORS_ORIGIN=https://www.art-mate.ru,https://admin.art-mate.ru
 SWAGGER_ENABLED=false
 
 AUTH_JWT_SECRET=change-me

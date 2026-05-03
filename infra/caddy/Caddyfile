@@ -2,7 +2,11 @@
 	email {$ACME_EMAIL}
 }
 
-art-mate.ru, www.art-mate.ru {
+art-mate.ru {
+	redir https://www.art-mate.ru{uri} permanent
+}
+
+www.art-mate.ru {
 	encode zstd gzip
 	reverse_proxy site:3000
 }
