@@ -4,12 +4,14 @@ import { SessionMenu } from "@/features/auth";
 
 import { Logo } from "./ui/logo";
 import { CartButton } from "./ui/cart-button";
+import { DevelopmentBanner } from "./ui/development-banner";
 import { Menu, MobileMenu } from "./ui/menu";
 
 export function Header() {
   return (
-    <header className="sticky top-0 z-11 h-14 border-b-[1px] border-stone-200 bg-white backdrop-blur-md sm:h-16">
-      <div className="container flex h-full items-center gap-2 sm:gap-3">
+    <header className="sticky top-0 z-11 border-b-[1px] border-stone-200 bg-white backdrop-blur-md">
+      <DevelopmentBanner />
+      <div className="container flex h-14 items-center gap-2 sm:h-16 sm:gap-3">
         <Logo />
 
         <nav

@@ -1,7 +1,7 @@
 import { ArrowUpRight, Mail, MessageCircle } from "lucide-react";
 
 import { Badge, Card, CardAction, CardDescription, CardHeader, CardTitle } from "@/shared/ui";
-import { companyDetails } from "@/shared/constants";
+import { companyDetails, externalLinks } from "@/shared/constants";
 import { cn } from "@/shared/lib";
 import { SectionSubtitle, SectionTitle } from "@/shared/ui/typography";
 
@@ -10,7 +10,7 @@ const channels = [
     label: "Telegram",
     handle: "@artmate_support",
     description: "Быстрее всего отвечаем на\u00a0срочные вопросы по\u00a0заказам.",
-    href: "https://t.me/artmate_support",
+    href: externalLinks.social.telegram,
     icon: MessageCircle,
     tone: "text-violet-600 bg-violet-50 ring-violet-200/70",
     external: true,

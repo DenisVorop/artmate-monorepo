@@ -4,6 +4,6 @@ export const externalLinks = {
     wildberries: "https://www.wildberries.ru/seller/320627",
   },
   social: {
-    telegram: "https://t.me",
+    telegram: "https://t.me/artmate_support",
   },
 } as const;
