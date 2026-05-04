@@ -18,9 +18,9 @@ const frameRingMaskStyle = {
 } as CSSProperties;
 
 const frameGradients = {
-  workspace: "bg-gradient-to-r from-rose-400 to-amber-400",
-  hands: "bg-gradient-to-r from-amber-400 to-orange-400 p-[2px]",
-  mandala: "bg-gradient-to-r from-violet-400 to-rose-400 p-[2px]",
+  middle: "bg-gradient-to-r from-rose-400 to-amber-400",
+  right: "bg-gradient-to-r from-amber-400 to-orange-400 p-[2px]",
+  left: "bg-gradient-to-r from-violet-400 to-rose-400 p-[2px]",
 } as const;
 
 function CollagePhoto({
@@ -98,13 +98,7 @@ function RatingMetricCard({ ratingLabel, className }: { ratingLabel: string; cla
   );
 }
 
-function PaintedMetricCard({
-  metrics,
-  className,
-}: {
-  metrics: HeroMetrics;
-  className?: string;
-}) {
+function PaintedMetricCard({ metrics, className }: { metrics: HeroMetrics; className?: string }) {
   return (
     <Card
       className={cn(
@@ -113,9 +107,7 @@ function PaintedMetricCard({
       )}
     >
       <CardContent className="px-4 py-3">
-        <CardDescription className="mb-0.5 text-xs text-stone-400">
-          Уже раскрасили
-        </CardDescription>
+        <CardDescription className="mb-0.5 text-xs text-stone-400">Уже раскрасили</CardDescription>
         <CardTitle className="font-display font-bold text-stone-900">
           {metrics.paintedCountLabel}
         </CardTitle>
@@ -134,33 +126,33 @@ export function Collage({ metrics }: { metrics: HeroMetrics }) {
     <div className="order-1 lg:order-2">
       <div className="relative flex min-h-[320px] items-center justify-center sm:min-h-[360px] lg:min-h-0">
         <CollagePhoto
-          image={heroImages.workspace}
+          image={heroImages.middle}
           ratio={3 / 4}
           sizes="(min-width: 1024px) 30vw, (min-width: 640px) 27vw, 58vw"
           className="z-20 w-[58%] rotate-[-2deg] sm:w-[52%] lg:w-[55%]"
           frameClassName="rounded-[2rem] shadow-2xl shadow-stone-300/60"
-          frameRingClassName={frameGradients.workspace}
+          frameRingClassName={frameGradients.middle}
           eager
         >
           <div className="absolute inset-0 bg-gradient-to-t from-stone-900/20 to-transparent" />
         </CollagePhoto>
 
         <CollagePhoto
-          image={heroImages.hands}
+          image={heroImages.right}
           ratio={3 / 4}
           sizes="(min-width: 1024px) 23vw, (min-width: 640px) 18vw, 38vw"
           className="absolute top-4 right-0 z-30 w-[38%] rotate-[4deg] sm:w-[34%] lg:top-8 lg:-right-4 lg:w-[38%]"
           frameClassName="rounded-[1.5rem] shadow-xl shadow-stone-300/50"
-          frameRingClassName={frameGradients.hands}
+          frameRingClassName={frameGradients.right}
         />
 
         <CollagePhoto
-          image={heroImages.mandala}
+          image={heroImages.left}
           ratio={3 / 4}
           sizes="(min-width: 1024px) 20vw, (min-width: 640px) 16vw, 36vw"
           className="absolute bottom-4 left-0 z-10 w-[36%] rotate-[3deg] sm:w-[30%] lg:bottom-6 lg:-left-2"
           frameClassName="rounded-[1.5rem] shadow-xl shadow-stone-300/40"
-          frameRingClassName={frameGradients.mandala}
+          frameRingClassName={frameGradients.left}
         />
 
         <RatingMetricCard

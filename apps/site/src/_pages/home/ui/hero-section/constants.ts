@@ -1,4 +1,6 @@
-import FlowersCover from "./assets/flowers-cover.png";
+import FoodCover from "./assets/food.webp";
+import LandscapesCover from "./assets/landscapes-2.webp";
+import FantasyCover from "./assets/fantasy.webp";
 
 export type HeroMetrics = {
   ratingLabel: string;
@@ -13,16 +15,16 @@ export const heroMetrics = {
 } satisfies HeroMetrics;
 
 export const heroImages = {
-  workspace: {
-    src: FlowersCover,
-    alt: "Рабочее место художника",
+  middle: {
+    src: FantasyCover,
+    alt: "Обложка тематики 'Фэнтези'",
   },
-  hands: {
-    src: FlowersCover,
-    alt: "Акварельная живопись",
+  right: {
+    src: FoodCover,
+    alt: "Обложка тематики 'Еда'",
   },
-  mandala: {
-    src: FlowersCover,
-    alt: "Мандала",
+  left: {
+    src: LandscapesCover,
+    alt: "Обложка тематики 'Пейзажи-2'",
   },
 } as const;
