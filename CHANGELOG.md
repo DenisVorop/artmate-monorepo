@@ -1,5 +1,13 @@
 # Changelog
 
+## [0.3.0](https://github.com/DenisVorop/artmate-monorepo/compare/v0.2.1...v0.3.0) (2026-05-04)
+
+
+### Features
+
+* **site:** add marketplace reviews to home page ([4b51a8a](https://github.com/DenisVorop/artmate-monorepo/commit/4b51a8a3225d341603c24f2985b2e8c82cd72d21))
+* **site:** update home hero collage artwork ([e5b6f03](https://github.com/DenisVorop/artmate-monorepo/commit/e5b6f03d138da854fb847c3160e60f61e7c904ab))
+
 ## [0.2.1](https://github.com/DenisVorop/artmate-monorepo/compare/v0.2.0...v0.2.1) (2026-05-03)
 
 
