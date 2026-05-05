@@ -10,5 +10,6 @@ export const routes = {
   product: (productId: string) => `/products/${productId}`,
   productCategories: "/products/categories",
   products: "/products",
+  seo: "/seo",
   users: "/users",
 } as const;
