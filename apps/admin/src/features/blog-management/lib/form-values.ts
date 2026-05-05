@@ -18,6 +18,10 @@ import {
   type UpdateBlogPostInputDTO,
   type UpdateBlogTagInputDTO,
 } from "@/shared/actions/blog";
+import {
+  aiBlogDraftSourceTypes,
+  type StartAiBlogDraftRunInputDTO,
+} from "@/shared/actions/content-assistant";
 
 const requiredTextSchema = (message: string) =>
   z.string().trim().min(1, message);
@@ -79,6 +83,11 @@ export const blogTagFormSchema = z.object({
   title: requiredTextSchema("Укажите название"),
 });
 
+export const aiBlogDraftRunFormSchema = z.object({
+  prompt: optionalTextSchema,
+  sourceType: z.enum(aiBlogDraftSourceTypes),
+});
+
 export type BlogPostFormValues = z.infer<typeof blogPostFormSchema>;
 export type DeleteBlogPostFormValues = z.infer<typeof deleteBlogPostFormSchema>;
 export type DeleteBlogAuthorFormValues = z.infer<
@@ -91,6 +100,7 @@ export type DeleteBlogTagFormValues = z.infer<typeof deleteBlogTagFormSchema>;
 export type BlogAuthorFormValues = z.infer<typeof blogAuthorFormSchema>;
 export type BlogCategoryFormValues = z.infer<typeof blogCategoryFormSchema>;
 export type BlogTagFormValues = z.infer<typeof blogTagFormSchema>;
+export type AiBlogDraftRunFormValues = z.infer<typeof aiBlogDraftRunFormSchema>;
 
 export const emptyBlogPostContent = {
   schemaVersion: 1,
@@ -116,6 +126,11 @@ export const createBlogTagDefaultValues = {
   slug: "",
   title: "",
 } satisfies BlogTagFormValues;
+
+export const aiBlogDraftRunDefaultValues = {
+  prompt: "",
+  sourceType: "mixed",
+} satisfies AiBlogDraftRunFormValues;
 
 export function getCreateBlogPostDefaultValues({
   categories,
@@ -191,6 +206,15 @@ export function getUpdateBlogPostInput(
   return getCreateBlogPostInput(values, content);
 }
 
+export function getStartAiBlogDraftRunInput(
+  values: AiBlogDraftRunFormValues,
+): StartAiBlogDraftRunInputDTO {
+  return {
+    prompt: getOptionalText(values.prompt),
+    sourceType: values.sourceType,
+  };
+}
+
 export function getCreateBlogAuthorInput(
   values: BlogAuthorFormValues,
 ): CreateBlogAuthorInputDTO {
@@ -248,7 +272,9 @@ export function normalizeBlogPostContent(content?: BlogPostContent | null) {
   } satisfies BlogPostContent;
 }
 
-export function createBlogPostBlock(type: BlogPostBlock["type"]): BlogPostBlock {
+export function createBlogPostBlock(
+  type: BlogPostBlock["type"],
+): BlogPostBlock {
   const id = createBlockId();
 
   switch (type) {

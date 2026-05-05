@@ -1,0 +1,45 @@
+enum AiBlogDraftSourceType {
+  MIXED             @map("mixed")
+  PRODUCT_NEWS      @map("product_news")
+  INTERNET_RESEARCH @map("internet_research")
+
+  @@map("ai_blog_draft_source_type")
+}
+
+enum AiBlogDraftRunStatus {
+  TOPIC_REVIEW  @map("topic_review")
+  OUTLINE_REVIEW @map("outline_review")
+  DRAFT_REVIEW  @map("draft_review")
+  DRAFT_CREATED @map("draft_created")
+  REJECTED      @map("rejected")
+  FAILED        @map("failed")
+
+  @@map("ai_blog_draft_run_status")
+}
+
+model AiBlogDraftRun {
+  id                 String                 @id @default(cuid())
+  sourceType         AiBlogDraftSourceType  @default(MIXED) @map("source_type")
+  status             AiBlogDraftRunStatus   @default(TOPIC_REVIEW)
+  prompt             String?                @db.Text
+  topics             Json?
+  selectedTopicIndex Int?                   @map("selected_topic_index")
+  outline            Json?
+  draft              Json?
+  sources            Json?
+  errorMessage       String?                @map("error_message") @db.Text
+  blogPostId         String?                @map("blog_post_id")
+  createdById        String?                @map("created_by_id")
+  telegramChatId     String?                @map("telegram_chat_id") @db.VarChar(80)
+  createdAt          DateTime               @default(now()) @map("created_at")
+  updatedAt          DateTime               @default(now()) @updatedAt @map("updated_at")
+
+  blogPost  BlogPost? @relation("AiBlogDraftRunBlogPost", fields: [blogPostId], references: [id], onDelete: SetNull)
+  createdBy User?     @relation("AiBlogDraftRunCreator", fields: [createdById], references: [id], onDelete: SetNull)
+
+  @@index([status, updatedAt])
+  @@index([sourceType, createdAt])
+  @@index([blogPostId])
+  @@index([createdById])
+  @@map("ai_blog_draft_runs")
+}

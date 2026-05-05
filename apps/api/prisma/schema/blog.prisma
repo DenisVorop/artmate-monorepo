@@ -70,6 +70,7 @@ model BlogPost {
   author    BlogAuthor    @relation(fields: [authorId], references: [id], onDelete: Restrict)
   category  BlogCategory? @relation(fields: [categoryId], references: [id], onDelete: SetNull)
   createdBy User?         @relation("BlogPostCreator", fields: [createdById], references: [id], onDelete: SetNull)
+  aiDraftRuns AiBlogDraftRun[] @relation("AiBlogDraftRunBlogPost")
   tags      BlogPostTag[]
 
   @@index([authorId])

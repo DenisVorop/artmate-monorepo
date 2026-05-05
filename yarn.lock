@@ -6424,6 +6424,11 @@ open@^11.0.0:
     powershell-utils "^0.1.0"
     wsl-utils "^0.3.0"
 
+openai@^6.36.0:
+  version "6.36.0"
+  resolved "https://registry.npmjs.org/openai/-/openai-6.36.0.tgz#9b74deae27628ef2059d8c01c3ef0f9f7d5ac0f8"
+  integrity sha512-Has2YbIusMq9wQEierFsgf9c783dy1y9arX459LmphNacEkkM5yxi2RIyXP0LmkOroQyW19iTwALHL8Yf26UKA==
+
 optionator@^0.9.3:
   version "0.9.4"
   resolved "https://registry.npmjs.org/optionator/-/optionator-0.9.4.tgz#7ea1c1a5d91d764fb282139c88fe11e182a3a734"

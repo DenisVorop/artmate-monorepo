@@ -8,6 +8,7 @@ export { useDeleteBlogAuthor } from "./use-delete-blog-author";
 export { useDeleteBlogCategory } from "./use-delete-blog-category";
 export { useDeleteBlogPost } from "./use-delete-blog-post";
 export { useDeleteBlogTag } from "./use-delete-blog-tag";
+export { useStartAiBlogDraftRun } from "./use-start-ai-blog-draft-run";
 export { useUpdateBlogAuthor } from "./use-update-blog-author";
 export { useUpdateBlogCategory } from "./use-update-blog-category";
 export { useUpdateBlogPost } from "./use-update-blog-post";

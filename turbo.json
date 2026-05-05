@@ -14,8 +14,15 @@
     "AUTH_PASSWORD_ROLES",
     "AUTH_SUCCESS_REDIRECT_URL",
     "CORS_ORIGIN",
+    "CONTENT_ASSISTANT_DEFAULT_BLOG_AUTHOR_ID",
+    "CONTENT_ASSISTANT_DEFAULT_BLOG_CATEGORY_ID",
+    "CONTENT_ASSISTANT_TELEGRAM_APPROVAL_CHAT_ID",
+    "CONTENT_ASSISTANT_TELEGRAM_BOT_TOKEN",
+    "CONTENT_ASSISTANT_TELEGRAM_WEBHOOK_SECRET",
     "DATABASE_URL",
     "NODE_ENV",
+    "OPENAI_API_KEY",
+    "OPENAI_MODEL",
     "OZON_API",
     "OZON_LOGISTICS_MODE",
     "OZON_OAUTH_ACCESS_TYPE",
@@ -36,28 +43,15 @@
   ],
   "tasks": {
     "build": {
-      "dependsOn": [
-        "^build"
-      ],
-      "inputs": [
-        "$TURBO_DEFAULT$",
-        ".env*"
-      ],
-      "outputs": [
-        "dist/**",
-        ".next/**",
-        "!.next/cache/**"
-      ]
+      "dependsOn": ["^build"],
+      "inputs": ["$TURBO_DEFAULT$", ".env*"],
+      "outputs": ["dist/**", ".next/**", "!.next/cache/**"]
     },
     "lint": {
-      "dependsOn": [
-        "^lint"
-      ]
+      "dependsOn": ["^lint"]
     },
     "check-types": {
-      "dependsOn": [
-        "^check-types"
-      ]
+      "dependsOn": ["^check-types"]
     },
     "dev": {
       "cache": false,

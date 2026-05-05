@@ -26,6 +26,7 @@ model User {
 
   authAccounts     AuthAccount[]
   authSessions     AuthSession[]
+  aiBlogDraftRuns  AiBlogDraftRun[] @relation("AiBlogDraftRunCreator")
   createdBlogPosts BlogPost[]    @relation("BlogPostCreator")
   orders           Order[]
 

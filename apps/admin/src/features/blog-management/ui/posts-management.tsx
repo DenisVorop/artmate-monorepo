@@ -3,6 +3,7 @@
 import { Card, CardContent, CardHeader, CardTitle } from "@/shared/ui";
 
 import { useBlogManagement } from "../model";
+import { AiBlogDraftCard } from "./ai-draft-card";
 import { CreateBlogPostCard } from "./create-post-card";
 import { BlogPostsList } from "./posts-list";
 
@@ -45,6 +46,7 @@ export function BlogPostsManagement() {
 
   return (
     <div className="grid gap-4">
+      <AiBlogDraftCard />
       <CreateBlogPostCard
         authors={authors}
         categories={categories}
