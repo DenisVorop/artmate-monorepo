@@ -1,5 +1,17 @@
 # Changelog
 
+## [0.6.0](https://github.com/DenisVorop/artmate-monorepo/compare/v0.5.0...v0.6.0) (2026-05-05)
+
+
+### Features
+
+* add AI relay deployment ([aa5734b](https://github.com/DenisVorop/artmate-monorepo/commit/aa5734bdcda42f5a2aee86453b66e93a527f088b))
+
+
+### Bug Fixes
+
+* allow AI drafts without stored creator ([774c0f6](https://github.com/DenisVorop/artmate-monorepo/commit/774c0f6e062774e1f6991541b073518226e0d8d0))
+
 ## [0.5.0](https://github.com/DenisVorop/artmate-monorepo/compare/v0.4.3...v0.5.0) (2026-05-05)
 
 
