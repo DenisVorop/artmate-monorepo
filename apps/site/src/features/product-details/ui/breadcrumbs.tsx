@@ -33,12 +33,6 @@ export function Breadcrumbs({ product }: BreadcrumbsProps) {
           </BreadcrumbLink>
         </BreadcrumbItem>
         <BreadcrumbSeparator />
-        <BreadcrumbItem>
-          <BreadcrumbLink asChild>
-            <Link href={routes.raskraski}>Раскраски</Link>
-          </BreadcrumbLink>
-        </BreadcrumbItem>
-        <BreadcrumbSeparator />
         {categorySlug && categoryTitle && (
           <>
             <BreadcrumbItem>

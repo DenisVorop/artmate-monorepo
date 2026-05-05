@@ -22,11 +22,6 @@ const staticRoutes = [
     priority: 0.9,
   },
   {
-    path: routes.raskraski,
-    changeFrequency: "weekly",
-    priority: 0.85,
-  },
-  {
     path: routes.blog,
     changeFrequency: "weekly",
     priority: 0.7,

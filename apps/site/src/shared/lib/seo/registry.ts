@@ -25,24 +25,11 @@ export const seoPages = {
     keywords: ["common", "products", "catalog", "каталог раскрасок Artmate"],
     ogAlt: "Каталог Artmate - раскраски по\u00a0номерам",
   },
-  raskraski: {
-    title: "Раскраски по\u00a0номерам Artmate - каталог альбомов",
-    description:
-      "Выберите раскраску по\u00a0номерам Artmate под\u00a0настроение: антистресс-альбомы A4 на\u00a0спирали, 25 иллюстраций и\u00a0бумага 190 г/м².",
-    canonical: routes.raskraski,
-    keywords: [
-      "common",
-      "products",
-      "catalog",
-      "каталог раскрасок по номерам",
-      "купить раскраску по номерам",
-    ],
-  },
   product: {
     title: "Альбом Artmate - раскраска по\u00a0номерам A4 на\u00a0спирали",
     description:
       "Подробная информация об\u00a0альбоме Artmate: раскраска по\u00a0номерам A4, 25 иллюстраций, бумага 190 г/м², фото, характеристики и\u00a0отзывы.",
-    canonical: routes.raskraski,
+    canonical: routes.catalog,
     keywords: ["common", "products", "catalog"],
     ogAlt: "Альбом Artmate - раскраска по\u00a0номерам",
   },

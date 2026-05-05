@@ -32,7 +32,7 @@ export function Filters() {
   const sortLabel = sortOptions.find((option) => option.value === sortBy)?.label ?? "Сортировка";
 
   return (
-    <div className="sticky top-[55px] z-30 border-b bg-background/95 backdrop-blur supports-[backdrop-filter]:bg-background/80 sm:top-16">
+    <div className="sticky top-[var(--site-header-height)] z-30 border-b bg-background/95 backdrop-blur supports-[backdrop-filter]:bg-background/80">
       <div className="container grid grid-cols-[minmax(0,1fr)_auto] items-center gap-x-2 gap-y-2 py-2 sm:gap-x-3 sm:gap-y-3 sm:py-3 lg:flex lg:flex-row lg:items-center">
         <div className="relative min-w-0 lg:w-64">
           <Search className="pointer-events-none absolute top-1/2 left-2.5 size-4 -translate-y-1/2 text-muted-foreground" />

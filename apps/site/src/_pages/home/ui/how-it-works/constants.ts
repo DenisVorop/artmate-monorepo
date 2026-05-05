@@ -49,7 +49,7 @@ export const howItWorksSteps = [
     desc: "Расслабьтесь, отвлекитесь от\u00a0суеты и\u00a0создайте работу, которая будет радовать вас каждый день.",
     chips: ["Антистресс", "Творческий отдых", "Уникальный результат"],
     tone: "violet",
-    href: routes.raskraski,
+    href: routes.catalog,
     cta: "В\u00a0каталог",
   },
 ] satisfies HowItWorksStep[];

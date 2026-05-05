@@ -10,6 +10,7 @@ export const siteConfig = {
   locale: "ru_RU",
   description:
     "Раскраски по\u00a0номерам Artmate для\u00a0взрослых и\u00a0детей: антистресс-альбомы A4 на\u00a0спирали, бумага 190 г/м², 25 иллюстраций и\u00a0сюжеты под\u00a0настроение.",
+  logo: "/brand/artmate-logo.svg",
   ogImage: "/opengraph-image",
 } as const;
 

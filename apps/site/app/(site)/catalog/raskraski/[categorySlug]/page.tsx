@@ -9,6 +9,7 @@ import { getProductsData } from "@/shared/actions/products";
 import { routes } from "@/shared/constants";
 import { dehydrateQueryClient } from "@/shared/lib/dehydrate-query-client";
 import {
+  CatalogCategoryStructuredData,
   createCategoryMetadata,
   createProductMetadata,
   ProductStructuredData,
@@ -70,10 +71,22 @@ export default async function Page({ params }: CatalogCategoryRouteProps) {
   }
 
   if (category) {
+    const categoryUrl = routes.catalogCategory(category.slug);
+    const categoryProducts = productsData.products.filter(
+      (productItem) => productItem.categoryId === category.id,
+    );
+
     return (
-      <HydrationBoundary state={dehydrateQueryClient(queryClient)}>
-        <CatalogPage initialCategoryId={category.id} />
-      </HydrationBoundary>
+      <>
+        <CatalogCategoryStructuredData
+          category={category}
+          products={categoryProducts}
+          url={categoryUrl}
+        />
+        <HydrationBoundary state={dehydrateQueryClient(queryClient)}>
+          <CatalogPage category={category} initialCategoryId={category.id} />
+        </HydrationBoundary>
+      </>
     );
   }
 

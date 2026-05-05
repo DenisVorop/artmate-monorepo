@@ -97,6 +97,9 @@
 }
 
 :root {
+  --site-header-banner-height: 128px;
+  --site-header-nav-height: 56px;
+  --site-header-height: calc(var(--site-header-banner-height) + var(--site-header-nav-height) + 1px);
   --background: oklch(1 0 0);
   --foreground: oklch(0.145 0 0);
   --card: oklch(1 0 0);
@@ -129,6 +132,19 @@
   --sidebar-accent-foreground: oklch(0.205 0 0);
   --sidebar-border: oklch(0.922 0 0);
   --sidebar-ring: oklch(0.708 0 0);
+}
+
+@media (min-width: 640px) {
+  :root {
+    --site-header-banner-height: 104px;
+    --site-header-nav-height: 64px;
+  }
+}
+
+@media (min-width: 1280px) {
+  :root {
+    --site-header-banner-height: 40px;
+  }
 }
 
 .dark {

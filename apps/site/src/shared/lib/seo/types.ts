@@ -30,8 +30,7 @@ export type SeoPageKey =
   | "faq"
   | "home"
   | "paymentAndDelivery"
-  | "product"
-  | "raskraski";
+  | "product";
 
 export type LegalSeoInput = {
   description: string;
@@ -45,24 +44,56 @@ export type SeoCategory = {
   title: string;
 };
 
+export type SeoFaqSection = {
+  items: readonly {
+    answer: string;
+    question: string;
+  }[];
+};
+
 export type SeoProduct = {
+  availability?: string;
   category?: string;
+  categorySlug?: string;
   description?: string;
+  id?: string;
   image: string;
   images?: readonly string[];
   price: number;
+  sku?: string;
   slug: string;
   title: string;
 };
 
+export type SeoBlogArticleContent = {
+  blocks: readonly SeoBlogArticleBlock[];
+};
+
+export type SeoBlogArticleBlock = {
+  description?: string;
+  items?: readonly {
+    description: string;
+    title: string;
+  }[];
+  text?: string;
+  title?: string;
+  type: string;
+};
+
 export type SeoBlogPost = {
+  author?: {
+    name: string;
+  };
   category: string;
+  createdAt?: string;
   excerpt: string;
   image: string;
   imageAlt: string;
+  publishedAt?: string;
   slug: string;
   tags: readonly string[];
   title: string;
+  updatedAt?: string;
 };
 
 export type MetadataInput = SeoPageConfig & {

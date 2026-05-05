@@ -1,17 +1,7 @@
-import { CatalogDataBuilder } from "@/app/lib/catalog-data-builder";
-import { CatalogPage } from "@/pages/catalog";
-import { dehydrateQueryClient } from "@/shared/lib/dehydrate-query-client";
-import { createPageMetadata } from "@/shared/lib/seo";
-import { HydrationBoundary } from "@tanstack/react-query";
+import { permanentRedirect } from "next/navigation";
 
-export const metadata = createPageMetadata("raskraski");
+import { routes } from "@/shared/constants";
 
-export default async function Page() {
-  const { queryClient } = await new CatalogDataBuilder().withProducts().build();
-
-  return (
-    <HydrationBoundary state={dehydrateQueryClient(queryClient)}>
-      <CatalogPage />
-    </HydrationBoundary>
-  );
+export default function Page() {
+  permanentRedirect(routes.catalog);
 }

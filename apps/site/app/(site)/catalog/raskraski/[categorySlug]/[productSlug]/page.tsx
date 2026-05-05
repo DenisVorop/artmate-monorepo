@@ -76,7 +76,7 @@ export default async function Page({ params }: ProductRouteProps) {
 
   return (
     <>
-      <ProductStructuredData product={product} url={productUrl} />
+      <ProductStructuredData category={category} product={product} url={productUrl} />
       <HydrationBoundary state={dehydrateQueryClient(queryClient)}>
         <ProductPage productId={product.id} />
       </HydrationBoundary>

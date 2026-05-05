@@ -39,7 +39,7 @@ export function createFallbackBlogArticleContent(post: BlogPost): BlogArticleCon
         title: "Продолжить практику на новой странице",
         description:
           "Выберите сюжет с понятными формами и сразу примените советы из статьи в реальной работе.",
-        href: routes.raskraski,
+        href: routes.catalog,
         label: "Подобрать раскраску",
       },
     ],

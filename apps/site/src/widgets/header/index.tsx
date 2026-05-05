@@ -9,9 +9,9 @@ import { Menu, MobileMenu } from "./ui/menu";
 
 export function Header() {
   return (
-    <header className="sticky top-0 z-11 border-b-[1px] border-stone-200 bg-white backdrop-blur-md">
+    <header className="sticky top-0 z-11 h-[var(--site-header-height)] border-b-[1px] border-stone-200 bg-white backdrop-blur-md">
       <DevelopmentBanner />
-      <div className="container flex h-14 items-center gap-2 sm:h-16 sm:gap-3">
+      <div className="container flex h-[var(--site-header-nav-height)] items-center gap-2 sm:gap-3">
         <Logo />
 
         <nav

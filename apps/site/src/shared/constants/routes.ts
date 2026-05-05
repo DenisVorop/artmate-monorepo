@@ -5,7 +5,6 @@ export const routes = {
   account: "/account",
   cart: "/cart",
   catalog: "/catalog",
-  raskraski: "/catalog/raskraski",
   catalogCategory: (categorySlug: string) => `/catalog/raskraski/${categorySlug}`,
   blog: "/blog",
   blogPost: (id: string) => `/blog/${id}`,

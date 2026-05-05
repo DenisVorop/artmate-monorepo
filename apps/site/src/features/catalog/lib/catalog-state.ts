@@ -31,12 +31,12 @@ export function getCatalogHref(categories: readonly ProductCategory[], categoryI
   const normalizedCategoryId = normalizeCategoryId(categories, categoryId);
 
   if (!normalizedCategoryId) {
-    return routes.raskraski;
+    return routes.catalog;
   }
 
   const category = categories.find((item) => item.id === normalizedCategoryId);
 
-  return category ? routes.catalogCategory(category.slug) : routes.raskraski;
+  return category ? routes.catalogCategory(category.slug) : routes.catalog;
 }
 
 export function filterProducts(products: readonly Product[], filters: FiltersState) {
