@@ -1,5 +1,12 @@
 # Changelog
 
+## [0.6.1](https://github.com/DenisVorop/artmate-monorepo/compare/v0.6.0...v0.6.1) (2026-05-05)
+
+
+### Bug Fixes
+
+* acknowledge AI draft telegram callbacks ([170033a](https://github.com/DenisVorop/artmate-monorepo/commit/170033a1e30ca408da2c85b6f480aeab67ec9a88))
+
 ## [0.6.0](https://github.com/DenisVorop/artmate-monorepo/compare/v0.5.0...v0.6.0) (2026-05-05)
 
 
