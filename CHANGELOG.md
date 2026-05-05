@@ -1,5 +1,14 @@
 # Changelog
 
+## [0.4.0](https://github.com/DenisVorop/artmate-monorepo/compare/v0.3.1...v0.4.0) (2026-05-05)
+
+
+### Features
+
+* **admin:** add seo management page ([77dcd68](https://github.com/DenisVorop/artmate-monorepo/commit/77dcd680d436b8c5b0f407611229992bc9856555))
+* **api:** add seo metadata module ([afeadf8](https://github.com/DenisVorop/artmate-monorepo/commit/afeadf80d1acaf7c038eaf70bc3c39b0b544877b))
+* **site:** load metadata from seo service ([10f38bd](https://github.com/DenisVorop/artmate-monorepo/commit/10f38bd1d44d42707f9088650bb61743b01a26c1))
+
 ## [0.3.1](https://github.com/DenisVorop/artmate-monorepo/compare/v0.3.0...v0.3.1) (2026-05-05)
 
 
