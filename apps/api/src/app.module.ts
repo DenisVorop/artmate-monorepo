@@ -10,6 +10,7 @@ import { OrdersModule } from "./orders/orders.module";
 import { OzonModule } from "./ozon/ozon.module";
 import { PrismaModule } from "./prisma/prisma.module";
 import { ProductsModule } from "./products/products.module";
+import { SeoModule } from "./seo/seo.module";
 import { UsersModule } from "./users/users.module";
 
 @Module({
@@ -23,6 +24,7 @@ import { UsersModule } from "./users/users.module";
     BlogModule,
     OzonModule,
     ContactsModule,
+    SeoModule,
   ],
   controllers: [AppController],
   providers: [AppService],
