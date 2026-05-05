@@ -1,5 +1,12 @@
 # Changelog
 
+## [0.3.1](https://github.com/DenisVorop/artmate-monorepo/compare/v0.3.0...v0.3.1) (2026-05-05)
+
+
+### Bug Fixes
+
+* **site:** improve seo metadata and header layout ([11ac185](https://github.com/DenisVorop/artmate-monorepo/commit/11ac1858268e9409b99d3af3adb4c5c2b6062aa6))
+
 ## [0.3.0](https://github.com/DenisVorop/artmate-monorepo/compare/v0.2.1...v0.3.0) (2026-05-04)
 
 
