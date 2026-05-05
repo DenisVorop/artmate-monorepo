@@ -107,3 +107,7 @@ volumes:
   api-uploads:
   caddy-data:
   caddy-config:
+
+networks:
+  default:
+    enable_ipv6: true
