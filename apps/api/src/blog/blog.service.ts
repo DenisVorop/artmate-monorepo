@@ -144,7 +144,7 @@ export class BlogService {
     return this.mapPost(post);
   }
 
-  async createPost(input: CreateBlogPostRequestDTO, createdById: string) {
+  async createPost(input: CreateBlogPostRequestDTO, createdById?: string) {
     const status = input.status
       ? this.mapPostStatus(input.status)
       : PrismaBlogPostStatus.DRAFT;
@@ -179,11 +179,15 @@ export class BlogService {
               id: this.parseRequiredString(input.categoryId, "categoryId", 32),
             },
           },
-          createdBy: {
-            connect: {
-              id: createdById,
-            },
-          },
+          ...(createdById
+            ? {
+                createdBy: {
+                  connect: {
+                    id: createdById,
+                  },
+                },
+              }
+            : {}),
           tags: {
             create: tagIds.map((tagId, index) => ({
               sortOrder: index,

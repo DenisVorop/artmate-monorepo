@@ -54,9 +54,10 @@ export class ContentAssistantService {
     createdById: string,
   ) {
     const sourceType = input.sourceType ?? "mixed";
+    const storedCreatedById = await this.getExistingUserId(createdById);
     const run = await this.prisma.aiBlogDraftRun.create({
       data: {
-        createdById,
+        createdById: storedCreatedById,
         prompt: getOptionalString(input.prompt),
         sourceType: mapSourceTypeToPrisma(sourceType),
         status: PrismaAiBlogDraftRunStatus.TOPIC_REVIEW,
@@ -214,10 +215,6 @@ export class ContentAssistantService {
       throw new BadRequestException("Draft cannot be created for this run");
     }
 
-    if (!run.createdById) {
-      throw new BadRequestException("AI blog draft run has no creator");
-    }
-
     try {
       const draft = normalizeGeneratedDraft(getDraft(run.draft));
       const authorId = await this.getDefaultAuthorId();
@@ -241,7 +238,7 @@ export class ContentAssistantService {
           tagIds: [],
           title: draft.title,
         },
-        run.createdById,
+        run.createdById ?? undefined,
       );
 
       await this.prisma.aiBlogDraftRun.update({
@@ -308,6 +305,19 @@ export class ContentAssistantService {
     }
 
     return run;
+  }
+
+  private async getExistingUserId(userId: string) {
+    const user = await this.prisma.user.findUnique({
+      select: {
+        id: true,
+      },
+      where: {
+        id: userId,
+      },
+    });
+
+    return user?.id;
   }
 
   private async getResearchContext(
