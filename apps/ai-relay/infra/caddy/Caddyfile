@@ -1,0 +1,3 @@
+{$AI_RELAY_DOMAIN} {
+  reverse_proxy ai-relay:3004
+}

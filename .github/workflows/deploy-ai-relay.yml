@@ -1,0 +1,145 @@
+name: Deploy AI Relay
+
+on:
+  workflow_run:
+    workflows:
+      - Docker Publish
+    types:
+      - completed
+  workflow_dispatch:
+    inputs:
+      tag:
+        description: Docker image tag to deploy
+        required: true
+        default: latest
+
+concurrency:
+  group: ai-relay-production
+  cancel-in-progress: false
+
+permissions:
+  contents: read
+
+jobs:
+  deploy:
+    if: github.event_name == 'workflow_dispatch' || github.event.workflow_run.conclusion == 'success'
+    runs-on: ubuntu-latest
+    environment: production
+    timeout-minutes: 20
+
+    steps:
+      - name: Checkout
+        uses: actions/checkout@v4
+
+      - name: Resolve image tag
+        id: image
+        shell: bash
+        run: |
+          if [ "${{ github.event_name }}" = "workflow_dispatch" ]; then
+            image_tag="${{ inputs.tag }}"
+          else
+            image_tag="latest"
+          fi
+
+          printf 'tag=%s\n' "$image_tag" >> "$GITHUB_OUTPUT"
+
+      - name: Prepare SSH
+        env:
+          AI_RELAY_HOST: ${{ secrets.AI_RELAY_HOST }}
+          AI_RELAY_SSH_KEY: ${{ secrets.AI_RELAY_SSH_KEY || secrets.PRODUCTION_SSH_KEY }}
+        shell: bash
+        run: |
+          install -d -m 700 ~/.ssh
+          printf '%s\n' "$AI_RELAY_SSH_KEY" > ~/.ssh/id_ed25519
+          chmod 600 ~/.ssh/id_ed25519
+          ssh-keyscan -H "$AI_RELAY_HOST" >> ~/.ssh/known_hosts
+
+      - name: Upload compose files
+        env:
+          AI_RELAY_HOST: ${{ secrets.AI_RELAY_HOST }}
+          AI_RELAY_USER: ${{ secrets.AI_RELAY_USER || secrets.PRODUCTION_USER }}
+        shell: bash
+        run: |
+          ssh "$AI_RELAY_USER@$AI_RELAY_HOST" 'mkdir -p /opt/artmate-ai-relay/infra/caddy'
+          scp apps/ai-relay/docker-compose.prod.yml "$AI_RELAY_USER@$AI_RELAY_HOST:/opt/artmate-ai-relay/docker-compose.prod.yml"
+          scp apps/ai-relay/infra/caddy/Caddyfile "$AI_RELAY_USER@$AI_RELAY_HOST:/opt/artmate-ai-relay/infra/caddy/Caddyfile"
+
+      - name: Upload relay env
+        env:
+          AI_RELAY_DOMAIN: ${{ secrets.AI_RELAY_DOMAIN }}
+          AI_RELAY_ENV_FILE: ${{ secrets.AI_RELAY_ENV_FILE }}
+          AI_RELAY_HOST: ${{ secrets.AI_RELAY_HOST }}
+          AI_RELAY_TOKEN: ${{ secrets.AI_RELAY_TOKEN }}
+          AI_RELAY_USER: ${{ secrets.AI_RELAY_USER || secrets.PRODUCTION_USER }}
+          OPENAI_API_KEY: ${{ secrets.OPENAI_API_KEY }}
+          OPENAI_BASE_URL: ${{ secrets.AI_RELAY_OPENAI_BASE_URL }}
+          OPENAI_ORGANIZATION: ${{ secrets.OPENAI_ORGANIZATION }}
+          OPENAI_PROJECT: ${{ secrets.OPENAI_PROJECT }}
+        shell: bash
+        run: |
+          relay_env="$(mktemp)"
+          clean_env="$(mktemp)"
+          printf '%s\n' "$AI_RELAY_ENV_FILE" > "$relay_env"
+          grep -Ev '^(PORT|AI_RELAY_DOMAIN|AI_RELAY_TOKEN|OPENAI_API_KEY|OPENAI_BASE_URL|OPENAI_ORGANIZATION|OPENAI_PROJECT)=' "$relay_env" > "$clean_env" || true
+          mv "$clean_env" "$relay_env"
+
+          append_secret() {
+            local name="$1"
+            local value="$2"
+
+            if [ -n "$value" ]; then
+              printf '%s=%s\n' "$name" "$value" >> "$relay_env"
+            fi
+          }
+
+          append_secret PORT "3004"
+          append_secret AI_RELAY_DOMAIN "$AI_RELAY_DOMAIN"
+          append_secret AI_RELAY_TOKEN "$AI_RELAY_TOKEN"
+          append_secret OPENAI_API_KEY "$OPENAI_API_KEY"
+          append_secret OPENAI_BASE_URL "${OPENAI_BASE_URL:-https://api.openai.com/v1}"
+          append_secret OPENAI_ORGANIZATION "$OPENAI_ORGANIZATION"
+          append_secret OPENAI_PROJECT "$OPENAI_PROJECT"
+
+          require_secret() {
+            local name="$1"
+
+            if ! grep -Eq "^${name}=.+" "$relay_env"; then
+              printf 'Missing required secret: %s\n' "$name" >&2
+              exit 1
+            fi
+          }
+
+          require_secret AI_RELAY_DOMAIN
+          require_secret AI_RELAY_TOKEN
+          require_secret OPENAI_API_KEY
+
+          ssh "$AI_RELAY_USER@$AI_RELAY_HOST" 'cat > /opt/artmate-ai-relay/.env && chmod 600 /opt/artmate-ai-relay/.env' < "$relay_env"
+
+      - name: Login to GHCR on server
+        env:
+          AI_RELAY_HOST: ${{ secrets.AI_RELAY_HOST }}
+          AI_RELAY_USER: ${{ secrets.AI_RELAY_USER || secrets.PRODUCTION_USER }}
+          GHCR_READ_TOKEN: ${{ secrets.GHCR_READ_TOKEN }}
+          GHCR_USERNAME: ${{ secrets.GHCR_USERNAME }}
+        shell: bash
+        run: |
+          if [ -n "$GHCR_READ_TOKEN" ]; then
+            printf '%s\n' "$GHCR_READ_TOKEN" | ssh "$AI_RELAY_USER@$AI_RELAY_HOST" "docker login ghcr.io -u '$GHCR_USERNAME' --password-stdin"
+          fi
+
+      - name: Deploy
+        env:
+          AI_RELAY_HOST: ${{ secrets.AI_RELAY_HOST }}
+          AI_RELAY_USER: ${{ secrets.AI_RELAY_USER || secrets.PRODUCTION_USER }}
+          IMAGE_TAG: ${{ steps.image.outputs.tag }}
+        shell: bash
+        run: |
+          printf 'IMAGE_TAG=%s\n' "$IMAGE_TAG" | ssh "$AI_RELAY_USER@$AI_RELAY_HOST" 'cat > /opt/artmate-ai-relay/.image.env'
+
+          ssh "$AI_RELAY_USER@$AI_RELAY_HOST" '
+            set -eu
+            cd /opt/artmate-ai-relay
+            docker compose --env-file .env --env-file .image.env -f docker-compose.prod.yml pull
+            docker compose --env-file .env --env-file .image.env -f docker-compose.prod.yml up -d --remove-orphans
+            docker image prune -f
+          '

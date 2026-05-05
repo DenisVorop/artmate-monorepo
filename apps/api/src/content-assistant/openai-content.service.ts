@@ -158,16 +158,29 @@ export class OpenAiContentService {
   }
 
   private getClient() {
-    const apiKey = process.env.OPENAI_API_KEY;
+    const baseURL = getOptionalString(process.env.OPENAI_BASE_URL);
+    const apiKey = baseURL
+      ? process.env.OPENAI_RELAY_TOKEN
+      : process.env.OPENAI_API_KEY;
 
     if (!apiKey) {
-      throw new BadRequestException("OPENAI_API_KEY is not configured");
+      throw new BadRequestException(
+        baseURL
+          ? "OPENAI_RELAY_TOKEN is not configured"
+          : "OPENAI_API_KEY is not configured",
+      );
     }
 
-    this.client ??= new OpenAI({ apiKey });
+    this.client ??= new OpenAI({ apiKey, baseURL });
 
     return this.client;
   }
+}
+
+function getOptionalString(value: string | null | undefined) {
+  const text = value?.trim();
+
+  return text || undefined;
 }
 
 type GeneratedBlockPayload = {

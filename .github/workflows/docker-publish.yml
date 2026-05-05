@@ -35,6 +35,8 @@ jobs:
             dockerfile: apps/site/Dockerfile
           - app: admin
             dockerfile: apps/admin/Dockerfile
+          - app: ai-relay
+            dockerfile: apps/ai-relay/Dockerfile
 
     steps:
       - name: Checkout
