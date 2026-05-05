@@ -1,5 +1,12 @@
 # Changelog
 
+## [0.4.1](https://github.com/DenisVorop/artmate-monorepo/compare/v0.4.0...v0.4.1) (2026-05-05)
+
+
+### Bug Fixes
+
+* **admin:** increase server action upload limit ([fe1f597](https://github.com/DenisVorop/artmate-monorepo/commit/fe1f5971f7049d8e21aedfee11a3ffa862e6209a))
+
 ## [0.4.0](https://github.com/DenisVorop/artmate-monorepo/compare/v0.3.1...v0.4.0) (2026-05-05)
 
 
