@@ -11,6 +11,7 @@ import type {
 } from "./content-assistant.types";
 
 const defaultOpenAiModel = "gpt-5.2";
+const topicSuggestionCount = 3;
 
 @Injectable()
 export class OpenAiContentService {
@@ -25,7 +26,7 @@ export class OpenAiContentService {
     prompt?: string;
     sourceType: AiBlogDraftSourceType;
   }): Promise<AiTopicSuggestions> {
-    return this.createJsonResponse<AiTopicSuggestions>({
+    const suggestions = await this.createJsonResponse<AiTopicSuggestions>({
       includeWebSearch: true,
       input: [
         `Режим: ${sourceType}.`,
@@ -35,13 +36,18 @@ export class OpenAiContentService {
         "Найди актуальные темы в интернете для блога Artmate.",
         "Тематики: раскраски по номерам, товары для творчества, спокойный досуг, подарки, антистресс-хобби, домашний уют, творческие новинки.",
         "Не предлагай тему, если ее нельзя обосновать источниками или данными Artmate.",
-        "Верни JSON со списком источников и 3-5 тем.",
+        `Верни JSON со списком источников и ровно ${topicSuggestionCount} темами.`,
       ].join("\n"),
       instructions:
         "Ты редактор блога Artmate. Ищи актуальные темы, но не выдумывай факты. Каждая тема должна быть пригодна для статьи в блоге интернет-магазина и вести к мягкому CTA на товары/категории Artmate.",
       schema: topicSuggestionsSchema,
       schemaName: "ai_blog_topic_suggestions",
     });
+
+    return {
+      sources: suggestions.sources,
+      topics: suggestions.topics.slice(0, topicSuggestionCount),
+    };
   }
 
   async generateOutline({

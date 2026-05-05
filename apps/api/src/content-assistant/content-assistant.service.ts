@@ -111,10 +111,22 @@ export class ContentAssistantService {
 
     const [namespace, action, runId, value] = callbackQuery.data.split("|");
 
-    if (namespace !== "ai" || !runId) {
+    if (namespace !== "ai" || !action || !runId) {
       return { ok: true };
     }
 
+    void this.handleTelegramAction(action, runId, value).catch((error) => {
+      void this.notifyTelegramActionFailure(runId, error);
+    });
+
+    return { ok: true };
+  }
+
+  private async handleTelegramAction(
+    action: string,
+    runId: string,
+    value?: string,
+  ) {
     switch (action) {
       case "topic":
         await this.selectTopic(runId, Number(value));
@@ -133,8 +145,18 @@ export class ContentAssistantService {
         await this.rejectRun(runId);
         break;
     }
+  }
 
-    return { ok: true };
+  private async notifyTelegramActionFailure(runId: string, error: unknown) {
+    try {
+      await this.telegramApprovalService.sendFailure(
+        runId,
+        getErrorMessage(error),
+      );
+    } catch {
+      // Telegram callback has already been acknowledged; avoid surfacing
+      // notification errors as unhandled promise rejections.
+    }
   }
 
   private async selectTopic(runId: string, topicIndex: number) {
