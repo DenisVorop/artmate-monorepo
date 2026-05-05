@@ -1,7 +1,13 @@
 import { CartPage } from "@/pages/cart";
-import { createPageMetadata } from "@/shared/lib/seo";
+import { routes } from "@/shared/constants";
+import { createPageMetadata, Seo } from "@/shared/lib/seo";
 
-export const metadata = createPageMetadata("cart");
+export function generateMetadata() {
+  return Seo.getMetadata({
+    path: routes.cart,
+    fallback: createPageMetadata("cart"),
+  });
+}
 
 export default function Page() {
   return <CartPage />;

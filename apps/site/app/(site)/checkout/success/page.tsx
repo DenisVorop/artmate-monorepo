@@ -1,7 +1,13 @@
 import { CheckoutSuccessPage } from "@/pages/checkout-success";
-import { createPageMetadata } from "@/shared/lib/seo";
+import { routes } from "@/shared/constants";
+import { createPageMetadata, Seo } from "@/shared/lib/seo";
 
-export const metadata = createPageMetadata("checkoutSuccess");
+export function generateMetadata() {
+  return Seo.getMetadata({
+    path: routes.checkoutSuccess,
+    fallback: createPageMetadata("checkoutSuccess"),
+  });
+}
 
 type CheckoutSuccessRouteProps = {
   searchParams: Promise<{

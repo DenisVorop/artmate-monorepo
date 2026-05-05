@@ -113,6 +113,8 @@ export type BlogPostDTO = {
   readTimeMinutes?: number | null;
   imageUrl?: string | null;
   imageAlt?: string | null;
+  metaTitle?: string | null;
+  metaDescription?: string | null;
   publishedAt?: string | null;
   createdAt: string;
   updatedAt: string;
@@ -134,6 +136,8 @@ export type BlogPost = {
   readTimeMinutes?: number;
   image: string;
   imageAlt: string;
+  metaTitle?: string;
+  metaDescription?: string;
   publishedAt?: string;
   createdAt: string;
   updatedAt: string;

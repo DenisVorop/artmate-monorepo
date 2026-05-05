@@ -1,6 +1,12 @@
 import { ContactsPage } from "@/pages/contacts";
-import { createPageMetadata } from "@/shared/lib/seo";
+import { routes } from "@/shared/constants";
+import { createPageMetadata, Seo } from "@/shared/lib/seo";
 
-export const metadata = createPageMetadata("contacts");
+export function generateMetadata() {
+  return Seo.getMetadata({
+    path: routes.contacts,
+    fallback: createPageMetadata("contacts"),
+  });
+}
 
 export default ContactsPage;

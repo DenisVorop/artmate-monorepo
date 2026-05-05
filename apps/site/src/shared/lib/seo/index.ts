@@ -7,6 +7,7 @@ export {
   createRootMetadata,
 } from "./metadata";
 export { seoPages } from "./registry";
+export { Seo } from "./service";
 export { createCategoryDescription, createProductDescription, normalizeSeoText } from "./text";
 export {
   BlogPostStructuredData,

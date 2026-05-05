@@ -2,11 +2,17 @@ import { redirect } from "next/navigation";
 
 import { getSafeAuthRedirectPath } from "@/features/auth";
 import { getAuthSession } from "@/shared/actions/auth";
+import { routes } from "@/shared/constants";
 import { ApiResult } from "@/shared/lib/api-result";
-import { createPageMetadata } from "@/shared/lib/seo";
+import { createPageMetadata, Seo } from "@/shared/lib/seo";
 import { AuthPage } from "@/pages/auth";
 
-export const metadata = createPageMetadata("auth");
+export function generateMetadata() {
+  return Seo.getMetadata({
+    path: routes.auth,
+    fallback: createPageMetadata("auth"),
+  });
+}
 
 type AuthRouteProps = {
   searchParams: Promise<{

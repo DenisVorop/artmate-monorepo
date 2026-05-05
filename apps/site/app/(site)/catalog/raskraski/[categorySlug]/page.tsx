@@ -13,6 +13,7 @@ import {
   createCategoryMetadata,
   createProductMetadata,
   ProductStructuredData,
+  Seo,
 } from "@/shared/lib/seo";
 import { HydrationBoundary } from "@tanstack/react-query";
 
@@ -45,7 +46,10 @@ export async function generateMetadata({ params }: CatalogCategoryRouteProps): P
   const category = getProductCategoryBySlug(productsData?.categories ?? [], categorySlug);
 
   if (category) {
-    return createCategoryMetadata(category);
+    return Seo.getMetadata({
+      path: routes.catalogCategory(category.slug),
+      fallback: createCategoryMetadata(category),
+    });
   }
 
   const product = getProductBySlug(productsData?.products ?? [], categorySlug);
@@ -54,7 +58,10 @@ export async function generateMetadata({ params }: CatalogCategoryRouteProps): P
     return {};
   }
 
-  return createProductMetadata(product);
+  return Seo.getMetadata({
+    path: routes.product(undefined, product.slug),
+    fallback: createProductMetadata(product),
+  });
 }
 
 export default async function Page({ params }: CatalogCategoryRouteProps) {

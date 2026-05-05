@@ -110,11 +110,11 @@ export function createProductMetadata(product: SeoProduct, category?: SeoCategor
 }
 
 export function createBlogPostMetadata(post: SeoBlogPost): Metadata {
-  const title = `${post.title} - Блог Artmate`;
+  const title = post.metaTitle ?? `${post.title} - Блог Artmate`;
 
   return createMetadata({
     title,
-    description: post.excerpt,
+    description: post.metaDescription ?? post.excerpt,
     canonical: `/blog/${post.slug}`,
     ogType: "article",
     image: {

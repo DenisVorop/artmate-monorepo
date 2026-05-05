@@ -89,6 +89,8 @@ export type SeoBlogPost = {
   excerpt: string;
   image: string;
   imageAlt: string;
+  metaDescription?: string;
+  metaTitle?: string;
   publishedAt?: string;
   slug: string;
   tags: readonly string[];

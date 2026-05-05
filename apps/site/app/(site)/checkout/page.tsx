@@ -1,7 +1,13 @@
 import { CheckoutPage } from "@/pages/checkout";
-import { createPageMetadata } from "@/shared/lib/seo";
+import { routes } from "@/shared/constants";
+import { createPageMetadata, Seo } from "@/shared/lib/seo";
 
-export const metadata = createPageMetadata("checkout");
+export function generateMetadata() {
+  return Seo.getMetadata({
+    path: routes.checkout,
+    fallback: createPageMetadata("checkout"),
+  });
+}
 
 export default function Page() {
   return <CheckoutPage />;

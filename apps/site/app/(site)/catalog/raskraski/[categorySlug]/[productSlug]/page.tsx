@@ -11,7 +11,7 @@ import {
 import { getProductsData } from "@/shared/actions/products";
 import { routes } from "@/shared/constants";
 import { dehydrateQueryClient } from "@/shared/lib/dehydrate-query-client";
-import { createProductMetadata, ProductStructuredData } from "@/shared/lib/seo";
+import { createProductMetadata, ProductStructuredData, Seo } from "@/shared/lib/seo";
 import { HydrationBoundary } from "@tanstack/react-query";
 
 type ProductRouteProps = {
@@ -50,7 +50,10 @@ export async function generateMetadata({ params }: ProductRouteProps): Promise<M
     return {};
   }
 
-  return createProductMetadata(product, category);
+  return Seo.getMetadata({
+    path: routes.product(category.slug, product.slug),
+    fallback: createProductMetadata(product, category),
+  });
 }
 
 export default async function Page({ params }: ProductRouteProps) {

@@ -1,7 +1,14 @@
 import { legalDocuments, LegalPage } from "@/pages/legal";
-import { createLegalMetadata } from "@/shared/lib/seo";
+import { createLegalMetadata, Seo } from "@/shared/lib/seo";
 
-export const metadata = createLegalMetadata(legalDocuments.privacyPolicy);
+export function generateMetadata() {
+  const document = legalDocuments.privacyPolicy;
+
+  return Seo.getMetadata({
+    path: document.href,
+    fallback: createLegalMetadata(document),
+  });
+}
 
 export default function Page() {
   return <LegalPage documentId="privacyPolicy" />;

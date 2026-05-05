@@ -1,7 +1,13 @@
 import { AccountPage } from "@/pages/account";
-import { createPageMetadata } from "@/shared/lib/seo";
+import { routes } from "@/shared/constants";
+import { createPageMetadata, Seo } from "@/shared/lib/seo";
 
-export const metadata = createPageMetadata("account");
+export function generateMetadata() {
+  return Seo.getMetadata({
+    path: routes.account,
+    fallback: createPageMetadata("account"),
+  });
+}
 
 export default function Page() {
   return <AccountPage />;

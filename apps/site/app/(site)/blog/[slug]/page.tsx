@@ -5,8 +5,9 @@ import { BlogPostDataBuilder } from "@/app/lib/blog-post-data-builder";
 import { blogPostPageQuery } from "@/features/blog-post";
 import { BlogPostPage } from "@/pages/blog-post";
 import { getBlogPostBySlug, getBlogPosts } from "@/shared/actions/blog";
+import { routes } from "@/shared/constants";
 import { dehydrateQueryClient } from "@/shared/lib/dehydrate-query-client";
-import { BlogPostStructuredData, createBlogPostMetadata } from "@/shared/lib/seo";
+import { BlogPostStructuredData, createBlogPostMetadata, Seo } from "@/shared/lib/seo";
 import { HydrationBoundary } from "@tanstack/react-query";
 
 type BlogPostRouteProps = {
@@ -31,7 +32,10 @@ export async function generateMetadata({ params }: BlogPostRouteProps): Promise<
     return {};
   }
 
-  return createBlogPostMetadata(post);
+  return Seo.getMetadata({
+    path: routes.blogPost(post.slug),
+    fallback: createBlogPostMetadata(post),
+  });
 }
 
 export default async function Page({ params }: BlogPostRouteProps) {

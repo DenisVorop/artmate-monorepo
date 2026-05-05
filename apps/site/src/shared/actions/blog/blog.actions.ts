@@ -145,6 +145,8 @@ function mapBlogPost(post: BlogPostDTO): BlogPost {
     readTimeMinutes,
     image: post.imageUrl || defaultBlogImage,
     imageAlt: post.imageAlt || post.title,
+    metaTitle: post.metaTitle ?? undefined,
+    metaDescription: post.metaDescription ?? undefined,
     publishedAt: post.publishedAt ?? undefined,
     createdAt: post.createdAt,
     updatedAt: post.updatedAt,

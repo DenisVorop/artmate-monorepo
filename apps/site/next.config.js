@@ -10,6 +10,7 @@ const repoRoot = path.resolve(path.dirname(fileURLToPath(import.meta.url)), "../
 const nextConfig = {
   output: "standalone",
   outputFileTracingRoot: repoRoot,
+  htmlLimitedBots: /.*/,
   images: {
     remotePatterns: [
       apiImageRemotePattern,

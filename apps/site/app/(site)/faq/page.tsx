@@ -1,11 +1,17 @@
 import { FaqDataBuilder } from "@/app/lib/faq-data-builder";
 import { FaqPage } from "@/pages/faq";
+import { routes } from "@/shared/constants";
 import { dehydrateQueryClient } from "@/shared/lib/dehydrate-query-client";
-import { createPageMetadata, FaqStructuredData } from "@/shared/lib/seo";
+import { createPageMetadata, FaqStructuredData, Seo } from "@/shared/lib/seo";
 
 import { HydrationBoundary } from "@tanstack/react-query";
 
-export const metadata = createPageMetadata("faq");
+export function generateMetadata() {
+  return Seo.getMetadata({
+    path: routes.faq,
+    fallback: createPageMetadata("faq"),
+  });
+}
 
 export default async function Page() {
   const { faqSections, queryClient } = await new FaqDataBuilder().withFaqSections().build();
