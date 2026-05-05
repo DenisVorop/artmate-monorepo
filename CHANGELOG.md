@@ -1,5 +1,12 @@
 # Changelog
 
+## [0.4.3](https://github.com/DenisVorop/artmate-monorepo/compare/v0.4.2...v0.4.3) (2026-05-05)
+
+
+### Performance Improvements
+
+* **site:** revalidate content API requests ([73f7e88](https://github.com/DenisVorop/artmate-monorepo/commit/73f7e884d1d557a1bff6bc224f74a3f24e88e958))
+
 ## [0.4.2](https://github.com/DenisVorop/artmate-monorepo/compare/v0.4.1...v0.4.2) (2026-05-05)
 
 
