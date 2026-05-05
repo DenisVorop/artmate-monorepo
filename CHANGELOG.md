@@ -1,5 +1,12 @@
 # Changelog
 
+## [0.6.3](https://github.com/DenisVorop/artmate-monorepo/compare/v0.6.2...v0.6.3) (2026-05-05)
+
+
+### Bug Fixes
+
+* accept telegram webhook updates ([550c8d2](https://github.com/DenisVorop/artmate-monorepo/commit/550c8d26d5556b78940a5922c347c0f02b3a226f))
+
 ## [0.6.2](https://github.com/DenisVorop/artmate-monorepo/compare/v0.6.1...v0.6.2) (2026-05-05)
 
 
