@@ -1,5 +1,12 @@
 # Changelog
 
+## [0.6.2](https://github.com/DenisVorop/artmate-monorepo/compare/v0.6.1...v0.6.2) (2026-05-05)
+
+
+### Bug Fixes
+
+* avoid blocking telegram webhooks ([8b88b81](https://github.com/DenisVorop/artmate-monorepo/commit/8b88b81b01c4f63c6fce22bd6307ed939348c9df))
+
 ## [0.6.1](https://github.com/DenisVorop/artmate-monorepo/compare/v0.6.0...v0.6.1) (2026-05-05)
 
 
