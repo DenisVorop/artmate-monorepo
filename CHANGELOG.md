@@ -1,5 +1,12 @@
 # Changelog
 
+## [0.4.2](https://github.com/DenisVorop/artmate-monorepo/compare/v0.4.1...v0.4.2) (2026-05-05)
+
+
+### Bug Fixes
+
+* **site:** add api hostname to next config ([fc1c789](https://github.com/DenisVorop/artmate-monorepo/commit/fc1c7894ff182d01ed3dcdcf5a10fc25c63d6509))
+
 ## [0.4.1](https://github.com/DenisVorop/artmate-monorepo/compare/v0.4.0...v0.4.1) (2026-05-05)
 
 
