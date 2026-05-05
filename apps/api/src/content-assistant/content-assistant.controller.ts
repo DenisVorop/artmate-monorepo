@@ -2,6 +2,7 @@ import {
   Body,
   Controller,
   Get,
+  HttpCode,
   Param,
   Post,
   Req,
@@ -76,6 +77,7 @@ export class TelegramContentAssistantController {
 
   @ApiOperation({ summary: "Handle Telegram content assistant webhook" })
   @ApiOkResponse()
+  @HttpCode(200)
   @Post("webhook/:secret")
   handleWebhook(
     @Param("secret") secret: string,
