@@ -16,6 +16,11 @@ const nextConfig = {
       apiImageRemotePattern,
       {
         protocol: "https",
+        hostname: "api.art-mate.ru",
+        pathname: "/uploads/**",
+      },
+      {
+        protocol: "https",
         hostname: "images.unsplash.com",
       },
       {
