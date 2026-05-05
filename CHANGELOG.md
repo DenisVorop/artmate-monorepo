@@ -1,5 +1,18 @@
 # Changelog
 
+## [0.5.0](https://github.com/DenisVorop/artmate-monorepo/compare/v0.4.3...v0.5.0) (2026-05-05)
+
+
+### Features
+
+* add AI blog draft assistant ([6fcef6f](https://github.com/DenisVorop/artmate-monorepo/commit/6fcef6f50a624ad66972834607f78f27ad3b24fa))
+
+
+### Bug Fixes
+
+* **infra:** enable ipv6 for production network ([875f049](https://github.com/DenisVorop/artmate-monorepo/commit/875f04920a10f308718589c9c2a5273335bdfdc5))
+* **site:** render dynamic routes on demand ([632a023](https://github.com/DenisVorop/artmate-monorepo/commit/632a023d8f28ea090701e1a46f60429d3ef73b75))
+
 ## [0.4.3](https://github.com/DenisVorop/artmate-monorepo/compare/v0.4.2...v0.4.3) (2026-05-05)
 
 
