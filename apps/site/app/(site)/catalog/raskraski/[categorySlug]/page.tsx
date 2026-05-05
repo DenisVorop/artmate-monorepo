@@ -23,23 +23,6 @@ type CatalogCategoryRouteProps = {
   }>;
 };
 
-export async function generateStaticParams() {
-  const productsData = (await getProductsData()).data;
-  const slugs = new Set<string>();
-
-  for (const category of productsData?.categories ?? []) {
-    slugs.add(category.slug);
-  }
-
-  for (const product of productsData?.products ?? []) {
-    if (!product.categoryId) {
-      slugs.add(product.slug);
-    }
-  }
-
-  return [...slugs].map((categorySlug) => ({ categorySlug }));
-}
-
 export async function generateMetadata({ params }: CatalogCategoryRouteProps): Promise<Metadata> {
   const { categorySlug } = await params;
   const productsData = (await getProductsData()).data;

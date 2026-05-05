@@ -5,7 +5,6 @@ import { CatalogDataBuilder } from "@/app/lib/catalog-data-builder";
 import { ProductPage } from "@/pages/product";
 import {
   getProductBySlug,
-  getProductCategory,
   getProductCategoryBySlug,
 } from "@/entities/products";
 import { getProductsData } from "@/shared/actions/products";
@@ -20,25 +19,6 @@ type ProductRouteProps = {
     productSlug: string;
   }>;
 };
-
-export async function generateStaticParams() {
-  const productsData = (await getProductsData()).data;
-
-  return (productsData?.products ?? []).flatMap((product) => {
-    const category = getProductCategory(productsData?.categories ?? [], product.categoryId);
-
-    if (!category) {
-      return [];
-    }
-
-    return [
-      {
-        categorySlug: category.slug,
-        productSlug: product.slug,
-      },
-    ];
-  });
-}
 
 export async function generateMetadata({ params }: ProductRouteProps): Promise<Metadata> {
   const { categorySlug, productSlug } = await params;

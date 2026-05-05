@@ -4,7 +4,7 @@ import { notFound } from "next/navigation";
 import { BlogPostDataBuilder } from "@/app/lib/blog-post-data-builder";
 import { blogPostPageQuery } from "@/features/blog-post";
 import { BlogPostPage } from "@/pages/blog-post";
-import { getBlogPostBySlug, getBlogPosts } from "@/shared/actions/blog";
+import { getBlogPostBySlug } from "@/shared/actions/blog";
 import { routes } from "@/shared/constants";
 import { dehydrateQueryClient } from "@/shared/lib/dehydrate-query-client";
 import { BlogPostStructuredData, createBlogPostMetadata, Seo } from "@/shared/lib/seo";
@@ -15,14 +15,6 @@ type BlogPostRouteProps = {
     slug: string;
   }>;
 };
-
-export async function generateStaticParams() {
-  const posts = (await getBlogPosts()).data?.items ?? [];
-
-  return posts.map((post) => ({
-    slug: post.slug,
-  }));
-}
 
 export async function generateMetadata({ params }: BlogPostRouteProps): Promise<Metadata> {
   const { slug } = await params;
