@@ -38,7 +38,10 @@ export async function getProductsData(): Promise<ApiResultDTO<ProductsData>> {
 
 async function requestCatalogApi<T>(path: string) {
   const response = await fetch(`${getApiBaseUrl()}${path}`, {
-    cache: "no-store",
+    next: {
+      revalidate: 300,
+      tags: ["catalog-products"],
+    },
   });
 
   if (!response.ok) {

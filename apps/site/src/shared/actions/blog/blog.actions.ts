@@ -120,7 +120,10 @@ export async function getRelatedBlogPosts(post: BlogPost, limit = 3) {
 
 async function requestBlogApi<T>(path: string) {
   const response = await fetch(`${getApiBaseUrl()}${path}`, {
-    cache: "no-store",
+    next: {
+      revalidate: 300,
+      tags: ["blog-posts"],
+    },
   });
 
   if (!response.ok) {

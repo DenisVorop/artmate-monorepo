@@ -9,7 +9,10 @@ export async function getResolvedSeoMetadata(path: string) {
     const response = await fetch(
       `${getApiBaseUrl()}/seo/resolve?path=${encodeURIComponent(path)}`,
       {
-        cache: "no-store",
+        next: {
+          revalidate: 300,
+          tags: ["seo-metadata"],
+        },
       },
     );
 
