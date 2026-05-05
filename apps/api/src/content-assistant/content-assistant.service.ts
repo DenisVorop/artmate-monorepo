@@ -104,10 +104,9 @@ export class ContentAssistantService {
       return { ok: true };
     }
 
-    await this.telegramApprovalService.answerCallbackQuery(
-      callbackQuery.id,
-      "Принято",
-    );
+    void this.telegramApprovalService
+      .answerCallbackQuery(callbackQuery.id, "Принято")
+      .catch(() => undefined);
 
     const [namespace, action, runId, value] = callbackQuery.data.split("|");
 

@@ -19,6 +19,8 @@ type TelegramSendMessageBody = {
   text: string;
 };
 
+const telegramRequestTimeoutMs = 10000;
+
 @Injectable()
 export class TelegramApprovalService {
   async sendTopicReview(runId: string, suggestions: AiTopicSuggestions) {
@@ -128,6 +130,7 @@ export class TelegramApprovalService {
           "content-type": "application/json",
         },
         method: "POST",
+        signal: AbortSignal.timeout(telegramRequestTimeoutMs),
       },
     );
 
