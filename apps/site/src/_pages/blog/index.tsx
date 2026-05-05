@@ -17,5 +17,3 @@ export function BlogPage() {
     </main>
   );
 }
-
-export { metadata } from "./metadata";

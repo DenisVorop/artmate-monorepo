@@ -1,9 +1,10 @@
 import { CatalogDataBuilder } from "@/app/lib/catalog-data-builder";
 import { CatalogPage } from "@/pages/catalog";
 import { dehydrateQueryClient } from "@/shared/lib/dehydrate-query-client";
+import { createPageMetadata } from "@/shared/lib/seo";
 import { HydrationBoundary } from "@tanstack/react-query";
 
-export { metadata } from "@/pages/catalog/metadata";
+export const metadata = createPageMetadata("catalog");
 
 export default async function Page() {
   const { queryClient } = await new CatalogDataBuilder().withProducts().build();

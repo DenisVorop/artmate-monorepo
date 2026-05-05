@@ -1,5 +1,3 @@
-import type { Metadata } from "next";
-
 import { companyDetails, routes, siteConfig } from "@/shared/constants";
 import { Separator } from "@/shared/ui";
 import { Link } from "@/shared/ui/link";
@@ -33,8 +31,7 @@ const legalDocumentsUpdatedAt = "04.05.2026";
 export const legalDocuments = {
   publicOffer: {
     title: "Публичная оферта",
-    description:
-      "Условия продажи товаров Artmate, оформления заказа, оплаты, доставки и возврата.",
+    description: "Условия продажи товаров Artmate, оформления заказа, оплаты, доставки и возврата.",
     href: routes.legal.publicOffer,
     updatedAt: legalDocumentsUpdatedAt,
     sections: [
@@ -90,8 +87,7 @@ export const legalDocuments = {
   },
   privacyPolicy: {
     title: "Политика конфиденциальности",
-    description:
-      "Правила обработки персональных данных покупателей и посетителей сайта Artmate.",
+    description: "Правила обработки персональных данных покупателей и посетителей сайта Artmate.",
     href: routes.legal.privacyPolicy,
     updatedAt: legalDocumentsUpdatedAt,
     sections: [
@@ -342,7 +338,10 @@ export function LegalPage({ documentId }: LegalPageProps) {
 
           <div className="flex flex-col gap-3 rounded-lg border bg-muted/30 p-5 text-sm text-muted-foreground sm:flex-row sm:items-center sm:justify-between">
             <span>По вопросам документов и заказов: {companyDetails.supportEmail}</span>
-            <Link href={routes.paymentAndDelivery} className="font-medium text-foreground underline">
+            <Link
+              href={routes.paymentAndDelivery}
+              className="font-medium text-foreground underline"
+            >
               Оплата и доставка
             </Link>
           </div>
@@ -350,43 +349,6 @@ export function LegalPage({ documentId }: LegalPageProps) {
       </section>
     </main>
   );
-}
-
-export function getLegalMetadata(documentId: LegalDocumentId): Metadata {
-  const document = legalDocuments[documentId];
-  const title = `${document.title} - ${siteConfig.name}`;
-
-  return {
-    title: {
-      absolute: title,
-    },
-    description: document.description,
-    alternates: {
-      canonical: document.href,
-    },
-    openGraph: {
-      title,
-      description: document.description,
-      url: document.href,
-      siteName: siteConfig.name,
-      locale: siteConfig.locale,
-      type: "website",
-      images: [
-        {
-          url: siteConfig.ogImage,
-          width: 1200,
-          height: 630,
-          alt: title,
-        },
-      ],
-    },
-    twitter: {
-      card: "summary_large_image",
-      title,
-      description: document.description,
-      images: [siteConfig.ogImage],
-    },
-  };
 }
 
 function getCompanyItems() {

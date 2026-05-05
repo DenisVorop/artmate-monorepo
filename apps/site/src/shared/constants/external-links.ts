@@ -5,5 +5,6 @@ export const externalLinks = {
   },
   social: {
     telegram: "https://t.me/artmate_support",
+    telegramOfficial: "https://t.me/artmate_official",
   },
 } as const;

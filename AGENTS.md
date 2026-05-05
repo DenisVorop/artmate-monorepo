@@ -113,7 +113,7 @@ Frontend workspaces: `apps/site`, `apps/admin`. Все frontend-приложен
 app/             route binding: metadata, generateStaticParams, generateMetadata,
                  data builder, HydrationBoundary, notFound
 src/_app/        root layouts, providers, data builders, app-level types
-src/_pages/      сборка страницы из features/widgets/page-local static UI, metadata
+src/_pages/      сборка страницы из features/widgets/page-local static UI
 src/features/    сценарии, query/mutation orchestration, client state, формы,
                  фильтры, provider/context, loading/error/empty states сценария
 src/entities/    доменные read-модели, query options/hooks, selectors, read-only UI
@@ -262,8 +262,6 @@ src/features/<feature>/
 ```text
 src/_pages/<page>/
   index.tsx
-  metadata/
-    index.ts
   ui/
     hero.tsx
     section.tsx
@@ -272,6 +270,7 @@ src/_pages/<page>/
 Правила:
 
 - Page slice только собирает route-level experience из features, widgets и page-local static UI.
+- Page slice не хранит и не экспортирует Next.js `metadata`; route-level metadata объявляй в `app/**/page.tsx`.
 - Не размещай в `_pages` query/mutation hooks, бизнес-сценарии, фильтрацию, form mutations, provider orchestration и query-driven `DataState`.
 - Не прокидывай через `_pages` данные, которые feature может получить сама через entity/query hook.
 - Не прокидывай callbacks сценария через page, если action принадлежит feature.
@@ -324,8 +323,9 @@ src/_pages/<page>/
 
 - Route constants держи в `src/shared/constants/routes.ts`.
 - Site-wide config и `getAbsoluteUrl` держи в `src/shared/constants/site.ts`.
-- Page metadata держи рядом со страницей в `src/_pages/<page>/metadata`.
-- Route files могут экспортировать metadata из `_pages`.
+- SEO registry, keyword groups, metadata factories и JSON-LD держи в `src/shared/lib/seo`.
+- Route files (`app/**/page.tsx`) должны объявлять статическую `metadata` или `generateMetadata(...)` сами, вызывая helpers из `src/shared/lib/seo`.
+- Не создавай `src/_pages/<page>/metadata` и не экспортируй `metadata` из page slices.
 - `app/sitemap.ts` должен использовать `routes`, `getAbsoluteUrl` и реальные server read actions/selectors, не хардкодить динамические paths.
 - `app/robots.ts` использует `siteConfig.url`; при изменении домена обновляй `NEXT_PUBLIC_SITE_URL` или default в `site.ts`.
 

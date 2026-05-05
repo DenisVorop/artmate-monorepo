@@ -1,7 +1,7 @@
 import { CheckoutPage } from "@/pages/checkout";
-import { metadata } from "@/pages/checkout/metadata";
+import { createPageMetadata } from "@/shared/lib/seo";
 
-export { metadata };
+export const metadata = createPageMetadata("checkout");
 
 export default function Page() {
   return <CheckoutPage />;

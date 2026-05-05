@@ -6,8 +6,13 @@ import { CatalogPage } from "@/pages/catalog";
 import { ProductPage } from "@/pages/product";
 import { getProductBySlug, getProductCategoryBySlug } from "@/entities/products";
 import { getProductsData } from "@/shared/actions/products";
-import { routes, siteConfig } from "@/shared/constants";
+import { routes } from "@/shared/constants";
 import { dehydrateQueryClient } from "@/shared/lib/dehydrate-query-client";
+import {
+  createCategoryMetadata,
+  createProductMetadata,
+  ProductStructuredData,
+} from "@/shared/lib/seo";
 import { HydrationBoundary } from "@tanstack/react-query";
 
 type CatalogCategoryRouteProps = {
@@ -39,41 +44,7 @@ export async function generateMetadata({ params }: CatalogCategoryRouteProps): P
   const category = getProductCategoryBySlug(productsData?.categories ?? [], categorySlug);
 
   if (category) {
-    const title = `${category.title} - раскраски по\u00a0номерам Artmate`;
-    const description = `Раскраски Artmate в\u00a0категории «${category.title}»: альбомы A4 на\u00a0плотной бумаге для\u00a0спокойного творческого вечера.`;
-    const url = routes.catalogCategory(category.slug);
-
-    return {
-      title: {
-        absolute: title,
-      },
-      description,
-      alternates: {
-        canonical: url,
-      },
-      openGraph: {
-        title,
-        description,
-        url,
-        siteName: siteConfig.name,
-        locale: siteConfig.locale,
-        type: "website",
-        images: [
-          {
-            url: category.image,
-            width: 900,
-            height: 1200,
-            alt: title,
-          },
-        ],
-      },
-      twitter: {
-        card: "summary_large_image",
-        title,
-        description,
-        images: [category.image],
-      },
-    };
+    return createCategoryMetadata(category);
   }
 
   const product = getProductBySlug(productsData?.products ?? [], categorySlug);
@@ -82,40 +53,7 @@ export async function generateMetadata({ params }: CatalogCategoryRouteProps): P
     return {};
   }
 
-  const title = `${product.title} - Artmate`;
-  const url = routes.product(undefined, product.slug);
-
-  return {
-    title: {
-      absolute: title,
-    },
-    description: product.description,
-    alternates: {
-      canonical: url,
-    },
-    openGraph: {
-      title,
-      description: product.description,
-      url,
-      siteName: siteConfig.name,
-      locale: siteConfig.locale,
-      type: "website",
-      images: [
-        {
-          url: product.image,
-          width: 900,
-          height: 1200,
-          alt: product.title,
-        },
-      ],
-    },
-    twitter: {
-      card: "summary_large_image",
-      title,
-      description: product.description,
-      images: [product.image],
-    },
-  };
+  return createProductMetadata(product);
 }
 
 export default async function Page({ params }: CatalogCategoryRouteProps) {
@@ -143,9 +81,14 @@ export default async function Page({ params }: CatalogCategoryRouteProps) {
     notFound();
   }
 
+  const productUrl = routes.product(undefined, product.slug);
+
   return (
-    <HydrationBoundary state={dehydrateQueryClient(queryClient)}>
-      <ProductPage productId={product.id} />
-    </HydrationBoundary>
+    <>
+      <ProductStructuredData product={product} url={productUrl} />
+      <HydrationBoundary state={dehydrateQueryClient(queryClient)}>
+        <ProductPage productId={product.id} />
+      </HydrationBoundary>
+    </>
   );
 }

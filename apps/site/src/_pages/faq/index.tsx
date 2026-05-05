@@ -17,5 +17,3 @@ export function FaqPage() {
     </main>
   );
 }
-
-export { metadata } from "./metadata";

@@ -9,7 +9,6 @@ export const routes = {
   catalogCategory: (categorySlug: string) => `/catalog/raskraski/${categorySlug}`,
   blog: "/blog",
   blogPost: (id: string) => `/blog/${id}`,
-  gallery: "/gallery",
   checkout: "/checkout",
   checkoutSuccess: "/checkout/success",
   paymentAndDelivery: "/payment-and-delivery",

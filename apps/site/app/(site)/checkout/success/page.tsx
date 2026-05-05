@@ -1,7 +1,7 @@
 import { CheckoutSuccessPage } from "@/pages/checkout-success";
-import { metadata } from "@/pages/checkout-success/metadata";
+import { createPageMetadata } from "@/shared/lib/seo";
 
-export { metadata };
+export const metadata = createPageMetadata("checkoutSuccess");
 
 type CheckoutSuccessRouteProps = {
   searchParams: Promise<{

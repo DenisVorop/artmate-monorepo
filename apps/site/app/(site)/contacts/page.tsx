@@ -1,5 +1,6 @@
 import { ContactsPage } from "@/pages/contacts";
+import { createPageMetadata } from "@/shared/lib/seo";
 
-export { metadata } from "@/pages/contacts/metadata";
+export const metadata = createPageMetadata("contacts");
 
 export default ContactsPage;

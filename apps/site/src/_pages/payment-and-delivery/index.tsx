@@ -162,5 +162,3 @@ function Detail({ label, value }: { label: string; value: string }) {
     </div>
   );
 }
-
-export { metadata } from "./metadata";

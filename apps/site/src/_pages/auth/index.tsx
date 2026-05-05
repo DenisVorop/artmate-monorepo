@@ -9,5 +9,3 @@ export function AuthPage() {
     </main>
   );
 }
-
-export { metadata } from "./metadata";

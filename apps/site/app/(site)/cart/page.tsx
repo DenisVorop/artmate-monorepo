@@ -1,6 +1,7 @@
 import { CartPage } from "@/pages/cart";
+import { createPageMetadata } from "@/shared/lib/seo";
 
-export { metadata } from "@/pages/cart/metadata";
+export const metadata = createPageMetadata("cart");
 
 export default function Page() {
   return <CartPage />;

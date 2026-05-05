@@ -31,5 +31,3 @@ export function ContactsPage() {
     </main>
   );
 }
-
-export { metadata } from "./metadata";

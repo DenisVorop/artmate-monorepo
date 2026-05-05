@@ -5,6 +5,7 @@ import type { AuthSession } from "@/entities/session";
 import { getAuthSession } from "@/shared/actions/auth";
 import { ApiResult } from "@/shared/lib/api-result";
 import { getServerDeviceInfo } from "@/shared/lib/device/server";
+import { RootStructuredData } from "@/shared/lib/seo";
 
 import { AppProviders } from "../providers/app-providers";
 
@@ -35,6 +36,7 @@ export async function RootLayout({ children }: RootLayoutProps) {
   return (
     <html lang="ru" className={`${comfortaa.variable} ${nunito.variable}`}>
       <body>
+        <RootStructuredData />
         <AppProviders initialDeviceInfo={initialDeviceInfo} initialSession={initialSession}>
           {children}
         </AppProviders>

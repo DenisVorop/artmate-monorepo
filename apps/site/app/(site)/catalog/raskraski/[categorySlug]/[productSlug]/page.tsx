@@ -9,8 +9,9 @@ import {
   getProductCategoryBySlug,
 } from "@/entities/products";
 import { getProductsData } from "@/shared/actions/products";
-import { routes, siteConfig } from "@/shared/constants";
+import { routes } from "@/shared/constants";
 import { dehydrateQueryClient } from "@/shared/lib/dehydrate-query-client";
+import { createProductMetadata, ProductStructuredData } from "@/shared/lib/seo";
 import { HydrationBoundary } from "@tanstack/react-query";
 
 type ProductRouteProps = {
@@ -49,40 +50,7 @@ export async function generateMetadata({ params }: ProductRouteProps): Promise<M
     return {};
   }
 
-  const title = `${product.title} - Artmate`;
-  const url = routes.product(category.slug, product.slug);
-
-  return {
-    title: {
-      absolute: title,
-    },
-    description: product.description,
-    alternates: {
-      canonical: url,
-    },
-    openGraph: {
-      title,
-      description: product.description,
-      url,
-      siteName: siteConfig.name,
-      locale: siteConfig.locale,
-      type: "website",
-      images: [
-        {
-          url: product.image,
-          width: 900,
-          height: 1200,
-          alt: product.title,
-        },
-      ],
-    },
-    twitter: {
-      card: "summary_large_image",
-      title,
-      description: product.description,
-      images: [product.image],
-    },
-  };
+  return createProductMetadata(product, category);
 }
 
 export default async function Page({ params }: ProductRouteProps) {
@@ -104,9 +72,14 @@ export default async function Page({ params }: ProductRouteProps) {
     notFound();
   }
 
+  const productUrl = routes.product(category.slug, product.slug);
+
   return (
-    <HydrationBoundary state={dehydrateQueryClient(queryClient)}>
-      <ProductPage productId={product.id} />
-    </HydrationBoundary>
+    <>
+      <ProductStructuredData product={product} url={productUrl} />
+      <HydrationBoundary state={dehydrateQueryClient(queryClient)}>
+        <ProductPage productId={product.id} />
+      </HydrationBoundary>
+    </>
   );
 }

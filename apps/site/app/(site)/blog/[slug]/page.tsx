@@ -4,9 +4,9 @@ import { notFound } from "next/navigation";
 import { BlogPostDataBuilder } from "@/app/lib/blog-post-data-builder";
 import { blogPostPageQuery } from "@/features/blog-post";
 import { BlogPostPage } from "@/pages/blog-post";
-import { getBlogPostMetadata } from "@/pages/blog-post/metadata";
 import { getBlogPostBySlug, getBlogPosts } from "@/shared/actions/blog";
 import { dehydrateQueryClient } from "@/shared/lib/dehydrate-query-client";
+import { createBlogPostMetadata } from "@/shared/lib/seo";
 import { HydrationBoundary } from "@tanstack/react-query";
 
 type BlogPostRouteProps = {
@@ -31,7 +31,7 @@ export async function generateMetadata({ params }: BlogPostRouteProps): Promise<
     return {};
   }
 
-  return getBlogPostMetadata(post);
+  return createBlogPostMetadata(post);
 }
 
 export default async function Page({ params }: BlogPostRouteProps) {
