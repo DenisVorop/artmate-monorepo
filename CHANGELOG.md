@@ -1,5 +1,12 @@
 # Changelog
 
+## [0.7.1](https://github.com/DenisVorop/artmate-monorepo/compare/v0.7.0...v0.7.1) (2026-05-06)
+
+
+### Bug Fixes
+
+* keep AI drafts working when Unsplash times out ([b10ec6a](https://github.com/DenisVorop/artmate-monorepo/commit/b10ec6a61f5d1981acbf2edcba095ef19f9a0c0b))
+
 ## [0.7.0](https://github.com/DenisVorop/artmate-monorepo/compare/v0.6.5...v0.7.0) (2026-05-06)
 
 
