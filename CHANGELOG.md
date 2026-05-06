@@ -1,5 +1,12 @@
 # Changelog
 
+## [0.8.0](https://github.com/DenisVorop/artmate-monorepo/compare/v0.7.1...v0.8.0) (2026-05-06)
+
+
+### Features
+
+* add blog image uploads ([d0180a5](https://github.com/DenisVorop/artmate-monorepo/commit/d0180a538936c92e558914f38e658483137966de))
+
 ## [0.7.1](https://github.com/DenisVorop/artmate-monorepo/compare/v0.7.0...v0.7.1) (2026-05-06)
 
 
