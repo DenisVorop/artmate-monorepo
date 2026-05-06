@@ -41,7 +41,7 @@ export class UnsplashImageService {
       return draft;
     }
 
-    const photos = await this.searchPhotos({
+    const photos = await this.searchPhotosSafely({
       accessKey,
       query: getOptionalString(query) ?? unsplashFallbackQuery,
       seed: draft.slug || draft.title,
@@ -122,6 +122,23 @@ export class UnsplashImageService {
     }
 
     return this.searchPhotos({ accessKey, query: unsplashFallbackQuery, seed });
+  }
+
+  private async searchPhotosSafely({
+    accessKey,
+    query,
+    seed,
+  }: {
+    accessKey: string;
+    query: string;
+    seed: string;
+  }) {
+    try {
+      return await this.searchPhotos({ accessKey, query, seed });
+    } catch {
+      // Unsplash enrichment is optional; image lookup must not fail drafts.
+      return [];
+    }
   }
 
   private async trackDownload({
