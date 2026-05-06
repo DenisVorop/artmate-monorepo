@@ -1,5 +1,12 @@
 # Changelog
 
+## [0.6.5](https://github.com/DenisVorop/artmate-monorepo/compare/v0.6.4...v0.6.5) (2026-05-06)
+
+
+### Bug Fixes
+
+* allow empty blog image blocks ([379c24c](https://github.com/DenisVorop/artmate-monorepo/commit/379c24c497551e05f90ed486c51d34b3e38c983b))
+
 ## [0.6.4](https://github.com/DenisVorop/artmate-monorepo/compare/v0.6.3...v0.6.4) (2026-05-06)
 
 
