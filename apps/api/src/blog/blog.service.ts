@@ -805,7 +805,7 @@ export class BlogService {
         return {
           id: this.readBlockId(block, path),
           type,
-          src: this.readRequiredString(block, "src", path, 2048),
+          src: this.readOptionalString(block, "src", path, 2048) ?? "",
           alt: this.readRequiredString(block, "alt", path, 220),
           ...(caption ? { caption } : {}),
         };

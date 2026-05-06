@@ -105,13 +105,19 @@ function BlockRenderer({ block, showSeparator }: { block: BlogPostBlock; showSep
   }
 
   if (block.type === "image") {
+    const src = block.src.trim();
+
+    if (!src) {
+      return null;
+    }
+
     return (
       <Card className="overflow-hidden py-0">
         <figure>
           <AspectRatio ratio={16 / 9} className="relative bg-muted">
             <Image
               fill
-              src={block.src}
+              src={src}
               alt={block.alt}
               sizes="(min-width: 1280px) 720px, (min-width: 768px) 80vw, 100vw"
               className="object-cover"
