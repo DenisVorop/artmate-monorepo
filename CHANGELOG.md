@@ -1,5 +1,12 @@
 # Changelog
 
+## [0.6.4](https://github.com/DenisVorop/artmate-monorepo/compare/v0.6.3...v0.6.4) (2026-05-06)
+
+
+### Bug Fixes
+
+* proxy telegram webhooks through relay ([ddfabfb](https://github.com/DenisVorop/artmate-monorepo/commit/ddfabfb3155fea12e94667e3e08f4fde7bfeeaab))
+
 ## [0.6.3](https://github.com/DenisVorop/artmate-monorepo/compare/v0.6.2...v0.6.3) (2026-05-05)
 
 
