@@ -1,5 +1,17 @@
 # Changelog
 
+## [0.7.0](https://github.com/DenisVorop/artmate-monorepo/compare/v0.6.5...v0.7.0) (2026-05-06)
+
+
+### Features
+
+* enrich AI drafts with Unsplash images ([95b57d2](https://github.com/DenisVorop/artmate-monorepo/commit/95b57d235be75f12baa33b255c8e5ca48a00bb1e))
+
+
+### Bug Fixes
+
+* run AI relay dev with ESM loader ([0d7a3b9](https://github.com/DenisVorop/artmate-monorepo/commit/0d7a3b9997ab25e8ee07800faeddc5f7a442cbe0))
+
 ## [0.6.5](https://github.com/DenisVorop/artmate-monorepo/compare/v0.6.4...v0.6.5) (2026-05-06)
 
 
