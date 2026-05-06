@@ -28,6 +28,7 @@ import {
   normalizeBlogPostContent,
 } from "../lib";
 import { fieldClassName, LabeledField, textareaClassName } from "./form-controls";
+import { BlogImageUploadControl } from "./image-upload-control";
 
 type BlogPostContentBuilderProps = {
   readonly onValueChange: (value: BlogPostContent) => void;
@@ -442,17 +443,29 @@ function renderBlockFields(
     case "image":
       return (
         <div className="grid gap-3">
-          <LabeledField label="URL">
-            <Input
-              onChange={(event) =>
-                onUpdate({
-                  ...block,
-                  src: event.target.value,
-                })
-              }
-              value={block.src}
-            />
-          </LabeledField>
+          <div className="grid gap-3 md:grid-cols-[minmax(0,1fr)_minmax(14rem,0.8fr)]">
+            <LabeledField label="URL">
+              <Input
+                onChange={(event) =>
+                  onUpdate({
+                    ...block,
+                    src: event.target.value,
+                  })
+                }
+                value={block.src}
+              />
+            </LabeledField>
+            <LabeledField label="Загрузить файл">
+              <BlogImageUploadControl
+                onUploaded={(url) =>
+                  onUpdate({
+                    ...block,
+                    src: url,
+                  })
+                }
+              />
+            </LabeledField>
+          </div>
           <div className="grid gap-3 md:grid-cols-2">
             <LabeledField label="Alt">
               <Input

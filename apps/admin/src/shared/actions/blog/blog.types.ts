@@ -30,6 +30,10 @@ export type BlogTagDTO = {
   updatedAt: string;
 };
 
+export type BlogImageUploadDTO = {
+  url: string;
+};
+
 export type BlogHeadingBlockDTO = {
   id: string;
   type: "heading";

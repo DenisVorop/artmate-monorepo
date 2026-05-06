@@ -7,24 +7,33 @@ import {
   Patch,
   Post,
   Req,
+  UploadedFile,
   UseGuards,
+  UseInterceptors,
 } from "@nestjs/common";
 import {
+  ApiConsumes,
   ApiCreatedResponse,
   ApiOkResponse,
   ApiOperation,
   ApiTags,
 } from "@nestjs/swagger";
+import { FileInterceptor } from "@nestjs/platform-express";
 
 import { AuthGuard } from "../auth/auth.guard";
 import type { AuthUser } from "../auth/auth.types";
 import { ValidateResponse } from "../common/response-validation.interceptor";
 import { UsersService } from "../users/users.service";
 
-import { BlogService } from "./blog.service";
+import {
+  BlogService,
+  maxBlogImageSizeBytes,
+  type UploadedBlogImageFile,
+} from "./blog.service";
 import {
   BlogAuthorDTO,
   BlogCategoryDTO,
+  BlogImageUploadDTO,
   BlogPostDTO,
   BlogTagDTO,
   CreateBlogAuthorRequestDTO,
@@ -130,6 +139,27 @@ export class AdminBlogController {
     this.usersService.assertRole(request.user, "admin");
 
     return this.blogService.deletePost(postId);
+  }
+
+  @ValidateResponse(BlogImageUploadDTO)
+  @ApiConsumes("multipart/form-data")
+  @ApiOperation({ summary: "Upload blog image from admin panel" })
+  @ApiCreatedResponse({ type: BlogImageUploadDTO })
+  @Post("images")
+  @UseInterceptors(
+    FileInterceptor("file", {
+      limits: {
+        fileSize: maxBlogImageSizeBytes,
+      },
+    }),
+  )
+  uploadImage(
+    @UploadedFile() file: UploadedBlogImageFile | undefined,
+    @Req() request: AuthenticatedRequest,
+  ) {
+    this.usersService.assertRole(request.user, "admin");
+
+    return this.blogService.uploadImage(file);
   }
 
   @ValidateResponse(BlogAuthorDTO, { isArray: true })

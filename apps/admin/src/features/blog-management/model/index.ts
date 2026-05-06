@@ -13,3 +13,4 @@ export { useUpdateBlogAuthor } from "./use-update-blog-author";
 export { useUpdateBlogCategory } from "./use-update-blog-category";
 export { useUpdateBlogPost } from "./use-update-blog-post";
 export { useUpdateBlogTag } from "./use-update-blog-tag";
+export { useUploadBlogImage } from "./use-upload-blog-image";

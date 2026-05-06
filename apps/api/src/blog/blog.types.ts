@@ -1,6 +1,13 @@
 export const blogPostStatuses = ["draft", "published", "archived"] as const;
 export type BlogPostStatus = (typeof blogPostStatuses)[number];
 
+export const blogImageMimeTypes = [
+  "image/jpeg",
+  "image/png",
+  "image/webp",
+] as const;
+export type BlogImageMimeType = (typeof blogImageMimeTypes)[number];
+
 export type BlogPostContent = {
   schemaVersion: 1;
   blocks: BlogPostBlock[];

@@ -5,6 +5,7 @@ import { cookies, headers } from "next/headers";
 import type {
   BlogAuthorDTO,
   BlogCategoryDTO,
+  BlogImageUploadDTO,
   BlogPostDTO,
   BlogTagDTO,
   CreateBlogAuthorInputDTO,
@@ -158,6 +159,13 @@ export async function deleteBlogPost(postId: string) {
   );
 }
 
+export async function uploadBlogImage(formData: FormData) {
+  return requestAdminFormData<BlogImageUploadDTO>(
+    "/blog/admin/images",
+    formData,
+  );
+}
+
 async function requestAdminApi<T>(path: string, init: RequestInit = {}) {
   return requestAdmin<T>(path, {
     ...init,
@@ -165,6 +173,13 @@ async function requestAdminApi<T>(path: string, init: RequestInit = {}) {
       "content-type": "application/json",
       ...init.headers,
     },
+  });
+}
+
+async function requestAdminFormData<T>(path: string, body: FormData) {
+  return requestAdmin<T>(path, {
+    method: "POST",
+    body,
   });
 }
 

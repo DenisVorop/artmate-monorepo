@@ -47,6 +47,17 @@ export const blogPostFormSchema = z.object({
   title: requiredTextSchema("Укажите заголовок"),
 });
 
+export const blogImageUploadFormSchema = z.object({
+  file: z.custom<FileList>(
+    (value) =>
+      typeof FileList !== "undefined" &&
+      value instanceof FileList &&
+      Boolean(value.item(0)) &&
+      (value.item(0)?.size ?? 0) > 0,
+    "Выберите изображение",
+  ),
+});
+
 export const deleteBlogPostFormSchema = z.object({
   postId: requiredTextSchema("Не указан пост"),
 });
@@ -89,6 +100,9 @@ export const aiBlogDraftRunFormSchema = z.object({
 });
 
 export type BlogPostFormValues = z.infer<typeof blogPostFormSchema>;
+export type BlogImageUploadFormValues = z.infer<
+  typeof blogImageUploadFormSchema
+>;
 export type DeleteBlogPostFormValues = z.infer<typeof deleteBlogPostFormSchema>;
 export type DeleteBlogAuthorFormValues = z.infer<
   typeof deleteBlogAuthorFormSchema
@@ -131,6 +145,9 @@ export const aiBlogDraftRunDefaultValues = {
   prompt: "",
   sourceType: "mixed",
 } satisfies AiBlogDraftRunFormValues;
+
+export const blogImageUploadDefaultValues =
+  {} satisfies Partial<BlogImageUploadFormValues>;
 
 export function getCreateBlogPostDefaultValues({
   categories,
@@ -204,6 +221,14 @@ export function getUpdateBlogPostInput(
   content: BlogPostContent,
 ): UpdateBlogPostInputDTO {
   return getCreateBlogPostInput(values, content);
+}
+
+export function getBlogImageUploadFormData(values: BlogImageUploadFormValues) {
+  const formData = new FormData();
+
+  formData.set("file", getFileFromList(values.file));
+
+  return formData;
 }
 
 export function getStartAiBlogDraftRunInput(
@@ -372,6 +397,16 @@ function getOptionalText(value: string) {
   const trimmed = value.trim();
 
   return trimmed ? trimmed : undefined;
+}
+
+function getFileFromList(value: FileList) {
+  const file = value.item(0);
+
+  if (!file || file.size === 0) {
+    throw new Error("Blog image file is required");
+  }
+
+  return file;
 }
 
 function getOptionalDate(value: string) {

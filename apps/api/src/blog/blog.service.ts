@@ -1,3 +1,7 @@
+import { randomBytes } from "node:crypto";
+import { mkdir, writeFile } from "node:fs/promises";
+import { join } from "node:path";
+
 import {
   BadRequestException,
   ConflictException,
@@ -11,12 +15,14 @@ import {
 } from "../generated/prisma/client";
 import { PrismaService } from "../prisma/prisma.service";
 
-import type {
-  BlogPostContent,
-  BlogPostBlock,
-  BlogPostHighlightItem,
-  BlogPostStatus,
-  BlogPostStepItem,
+import {
+  blogImageMimeTypes,
+  type BlogImageMimeType,
+  type BlogPostContent,
+  type BlogPostBlock,
+  type BlogPostHighlightItem,
+  type BlogPostStatus,
+  type BlogPostStepItem,
 } from "./blog.types";
 import {
   type CreateBlogAuthorRequestDTO,
@@ -56,6 +62,14 @@ const blogPostOrderBy = [
 
 const maxContentBlocks = 80;
 const maxContentItems = 24;
+export const maxBlogImageSizeBytes = 10 * 1024 * 1024;
+
+export type UploadedBlogImageFile = {
+  buffer: Buffer;
+  mimetype: string;
+  originalname: string;
+  size: number;
+};
 
 type StoredBlogPost = Prisma.BlogPostGetPayload<{
   include: typeof blogPostInclude;
@@ -348,6 +362,24 @@ export class BlogService {
     });
 
     return this.mapPost(post);
+  }
+
+  async uploadImage(file: UploadedBlogImageFile | undefined) {
+    if (!file) {
+      throw new BadRequestException("Blog image file is required");
+    }
+
+    const imageId = randomBytes(16).toString("hex");
+    const extension = this.getImageExtension(file);
+    const fileName = `${imageId}.${extension}`;
+    const fileDirectory = join(this.getUploadsRoot(), "blog");
+    const filePath = join(fileDirectory, fileName);
+    const url = `${this.getApiPublicUrl()}/uploads/blog/${fileName}`;
+
+    await mkdir(fileDirectory, { recursive: true });
+    await writeFile(filePath, file.buffer);
+
+    return { url };
   }
 
   async getAuthors() {
@@ -653,6 +685,46 @@ export class BlogService {
     }
 
     return trimmed;
+  }
+
+  private getImageExtension(file: UploadedBlogImageFile) {
+    if (file.size <= 0) {
+      throw new BadRequestException("Blog image file is empty");
+    }
+
+    if (file.size > maxBlogImageSizeBytes) {
+      throw new BadRequestException("Blog image file is too large");
+    }
+
+    if (!this.isBlogImageMimeType(file.mimetype)) {
+      throw new BadRequestException("Blog image must be JPEG, PNG or WebP");
+    }
+
+    switch (file.mimetype) {
+      case "image/jpeg":
+        return "jpg";
+      case "image/png":
+        return "png";
+      case "image/webp":
+        return "webp";
+    }
+  }
+
+  private isBlogImageMimeType(value: string): value is BlogImageMimeType {
+    return blogImageMimeTypes.includes(value as BlogImageMimeType);
+  }
+
+  private getUploadsRoot() {
+    return join(process.cwd(), "uploads");
+  }
+
+  private getApiPublicUrl() {
+    const baseUrl =
+      process.env.API_PUBLIC_URL ??
+      process.env.API_BASE_URL ??
+      `http://localhost:${process.env.PORT ?? "3002"}`;
+
+    return baseUrl.replace(/\/+$/, "");
   }
 
   private parseOptionalString(

@@ -35,6 +35,7 @@ import {
   LabeledField,
   textareaClassName,
 } from "./form-controls";
+import { BlogImageUploadControl } from "./image-upload-control";
 
 type BlogPostFormProps = {
   readonly authors: readonly BlogAuthor[];
@@ -62,10 +63,11 @@ export function BlogPostForm({
   const [content, setContent] = useState<BlogPostContent>(() =>
     post ? normalizeBlogPostContent(post.content) : emptyBlogPostContent,
   );
-  const { handleSubmit, register, reset } = useForm<BlogPostFormValues>({
-    defaultValues,
-    resolver: zodResolver(blogPostFormSchema),
-  });
+  const { handleSubmit, register, reset, setValue } =
+    useForm<BlogPostFormValues>({
+      defaultValues,
+      resolver: zodResolver(blogPostFormSchema),
+    });
   const { isPending: isCreatingPost, mutate: createPost } = useCreateBlogPost({
     onSuccess: async () => {
       reset(getCreateBlogPostDefaultValues({ categories }));
@@ -90,6 +92,12 @@ export function BlogPostForm({
 
     createPost(getCreateBlogPostInput(values, content));
   });
+  const handleCoverUploaded = (url: string) => {
+    setValue("imageUrl", url, {
+      shouldDirty: true,
+      shouldValidate: true,
+    });
+  };
 
   return (
     <form className="grid gap-5" onSubmit={submitForm}>
@@ -145,12 +153,15 @@ export function BlogPostForm({
         </LabeledField>
       </div>
 
-      <div className="grid gap-3 lg:grid-cols-[minmax(10rem,1fr)_minmax(10rem,0.6fr)]">
+      <div className="grid gap-3 lg:grid-cols-[minmax(10rem,1fr)_minmax(10rem,0.6fr)_minmax(14rem,0.9fr)]">
         <LabeledField label="Обложка URL">
           <Input {...register("imageUrl")} />
         </LabeledField>
         <LabeledField label="Alt обложки">
           <Input {...register("imageAlt")} />
+        </LabeledField>
+        <LabeledField label="Загрузить обложку">
+          <BlogImageUploadControl onUploaded={handleCoverUploaded} />
         </LabeledField>
       </div>
 
