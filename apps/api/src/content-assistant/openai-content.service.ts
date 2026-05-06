@@ -2,6 +2,7 @@ import { BadRequestException, Injectable } from "@nestjs/common";
 import OpenAI from "openai";
 
 import type { BlogPostBlock } from "../blog/blog.types";
+
 import type {
   AiBlogDraftOutline,
   AiBlogDraftSourceType,
@@ -9,6 +10,7 @@ import type {
   AiTopicSuggestions,
   BlogDraftResearchContext,
 } from "./content-assistant.types";
+import { UnsplashImageService } from "./unsplash-image.service";
 
 const defaultOpenAiModel = "gpt-5.2";
 const topicSuggestionCount = 3;
@@ -16,6 +18,8 @@ const topicSuggestionCount = 3;
 @Injectable()
 export class OpenAiContentService {
   private client?: OpenAI;
+
+  constructor(private readonly unsplashImageService: UnsplashImageService) {}
 
   async generateTopicSuggestions({
     context,
@@ -94,7 +98,8 @@ export class OpenAiContentService {
         "Напиши полный черновик статьи для блога Artmate.",
         "Контент должен быть в JSON и собран только из поддерживаемых блоков.",
         "Для slug используй только латиницу, цифры и дефисы.",
-        "Для image blocks используй только imageUrl из контекста Artmate; если подходящего изображения нет, оставь src пустым.",
+        "Для image blocks используй только imageUrl из контекста Artmate; если подходящего изображения нет, оставь src пустым, backend подберет фото.",
+        "Для imageSearchQuery верни широкую английскую фразу 2-5 слов для поиска релевантного фото в Unsplash: coloring book art supplies, colored pencils, art markers, paint brushes. Не используй cats/cat, если тема не про кошек.",
         "CTA должен вести на релевантный товар, категорию или /catalog.",
       ].join("\n"),
       instructions:
@@ -103,7 +108,7 @@ export class OpenAiContentService {
       schemaName: "ai_generated_blog_draft",
     });
 
-    return {
+    const draft: AiGeneratedBlogDraft = {
       content: {
         schemaVersion: 1,
         blocks: generated.content.blocks.map((block, index) =>
@@ -118,6 +123,11 @@ export class OpenAiContentService {
       slug: generated.slug,
       title: generated.title,
     };
+
+    return this.unsplashImageService.enrichDraft({
+      draft,
+      query: generated.imageSearchQuery,
+    });
   }
 
   private async createJsonResponse<T>({
@@ -225,6 +235,7 @@ type GeneratedDraftPayload = Omit<AiGeneratedBlogDraft, "content"> & {
   content: {
     blocks: GeneratedBlockPayload[];
   };
+  imageSearchQuery: string;
 };
 
 function mapGeneratedBlock(
@@ -476,6 +487,7 @@ const generatedDraftSchema = {
     },
     excerpt: { type: "string" },
     imageAlt: { type: "string" },
+    imageSearchQuery: { type: "string" },
     imageUrl: { type: "string" },
     metaDescription: { type: "string" },
     metaTitle: { type: "string" },
@@ -488,6 +500,7 @@ const generatedDraftSchema = {
     "excerpt",
     "imageUrl",
     "imageAlt",
+    "imageSearchQuery",
     "metaTitle",
     "metaDescription",
     "content",

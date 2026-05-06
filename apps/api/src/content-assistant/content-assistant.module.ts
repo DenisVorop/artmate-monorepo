@@ -11,6 +11,7 @@ import {
 import { ContentAssistantService } from "./content-assistant.service";
 import { OpenAiContentService } from "./openai-content.service";
 import { TelegramApprovalService } from "./telegram-approval.service";
+import { UnsplashImageService } from "./unsplash-image.service";
 
 @Module({
   imports: [AuthModule, BlogModule, UsersModule],
@@ -22,6 +23,7 @@ import { TelegramApprovalService } from "./telegram-approval.service";
     ContentAssistantService,
     OpenAiContentService,
     TelegramApprovalService,
+    UnsplashImageService,
   ],
 })
 export class ContentAssistantModule {}
