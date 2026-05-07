@@ -5,11 +5,14 @@ import { cookies, headers } from "next/headers";
 import { ApiResult, type ApiResultDTO } from "@/shared/lib/api-result";
 
 import type {
+  AuthEmailVerificationResponseDTO,
   AuthProvidersDTO,
   AuthSessionDTO,
+  ConfirmEmailVerificationInputDTO,
   LoginInputDTO,
   LogoutDTO,
   RegisterInputDTO,
+  ResendEmailVerificationInputDTO,
 } from "./auth.types";
 
 const AUTH_ACCESS_TOKEN_COOKIE_NAME = "artmate_access_token";
@@ -53,10 +56,25 @@ export async function login(input: LoginInputDTO): Promise<ApiResultDTO<AuthSess
   return result.toDTO() as ApiResultDTO<AuthSessionDTO>;
 }
 
-export async function register(input: RegisterInputDTO): Promise<ApiResultDTO<AuthSessionDTO>> {
+export async function register(
+  input: RegisterInputDTO,
+): Promise<ApiResultDTO<AuthEmailVerificationResponseDTO>> {
+  const result = await ApiResult.prepareApi(async () =>
+    requestAuth<AuthEmailVerificationResponseDTO>("/auth/register", {
+      method: "POST",
+      body: JSON.stringify(input),
+    }),
+  )();
+
+  return result.toDTO() as ApiResultDTO<AuthEmailVerificationResponseDTO>;
+}
+
+export async function confirmEmailVerification(
+  input: ConfirmEmailVerificationInputDTO,
+): Promise<ApiResultDTO<AuthSessionDTO>> {
   const result = await ApiResult.prepareApi(async () =>
     requestAuth<AuthSessionDTO>(
-      "/auth/register",
+      "/auth/email-verification/confirm",
       {
         method: "POST",
         body: JSON.stringify(input),
@@ -66,6 +84,19 @@ export async function register(input: RegisterInputDTO): Promise<ApiResultDTO<Au
   )();
 
   return result.toDTO() as ApiResultDTO<AuthSessionDTO>;
+}
+
+export async function resendEmailVerification(
+  input: ResendEmailVerificationInputDTO,
+): Promise<ApiResultDTO<AuthEmailVerificationResponseDTO>> {
+  const result = await ApiResult.prepareApi(async () =>
+    requestAuth<AuthEmailVerificationResponseDTO>("/auth/email-verification/resend", {
+      method: "POST",
+      body: JSON.stringify(input),
+    }),
+  )();
+
+  return result.toDTO() as ApiResultDTO<AuthEmailVerificationResponseDTO>;
 }
 
 export async function logout(): Promise<ApiResultDTO<LogoutDTO>> {
@@ -174,9 +205,7 @@ function parseSetCookie(header: string | null, name: string) {
   const maxAgeAttribute = attributes.find((attribute) =>
     attribute.toLowerCase().startsWith("max-age="),
   );
-  const maxAge = maxAgeAttribute
-    ? Number(maxAgeAttribute.slice("max-age=".length))
-    : undefined;
+  const maxAge = maxAgeAttribute ? Number(maxAgeAttribute.slice("max-age=".length)) : undefined;
 
   return {
     value,

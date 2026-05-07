@@ -27,7 +27,7 @@ type ScryptPasswordHash = {
 type RegisterCredentialsUserInput = {
   login: string;
   password: string;
-  email?: string;
+  email: string;
   name?: string;
 };
 
@@ -60,7 +60,7 @@ export class CredentialsAuthService {
 
   async registerUser(input: RegisterCredentialsUserInput): Promise<AuthUser> {
     const login = this.normalizeLogin(input.login);
-    const email = this.getOptionalString(input.email);
+    const email = this.normalizeEmail(input.email);
     const existingCredential = await this.prisma.authCredential.findUnique({
       where: { login },
     });
@@ -69,14 +69,12 @@ export class CredentialsAuthService {
       throw new ConflictException("User already exists");
     }
 
-    if (email) {
-      const existingUser = await this.prisma.user.findUnique({
-        where: { email },
-      });
+    const existingUser = await this.prisma.user.findUnique({
+      where: { email },
+    });
 
-      if (existingUser) {
-        throw new ConflictException("User already exists");
-      }
+    if (existingUser) {
+      throw new ConflictException("User already exists");
     }
 
     try {
@@ -88,6 +86,7 @@ export class CredentialsAuthService {
           user: {
             create: {
               email,
+              emailVerifiedAt: null,
               name: this.getOptionalString(input.name),
               roles: this.usersService.getDefaultPrismaRoles(),
             },
@@ -133,10 +132,30 @@ export class CredentialsAuthService {
         throw new UnauthorizedException("Invalid login or password");
       }
 
+      if (!user.account.user.emailVerifiedAt) {
+        throw new UnauthorizedException("Email is not verified");
+      }
+
       return this.mapStoredUser(user);
     }
 
     return this.validateEnvUser(normalizedLogin, password);
+  }
+
+  async getCredentialsUserById(userId: string): Promise<AuthUser> {
+    const account = await this.prisma.authAccount.findFirst({
+      where: {
+        userId,
+        provider: PrismaAuthProvider.CREDENTIALS,
+      },
+      include: credentialsAccountInclude,
+    });
+
+    if (!account || account.user.status !== UserStatus.ACTIVE) {
+      throw new UnauthorizedException("Invalid login or password");
+    }
+
+    return this.mapStoredAccount(account);
   }
 
   private async validateEnvUser(
@@ -264,6 +283,10 @@ export class CredentialsAuthService {
 
   private normalizeLogin(login: string) {
     return login.trim().toLowerCase();
+  }
+
+  private normalizeEmail(email: string) {
+    return email.trim().toLowerCase();
   }
 
   private getOptionalString(value?: string) {

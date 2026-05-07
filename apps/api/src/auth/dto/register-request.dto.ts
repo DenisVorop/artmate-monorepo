@@ -1,4 +1,4 @@
-import { IsOptional, IsString, MinLength } from "class-validator";
+import { IsEmail, IsOptional, IsString, MinLength } from "class-validator";
 
 export class RegisterRequestDTO {
   @IsString()
@@ -13,7 +13,6 @@ export class RegisterRequestDTO {
   @IsString()
   name?: string;
 
-  @IsOptional()
-  @IsString()
-  email?: string;
+  @IsEmail()
+  email!: string;
 }

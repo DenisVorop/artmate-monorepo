@@ -3,7 +3,7 @@
 import { useRouter } from "next/navigation";
 import { LoaderCircle, LogIn, LogOut, UserRound } from "lucide-react";
 
-import { useSession } from "@/entities/session";
+import { getSessionUserDisplayName, useSession } from "@/entities/session";
 import { routes } from "@/shared/constants";
 import {
   Button,
@@ -48,7 +48,7 @@ export function SessionMenu() {
     );
   }
 
-  const title = user.name ?? user.email ?? user.providerUserId;
+  const title = getSessionUserDisplayName(user);
 
   return (
     <DropdownMenu>
@@ -65,7 +65,7 @@ export function SessionMenu() {
       >
         <DropdownMenuLabel>
           <span className="block truncate font-medium">{title}</span>
-          {user.email && (
+          {user.email && user.email !== title && (
             <span className="block truncate text-xs font-normal text-stone-500">{user.email}</span>
           )}
         </DropdownMenuLabel>

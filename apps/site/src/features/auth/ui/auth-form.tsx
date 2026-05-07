@@ -1,11 +1,21 @@
 "use client";
 
-import { useMemo, useState } from "react";
+import { useEffect, useMemo, useState } from "react";
 import { useRouter, useSearchParams } from "next/navigation";
-import { ExternalLink, LoaderCircle, LogIn, UserPlus } from "lucide-react";
+import {
+  Check,
+  ExternalLink,
+  LoaderCircle,
+  LogIn,
+  MailCheck,
+  RotateCw,
+  UserPlus,
+} from "lucide-react";
 import { zodResolver } from "@hookform/resolvers/zod";
-import { useForm } from "react-hook-form";
+import { REGEXP_ONLY_DIGITS } from "input-otp";
+import { Controller, useForm } from "react-hook-form";
 
+import type { AuthEmailVerificationStateDTO } from "@/shared/actions/auth";
 import { routes } from "@/shared/constants";
 import {
   Button,
@@ -21,54 +31,78 @@ import {
   TabsList,
   TabsTrigger,
 } from "@/shared/ui";
+import { InputOTP, InputOTPGroup, InputOTPSeparator, InputOTPSlot } from "@/shared/ui/input-otp";
 import { Link } from "@/shared/ui/link";
 
 import {
+  emailVerificationFormSchema,
   getAuthErrorMessage,
   getSafeAuthRedirectPath,
   loginFormSchema,
   registerFormSchema,
+  toEmailVerificationInput,
   toLoginInput,
   toRegisterInput,
+  type EmailVerificationFormValues,
   type LoginFormValues,
   type RegisterFormValues,
 } from "../lib";
-import { useLoginMutation, useRegisterMutation } from "../model";
+import {
+  useConfirmEmailVerificationMutation,
+  useLoginMutation,
+  useRegisterMutation,
+  useResendEmailVerificationMutation,
+} from "../model";
 
 type AuthMode = "login" | "register";
 
 export function AuthForm() {
   const [mode, setMode] = useState<AuthMode>("login");
+  const [verificationState, setVerificationState] = useState<AuthEmailVerificationStateDTO>();
 
   return (
     <Card className="w-full max-w-md shadow-xl shadow-stone-950/5">
       <CardHeader>
         <CardTitle className="text-xl">Аккаунт Artmate</CardTitle>
         <CardDescription>
-          Войдите или создайте аккаунт, чтобы сохранять заказы и персональные данные.
+          {verificationState
+            ? "Введите код из письма, чтобы завершить вход."
+            : "Войдите или создайте аккаунт, чтобы сохранять заказы и персональные данные."}
         </CardDescription>
       </CardHeader>
       <CardContent>
-        <Tabs value={mode} onValueChange={(value) => setMode(value as AuthMode)}>
-          <TabsList className="grid w-full grid-cols-2">
-            <TabsTrigger value="login">Вход</TabsTrigger>
-            <TabsTrigger value="register">Регистрация</TabsTrigger>
-          </TabsList>
+        {verificationState ? (
+          <EmailVerificationForm
+            onBack={() => setVerificationState(undefined)}
+            onVerificationChange={setVerificationState}
+            verification={verificationState}
+          />
+        ) : (
+          <Tabs value={mode} onValueChange={(value) => setMode(value as AuthMode)}>
+            <TabsList className="grid w-full grid-cols-2">
+              <TabsTrigger value="login">Вход</TabsTrigger>
+              <TabsTrigger value="register">Регистрация</TabsTrigger>
+            </TabsList>
 
-          <TabsContent value="login" className="mt-4">
-            <LoginForm />
-          </TabsContent>
+            <TabsContent value="login" className="mt-4">
+              <LoginForm onVerificationRequired={setVerificationState} />
+            </TabsContent>
 
-          <TabsContent value="register" className="mt-4">
-            <RegisterForm />
-          </TabsContent>
-        </Tabs>
+            <TabsContent value="register" className="mt-4">
+              <RegisterForm onVerificationRequired={setVerificationState} />
+            </TabsContent>
+          </Tabs>
+        )}
       </CardContent>
     </Card>
   );
 }
 
-function LoginForm() {
+function LoginForm({
+  onVerificationRequired,
+}: {
+  readonly onVerificationRequired: (_verification: AuthEmailVerificationStateDTO) => void;
+}) {
   const router = useRouter();
   const searchParams = useSearchParams();
   const [submitError, setSubmitError] = useState<string>();
@@ -99,6 +133,14 @@ function LoginForm() {
       router.replace(redirectPath);
       router.refresh();
     } catch (error) {
+      if (isEmailNotVerifiedError(error)) {
+        onVerificationRequired({
+          login: values.login.trim(),
+          resendAvailableAt: new Date().toISOString(),
+        });
+        return;
+      }
+
       setSubmitError(getAuthErrorMessage(error));
     }
   });
@@ -145,9 +187,11 @@ function LoginForm() {
   );
 }
 
-function RegisterForm() {
-  const router = useRouter();
-  const searchParams = useSearchParams();
+function RegisterForm({
+  onVerificationRequired,
+}: {
+  readonly onVerificationRequired: (_verification: AuthEmailVerificationStateDTO) => void;
+}) {
   const [submitError, setSubmitError] = useState<string>();
   const { mutate: registerUser, isPending } = useRegisterMutation();
   const {
@@ -166,18 +210,18 @@ function RegisterForm() {
     resolver: zodResolver(registerFormSchema),
   });
   const isSubmitting = isPending;
-  const redirectPath = useMemo(
-    () => getSafeAuthRedirectPath(searchParams.get("next")),
-    [searchParams],
-  );
 
   const submitForm = handleSubmit(async (values) => {
     setSubmitError(undefined);
 
     try {
-      await registerUser(toRegisterInput(values));
-      router.replace(redirectPath);
-      router.refresh();
+      const response = await registerUser(toRegisterInput(values));
+
+      if (!response) {
+        throw new Error("Verification response is empty");
+      }
+
+      onVerificationRequired(response.verification);
     } catch (error) {
       setSubmitError(getAuthErrorMessage(error));
     }
@@ -205,9 +249,7 @@ function RegisterForm() {
       </div>
 
       <div className="space-y-2">
-        <Label htmlFor="register-email">
-          Email <span className="text-muted-foreground">(необязательно)</span>
-        </Label>
+        <Label htmlFor="register-email">Email</Label>
         <Input
           id="register-email"
           type="email"
@@ -258,6 +300,156 @@ function RegisterForm() {
   );
 }
 
+function EmailVerificationForm({
+  onBack,
+  onVerificationChange,
+  verification,
+}: {
+  readonly onBack: () => void;
+  readonly onVerificationChange: (_verification: AuthEmailVerificationStateDTO) => void;
+  readonly verification: AuthEmailVerificationStateDTO;
+}) {
+  const router = useRouter();
+  const searchParams = useSearchParams();
+  const [submitError, setSubmitError] = useState<string>();
+  const [submitMessage, setSubmitMessage] = useState<string>();
+  const [now, setNow] = useState(() => Date.now());
+  const { mutate: confirmEmailVerification, isPending: isConfirming } =
+    useConfirmEmailVerificationMutation();
+  const { mutate: resendEmailVerification, isPending: isResending } =
+    useResendEmailVerificationMutation();
+  const {
+    control,
+    handleSubmit,
+    formState: { errors },
+  } = useForm<EmailVerificationFormValues>({
+    defaultValues: {
+      code: "",
+    },
+    mode: "onSubmit",
+    resolver: zodResolver(emailVerificationFormSchema),
+  });
+  const redirectPath = useMemo(
+    () => getSafeAuthRedirectPath(searchParams.get("next")),
+    [searchParams],
+  );
+  const resendWaitSeconds = getWaitSeconds(verification.resendAvailableAt, now);
+  const isResendDisabled = isResending || resendWaitSeconds > 0;
+
+  useEffect(() => {
+    const intervalId = window.setInterval(() => setNow(Date.now()), 1000);
+
+    return () => window.clearInterval(intervalId);
+  }, []);
+
+  const submitForm = handleSubmit(async (values) => {
+    setSubmitError(undefined);
+    setSubmitMessage(undefined);
+
+    try {
+      await confirmEmailVerification(toEmailVerificationInput(verification.login, values));
+      router.replace(redirectPath);
+      router.refresh();
+    } catch (error) {
+      setSubmitError(getAuthErrorMessage(error));
+    }
+  });
+
+  async function resendCode() {
+    setSubmitError(undefined);
+    setSubmitMessage(undefined);
+
+    try {
+      const response = await resendEmailVerification({
+        login: verification.login,
+      });
+
+      if (!response) {
+        throw new Error("Verification response is empty");
+      }
+
+      onVerificationChange({
+        ...verification,
+        ...response.verification,
+        emailMasked: response.verification.emailMasked ?? verification.emailMasked,
+      });
+      setNow(Date.now());
+      setSubmitMessage("Новый код отправлен.");
+    } catch (error) {
+      setSubmitError(getAuthErrorMessage(error));
+    }
+  }
+
+  return (
+    <form onSubmit={submitForm} className="space-y-4">
+      <div className="rounded-lg border bg-muted/40 px-3 py-2 text-sm text-muted-foreground">
+        <MailCheck data-icon="inline-start" aria-hidden="true" />
+        {verification.emailMasked
+          ? `Код отправлен на ${verification.emailMasked}`
+          : "Код отправлен на почту аккаунта"}
+      </div>
+
+      <div className="space-y-2">
+        <Label htmlFor="email-verification-code">Код из письма</Label>
+        <Controller
+          control={control}
+          name="code"
+          render={({ field }) => (
+            <InputOTP
+              id="email-verification-code"
+              maxLength={6}
+              pattern={REGEXP_ONLY_DIGITS}
+              aria-invalid={Boolean(errors.code)}
+              containerClassName="justify-center"
+              {...field}
+            >
+              <InputOTPGroup>
+                <InputOTPSlot index={0} className="size-10 text-base" />
+                <InputOTPSlot index={1} className="size-10 text-base" />
+                <InputOTPSlot index={2} className="size-10 text-base" />
+              </InputOTPGroup>
+              <InputOTPSeparator />
+              <InputOTPGroup>
+                <InputOTPSlot index={3} className="size-10 text-base" />
+                <InputOTPSlot index={4} className="size-10 text-base" />
+                <InputOTPSlot index={5} className="size-10 text-base" />
+              </InputOTPGroup>
+            </InputOTP>
+          )}
+        />
+        <FieldError message={errors.code?.message} />
+      </div>
+
+      <FormMessage message={submitMessage} />
+      <FormError message={submitError} />
+
+      <Button type="submit" disabled={isConfirming} className="h-10 w-full">
+        {isConfirming ? (
+          <LoaderCircle data-icon="inline-start" className="animate-spin" />
+        ) : (
+          <Check data-icon="inline-start" />
+        )}
+        Подтвердить
+      </Button>
+
+      <div className="grid gap-2 sm:grid-cols-2">
+        <Button type="button" variant="outline" disabled={isResendDisabled} onClick={resendCode}>
+          {isResending ? (
+            <LoaderCircle data-icon="inline-start" className="animate-spin" />
+          ) : (
+            <RotateCw data-icon="inline-start" />
+          )}
+          {resendWaitSeconds > 0 ? `Повторить через ${resendWaitSeconds} с` : "Отправить снова"}
+        </Button>
+
+        <Button type="button" variant="ghost" onClick={onBack}>
+          Изменить данные
+        </Button>
+      </div>
+    </form>
+  );
+}
+
 function OAuthButton() {
   return (
     <Button asChild variant="outline" className="h-10 w-full">
@@ -287,4 +479,30 @@ function FormError({ message }: { message?: string }) {
       {message}
     </div>
   );
+}
+
+function FormMessage({ message }: { message?: string }) {
+  if (!message) {
+    return null;
+  }
+
+  return (
+    <div className="rounded-lg border border-emerald-200 bg-emerald-50 px-3 py-2 text-sm text-emerald-700">
+      {message}
+    </div>
+  );
+}
+
+function isEmailNotVerifiedError(error: unknown) {
+  return error instanceof Error && error.message === "Email is not verified";
+}
+
+function getWaitSeconds(value: string, now: number) {
+  const timestamp = new Date(value).getTime();
+
+  if (!Number.isFinite(timestamp)) {
+    return 0;
+  }
+
+  return Math.max(0, Math.ceil((timestamp - now) / 1000));
 }

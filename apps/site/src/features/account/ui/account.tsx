@@ -1,13 +1,6 @@
 "use client";
 
-import {
-  LogIn,
-  Mail,
-  Phone,
-  ShoppingBag,
-  UserRound,
-  type LucideIcon,
-} from "lucide-react";
+import { LogIn, Mail, Phone, ShoppingBag, UserRound, type LucideIcon } from "lucide-react";
 
 import {
   getLatestOrder,
@@ -16,7 +9,7 @@ import {
   OrderCard,
   useOrdersData,
 } from "@/entities/orders";
-import { useSession } from "@/entities/session";
+import { getSessionUserDisplayName, useSession } from "@/entities/session";
 import { routes } from "@/shared/constants";
 import { Button, Card, CardContent, CardHeader, CardTitle, DataState } from "@/shared/ui";
 import { Link } from "@/shared/ui/link";
@@ -60,7 +53,7 @@ export function Account() {
   const latestOrder = getLatestOrder(accountOrders);
   const email = user.email ?? getPreferredCustomerEmail(accountOrders);
   const phone = getPreferredCustomerPhone(accountOrders);
-  const userTitle = user.name ?? email ?? user.providerUserId;
+  const userTitle = getSessionUserDisplayName(user);
 
   return (
     <section className="container py-8 md:py-12">

@@ -94,3 +94,23 @@ model AuthLoginThrottle {
   @@index([lockedUntil])
   @@map("auth_login_throttles")
 }
+
+model AuthEmailVerificationCode {
+  id             String    @id @default(cuid())
+  userId         String    @map("user_id")
+  codeHash       String    @map("code_hash") @db.VarChar(128)
+  expiresAt      DateTime  @map("expires_at")
+  consumedAt     DateTime? @map("consumed_at")
+  failedAttempts Int       @default(0) @map("failed_attempts")
+  ipAddress      String?   @map("ip_address") @db.VarChar(45)
+  sentAt         DateTime  @default(now()) @map("sent_at")
+  createdAt      DateTime  @default(now()) @map("created_at")
+
+  user User @relation(fields: [userId], references: [id], onDelete: Cascade)
+
+  @@index([userId])
+  @@index([expiresAt])
+  @@index([ipAddress, sentAt])
+  @@index([sentAt])
+  @@map("auth_email_verification_codes")
+}

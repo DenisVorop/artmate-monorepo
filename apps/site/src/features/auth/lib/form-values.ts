@@ -1,6 +1,10 @@
 import { z } from "zod";
 
-import type { LoginInputDTO, RegisterInputDTO } from "@/shared/actions/auth";
+import type {
+  ConfirmEmailVerificationInputDTO,
+  LoginInputDTO,
+  RegisterInputDTO,
+} from "@/shared/actions/auth";
 
 export const loginFormSchema = z.object({
   login: z.string().trim().min(3, "Логин должен быть длиннее 2 символов"),
@@ -13,7 +17,8 @@ export const registerFormSchema = z
     email: z
       .string()
       .trim()
-      .refine((value) => !value || /^[^\s@]+@[^\s@]+\.[^\s@]+$/.test(value), {
+      .min(1, "Укажите email")
+      .refine((value) => /^[^\s@]+@[^\s@]+\.[^\s@]+$/.test(value), {
         message: "Введите корректный email",
       }),
     name: z.string().trim(),
@@ -25,9 +30,18 @@ export const registerFormSchema = z
     message: "Пароли не совпадают",
   });
 
+export const emailVerificationFormSchema = z.object({
+  code: z
+    .string()
+    .trim()
+    .regex(/^\d{6}$/, "Введите 6 цифр из письма"),
+});
+
 export type LoginFormValues = z.infer<typeof loginFormSchema>;
 
 export type RegisterFormValues = z.infer<typeof registerFormSchema>;
+
+export type EmailVerificationFormValues = z.infer<typeof emailVerificationFormSchema>;
 
 export function getOptionalAuthField(value?: string) {
   const normalizedValue = value?.trim();
@@ -46,7 +60,17 @@ export function toRegisterInput(values: RegisterFormValues): RegisterInputDTO {
   return {
     login: values.login.trim(),
     password: values.password,
-    email: getOptionalAuthField(values.email),
+    email: values.email.trim(),
     name: getOptionalAuthField(values.name),
+  };
+}
+
+export function toEmailVerificationInput(
+  login: string,
+  values: EmailVerificationFormValues,
+): ConfirmEmailVerificationInputDTO {
+  return {
+    login: login.trim(),
+    code: values.code.trim(),
   };
 }

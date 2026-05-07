@@ -26,14 +26,18 @@ import {
 } from "./auth.constants";
 import { AuthService } from "./auth.service";
 import {
+  AuthEmailVerificationResponseDTO,
   AuthSessionDTO,
   AuthUserDTO,
+  ConfirmEmailVerificationRequestDTO,
   LoginRequestDTO,
   RegisterRequestDTO,
+  ResendEmailVerificationRequestDTO,
 } from "./dto";
 import { AuthGuard } from "./auth.guard";
 import type { AuthUser } from "./auth.types";
 import { CredentialsAuthService } from "./credentials-auth.service";
+import { EmailVerificationService } from "./email-verification.service";
 import { LoginThrottleService } from "./login-throttle.service";
 import { OAuthProvidersService } from "./oauth-providers.service";
 
@@ -68,6 +72,7 @@ export class AuthController {
   constructor(
     private readonly authService: AuthService,
     private readonly credentialsAuthService: CredentialsAuthService,
+    private readonly emailVerificationService: EmailVerificationService,
     private readonly loginThrottleService: LoginThrottleService,
     private readonly oauthProvidersService: OAuthProvidersService,
     private readonly usersService: UsersService,
@@ -78,18 +83,59 @@ export class AuthController {
     return { providers: this.oauthProvidersService.getProviders() };
   }
 
-  @ValidateResponse(AuthSessionDTO)
+  @ValidateResponse(AuthEmailVerificationResponseDTO)
   @Post("register")
   async register(
     @Body() request: RegisterRequestDTO,
-    @Res({ passthrough: true }) response: CookieResponse,
+    @Headers("x-forwarded-for") forwardedFor: string | undefined,
+    @Headers("x-real-ip") realIp: string | undefined,
+    @Ip() requestIp: string | undefined,
   ) {
     const user = await this.credentialsAuthService.registerUser(request);
-    const accessToken = await this.authService.createAccessToken(user);
+    const verification = await this.emailVerificationService.createAndSendCode({
+      userId: user.id,
+      login: user.providerUserId,
+      email: user.email ?? request.email,
+      ipAddress: this.getClientIp(requestIp, forwardedFor, realIp),
+    });
 
-    this.setAccessTokenCookie(response, accessToken);
+    return {
+      status: "verification_required" as const,
+      verification,
+    };
+  }
 
-    return { user };
+  @ValidateResponse(AuthSessionDTO)
+  @Post("email-verification/confirm")
+  async confirmEmailVerification(
+    @Body() request: ConfirmEmailVerificationRequestDTO,
+    @Res({ passthrough: true }) response: CookieResponse,
+  ) {
+    const userId = await this.emailVerificationService.confirmCode(
+      request.login,
+      request.code,
+    );
+    const user =
+      await this.credentialsAuthService.getCredentialsUserById(userId);
+
+    return this.createCookieSession(response, user);
+  }
+
+  @ValidateResponse(AuthEmailVerificationResponseDTO)
+  @Post("email-verification/resend")
+  async resendEmailVerification(
+    @Body() request: ResendEmailVerificationRequestDTO,
+    @Headers("x-forwarded-for") forwardedFor: string | undefined,
+    @Headers("x-real-ip") realIp: string | undefined,
+    @Ip() requestIp: string | undefined,
+  ) {
+    return {
+      status: "verification_required" as const,
+      verification: await this.emailVerificationService.resendCode(
+        request.login,
+        this.getClientIp(requestIp, forwardedFor, realIp),
+      ),
+    };
   }
 
   @ValidateResponse(AuthSessionDTO)
@@ -254,10 +300,7 @@ export class AuthController {
     }
   }
 
-  private async createCookieSession(
-    response: CookieResponse,
-    user: AuthUser,
-  ) {
+  private async createCookieSession(response: CookieResponse, user: AuthUser) {
     const accessToken = await this.authService.createAccessToken(user);
 
     this.setAccessTokenCookie(response, accessToken);

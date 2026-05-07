@@ -14,21 +14,23 @@ enum UserRole {
 }
 
 model User {
-  id        String     @id @default(cuid())
-  email     String?    @unique @db.VarChar(320)
-  name      String?    @db.VarChar(120)
-  image     String?    @db.Text
-  roles     UserRole[] @default([CUSTOMER])
-  status    UserStatus @default(ACTIVE)
-  createdAt DateTime   @default(now()) @map("created_at")
-  updatedAt DateTime   @default(now()) @updatedAt @map("updated_at")
-  deletedAt DateTime?  @map("deleted_at")
+  id              String     @id @default(cuid())
+  email           String?    @unique @db.VarChar(320)
+  emailVerifiedAt DateTime?  @map("email_verified_at")
+  name            String?    @db.VarChar(120)
+  image           String?    @db.Text
+  roles           UserRole[] @default([CUSTOMER])
+  status          UserStatus @default(ACTIVE)
+  createdAt       DateTime   @default(now()) @map("created_at")
+  updatedAt       DateTime   @default(now()) @updatedAt @map("updated_at")
+  deletedAt       DateTime?  @map("deleted_at")
 
-  authAccounts     AuthAccount[]
-  authSessions     AuthSession[]
-  aiBlogDraftRuns  AiBlogDraftRun[] @relation("AiBlogDraftRunCreator")
-  createdBlogPosts BlogPost[]    @relation("BlogPostCreator")
-  orders           Order[]
+  authAccounts           AuthAccount[]
+  authSessions           AuthSession[]
+  emailVerificationCodes AuthEmailVerificationCode[]
+  aiBlogDraftRuns        AiBlogDraftRun[]            @relation("AiBlogDraftRunCreator")
+  createdBlogPosts       BlogPost[]                  @relation("BlogPostCreator")
+  orders                 Order[]
 
   @@index([status])
   @@map("users")

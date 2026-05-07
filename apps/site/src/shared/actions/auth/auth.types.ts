@@ -16,6 +16,18 @@ export type AuthSessionDTO = {
   user: AuthUserDTO | null;
 };
 
+export type AuthEmailVerificationStateDTO = {
+  login: string;
+  emailMasked?: string;
+  expiresAt?: string;
+  resendAvailableAt: string;
+};
+
+export type AuthEmailVerificationResponseDTO = {
+  status: "verification_required";
+  verification: AuthEmailVerificationStateDTO;
+};
+
 export type AuthProvidersDTO = {
   providers: AuthOAuthProvider[];
 };
@@ -29,7 +41,16 @@ export type RegisterInputDTO = {
   login: string;
   password: string;
   name?: string;
-  email?: string;
+  email: string;
+};
+
+export type ConfirmEmailVerificationInputDTO = {
+  login: string;
+  code: string;
+};
+
+export type ResendEmailVerificationInputDTO = {
+  login: string;
 };
 
 export type LogoutDTO = {

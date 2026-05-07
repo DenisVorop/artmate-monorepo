@@ -20,7 +20,16 @@ const providerLabels: Record<
 };
 
 export function getAdminUserDisplayName(user: AdminUser) {
-  return user.name ?? user.email ?? getPrimaryProviderUserId(user) ?? user.id;
+  if (user.name) {
+    return user.name;
+  }
+
+  return (
+    getCredentialsProviderUserId(user) ??
+    user.email ??
+    getPrimaryProviderUserId(user) ??
+    user.id
+  );
 }
 
 export function getAdminUserContact(user: AdminUser) {
@@ -44,4 +53,9 @@ export function getAdminUserProviderLabels(user: AdminUser) {
 
 function getPrimaryProviderUserId(user: AdminUser) {
   return user.authAccounts[0]?.providerUserId;
+}
+
+function getCredentialsProviderUserId(user: AdminUser) {
+  return user.authAccounts.find((account) => account.provider === "credentials")
+    ?.providerUserId;
 }

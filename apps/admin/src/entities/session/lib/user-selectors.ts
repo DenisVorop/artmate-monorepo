@@ -5,11 +5,19 @@ export function isAdminUser(user: AuthUser | null | undefined) {
 }
 
 export function getUserDisplayName(user: AuthUser) {
-  return user.name ?? user.email ?? user.providerUserId;
+  if (user.name) {
+    return user.name;
+  }
+
+  if (user.provider === "credentials") {
+    return user.providerUserId;
+  }
+
+  return user.email ?? user.providerUserId;
 }
 
 export function getUserInitials(user: AuthUser) {
-  const source = user.name ?? user.email ?? user.providerUserId;
+  const source = getUserDisplayName(user);
   const words = source
     .split(/[\s@._-]+/)
     .map((word) => word.trim())
