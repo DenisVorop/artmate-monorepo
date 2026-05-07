@@ -13,14 +13,11 @@ import {
   getRelatedProducts,
   useProductsData,
 } from "@/entities/products";
-import {
-  ReviewList,
-  ReviewRatingSummary,
-  useReviewsData,
-} from "@/entities/reviews";
+import { ReviewRatingSummary, useReviewsData } from "@/entities/reviews";
 import { DataState, Separator } from "@/shared/ui";
 
 import { Breadcrumbs } from "./breadcrumbs";
+import { MarketplaceLinks } from "./marketplace-links";
 
 type ProductDetailsProps = {
   productId: string;
@@ -73,10 +70,7 @@ export function ProductDetails({ productId }: ProductDetailsProps) {
   }
 
   const relatedProducts = getRelatedProducts(productsData.products, product);
-  const visibleReviewsData =
-    !reviews.isError && reviews.data && reviews.data.reviews.length > 0
-      ? reviews.data
-      : undefined;
+  const reviewsStats = !reviews.isError && reviews.data ? reviews.data.stats : undefined;
 
   return (
     <main className="bg-background">
@@ -87,34 +81,14 @@ export function ProductDetails({ productId }: ProductDetailsProps) {
           <Gallery images={product.images} title={product.title} />
 
           <div className="min-w-0 space-y-6">
-            {visibleReviewsData && (
-              <ReviewRatingSummary stats={visibleReviewsData.stats} className="justify-start" />
-            )}
+            {reviewsStats && <ReviewRatingSummary stats={reviewsStats} className="justify-start" />}
             <Summary product={product} />
             <ProductPurchase product={product} onAddToCart={addProductToCart} />
             <Highlights items={productsData.productHighlights} />
             <DetailsTabs
               specs={productsData.productSpecs}
               howItWorks={productsData.productHowItWorks}
-              reviews={
-                visibleReviewsData ? (
-                  <ReviewList reviews={visibleReviewsData.reviews} />
-                ) : (
-                  <DataState
-                    variant={reviews.isError ? "error" : "empty"}
-                    title={
-                      reviews.isError
-                        ? "Не удалось загрузить отзывы"
-                        : "Отзывы пока не добавлены"
-                    }
-                    description={
-                      reviews.isError
-                        ? "Обновите страницу или попробуйте вернуться позже."
-                        : "Когда появятся первые отзывы, они отобразятся здесь."
-                    }
-                  />
-                )
-              }
+              reviews={<MarketplaceLinks />}
             />
           </div>
         </section>

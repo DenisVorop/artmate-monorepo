@@ -1,5 +1,6 @@
 import type { ReactNode } from "react";
 
+import { CookieConsentBanner } from "@/features/cookie-consent";
 import { Footer } from "@/widgets/footer";
 import { Header } from "@/widgets/header";
 
@@ -13,6 +14,7 @@ export function SiteLayout({ children }: SiteShellProps) {
       <Header />
       {children}
       <Footer />
+      <CookieConsentBanner />
     </div>
   );
 }
