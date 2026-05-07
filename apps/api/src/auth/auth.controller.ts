@@ -27,11 +27,14 @@ import {
 import { AuthService } from "./auth.service";
 import {
   AuthEmailVerificationResponseDTO,
+  AuthPasswordResetResponseDTO,
   AuthSessionDTO,
   AuthUserDTO,
   ConfirmEmailVerificationRequestDTO,
+  ConfirmPasswordResetRequestDTO,
   LoginRequestDTO,
   RegisterRequestDTO,
+  RequestPasswordResetRequestDTO,
   ResendEmailVerificationRequestDTO,
 } from "./dto";
 import { AuthGuard } from "./auth.guard";
@@ -40,6 +43,7 @@ import { CredentialsAuthService } from "./credentials-auth.service";
 import { EmailVerificationService } from "./email-verification.service";
 import { LoginThrottleService } from "./login-throttle.service";
 import { OAuthProvidersService } from "./oauth-providers.service";
+import { PasswordResetService } from "./password-reset.service";
 
 type CookieResponse = {
   cookie: (
@@ -75,6 +79,7 @@ export class AuthController {
     private readonly emailVerificationService: EmailVerificationService,
     private readonly loginThrottleService: LoginThrottleService,
     private readonly oauthProvidersService: OAuthProvidersService,
+    private readonly passwordResetService: PasswordResetService,
     private readonly usersService: UsersService,
   ) {}
 
@@ -94,7 +99,6 @@ export class AuthController {
     const user = await this.credentialsAuthService.registerUser(request);
     const verification = await this.emailVerificationService.createAndSendCode({
       userId: user.id,
-      login: user.providerUserId,
       email: user.email ?? request.email,
       ipAddress: this.getClientIp(requestIp, forwardedFor, realIp),
     });
@@ -112,7 +116,7 @@ export class AuthController {
     @Res({ passthrough: true }) response: CookieResponse,
   ) {
     const userId = await this.emailVerificationService.confirmCode(
-      request.login,
+      request.email,
       request.code,
     );
     const user =
@@ -132,10 +136,30 @@ export class AuthController {
     return {
       status: "verification_required" as const,
       verification: await this.emailVerificationService.resendCode(
-        request.login,
+        request.email,
         this.getClientIp(requestIp, forwardedFor, realIp),
       ),
     };
+  }
+
+  @ValidateResponse(AuthPasswordResetResponseDTO)
+  @Post("password-reset/request")
+  requestPasswordReset(
+    @Body() request: RequestPasswordResetRequestDTO,
+    @Headers("x-forwarded-for") forwardedFor: string | undefined,
+    @Headers("x-real-ip") realIp: string | undefined,
+    @Ip() requestIp: string | undefined,
+  ) {
+    return this.passwordResetService.requestReset({
+      email: request.email,
+      ipAddress: this.getClientIp(requestIp, forwardedFor, realIp),
+    });
+  }
+
+  @ValidateResponse(AuthPasswordResetResponseDTO)
+  @Post("password-reset/confirm")
+  confirmPasswordReset(@Body() request: ConfirmPasswordResetRequestDTO) {
+    return this.passwordResetService.confirmReset(request);
   }
 
   @ValidateResponse(AuthSessionDTO)
@@ -272,18 +296,18 @@ export class AuthController {
     const ipAddress = this.getClientIp(requestIp, forwardedFor, realIp);
 
     await this.loginThrottleService.assertLoginAllowed({
-      login: request.login,
+      email: request.email,
       ipAddress,
     });
 
     try {
       const user = await this.credentialsAuthService.validateUser(
-        request.login,
+        request.email,
         request.password,
       );
 
       await this.loginThrottleService.recordSuccessfulLogin({
-        login: request.login,
+        email: request.email,
         ipAddress,
       });
 
@@ -291,7 +315,7 @@ export class AuthController {
     } catch (error) {
       if (error instanceof UnauthorizedException) {
         await this.loginThrottleService.recordFailedLogin({
-          login: request.login,
+          email: request.email,
           ipAddress,
         });
       }

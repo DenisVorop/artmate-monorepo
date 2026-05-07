@@ -1,8 +1,11 @@
 export { AuthEmailVerificationResponseDTO } from "./auth-email-verification-response.dto";
 export { AuthEmailVerificationStateDTO } from "./auth-email-verification-state.dto";
+export { AuthPasswordResetResponseDTO } from "./auth-password-reset-response.dto";
 export { AuthSessionDTO } from "./auth-session.dto";
 export { AuthUserDTO } from "./auth-user.dto";
 export { ConfirmEmailVerificationRequestDTO } from "./confirm-email-verification-request.dto";
+export { ConfirmPasswordResetRequestDTO } from "./confirm-password-reset-request.dto";
 export { LoginRequestDTO } from "./login-request.dto";
 export { RegisterRequestDTO } from "./register-request.dto";
+export { RequestPasswordResetRequestDTO } from "./request-password-reset-request.dto";
 export { ResendEmailVerificationRequestDTO } from "./resend-email-verification-request.dto";

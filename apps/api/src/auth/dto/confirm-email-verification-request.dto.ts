@@ -1,9 +1,8 @@
-import { IsString, Matches, MinLength } from "class-validator";
+import { IsEmail, IsString, Matches } from "class-validator";
 
 export class ConfirmEmailVerificationRequestDTO {
-  @IsString()
-  @MinLength(3)
-  login!: string;
+  @IsEmail()
+  email!: string;
 
   @IsString()
   @Matches(/^\d{6}$/)

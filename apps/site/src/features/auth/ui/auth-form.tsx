@@ -3,8 +3,10 @@
 import { useEffect, useMemo, useState } from "react";
 import { useRouter, useSearchParams } from "next/navigation";
 import {
+  ArrowLeft,
   Check,
   ExternalLink,
+  KeyRound,
   LoaderCircle,
   LogIn,
   MailCheck,
@@ -35,22 +37,30 @@ import { InputOTP, InputOTPGroup, InputOTPSeparator, InputOTPSlot } from "@/shar
 import { Link } from "@/shared/ui/link";
 
 import {
+  confirmPasswordResetFormSchema,
   emailVerificationFormSchema,
   getAuthErrorMessage,
   getSafeAuthRedirectPath,
   loginFormSchema,
+  passwordResetRequestFormSchema,
   registerFormSchema,
+  toConfirmPasswordResetInput,
   toEmailVerificationInput,
   toLoginInput,
+  toPasswordResetRequestInput,
   toRegisterInput,
+  type ConfirmPasswordResetFormValues,
   type EmailVerificationFormValues,
   type LoginFormValues,
+  type PasswordResetRequestFormValues,
   type RegisterFormValues,
 } from "../lib";
 import {
   useConfirmEmailVerificationMutation,
+  useConfirmPasswordResetMutation,
   useLoginMutation,
   useRegisterMutation,
+  useRequestPasswordResetMutation,
   useResendEmailVerificationMutation,
 } from "../model";
 
@@ -59,15 +69,18 @@ type AuthMode = "login" | "register";
 export function AuthForm() {
   const [mode, setMode] = useState<AuthMode>("login");
   const [verificationState, setVerificationState] = useState<AuthEmailVerificationStateDTO>();
+  const [isPasswordResetRequested, setIsPasswordResetRequested] = useState(false);
 
   return (
     <Card className="w-full max-w-md shadow-xl shadow-stone-950/5">
       <CardHeader>
         <CardTitle className="text-xl">Аккаунт Artmate</CardTitle>
         <CardDescription>
-          {verificationState
-            ? "Введите код из письма, чтобы завершить вход."
-            : "Войдите или создайте аккаунт, чтобы сохранять заказы и персональные данные."}
+          {isPasswordResetRequested
+            ? "Укажите email, и мы отправим ссылку для смены пароля."
+            : verificationState
+              ? "Введите код из письма, чтобы завершить вход."
+              : "Войдите или создайте аккаунт, чтобы сохранять заказы и персональные данные."}
         </CardDescription>
       </CardHeader>
       <CardContent>
@@ -77,6 +90,8 @@ export function AuthForm() {
             onVerificationChange={setVerificationState}
             verification={verificationState}
           />
+        ) : isPasswordResetRequested ? (
+          <PasswordResetRequestForm onBack={() => setIsPasswordResetRequested(false)} />
         ) : (
           <Tabs value={mode} onValueChange={(value) => setMode(value as AuthMode)}>
             <TabsList className="grid w-full grid-cols-2">
@@ -85,7 +100,10 @@ export function AuthForm() {
             </TabsList>
 
             <TabsContent value="login" className="mt-4">
-              <LoginForm onVerificationRequired={setVerificationState} />
+              <LoginForm
+                onPasswordReset={() => setIsPasswordResetRequested(true)}
+                onVerificationRequired={setVerificationState}
+              />
             </TabsContent>
 
             <TabsContent value="register" className="mt-4">
@@ -99,8 +117,10 @@ export function AuthForm() {
 }
 
 function LoginForm({
+  onPasswordReset,
   onVerificationRequired,
 }: {
+  readonly onPasswordReset: () => void;
   readonly onVerificationRequired: (_verification: AuthEmailVerificationStateDTO) => void;
 }) {
   const router = useRouter();
@@ -113,7 +133,7 @@ function LoginForm({
     formState: { errors },
   } = useForm<LoginFormValues>({
     defaultValues: {
-      login: "",
+      email: "",
       password: "",
     },
     mode: "onSubmit",
@@ -135,7 +155,7 @@ function LoginForm({
     } catch (error) {
       if (isEmailNotVerifiedError(error)) {
         onVerificationRequired({
-          login: values.login.trim(),
+          email: values.email.trim(),
           resendAvailableAt: new Date().toISOString(),
         });
         return;
@@ -148,19 +168,30 @@ function LoginForm({
   return (
     <form onSubmit={submitForm} className="space-y-4">
       <div className="space-y-2">
-        <Label htmlFor="auth-login">Логин</Label>
+        <Label htmlFor="auth-email">Email</Label>
         <Input
-          id="auth-login"
-          type="text"
-          autoComplete="username"
-          aria-invalid={Boolean(errors.login)}
-          {...register("login")}
+          id="auth-email"
+          type="email"
+          autoComplete="email"
+          aria-invalid={Boolean(errors.email)}
+          {...register("email")}
         />
-        <FieldError message={errors.login?.message} />
+        <FieldError message={errors.email?.message} />
       </div>
 
       <div className="space-y-2">
-        <Label htmlFor="auth-password">Пароль</Label>
+        <div className="flex items-center justify-between gap-3">
+          <Label htmlFor="auth-password">Пароль</Label>
+          <Button
+            type="button"
+            variant="link"
+            className="h-auto px-0 text-xs"
+            onClick={onPasswordReset}
+          >
+            <KeyRound data-icon="inline-start" />
+            Забыли пароль?
+          </Button>
+        </div>
         <Input
           id="auth-password"
           type="password"
@@ -187,6 +218,189 @@ function LoginForm({
   );
 }
 
+function PasswordResetRequestForm({ onBack }: { readonly onBack: () => void }) {
+  const [submitError, setSubmitError] = useState<string>();
+  const [isSent, setIsSent] = useState(false);
+  const { mutate: requestPasswordReset, isPending } = useRequestPasswordResetMutation();
+  const {
+    register,
+    handleSubmit,
+    formState: { errors },
+  } = useForm<PasswordResetRequestFormValues>({
+    defaultValues: {
+      email: "",
+    },
+    mode: "onSubmit",
+    resolver: zodResolver(passwordResetRequestFormSchema),
+  });
+
+  const submitForm = handleSubmit(async (values) => {
+    setSubmitError(undefined);
+
+    try {
+      await requestPasswordReset(toPasswordResetRequestInput(values));
+      setIsSent(true);
+    } catch (error) {
+      setSubmitError(getAuthErrorMessage(error));
+    }
+  });
+
+  if (isSent) {
+    return (
+      <div className="space-y-4">
+        <div className="rounded-lg border bg-muted/40 px-3 py-2 text-sm text-muted-foreground">
+          <MailCheck data-icon="inline-start" aria-hidden="true" />
+          Если аккаунт найден, мы отправили письмо со ссылкой для смены пароля.
+        </div>
+
+        <Button type="button" variant="outline" className="h-10 w-full" onClick={onBack}>
+          <ArrowLeft data-icon="inline-start" />
+          Вернуться ко входу
+        </Button>
+      </div>
+    );
+  }
+
+  return (
+    <form onSubmit={submitForm} className="space-y-4">
+      <div className="space-y-2">
+        <Label htmlFor="password-reset-email">Email</Label>
+        <Input
+          id="password-reset-email"
+          type="email"
+          autoComplete="email"
+          aria-invalid={Boolean(errors.email)}
+          {...register("email")}
+        />
+        <FieldError message={errors.email?.message} />
+      </div>
+
+      <FormError message={submitError} />
+
+      <Button type="submit" disabled={isPending} className="h-10 w-full">
+        {isPending ? (
+          <LoaderCircle data-icon="inline-start" className="animate-spin" />
+        ) : (
+          <KeyRound data-icon="inline-start" />
+        )}
+        Отправить ссылку
+      </Button>
+
+      <Button type="button" variant="ghost" className="h-10 w-full" onClick={onBack}>
+        <ArrowLeft data-icon="inline-start" />
+        Назад
+      </Button>
+    </form>
+  );
+}
+
+export function PasswordResetForm({ token }: { readonly token?: string }) {
+  const normalizedToken = token?.trim();
+  const [submitError, setSubmitError] = useState<string>();
+  const [isReset, setIsReset] = useState(false);
+  const { mutate: confirmPasswordReset, isPending } = useConfirmPasswordResetMutation();
+  const {
+    register,
+    handleSubmit,
+    formState: { errors },
+  } = useForm<ConfirmPasswordResetFormValues>({
+    defaultValues: {
+      password: "",
+      passwordConfirm: "",
+    },
+    mode: "onSubmit",
+    resolver: zodResolver(confirmPasswordResetFormSchema),
+  });
+
+  const submitForm = handleSubmit(async (values) => {
+    if (!normalizedToken) {
+      return;
+    }
+
+    setSubmitError(undefined);
+
+    try {
+      await confirmPasswordReset(toConfirmPasswordResetInput(normalizedToken, values));
+      setIsReset(true);
+    } catch (error) {
+      setSubmitError(getAuthErrorMessage(error));
+    }
+  });
+
+  return (
+    <Card className="w-full max-w-md shadow-xl shadow-stone-950/5">
+      <CardHeader>
+        <CardTitle className="text-xl">Смена пароля</CardTitle>
+        <CardDescription>
+          {isReset
+            ? "Пароль обновлен. Теперь можно войти с новым паролем."
+            : "Задайте новый пароль для аккаунта Artmate."}
+        </CardDescription>
+      </CardHeader>
+      <CardContent>
+        {!normalizedToken ? (
+          <div className="space-y-4">
+            <FormError message="Ссылка для смены пароля недействительна или устарела." />
+            <Button asChild className="h-10 w-full">
+              <Link href={routes.auth}>
+                <KeyRound data-icon="inline-start" />
+                Запросить новую ссылку
+              </Link>
+            </Button>
+          </div>
+        ) : isReset ? (
+          <div className="space-y-4">
+            <FormMessage message="Пароль успешно обновлен." />
+            <Button asChild className="h-10 w-full">
+              <Link href={routes.auth}>
+                <LogIn data-icon="inline-start" />
+                Войти
+              </Link>
+            </Button>
+          </div>
+        ) : (
+          <form onSubmit={submitForm} className="space-y-4">
+            <div className="space-y-2">
+              <Label htmlFor="reset-password">Новый пароль</Label>
+              <Input
+                id="reset-password"
+                type="password"
+                autoComplete="new-password"
+                aria-invalid={Boolean(errors.password)}
+                {...register("password")}
+              />
+              <FieldError message={errors.password?.message} />
+            </div>
+
+            <div className="space-y-2">
+              <Label htmlFor="reset-password-confirm">Повторите пароль</Label>
+              <Input
+                id="reset-password-confirm"
+                type="password"
+                autoComplete="new-password"
+                aria-invalid={Boolean(errors.passwordConfirm)}
+                {...register("passwordConfirm")}
+              />
+              <FieldError message={errors.passwordConfirm?.message} />
+            </div>
+
+            <FormError message={submitError} />
+
+            <Button type="submit" disabled={isPending} className="h-10 w-full">
+              {isPending ? (
+                <LoaderCircle data-icon="inline-start" className="animate-spin" />
+              ) : (
+                <KeyRound data-icon="inline-start" />
+              )}
+              Сменить пароль
+            </Button>
+          </form>
+        )}
+      </CardContent>
+    </Card>
+  );
+}
+
 function RegisterForm({
   onVerificationRequired,
 }: {
@@ -200,7 +414,6 @@ function RegisterForm({
     formState: { errors },
   } = useForm<RegisterFormValues>({
     defaultValues: {
-      login: "",
       email: "",
       name: "",
       password: "",
@@ -229,18 +442,6 @@ function RegisterForm({
 
   return (
     <form onSubmit={submitForm} className="space-y-4">
-      <div className="space-y-2">
-        <Label htmlFor="register-login">Логин</Label>
-        <Input
-          id="register-login"
-          type="text"
-          autoComplete="username"
-          aria-invalid={Boolean(errors.login)}
-          {...register("login")}
-        />
-        <FieldError message={errors.login?.message} />
-      </div>
-
       <div className="space-y-2">
         <Label htmlFor="register-name">
           Имя <span className="text-muted-foreground">(необязательно)</span>
@@ -347,7 +548,7 @@ function EmailVerificationForm({
     setSubmitMessage(undefined);
 
     try {
-      await confirmEmailVerification(toEmailVerificationInput(verification.login, values));
+      await confirmEmailVerification(toEmailVerificationInput(verification.email, values));
       router.replace(redirectPath);
       router.refresh();
     } catch (error) {
@@ -361,7 +562,7 @@ function EmailVerificationForm({
 
     try {
       const response = await resendEmailVerification({
-        login: verification.login,
+        email: verification.email,
       });
 
       if (!response) {

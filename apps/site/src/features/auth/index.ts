@@ -1,2 +1,2 @@
 export { getSafeAuthRedirectPath } from "./lib";
-export { AuthForm, SessionMenu } from "./ui";
+export { AuthForm, PasswordResetForm, SessionMenu } from "./ui";

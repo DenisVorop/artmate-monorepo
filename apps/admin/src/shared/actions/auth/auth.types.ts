@@ -17,7 +17,7 @@ export type AuthSessionDTO = {
 };
 
 export type LoginInputDTO = {
-  login: string;
+  email: string;
   password: string;
 };
 

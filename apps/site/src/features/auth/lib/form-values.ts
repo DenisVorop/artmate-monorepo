@@ -1,19 +1,26 @@
 import { z } from "zod";
 
 import type {
+  ConfirmPasswordResetInputDTO,
   ConfirmEmailVerificationInputDTO,
   LoginInputDTO,
   RegisterInputDTO,
+  RequestPasswordResetInputDTO,
 } from "@/shared/actions/auth";
 
 export const loginFormSchema = z.object({
-  login: z.string().trim().min(3, "Логин должен быть длиннее 2 символов"),
+  email: z
+    .string()
+    .trim()
+    .min(1, "Укажите email")
+    .refine((value) => /^[^\s@]+@[^\s@]+\.[^\s@]+$/.test(value), {
+      message: "Введите корректный email",
+    }),
   password: z.string().min(1, "Укажите пароль"),
 });
 
 export const registerFormSchema = z
   .object({
-    login: z.string().trim().min(3, "Логин должен быть длиннее 2 символов"),
     email: z
       .string()
       .trim()
@@ -37,11 +44,35 @@ export const emailVerificationFormSchema = z.object({
     .regex(/^\d{6}$/, "Введите 6 цифр из письма"),
 });
 
+export const passwordResetRequestFormSchema = z.object({
+  email: z
+    .string()
+    .trim()
+    .min(1, "Укажите email")
+    .refine((value) => /^[^\s@]+@[^\s@]+\.[^\s@]+$/.test(value), {
+      message: "Введите корректный email",
+    }),
+});
+
+export const confirmPasswordResetFormSchema = z
+  .object({
+    password: z.string().min(8, "Пароль должен быть не короче 8 символов"),
+    passwordConfirm: z.string().min(1, "Повторите пароль"),
+  })
+  .refine((values) => values.password === values.passwordConfirm, {
+    path: ["passwordConfirm"],
+    message: "Пароли не совпадают",
+  });
+
 export type LoginFormValues = z.infer<typeof loginFormSchema>;
 
 export type RegisterFormValues = z.infer<typeof registerFormSchema>;
 
 export type EmailVerificationFormValues = z.infer<typeof emailVerificationFormSchema>;
+
+export type PasswordResetRequestFormValues = z.infer<typeof passwordResetRequestFormSchema>;
+
+export type ConfirmPasswordResetFormValues = z.infer<typeof confirmPasswordResetFormSchema>;
 
 export function getOptionalAuthField(value?: string) {
   const normalizedValue = value?.trim();
@@ -51,14 +82,13 @@ export function getOptionalAuthField(value?: string) {
 
 export function toLoginInput(values: LoginFormValues): LoginInputDTO {
   return {
-    login: values.login.trim(),
+    email: values.email.trim(),
     password: values.password,
   };
 }
 
 export function toRegisterInput(values: RegisterFormValues): RegisterInputDTO {
   return {
-    login: values.login.trim(),
     password: values.password,
     email: values.email.trim(),
     name: getOptionalAuthField(values.name),
@@ -66,11 +96,29 @@ export function toRegisterInput(values: RegisterFormValues): RegisterInputDTO {
 }
 
 export function toEmailVerificationInput(
-  login: string,
+  email: string,
   values: EmailVerificationFormValues,
 ): ConfirmEmailVerificationInputDTO {
   return {
-    login: login.trim(),
+    email: email.trim(),
     code: values.code.trim(),
+  };
+}
+
+export function toPasswordResetRequestInput(
+  values: PasswordResetRequestFormValues,
+): RequestPasswordResetInputDTO {
+  return {
+    email: values.email.trim(),
+  };
+}
+
+export function toConfirmPasswordResetInput(
+  token: string,
+  values: ConfirmPasswordResetFormValues,
+): ConfirmPasswordResetInputDTO {
+  return {
+    token,
+    password: values.password,
   };
 }

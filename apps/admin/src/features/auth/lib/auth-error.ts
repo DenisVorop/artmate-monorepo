@@ -1,8 +1,9 @@
 export function getAuthErrorMessage(error: unknown) {
-  const message = error instanceof Error ? error.message : "Не удалось выполнить запрос";
+  const message =
+    error instanceof Error ? error.message : "Не удалось выполнить запрос";
 
-  if (message === "Invalid login or password") {
-    return "Неверный логин или пароль";
+  if (message === "Invalid email or password") {
+    return "Неверный email или пароль";
   }
 
   if (message === "Admin role required") {

@@ -9,9 +9,12 @@ import type {
   AuthProvidersDTO,
   AuthSessionDTO,
   ConfirmEmailVerificationInputDTO,
+  ConfirmPasswordResetInputDTO,
   LoginInputDTO,
   LogoutDTO,
+  PasswordResetDTO,
   RegisterInputDTO,
+  RequestPasswordResetInputDTO,
   ResendEmailVerificationInputDTO,
 } from "./auth.types";
 
@@ -97,6 +100,32 @@ export async function resendEmailVerification(
   )();
 
   return result.toDTO() as ApiResultDTO<AuthEmailVerificationResponseDTO>;
+}
+
+export async function requestPasswordReset(
+  input: RequestPasswordResetInputDTO,
+): Promise<ApiResultDTO<PasswordResetDTO>> {
+  const result = await ApiResult.prepareApi(async () =>
+    requestAuth<PasswordResetDTO>("/auth/password-reset/request", {
+      method: "POST",
+      body: JSON.stringify(input),
+    }),
+  )();
+
+  return result.toDTO() as ApiResultDTO<PasswordResetDTO>;
+}
+
+export async function confirmPasswordReset(
+  input: ConfirmPasswordResetInputDTO,
+): Promise<ApiResultDTO<PasswordResetDTO>> {
+  const result = await ApiResult.prepareApi(async () =>
+    requestAuth<PasswordResetDTO>("/auth/password-reset/confirm", {
+      method: "POST",
+      body: JSON.stringify(input),
+    }),
+  )();
+
+  return result.toDTO() as ApiResultDTO<PasswordResetDTO>;
 }
 
 export async function logout(): Promise<ApiResultDTO<LogoutDTO>> {

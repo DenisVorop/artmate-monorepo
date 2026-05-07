@@ -3,8 +3,8 @@ import { decline } from "@/shared/lib";
 export function getAuthErrorMessage(error: unknown) {
   const message = error instanceof Error ? error.message : "Не удалось выполнить запрос";
 
-  if (message === "Invalid login or password") {
-    return "Неверный логин или пароль";
+  if (message === "Invalid email or password") {
+    return "Неверный email или пароль";
   }
 
   if (message === "Email is not verified") {
@@ -24,7 +24,27 @@ export function getAuthErrorMessage(error: unknown) {
   }
 
   if (message === "Email is already verified") {
-    return "Почта уже подтверждена. Войдите с логином и паролем.";
+    return "Почта уже подтверждена. Войдите с email и паролем.";
+  }
+
+  if (message === "Password reset link is invalid or expired") {
+    return "Ссылка для смены пароля недействительна или устарела.";
+  }
+
+  if (message.startsWith("Password reset email resend is temporarily unavailable")) {
+    const retryAfterSeconds = getRetryAfterSeconds(message);
+
+    return retryAfterSeconds
+      ? `Новую ссылку можно отправить через ${formatRetryAfter(retryAfterSeconds)}.`
+      : "Новую ссылку пока нельзя отправить. Попробуйте позже.";
+  }
+
+  if (message.startsWith("Password reset email hourly limit exceeded")) {
+    return "Слишком много писем для восстановления пароля. Попробуйте позже.";
+  }
+
+  if (message.startsWith("Password reset email IP hourly limit exceeded")) {
+    return "Слишком много запросов на восстановление пароля. Попробуйте позже.";
   }
 
   if (message.startsWith("Email verification code resend is temporarily unavailable")) {
@@ -52,7 +72,7 @@ export function getAuthErrorMessage(error: unknown) {
   }
 
   if (message === "User already exists") {
-    return "Пользователь с таким логином уже есть";
+    return "Пользователь с таким email уже есть";
   }
 
   if (message.includes("AUTH_JWT_SECRET")) {

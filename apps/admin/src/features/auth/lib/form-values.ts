@@ -3,20 +3,26 @@ import { z } from "zod";
 import type { LoginInputDTO } from "@/shared/actions/auth";
 
 export const adminLoginFormSchema = z.object({
-  login: z.string().trim().min(1, "Введите логин"),
+  email: z
+    .string()
+    .trim()
+    .min(1, "Введите email")
+    .refine((value) => /^[^\s@]+@[^\s@]+\.[^\s@]+$/.test(value), {
+      message: "Введите корректный email",
+    }),
   password: z.string().min(1, "Введите пароль"),
 });
 
 export type AdminLoginFormValues = z.infer<typeof adminLoginFormSchema>;
 
 export const adminLoginFormDefaultValues = {
-  login: "",
+  email: "",
   password: "",
 } satisfies AdminLoginFormValues;
 
 export function toAdminLoginInput(values: AdminLoginFormValues): LoginInputDTO {
   return {
-    login: values.login.trim(),
+    email: values.email.trim(),
     password: values.password,
   };
 }

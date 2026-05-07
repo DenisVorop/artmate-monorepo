@@ -28,6 +28,7 @@ model User {
   authAccounts           AuthAccount[]
   authSessions           AuthSession[]
   emailVerificationCodes AuthEmailVerificationCode[]
+  passwordResetTokens    AuthPasswordResetToken[]
   aiBlogDraftRuns        AiBlogDraftRun[]            @relation("AiBlogDraftRunCreator")
   createdBlogPosts       BlogPost[]                  @relation("BlogPostCreator")
   orders                 Order[]

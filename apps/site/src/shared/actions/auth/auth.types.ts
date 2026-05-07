@@ -17,7 +17,7 @@ export type AuthSessionDTO = {
 };
 
 export type AuthEmailVerificationStateDTO = {
-  login: string;
+  email: string;
   emailMasked?: string;
   expiresAt?: string;
   resendAvailableAt: string;
@@ -33,24 +33,36 @@ export type AuthProvidersDTO = {
 };
 
 export type LoginInputDTO = {
-  login: string;
+  email: string;
   password: string;
 };
 
 export type RegisterInputDTO = {
-  login: string;
   password: string;
   name?: string;
   email: string;
 };
 
 export type ConfirmEmailVerificationInputDTO = {
-  login: string;
+  email: string;
   code: string;
 };
 
 export type ResendEmailVerificationInputDTO = {
-  login: string;
+  email: string;
+};
+
+export type RequestPasswordResetInputDTO = {
+  email: string;
+};
+
+export type ConfirmPasswordResetInputDTO = {
+  token: string;
+  password: string;
+};
+
+export type PasswordResetDTO = {
+  ok: true;
 };
 
 export type LogoutDTO = {

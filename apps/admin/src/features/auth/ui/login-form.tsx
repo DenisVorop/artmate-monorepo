@@ -67,15 +67,16 @@ export function LoginForm({ nextPath = routes.users }: LoginFormProps) {
       <CardContent>
         <form className="grid gap-4" onSubmit={submitForm}>
           <label className="grid gap-1.5">
-            <span className="text-sm font-medium">Логин</span>
+            <span className="text-sm font-medium">Email</span>
             <Input
-              autoComplete="username"
+              autoComplete="email"
               autoFocus
-              aria-invalid={Boolean(errors.login)}
+              aria-invalid={Boolean(errors.email)}
               required
-              {...register("login")}
+              type="email"
+              {...register("email")}
             />
-            <FieldError message={errors.login?.message} />
+            <FieldError message={errors.email?.message} />
           </label>
 
           <label className="grid gap-1.5">

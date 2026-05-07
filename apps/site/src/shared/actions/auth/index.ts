@@ -1,10 +1,12 @@
 export {
+  confirmPasswordReset,
   confirmEmailVerification,
   getAuthProviders,
   getAuthSession,
   login,
   logout,
   register,
+  requestPasswordReset,
   resendEmailVerification,
 } from "./auth.actions";
 export type {
@@ -16,8 +18,11 @@ export type {
   AuthSessionDTO,
   AuthUserDTO,
   ConfirmEmailVerificationInputDTO,
+  ConfirmPasswordResetInputDTO,
   LoginInputDTO,
   LogoutDTO,
+  PasswordResetDTO,
   RegisterInputDTO,
+  RequestPasswordResetInputDTO,
   ResendEmailVerificationInputDTO,
 } from "./auth.types";

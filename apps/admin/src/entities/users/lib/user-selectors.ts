@@ -15,7 +15,7 @@ const providerLabels: Record<
   AdminUser["authAccounts"][number]["provider"],
   string
 > = {
-  credentials: "Логин/пароль",
+  credentials: "Email/пароль",
   yandex: "Yandex",
 };
 

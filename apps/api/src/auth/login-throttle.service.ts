@@ -12,7 +12,7 @@ import {
 } from "./auth.constants";
 
 type LoginThrottleInput = {
-  login: string;
+  email: string;
   ipAddress?: string;
 };
 
@@ -117,18 +117,18 @@ export class LoginThrottleService {
   }
 
   async recordSuccessfulLogin(input: LoginThrottleInput) {
-    const loginSubject = this.getLoginSubject(input.login);
+    const emailSubject = this.getEmailSubject(input.email);
 
     await this.prisma.authLoginThrottle.deleteMany({
       where: {
-        scope: loginSubject.scope,
-        subjectHash: loginSubject.subjectHash,
+        scope: emailSubject.scope,
+        subjectHash: emailSubject.subjectHash,
       },
     });
   }
 
   private getSubjects(input: LoginThrottleInput): LoginThrottleSubject[] {
-    const subjects = [this.getLoginSubject(input.login)];
+    const subjects = [this.getEmailSubject(input.email)];
     const ipAddress = this.normalizeIpAddress(input.ipAddress);
 
     if (ipAddress) {
@@ -142,16 +142,16 @@ export class LoginThrottleService {
     return subjects;
   }
 
-  private getLoginSubject(login: string): LoginThrottleSubject {
+  private getEmailSubject(email: string): LoginThrottleSubject {
     return {
       scope: AuthLoginThrottleScope.LOGIN,
-      subjectHash: this.hashSubject(`login:${this.normalizeLogin(login)}`),
+      subjectHash: this.hashSubject(`email:${this.normalizeEmail(email)}`),
       maxFailedAttempts: AUTH_LOGIN_MAX_FAILED_ATTEMPTS,
     };
   }
 
-  private normalizeLogin(login: string) {
-    return login.trim().toLowerCase();
+  private normalizeEmail(email: string) {
+    return email.trim().toLowerCase();
   }
 
   private normalizeIpAddress(ipAddress?: string) {

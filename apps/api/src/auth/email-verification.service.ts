@@ -8,7 +8,10 @@ import {
 } from "@nestjs/common";
 import crypto from "node:crypto";
 
-import { UserStatus } from "../generated/prisma/client";
+import {
+  AuthProvider as PrismaAuthProvider,
+  UserStatus,
+} from "../generated/prisma/client";
 import { MailerService } from "../mailer/mailer.service";
 import { PrismaService } from "../prisma/prisma.service";
 
@@ -21,7 +24,7 @@ import {
 } from "./auth.constants";
 
 type VerificationState = {
-  login: string;
+  email: string;
   emailMasked?: string;
   expiresAt?: string;
   resendAvailableAt: string;
@@ -29,7 +32,6 @@ type VerificationState = {
 
 type CreateAndSendCodeInput = {
   readonly userId: string;
-  readonly login: string;
   readonly email: string;
   readonly ipAddress?: string;
 };
@@ -46,65 +48,67 @@ export class EmailVerificationService {
   async createAndSendCode(
     input: CreateAndSendCodeInput,
   ): Promise<VerificationState> {
-    const login = this.normalizeLogin(input.login);
     const email = this.normalizeEmail(input.email);
 
     await this.assertCanSendCode(input.userId, input.ipAddress);
     await this.consumeActiveCodes(input.userId);
 
-    return this.createCode(input.userId, login, email, input.ipAddress);
+    return this.createCode(input.userId, email, input.ipAddress);
   }
 
   async resendCode(
-    login: string,
+    email: string,
     ipAddress?: string,
   ): Promise<VerificationState> {
-    const normalizedLogin = this.normalizeLogin(login);
-    const credential = await this.prisma.authCredential.findUnique({
-      where: { login: normalizedLogin },
-      include: {
-        account: {
-          include: {
-            user: true,
-          },
+    const normalizedEmail = this.normalizeEmail(email);
+    const account = await this.prisma.authAccount.findFirst({
+      where: {
+        provider: PrismaAuthProvider.CREDENTIALS,
+        user: {
+          email: normalizedEmail,
         },
+      },
+      include: {
+        credential: true,
+        user: true,
       },
     });
 
     if (
-      !credential ||
-      credential.account.user.emailVerifiedAt ||
-      !credential.account.user.email
+      !account?.credential ||
+      account.user.emailVerifiedAt ||
+      !account.user.email
     ) {
-      return this.getGenericVerificationState(normalizedLogin);
+      return this.getGenericVerificationState(normalizedEmail);
     }
 
     return this.createAndSendCode({
-      userId: credential.account.user.id,
-      login: normalizedLogin,
-      email: credential.account.user.email,
+      userId: account.user.id,
+      email: account.user.email,
       ipAddress,
     });
   }
 
-  async confirmCode(login: string, code: string) {
-    const normalizedLogin = this.normalizeLogin(login);
-    const credential = await this.prisma.authCredential.findUnique({
-      where: { login: normalizedLogin },
-      include: {
-        account: {
-          include: {
-            user: true,
-          },
+  async confirmCode(email: string, code: string) {
+    const normalizedEmail = this.normalizeEmail(email);
+    const account = await this.prisma.authAccount.findFirst({
+      where: {
+        provider: PrismaAuthProvider.CREDENTIALS,
+        user: {
+          email: normalizedEmail,
         },
+      },
+      include: {
+        credential: true,
+        user: true,
       },
     });
 
-    if (!credential || !credential.account.user.email) {
+    if (!account?.credential || !account.user.email) {
       throw new BadRequestException("Invalid verification code");
     }
 
-    const user = credential.account.user;
+    const user = account.user;
 
     if (user.status !== UserStatus.ACTIVE) {
       throw new UnauthorizedException("User account is not active");
@@ -235,12 +239,7 @@ export class EmailVerificationService {
     });
   }
 
-  private async createCode(
-    userId: string,
-    login: string,
-    email: string,
-    ipAddress?: string,
-  ) {
+  private async createCode(userId: string, email: string, ipAddress?: string) {
     const code = this.createRawCode();
     const now = new Date();
     const expiresAt = new Date(now.getTime() + this.getCodeTtlSeconds() * 1000);
@@ -266,7 +265,7 @@ export class EmailVerificationService {
     });
 
     return {
-      login,
+      email,
       emailMasked: this.maskEmail(email),
       expiresAt: expiresAt.toISOString(),
       resendAvailableAt: resendAvailableAt.toISOString(),
@@ -381,9 +380,9 @@ export class EmailVerificationService {
     return Math.max(1, Math.floor(this.getCodeTtlSeconds() / 60));
   }
 
-  private getGenericVerificationState(login: string): VerificationState {
+  private getGenericVerificationState(email: string): VerificationState {
     return {
-      login,
+      email,
       resendAvailableAt: new Date().toISOString(),
     };
   }
@@ -406,10 +405,6 @@ export class EmailVerificationService {
     }
 
     return `${localPart.slice(0, 1)}***@${domain}`;
-  }
-
-  private normalizeLogin(login: string) {
-    return login.trim().toLowerCase();
   }
 
   private normalizeEmail(email: string) {

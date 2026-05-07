@@ -11,6 +11,7 @@ import { CredentialsAuthService } from "./credentials-auth.service";
 import { EmailVerificationService } from "./email-verification.service";
 import { LoginThrottleService } from "./login-throttle.service";
 import { OAuthProvidersService } from "./oauth-providers.service";
+import { PasswordResetService } from "./password-reset.service";
 import { YandexOAuthService } from "./yandex-oauth.service";
 
 @Module({
@@ -27,6 +28,7 @@ import { YandexOAuthService } from "./yandex-oauth.service";
     EmailVerificationService,
     LoginThrottleService,
     OAuthProvidersService,
+    PasswordResetService,
     YandexOAuthService,
   ],
   exports: [AuthGuard, AuthService],

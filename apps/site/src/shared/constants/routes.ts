@@ -2,6 +2,7 @@ export const routes = {
   home: "/",
   auth: "/auth",
   authOAuth: (provider: string) => `/auth/oauth/${provider}`,
+  authResetPassword: "/auth/reset-password",
   account: "/account",
   cart: "/cart",
   catalog: "/catalog",
