@@ -20,13 +20,10 @@ import { useLogoutMutation } from "../model";
 
 export function SessionMenu() {
   const router = useRouter();
-  const { mutate: logout, isPending: isLogoutPending } = useLogoutMutation();
+  const { mutate: logout, isPending: isLogoutPending } = useLogoutMutation({
+    onSuccess: () => router.refresh(),
+  });
   const { user, isPending: isSessionPending } = useSession();
-
-  async function handleLogout() {
-    await logout();
-    router.refresh();
-  }
 
   if (isSessionPending) {
     return (
@@ -80,7 +77,7 @@ export function SessionMenu() {
           disabled={isLogoutPending}
           onSelect={(event) => {
             event.preventDefault();
-            void handleLogout();
+            logout();
           }}
         >
           {isLogoutPending ? (

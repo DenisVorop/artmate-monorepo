@@ -5,22 +5,31 @@ import { useMutation, useQueryClient } from "@tanstack/react-query";
 import { sessionQuery } from "@/entities/session";
 import {
   confirmEmailVerification,
+  type AuthSessionDTO,
   type ConfirmEmailVerificationInputDTO,
 } from "@/shared/actions/auth";
 import { ApiResult } from "@/shared/lib/api-result";
 
-export function useConfirmEmailVerificationMutation() {
+type UseConfirmEmailVerificationMutationOptions = {
+  onSuccess?: (_session: AuthSessionDTO | undefined) => void;
+};
+
+export function useConfirmEmailVerificationMutation(
+  options: UseConfirmEmailVerificationMutationOptions = {},
+) {
   const queryClient = useQueryClient();
-  const { mutateAsync: mutate, isPending } = useMutation({
+  const { mutate, mutateAsync, isPending } = useMutation({
     mutationFn: async (input: ConfirmEmailVerificationInputDTO) =>
       ApiResult.fromDTO(await confirmEmailVerification(input)).unwrap(),
     onSuccess: (session) => {
       queryClient.setQueryData(sessionQuery.getSession().queryKey, session ?? { user: null });
+      options.onSuccess?.(session);
     },
   });
 
   return {
     mutate,
+    mutateAsync,
     isPending,
   };
 }

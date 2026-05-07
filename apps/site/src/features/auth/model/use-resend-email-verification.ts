@@ -9,13 +9,14 @@ import {
 import { ApiResult } from "@/shared/lib/api-result";
 
 export function useResendEmailVerificationMutation() {
-  const { mutateAsync: mutate, isPending } = useMutation({
+  const { mutate, mutateAsync, isPending } = useMutation({
     mutationFn: async (input: ResendEmailVerificationInputDTO) =>
       ApiResult.fromDTO(await resendEmailVerification(input)).unwrap(),
   });
 
   return {
     mutate,
+    mutateAsync,
     isPending,
   };
 }

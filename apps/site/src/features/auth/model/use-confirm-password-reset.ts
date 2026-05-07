@@ -6,13 +6,14 @@ import { confirmPasswordReset, type ConfirmPasswordResetInputDTO } from "@/share
 import { ApiResult } from "@/shared/lib/api-result";
 
 export function useConfirmPasswordResetMutation() {
-  const { mutateAsync: mutate, isPending } = useMutation({
+  const { mutate, mutateAsync, isPending } = useMutation({
     mutationFn: async (input: ConfirmPasswordResetInputDTO) =>
       ApiResult.fromDTO(await confirmPasswordReset(input)).unwrap(),
   });
 
   return {
     mutate,
+    mutateAsync,
     isPending,
   };
 }

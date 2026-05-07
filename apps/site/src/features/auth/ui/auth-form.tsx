@@ -66,104 +66,148 @@ import {
 
 type AuthMode = "login" | "register";
 
-export function AuthForm() {
+type AuthFormProps = {
+  embedded?: boolean;
+  initialEmail?: string;
+  onAuthenticated?: () => void;
+};
+
+export function AuthForm({
+  embedded = false,
+  initialEmail,
+  onAuthenticated,
+}: AuthFormProps = {}) {
   const [mode, setMode] = useState<AuthMode>("login");
   const [verificationState, setVerificationState] = useState<AuthEmailVerificationStateDTO>();
   const [isPasswordResetRequested, setIsPasswordResetRequested] = useState(false);
+  const description = isPasswordResetRequested
+    ? "Укажите email, и мы отправим ссылку для смены пароля."
+    : verificationState
+      ? "Введите код из письма, чтобы завершить вход."
+      : "Войдите или создайте аккаунт, чтобы сохранять заказы и персональные данные.";
+  const content = verificationState ? (
+    <EmailVerificationForm
+      onAuthenticated={onAuthenticated}
+      onBack={() => setVerificationState(undefined)}
+      onVerificationChange={setVerificationState}
+      verification={verificationState}
+    />
+  ) : isPasswordResetRequested ? (
+    <PasswordResetRequestForm
+      initialEmail={initialEmail}
+      onBack={() => setIsPasswordResetRequested(false)}
+    />
+  ) : (
+    <Tabs value={mode} onValueChange={(value) => setMode(value as AuthMode)}>
+      <TabsList className="grid w-full grid-cols-2">
+        <TabsTrigger value="login">Вход</TabsTrigger>
+        <TabsTrigger value="register">Регистрация</TabsTrigger>
+      </TabsList>
+
+      <TabsContent value="login" className="mt-4">
+        <LoginForm
+          hideOAuth={embedded}
+          initialEmail={initialEmail}
+          onAuthenticated={onAuthenticated}
+          onPasswordReset={() => setIsPasswordResetRequested(true)}
+          onVerificationRequired={setVerificationState}
+        />
+      </TabsContent>
+
+      <TabsContent value="register" className="mt-4">
+        <RegisterForm
+          hideOAuth={embedded}
+          initialEmail={initialEmail}
+          onVerificationRequired={setVerificationState}
+        />
+      </TabsContent>
+    </Tabs>
+  );
+
+  if (embedded) {
+    return (
+      <div className="w-full space-y-4">
+        <p className="text-sm text-muted-foreground">{description}</p>
+        {content}
+      </div>
+    );
+  }
 
   return (
     <Card className="w-full max-w-md shadow-xl shadow-stone-950/5">
       <CardHeader>
         <CardTitle className="text-xl">Аккаунт Artmate</CardTitle>
-        <CardDescription>
-          {isPasswordResetRequested
-            ? "Укажите email, и мы отправим ссылку для смены пароля."
-            : verificationState
-              ? "Введите код из письма, чтобы завершить вход."
-              : "Войдите или создайте аккаунт, чтобы сохранять заказы и персональные данные."}
-        </CardDescription>
+        <CardDescription>{description}</CardDescription>
       </CardHeader>
-      <CardContent>
-        {verificationState ? (
-          <EmailVerificationForm
-            onBack={() => setVerificationState(undefined)}
-            onVerificationChange={setVerificationState}
-            verification={verificationState}
-          />
-        ) : isPasswordResetRequested ? (
-          <PasswordResetRequestForm onBack={() => setIsPasswordResetRequested(false)} />
-        ) : (
-          <Tabs value={mode} onValueChange={(value) => setMode(value as AuthMode)}>
-            <TabsList className="grid w-full grid-cols-2">
-              <TabsTrigger value="login">Вход</TabsTrigger>
-              <TabsTrigger value="register">Регистрация</TabsTrigger>
-            </TabsList>
-
-            <TabsContent value="login" className="mt-4">
-              <LoginForm
-                onPasswordReset={() => setIsPasswordResetRequested(true)}
-                onVerificationRequired={setVerificationState}
-              />
-            </TabsContent>
-
-            <TabsContent value="register" className="mt-4">
-              <RegisterForm onVerificationRequired={setVerificationState} />
-            </TabsContent>
-          </Tabs>
-        )}
-      </CardContent>
+      <CardContent>{content}</CardContent>
     </Card>
   );
 }
 
 function LoginForm({
+  hideOAuth,
+  initialEmail,
+  onAuthenticated,
   onPasswordReset,
   onVerificationRequired,
 }: {
+  readonly hideOAuth: boolean;
+  readonly initialEmail?: string;
+  readonly onAuthenticated?: () => void;
   readonly onPasswordReset: () => void;
   readonly onVerificationRequired: (_verification: AuthEmailVerificationStateDTO) => void;
 }) {
   const router = useRouter();
   const searchParams = useSearchParams();
   const [submitError, setSubmitError] = useState<string>();
-  const { mutate: login, isPending } = useLoginMutation();
+  const redirectPath = useMemo(
+    () => getSafeAuthRedirectPath(searchParams.get("next")),
+    [searchParams],
+  );
+  const { mutate: login, isPending } = useLoginMutation({
+    onSuccess: completeAuthentication,
+  });
   const {
     register,
     handleSubmit,
     formState: { errors },
   } = useForm<LoginFormValues>({
     defaultValues: {
-      email: "",
+      email: initialEmail ?? "",
       password: "",
     },
     mode: "onSubmit",
     resolver: zodResolver(loginFormSchema),
   });
   const isSubmitting = isPending;
-  const redirectPath = useMemo(
-    () => getSafeAuthRedirectPath(searchParams.get("next")),
-    [searchParams],
-  );
 
-  const submitForm = handleSubmit(async (values) => {
+  const submitForm = handleSubmit((values) => {
     setSubmitError(undefined);
 
-    try {
-      await login(toLoginInput(values));
-      router.replace(redirectPath);
-      router.refresh();
-    } catch (error) {
-      if (isEmailNotVerifiedError(error)) {
-        onVerificationRequired({
-          email: values.email.trim(),
-          resendAvailableAt: new Date().toISOString(),
-        });
-        return;
-      }
+    login(toLoginInput(values), {
+      onError: (error) => {
+        if (isEmailNotVerifiedError(error)) {
+          onVerificationRequired({
+            email: values.email.trim(),
+            resendAvailableAt: new Date().toISOString(),
+          });
+          return;
+        }
 
-      setSubmitError(getAuthErrorMessage(error));
-    }
+        setSubmitError(getAuthErrorMessage(error));
+      },
+    });
   });
+
+  function completeAuthentication() {
+    if (onAuthenticated) {
+      onAuthenticated();
+      return;
+    }
+
+    router.replace(redirectPath);
+    router.refresh();
+  }
 
   return (
     <form onSubmit={submitForm} className="space-y-4">
@@ -213,12 +257,18 @@ function LoginForm({
         Войти
       </Button>
 
-      <OAuthButton />
+      {!hideOAuth && <OAuthButton />}
     </form>
   );
 }
 
-function PasswordResetRequestForm({ onBack }: { readonly onBack: () => void }) {
+function PasswordResetRequestForm({
+  initialEmail,
+  onBack,
+}: {
+  readonly initialEmail?: string;
+  readonly onBack: () => void;
+}) {
   const [submitError, setSubmitError] = useState<string>();
   const [isSent, setIsSent] = useState(false);
   const { mutate: requestPasswordReset, isPending } = useRequestPasswordResetMutation();
@@ -228,21 +278,19 @@ function PasswordResetRequestForm({ onBack }: { readonly onBack: () => void }) {
     formState: { errors },
   } = useForm<PasswordResetRequestFormValues>({
     defaultValues: {
-      email: "",
+      email: initialEmail ?? "",
     },
     mode: "onSubmit",
     resolver: zodResolver(passwordResetRequestFormSchema),
   });
 
-  const submitForm = handleSubmit(async (values) => {
+  const submitForm = handleSubmit((values) => {
     setSubmitError(undefined);
 
-    try {
-      await requestPasswordReset(toPasswordResetRequestInput(values));
-      setIsSent(true);
-    } catch (error) {
-      setSubmitError(getAuthErrorMessage(error));
-    }
+    requestPasswordReset(toPasswordResetRequestInput(values), {
+      onSuccess: () => setIsSent(true),
+      onError: (error) => setSubmitError(getAuthErrorMessage(error)),
+    });
   });
 
   if (isSent) {
@@ -312,19 +360,17 @@ export function PasswordResetForm({ token }: { readonly token?: string }) {
     resolver: zodResolver(confirmPasswordResetFormSchema),
   });
 
-  const submitForm = handleSubmit(async (values) => {
+  const submitForm = handleSubmit((values) => {
     if (!normalizedToken) {
       return;
     }
 
     setSubmitError(undefined);
 
-    try {
-      await confirmPasswordReset(toConfirmPasswordResetInput(normalizedToken, values));
-      setIsReset(true);
-    } catch (error) {
-      setSubmitError(getAuthErrorMessage(error));
-    }
+    confirmPasswordReset(toConfirmPasswordResetInput(normalizedToken, values), {
+      onSuccess: () => setIsReset(true),
+      onError: (error) => setSubmitError(getAuthErrorMessage(error)),
+    });
   });
 
   return (
@@ -402,8 +448,12 @@ export function PasswordResetForm({ token }: { readonly token?: string }) {
 }
 
 function RegisterForm({
+  hideOAuth,
+  initialEmail,
   onVerificationRequired,
 }: {
+  readonly hideOAuth: boolean;
+  readonly initialEmail?: string;
   readonly onVerificationRequired: (_verification: AuthEmailVerificationStateDTO) => void;
 }) {
   const [submitError, setSubmitError] = useState<string>();
@@ -414,7 +464,7 @@ function RegisterForm({
     formState: { errors },
   } = useForm<RegisterFormValues>({
     defaultValues: {
-      email: "",
+      email: initialEmail ?? "",
       name: "",
       password: "",
       passwordConfirm: "",
@@ -424,20 +474,20 @@ function RegisterForm({
   });
   const isSubmitting = isPending;
 
-  const submitForm = handleSubmit(async (values) => {
+  const submitForm = handleSubmit((values) => {
     setSubmitError(undefined);
 
-    try {
-      const response = await registerUser(toRegisterInput(values));
+    registerUser(toRegisterInput(values), {
+      onSuccess: (response) => {
+        if (!response) {
+          setSubmitError("Не удалось получить код подтверждения.");
+          return;
+        }
 
-      if (!response) {
-        throw new Error("Verification response is empty");
-      }
-
-      onVerificationRequired(response.verification);
-    } catch (error) {
-      setSubmitError(getAuthErrorMessage(error));
-    }
+        onVerificationRequired(response.verification);
+      },
+      onError: (error) => setSubmitError(getAuthErrorMessage(error)),
+    });
   });
 
   return (
@@ -496,16 +546,18 @@ function RegisterForm({
         Создать аккаунт
       </Button>
 
-      <OAuthButton />
+      {!hideOAuth && <OAuthButton />}
     </form>
   );
 }
 
 function EmailVerificationForm({
+  onAuthenticated,
   onBack,
   onVerificationChange,
   verification,
 }: {
+  readonly onAuthenticated?: () => void;
   readonly onBack: () => void;
   readonly onVerificationChange: (_verification: AuthEmailVerificationStateDTO) => void;
   readonly verification: AuthEmailVerificationStateDTO;
@@ -515,8 +567,6 @@ function EmailVerificationForm({
   const [submitError, setSubmitError] = useState<string>();
   const [submitMessage, setSubmitMessage] = useState<string>();
   const [now, setNow] = useState(() => Date.now());
-  const { mutate: confirmEmailVerification, isPending: isConfirming } =
-    useConfirmEmailVerificationMutation();
   const { mutate: resendEmailVerification, isPending: isResending } =
     useResendEmailVerificationMutation();
   const {
@@ -534,6 +584,10 @@ function EmailVerificationForm({
     () => getSafeAuthRedirectPath(searchParams.get("next")),
     [searchParams],
   );
+  const { mutate: confirmEmailVerification, isPending: isConfirming } =
+    useConfirmEmailVerificationMutation({
+      onSuccess: completeAuthentication,
+    });
   const resendWaitSeconds = getWaitSeconds(verification.resendAvailableAt, now);
   const isResendDisabled = isResending || resendWaitSeconds > 0;
 
@@ -543,42 +597,51 @@ function EmailVerificationForm({
     return () => window.clearInterval(intervalId);
   }, []);
 
-  const submitForm = handleSubmit(async (values) => {
+  const submitForm = handleSubmit((values) => {
     setSubmitError(undefined);
     setSubmitMessage(undefined);
 
-    try {
-      await confirmEmailVerification(toEmailVerificationInput(verification.email, values));
-      router.replace(redirectPath);
-      router.refresh();
-    } catch (error) {
-      setSubmitError(getAuthErrorMessage(error));
-    }
+    confirmEmailVerification(toEmailVerificationInput(verification.email, values), {
+      onError: (error) => setSubmitError(getAuthErrorMessage(error)),
+    });
   });
 
-  async function resendCode() {
+  function completeAuthentication() {
+    if (onAuthenticated) {
+      onAuthenticated();
+      return;
+    }
+
+    router.replace(redirectPath);
+    router.refresh();
+  }
+
+  function resendCode() {
     setSubmitError(undefined);
     setSubmitMessage(undefined);
 
-    try {
-      const response = await resendEmailVerification({
+    resendEmailVerification(
+      {
         email: verification.email,
-      });
+      },
+      {
+        onSuccess: (response) => {
+          if (!response) {
+            setSubmitError("Не удалось отправить новый код.");
+            return;
+          }
 
-      if (!response) {
-        throw new Error("Verification response is empty");
-      }
-
-      onVerificationChange({
-        ...verification,
-        ...response.verification,
-        emailMasked: response.verification.emailMasked ?? verification.emailMasked,
-      });
-      setNow(Date.now());
-      setSubmitMessage("Новый код отправлен.");
-    } catch (error) {
-      setSubmitError(getAuthErrorMessage(error));
-    }
+          onVerificationChange({
+            ...verification,
+            ...response.verification,
+            emailMasked: response.verification.emailMasked ?? verification.emailMasked,
+          });
+          setNow(Date.now());
+          setSubmitMessage("Новый код отправлен.");
+        },
+        onError: (error) => setSubmitError(getAuthErrorMessage(error)),
+      },
+    );
   }
 
   return (

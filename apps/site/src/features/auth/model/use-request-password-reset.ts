@@ -6,13 +6,14 @@ import { requestPasswordReset, type RequestPasswordResetInputDTO } from "@/share
 import { ApiResult } from "@/shared/lib/api-result";
 
 export function useRequestPasswordResetMutation() {
-  const { mutateAsync: mutate, isPending } = useMutation({
+  const { mutate, mutateAsync, isPending } = useMutation({
     mutationFn: async (input: RequestPasswordResetInputDTO) =>
       ApiResult.fromDTO(await requestPasswordReset(input)).unwrap(),
   });
 
   return {
     mutate,
+    mutateAsync,
     isPending,
   };
 }

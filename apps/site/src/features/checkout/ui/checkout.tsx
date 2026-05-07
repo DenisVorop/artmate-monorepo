@@ -1,13 +1,22 @@
 "use client";
 
 import { ArrowLeft, ShoppingBag } from "lucide-react";
-import { useMemo } from "react";
+import { useCallback, useMemo, useState } from "react";
 import { useRouter } from "next/navigation";
 
 import { useCartData } from "@/entities/cart";
 import { useUser } from "@/entities/session";
+import { AuthForm } from "@/features/auth";
 import { routes } from "@/shared/constants";
-import { Button, DataState } from "@/shared/ui";
+import {
+  Button,
+  DataState,
+  Dialog,
+  DialogContent,
+  DialogDescription,
+  DialogHeader,
+  DialogTitle,
+} from "@/shared/ui";
 import { Link } from "@/shared/ui/link";
 import { PageTitle } from "@/shared/ui/typography";
 
@@ -15,6 +24,7 @@ import { useCreateOrderMutation } from "../model";
 import {
   type CheckoutCreateOrderInput,
   type CheckoutCustomerDefaults,
+  type CheckoutOrder,
 } from "../lib";
 
 import { CheckoutForm } from "./form";
@@ -24,7 +34,22 @@ export function Checkout() {
   const router = useRouter();
   const user = useUser();
   const cart = useCartData();
-  const { createOrder, isPending, error } = useCreateOrderMutation();
+  const [pendingOrderInput, setPendingOrderInput] = useState<CheckoutCreateOrderInput>();
+  const [isAuthDialogOpen, setIsAuthDialogOpen] = useState(false);
+  const handleOrderCreated = useCallback(
+    (order: CheckoutOrder | undefined) => {
+      setPendingOrderInput(undefined);
+      setIsAuthDialogOpen(false);
+
+      if (order?.id) {
+        router.push(`${routes.checkoutSuccess}?orderId=${encodeURIComponent(order.id)}`);
+      }
+    },
+    [router],
+  );
+  const { createOrder, isPending, error } = useCreateOrderMutation({
+    onSuccess: handleOrderCreated,
+  });
   const customerDefaults = useMemo<CheckoutCustomerDefaults>(
     () => ({
       ...(user?.email ? { email: user.email } : {}),
@@ -34,15 +59,23 @@ export function Checkout() {
   );
 
   const handleSubmit = async (input: CheckoutCreateOrderInput) => {
-    try {
-      const order = await createOrder(input);
-
-      if (order?.id) {
-        router.push(`${routes.checkoutSuccess}?orderId=${encodeURIComponent(order.id)}`);
-      }
-    } catch {
-      // Ошибка уже сохранена в mutation state и показана под формой.
+    if (!user) {
+      setPendingOrderInput(input);
+      setIsAuthDialogOpen(true);
+      return;
     }
+
+    createOrder(input);
+  };
+
+  const handleCheckoutAuthenticated = () => {
+    if (!pendingOrderInput) {
+      setIsAuthDialogOpen(false);
+      return;
+    }
+
+    setIsAuthDialogOpen(false);
+    createOrder(pendingOrderInput);
   };
 
   if (cart.isPending) {
@@ -94,8 +127,8 @@ export function Checkout() {
           <p className="text-sm font-medium tracking-wide text-rose-500 uppercase">Оформление</p>
           <PageTitle className="text-foreground">Оформление заказа</PageTitle>
           <p className="max-w-2xl text-muted-foreground">
-            Проверьте товары, оставьте контакты и отправьте заказ. Мы свяжемся для подтверждения
-            деталей.
+            Проверьте товары, оставьте контакты и войдите в аккаунт, если еще не авторизованы.
+            После этого мы автоматически отправим заказ.
           </p>
         </div>
 
@@ -127,6 +160,23 @@ export function Checkout() {
 
         <OrderSummary cart={cart.data} />
       </div>
+
+      <Dialog open={isAuthDialogOpen} onOpenChange={setIsAuthDialogOpen}>
+        <DialogContent className="sm:max-w-md">
+          <DialogHeader>
+            <DialogTitle>Вход для оформления заказа</DialogTitle>
+            <DialogDescription>
+              Код подтверждения придет на почту, указанную в форме заказа. После успешного входа
+              заказ отправится автоматически.
+            </DialogDescription>
+          </DialogHeader>
+          <AuthForm
+            embedded
+            initialEmail={pendingOrderInput?.customer.email}
+            onAuthenticated={handleCheckoutAuthenticated}
+          />
+        </DialogContent>
+      </Dialog>
     </section>
   );
 }
