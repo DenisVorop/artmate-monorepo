@@ -1,4 +1,4 @@
-import { Badge } from "@/shared/ui";
+import { Badge, Tooltip, TooltipContent, TooltipProvider, TooltipTrigger } from "@/shared/ui";
 import { externalLinks } from "@/shared/constants";
 import { cn } from "@/shared/lib";
 import type { ReviewStats } from "../model";
@@ -21,7 +21,20 @@ export function ReviewRatingSummary({
       </div>
       <div className="flex flex-wrap items-center justify-center gap-2 text-stone-400">
         <span>
-          {stats.reviewsLabel} на{" "}
+          <TooltipProvider>
+            <Tooltip>
+              <TooltipTrigger asChild>
+                <button
+                  type="button"
+                  className="cursor-help rounded-sm border-0 bg-transparent p-0 text-inherit underline decoration-stone-300 decoration-dotted underline-offset-4 outline-none [font:inherit] focus-visible:ring-2 focus-visible:ring-ring/50"
+                >
+                  {stats.reviewsLabel}
+                </button>
+              </TooltipTrigger>
+              <TooltipContent side="top">{stats.reviewsTooltip}</TooltipContent>
+            </Tooltip>
+          </TooltipProvider>{" "}
+          на{" "}
           <a
             href={externalLinks.marketplaces.ozon}
             target="_blank"

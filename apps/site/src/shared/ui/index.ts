@@ -67,3 +67,4 @@ export { Progress } from "./progress";
 export { Separator } from "./separator";
 export { Tabs, TabsContent, TabsList, TabsTrigger, tabsListVariants } from "./tabs";
 export { Textarea } from "./textarea";
+export { Tooltip, TooltipContent, TooltipProvider, TooltipTrigger } from "./tooltip";

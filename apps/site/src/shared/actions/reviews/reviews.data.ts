@@ -10,6 +10,7 @@ export type ReviewStats = {
   rating: number;
   ratingLabel: string;
   reviewsLabel: string;
+  reviewsTooltip: string;
 };
 
 export type ReviewsData = {
@@ -80,6 +81,7 @@ const stats = {
   rating: 5,
   ratingLabel: "4.95",
   reviewsLabel: "5 500+ отзывов",
+  reviewsTooltip: "Общее количество отзывов на Ozon и Wildberries по всем раскраскам.",
 } satisfies ReviewStats;
 
 export const reviewsData = {
