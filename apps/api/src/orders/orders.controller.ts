@@ -16,7 +16,6 @@ import {
 } from "@nestjs/common";
 
 import { AuthGuard } from "../auth/auth.guard";
-import { AuthService } from "../auth/auth.service";
 import type { AuthUser } from "../auth/auth.types";
 import { ValidateResponse } from "../common/response-validation.interceptor";
 
@@ -39,10 +38,7 @@ type AuthenticatedRequest = {
 @ApiTags("Orders")
 @Controller("orders")
 export class OrdersController {
-  constructor(
-    private readonly authService: AuthService,
-    private readonly ordersService: OrdersService,
-  ) {}
+  constructor(private readonly ordersService: OrdersService) {}
 
   @ValidateResponse(PickupPointDTO, { isArray: true })
   @ApiOperation({
@@ -65,6 +61,7 @@ export class OrdersController {
     return this.ordersService.getMyOrders(request.user);
   }
 
+  @UseGuards(AuthGuard)
   @ValidateResponse(CheckoutCalculationDTO)
   @Post("checkout/calculate")
   @ApiOperation({
@@ -97,6 +94,7 @@ export class OrdersController {
     );
   }
 
+  @UseGuards(AuthGuard)
   @ValidateResponse(OrderDTO)
   @Post()
   @ApiOperation({
@@ -108,32 +106,40 @@ export class OrdersController {
   async createOrder(
     @Body() request: CreateOrderRequestDTO,
     @Headers("cookie") cookieHeader: string | undefined,
+    @Req() authRequest: AuthenticatedRequest,
   ) {
-    const user = await this.getOptionalUser(cookieHeader);
-
     return this.ordersService.createOrder(
       this.getCartId(cookieHeader),
       request,
-      user,
+      authRequest.user,
     );
   }
 
+  @UseGuards(AuthGuard)
   @ValidateResponse(OrderStateDTO)
   @Get(":orderId/status")
   @ApiOperation({ summary: "Get order and mock payment status" })
   @ApiOkResponse({ type: OrderStateDTO })
-  getOrderState(@Param("orderId") orderId: string) {
-    return this.ordersService.getOrderState(orderId);
+  getOrderState(
+    @Param("orderId") orderId: string,
+    @Req() request: AuthenticatedRequest,
+  ) {
+    return this.ordersService.getOrderState(orderId, request.user);
   }
 
+  @UseGuards(AuthGuard)
   @ValidateResponse(OrderDTO)
   @Get(":orderId")
   @ApiOperation({ summary: "Get order by ID" })
   @ApiOkResponse({ type: OrderDTO })
-  getOrder(@Param("orderId") orderId: string) {
-    return this.ordersService.getOrder(orderId);
+  getOrder(
+    @Param("orderId") orderId: string,
+    @Req() request: AuthenticatedRequest,
+  ) {
+    return this.ordersService.getOrder(orderId, request.user);
   }
 
+  @UseGuards(AuthGuard)
   @ValidateResponse(OrderDTO)
   @Post(":orderId/confirm-payment")
   @ApiOperation({
@@ -142,8 +148,11 @@ export class OrdersController {
       "Marks the order as paid and clears the cart. This is a mock payment transition without real acquiring.",
   })
   @ApiOkResponse({ type: OrderDTO })
-  confirmPayment(@Param("orderId") orderId: string) {
-    return this.ordersService.confirmPayment(orderId);
+  confirmPayment(
+    @Param("orderId") orderId: string,
+    @Req() request: AuthenticatedRequest,
+  ) {
+    return this.ordersService.confirmPayment(orderId, request.user);
   }
 
   private getCartId(cookieHeader?: string) {
@@ -162,11 +171,5 @@ export class OrdersController {
     }
 
     return decodeURIComponent(rawCartId);
-  }
-
-  private async getOptionalUser(cookieHeader?: string) {
-    const session = await this.authService.getSession(undefined, cookieHeader);
-
-    return session.user ?? undefined;
   }
 }

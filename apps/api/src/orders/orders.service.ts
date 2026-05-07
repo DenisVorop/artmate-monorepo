@@ -33,12 +33,18 @@ export class OrdersService {
     return this.ozonLogisticsService.getPickupPoints();
   }
 
-  getOrder(orderId: string): Promise<OrderDTO> {
-    return this.ordersStorage.getOrder(this.parseOrderId(orderId));
+  getOrder(orderId: string, user: AuthUser): Promise<OrderDTO> {
+    return this.ordersStorage.getOrder(
+      this.parseOrderId(orderId),
+      user.id,
+    );
   }
 
-  async getOrderState(orderId: string): Promise<OrderStateDTO> {
-    const order = await this.getOrder(orderId);
+  async getOrderState(
+    orderId: string,
+    user: AuthUser,
+  ): Promise<OrderStateDTO> {
+    const order = await this.getOrder(orderId, user);
 
     return {
       orderId: order.id,
@@ -82,7 +88,7 @@ export class OrdersService {
   async createOrder(
     cartId: string | undefined,
     request: CreateOrderRequestDTO,
-    user?: AuthUser,
+    user: AuthUser,
   ): Promise<OrderDTO> {
     const cart = await this.cartStorage.ensureCart(cartId);
     const cartDTO = this.cartStorage.getDTO(cart);
@@ -105,7 +111,7 @@ export class OrdersService {
     }
 
     const order = await this.ordersStorage.createOrder({
-      userId: user?.id,
+      userId: user.id,
       cartId: cartDTO.id,
       customer,
       delivery: {
@@ -123,9 +129,10 @@ export class OrdersService {
     return order;
   }
 
-  async confirmPayment(orderId: string): Promise<OrderDTO> {
+  async confirmPayment(orderId: string, user: AuthUser): Promise<OrderDTO> {
     const order = await this.ordersStorage.markOrderAsPaid(
       this.parseOrderId(orderId),
+      user.id,
     );
     await this.cartService.clearCart(order.cartId);
 

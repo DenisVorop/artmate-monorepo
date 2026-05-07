@@ -30,7 +30,7 @@ const orderInclude = {
 } as const;
 
 type CreateStoredOrderInput = {
-  userId?: string;
+  userId: string;
   cartId: string;
   customer: OrderCustomerDTO;
   delivery: OrderDeliveryDTO;
@@ -110,9 +110,12 @@ export class OrdersStorage {
     throw new Error("Order id generation failed");
   }
 
-  async getOrder(orderId: string): Promise<OrderDTO> {
-    const order = await this.prisma.order.findUnique({
-      where: { id: orderId },
+  async getOrder(orderId: string, userId: string): Promise<OrderDTO> {
+    const order = await this.prisma.order.findFirst({
+      where: {
+        id: orderId,
+        userId,
+      },
       include: orderInclude,
     });
 
@@ -141,22 +144,25 @@ export class OrdersStorage {
     return orders.map((order) => this.mapOrder(order));
   }
 
-  private async getExistingUserId(userId?: string) {
-    if (!userId) {
-      return undefined;
-    }
-
+  private async getExistingUserId(userId: string) {
     const user = await this.prisma.user.findUnique({
       where: { id: userId },
       select: { id: true },
     });
 
-    return user?.id;
+    if (!user) {
+      throw new NotFoundException("User not found");
+    }
+
+    return user.id;
   }
 
-  async markOrderAsPaid(orderId: string): Promise<OrderDTO> {
-    const existingOrder = await this.prisma.order.findUnique({
-      where: { id: orderId },
+  async markOrderAsPaid(orderId: string, userId: string): Promise<OrderDTO> {
+    const existingOrder = await this.prisma.order.findFirst({
+      where: {
+        id: orderId,
+        userId,
+      },
       include: orderInclude,
     });
 
