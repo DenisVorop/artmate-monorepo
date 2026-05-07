@@ -69,19 +69,24 @@ type AuthMode = "login" | "register";
 type AuthFormProps = {
   embedded?: boolean;
   initialEmail?: string;
+  isEmailLocked?: boolean;
   onAuthenticated?: () => void;
 };
 
 export function AuthForm({
   embedded = false,
   initialEmail,
+  isEmailLocked = false,
   onAuthenticated,
 }: AuthFormProps = {}) {
   const [mode, setMode] = useState<AuthMode>("login");
   const [verificationState, setVerificationState] = useState<AuthEmailVerificationStateDTO>();
   const [isPasswordResetRequested, setIsPasswordResetRequested] = useState(false);
+  const lockedEmail = isEmailLocked && initialEmail?.trim() ? initialEmail.trim() : undefined;
   const description = isPasswordResetRequested
-    ? "Укажите email, и мы отправим ссылку для смены пароля."
+    ? lockedEmail
+      ? "Отправим ссылку для смены пароля на почту из формы заказа."
+      : "Укажите email, и мы отправим ссылку для смены пароля."
     : verificationState
       ? "Введите код из письма, чтобы завершить вход."
       : "Войдите или создайте аккаунт, чтобы сохранять заказы и персональные данные.";
@@ -95,6 +100,7 @@ export function AuthForm({
   ) : isPasswordResetRequested ? (
     <PasswordResetRequestForm
       initialEmail={initialEmail}
+      lockedEmail={lockedEmail}
       onBack={() => setIsPasswordResetRequested(false)}
     />
   ) : (
@@ -108,6 +114,7 @@ export function AuthForm({
         <LoginForm
           hideOAuth={embedded}
           initialEmail={initialEmail}
+          lockedEmail={lockedEmail}
           onAuthenticated={onAuthenticated}
           onPasswordReset={() => setIsPasswordResetRequested(true)}
           onVerificationRequired={setVerificationState}
@@ -118,6 +125,7 @@ export function AuthForm({
         <RegisterForm
           hideOAuth={embedded}
           initialEmail={initialEmail}
+          lockedEmail={lockedEmail}
           onVerificationRequired={setVerificationState}
         />
       </TabsContent>
@@ -147,12 +155,14 @@ export function AuthForm({
 function LoginForm({
   hideOAuth,
   initialEmail,
+  lockedEmail,
   onAuthenticated,
   onPasswordReset,
   onVerificationRequired,
 }: {
   readonly hideOAuth: boolean;
   readonly initialEmail?: string;
+  readonly lockedEmail?: string;
   readonly onAuthenticated?: () => void;
   readonly onPasswordReset: () => void;
   readonly onVerificationRequired: (_verification: AuthEmailVerificationStateDTO) => void;
@@ -173,7 +183,7 @@ function LoginForm({
     formState: { errors },
   } = useForm<LoginFormValues>({
     defaultValues: {
-      email: initialEmail ?? "",
+      email: lockedEmail ?? initialEmail ?? "",
       password: "",
     },
     mode: "onSubmit",
@@ -183,12 +193,13 @@ function LoginForm({
 
   const submitForm = handleSubmit((values) => {
     setSubmitError(undefined);
+    const email = lockedEmail ?? values.email.trim();
 
-    login(toLoginInput(values), {
+    login(toLoginInput({ ...values, email }), {
       onError: (error) => {
         if (isEmailNotVerifiedError(error)) {
           onVerificationRequired({
-            email: values.email.trim(),
+            email,
             resendAvailableAt: new Date().toISOString(),
           });
           return;
@@ -217,7 +228,9 @@ function LoginForm({
           id="auth-email"
           type="email"
           autoComplete="email"
+          readOnly={Boolean(lockedEmail)}
           aria-invalid={Boolean(errors.email)}
+          className={lockedEmail ? "bg-muted/50 text-muted-foreground" : undefined}
           {...register("email")}
         />
         <FieldError message={errors.email?.message} />
@@ -264,9 +277,11 @@ function LoginForm({
 
 function PasswordResetRequestForm({
   initialEmail,
+  lockedEmail,
   onBack,
 }: {
   readonly initialEmail?: string;
+  readonly lockedEmail?: string;
   readonly onBack: () => void;
 }) {
   const [submitError, setSubmitError] = useState<string>();
@@ -278,7 +293,7 @@ function PasswordResetRequestForm({
     formState: { errors },
   } = useForm<PasswordResetRequestFormValues>({
     defaultValues: {
-      email: initialEmail ?? "",
+      email: lockedEmail ?? initialEmail ?? "",
     },
     mode: "onSubmit",
     resolver: zodResolver(passwordResetRequestFormSchema),
@@ -287,10 +302,13 @@ function PasswordResetRequestForm({
   const submitForm = handleSubmit((values) => {
     setSubmitError(undefined);
 
-    requestPasswordReset(toPasswordResetRequestInput(values), {
-      onSuccess: () => setIsSent(true),
-      onError: (error) => setSubmitError(getAuthErrorMessage(error)),
-    });
+    requestPasswordReset(
+      toPasswordResetRequestInput({ ...values, email: lockedEmail ?? values.email }),
+      {
+        onSuccess: () => setIsSent(true),
+        onError: (error) => setSubmitError(getAuthErrorMessage(error)),
+      },
+    );
   });
 
   if (isSent) {
@@ -317,7 +335,9 @@ function PasswordResetRequestForm({
           id="password-reset-email"
           type="email"
           autoComplete="email"
+          readOnly={Boolean(lockedEmail)}
           aria-invalid={Boolean(errors.email)}
+          className={lockedEmail ? "bg-muted/50 text-muted-foreground" : undefined}
           {...register("email")}
         />
         <FieldError message={errors.email?.message} />
@@ -450,10 +470,12 @@ export function PasswordResetForm({ token }: { readonly token?: string }) {
 function RegisterForm({
   hideOAuth,
   initialEmail,
+  lockedEmail,
   onVerificationRequired,
 }: {
   readonly hideOAuth: boolean;
   readonly initialEmail?: string;
+  readonly lockedEmail?: string;
   readonly onVerificationRequired: (_verification: AuthEmailVerificationStateDTO) => void;
 }) {
   const [submitError, setSubmitError] = useState<string>();
@@ -464,7 +486,7 @@ function RegisterForm({
     formState: { errors },
   } = useForm<RegisterFormValues>({
     defaultValues: {
-      email: initialEmail ?? "",
+      email: lockedEmail ?? initialEmail ?? "",
       name: "",
       password: "",
       passwordConfirm: "",
@@ -477,7 +499,7 @@ function RegisterForm({
   const submitForm = handleSubmit((values) => {
     setSubmitError(undefined);
 
-    registerUser(toRegisterInput(values), {
+    registerUser(toRegisterInput({ ...values, email: lockedEmail ?? values.email }), {
       onSuccess: (response) => {
         if (!response) {
           setSubmitError("Не удалось получить код подтверждения.");
@@ -505,7 +527,9 @@ function RegisterForm({
           id="register-email"
           type="email"
           autoComplete="email"
+          readOnly={Boolean(lockedEmail)}
           aria-invalid={Boolean(errors.email)}
+          className={lockedEmail ? "bg-muted/50 text-muted-foreground" : undefined}
           {...register("email")}
         />
         <FieldError message={errors.email?.message} />

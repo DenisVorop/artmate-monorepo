@@ -50,6 +50,7 @@ export function Checkout() {
   const { createOrder, isPending, error } = useCreateOrderMutation({
     onSuccess: handleOrderCreated,
   });
+  const pendingCustomerEmail = pendingOrderInput?.customer.email;
   const customerDefaults = useMemo<CheckoutCustomerDefaults>(
     () => ({
       ...(user?.email ? { email: user.email } : {}),
@@ -172,7 +173,9 @@ export function Checkout() {
           </DialogHeader>
           <AuthForm
             embedded
-            initialEmail={pendingOrderInput?.customer.email}
+            key={pendingCustomerEmail}
+            initialEmail={pendingCustomerEmail}
+            isEmailLocked={Boolean(pendingCustomerEmail)}
             onAuthenticated={handleCheckoutAuthenticated}
           />
         </DialogContent>

@@ -3,6 +3,7 @@ import { isIP } from "node:net";
 import {
   BadRequestException,
   Body,
+  ConflictException,
   Controller,
   Get,
   Headers,
@@ -98,7 +99,23 @@ export class AuthController {
     @Headers("x-real-ip") realIp: string | undefined,
     @Ip() requestIp: string | undefined,
   ) {
-    const user = await this.credentialsAuthService.registerUser(request);
+    let user: AuthUser | undefined;
+
+    try {
+      user = await this.credentialsAuthService.registerUser(request);
+    } catch (error) {
+      if (this.isUserAlreadyExistsError(error)) {
+        return {
+          status: "verification_required" as const,
+          verification: this.emailVerificationService.createGenericVerificationState(
+            request.email,
+          ),
+        };
+      }
+
+      throw error;
+    }
+
     const verification = await this.emailVerificationService.createAndSendCode({
       userId: user.id,
       email: user.email ?? request.email,
@@ -387,6 +404,25 @@ export class AuthController {
       sameSite: "lax",
       secure: process.env.NODE_ENV === "production",
     });
+  }
+
+  private isUserAlreadyExistsError(error: unknown) {
+    if (!(error instanceof ConflictException)) {
+      return false;
+    }
+
+    const response = error.getResponse();
+
+    if (typeof response === "string") {
+      return response === "User already exists";
+    }
+
+    return (
+      typeof response === "object" &&
+      response !== null &&
+      "message" in response &&
+      response.message === "User already exists"
+    );
   }
 
   private getSuccessRedirectUrl() {

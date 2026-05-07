@@ -4,7 +4,6 @@ import {
   HttpStatus,
   Injectable,
   InternalServerErrorException,
-  UnauthorizedException,
 } from "@nestjs/common";
 import crypto from "node:crypto";
 
@@ -79,7 +78,7 @@ export class EmailVerificationService {
       account.user.emailVerifiedAt ||
       !account.user.email
     ) {
-      return this.getGenericVerificationState(normalizedEmail);
+      return this.createGenericVerificationState(normalizedEmail);
     }
 
     return this.createAndSendCode({
@@ -87,6 +86,22 @@ export class EmailVerificationService {
       email: account.user.email,
       ipAddress,
     });
+  }
+
+  createGenericVerificationState(email: string): VerificationState {
+    const normalizedEmail = this.normalizeEmail(email);
+    const now = Date.now();
+
+    return {
+      email: normalizedEmail,
+      emailMasked: this.maskEmail(normalizedEmail),
+      expiresAt: new Date(
+        now + this.getCodeTtlSeconds() * 1000,
+      ).toISOString(),
+      resendAvailableAt: new Date(
+        now + this.getResendCooldownSeconds() * 1000,
+      ).toISOString(),
+    };
   }
 
   async confirmCode(email: string, code: string) {
@@ -111,11 +126,11 @@ export class EmailVerificationService {
     const user = account.user;
 
     if (user.status !== UserStatus.ACTIVE) {
-      throw new UnauthorizedException("User account is not active");
+      throw new BadRequestException("Invalid verification code");
     }
 
     if (user.emailVerifiedAt) {
-      throw new BadRequestException("Email is already verified");
+      throw new BadRequestException("Invalid verification code");
     }
 
     const verificationCode =
@@ -378,13 +393,6 @@ export class EmailVerificationService {
 
   private getCodeTtlMinutes() {
     return Math.max(1, Math.floor(this.getCodeTtlSeconds() / 60));
-  }
-
-  private getGenericVerificationState(email: string): VerificationState {
-    return {
-      email,
-      resendAvailableAt: new Date().toISOString(),
-    };
   }
 
   private createRateLimitException(message: string, retryAfterSeconds: number) {

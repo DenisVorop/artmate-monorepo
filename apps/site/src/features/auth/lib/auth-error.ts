@@ -72,7 +72,7 @@ export function getAuthErrorMessage(error: unknown) {
   }
 
   if (message === "User already exists") {
-    return "Пользователь с таким email уже есть";
+    return "Не удалось создать аккаунт. Попробуйте войти или восстановить пароль.";
   }
 
   if (message.includes("AUTH_JWT_SECRET")) {
