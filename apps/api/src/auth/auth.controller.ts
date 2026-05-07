@@ -1,3 +1,5 @@
+import { isIP } from "node:net";
+
 import {
   BadRequestException,
   Body,
@@ -426,18 +428,22 @@ export class AuthController {
   }
 
   private normalizeIpAddress(ipAddress: string | undefined) {
-    const normalizedIpAddress = ipAddress?.trim();
+    const rawIpAddress = ipAddress?.trim();
 
     if (
-      !normalizedIpAddress ||
-      normalizedIpAddress.toLowerCase() === "unknown"
+      !rawIpAddress ||
+      rawIpAddress.toLowerCase() === "unknown" ||
+      rawIpAddress.includes("\n") ||
+      rawIpAddress.includes("\r")
     ) {
       return undefined;
     }
 
-    return normalizedIpAddress.startsWith("::ffff:")
-      ? normalizedIpAddress.slice("::ffff:".length)
-      : normalizedIpAddress;
+    const normalizedIpAddress = rawIpAddress.startsWith("::ffff:")
+      ? rawIpAddress.slice("::ffff:".length)
+      : rawIpAddress;
+
+    return isIP(normalizedIpAddress) ? normalizedIpAddress : undefined;
   }
 
   private canTrustForwardedIp(ipAddress: string) {

@@ -2,21 +2,51 @@
 	email {$ACME_EMAIL}
 }
 
+(security_headers) {
+	header {
+		Strict-Transport-Security "max-age=31536000; includeSubDomains; preload"
+		X-Content-Type-Options "nosniff"
+		X-Frame-Options "DENY"
+		Referrer-Policy "strict-origin-when-cross-origin"
+		Cross-Origin-Opener-Policy "same-origin"
+		Permissions-Policy "camera=(), geolocation=(), microphone=(), payment=()"
+		Content-Security-Policy "base-uri 'self'; frame-ancestors 'none'; object-src 'none'; upgrade-insecure-requests"
+		-Server
+	}
+}
+
+(proxy_headers) {
+	header_up X-Forwarded-For {remote_host}
+	header_up X-Real-IP {remote_host}
+	header_up X-Forwarded-Proto {scheme}
+	header_up X-Forwarded-Host {host}
+}
+
 art-mate.ru {
+	import security_headers
 	redir https://www.art-mate.ru{uri} permanent
 }
 
 www.art-mate.ru {
+	import security_headers
 	encode zstd gzip
-	reverse_proxy site:3000
+	reverse_proxy site:3000 {
+		import proxy_headers
+	}
 }
 
 admin.art-mate.ru {
+	import security_headers
 	encode zstd gzip
-	reverse_proxy admin:3003
+	reverse_proxy admin:3003 {
+		import proxy_headers
+	}
 }
 
 api.art-mate.ru {
+	import security_headers
 	encode zstd gzip
-	reverse_proxy api:3002
+	reverse_proxy api:3002 {
+		import proxy_headers
+	}
 }

@@ -3,6 +3,7 @@
 import { cookies } from "next/headers";
 
 import { ApiResult, type ApiResultDTO } from "@/shared/lib/api-result";
+import { apiCsrfHeader } from "@/shared/lib/api-security";
 
 import type {
   CalculateCheckoutInputDTO,
@@ -99,6 +100,7 @@ async function requestOrders<T>(path: string, init: RequestInit = {}) {
       "content-type": "application/json",
       ...(cookieHeader ? { cookie: cookieHeader } : {}),
       ...init.headers,
+      ...apiCsrfHeader,
     },
   });
 

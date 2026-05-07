@@ -2,6 +2,8 @@
 
 import { cookies, headers } from "next/headers";
 
+import { apiCsrfHeader, getForwardedIpHeaders } from "@/shared/lib/api-security";
+
 import type { AuthSessionDTO, LoginInputDTO, LogoutDTO } from "./auth.types";
 
 const AUTH_ACCESS_TOKEN_COOKIE_NAME = "artmate_access_token";
@@ -65,6 +67,7 @@ async function requestAuth<T>(
         : {}),
       ...getForwardedIpHeaders(headerStore),
       ...init.headers,
+      ...apiCsrfHeader,
     },
   });
 
@@ -153,19 +156,6 @@ function parseSetCookie(header: string | null, name: string) {
 
 function getApiBaseUrl() {
   return process.env.API_BASE_URL ?? DEFAULT_API_BASE_URL;
-}
-
-function getForwardedIpHeaders(headerStore: Headers) {
-  const forwardedFor = headerStore.get("x-forwarded-for");
-  const realIp =
-    headerStore.get("x-real-ip") ??
-    headerStore.get("cf-connecting-ip") ??
-    headerStore.get("true-client-ip");
-
-  return {
-    ...(forwardedFor ? { "x-forwarded-for": forwardedFor } : {}),
-    ...(realIp ? { "x-real-ip": realIp } : {}),
-  };
 }
 
 async function getErrorMessage(response: Response) {

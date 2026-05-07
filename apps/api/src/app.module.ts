@@ -1,10 +1,12 @@
-import { Module } from "@nestjs/common";
+import { MiddlewareConsumer, Module, NestModule } from "@nestjs/common";
 
 import { AppController } from "./app.controller";
 import { AppService } from "./app.service";
 import { AuthModule } from "./auth/auth.module";
 import { BlogModule } from "./blog/blog.module";
 import { CartModule } from "./cart/cart.module";
+import { CsrfMiddleware } from "./common/csrf.middleware";
+import { SecurityHeadersMiddleware } from "./common/security-headers.middleware";
 import { ContactsModule } from "./contacts/contacts.module";
 import { ContentAssistantModule } from "./content-assistant/content-assistant.module";
 import { OrdersModule } from "./orders/orders.module";
@@ -31,4 +33,8 @@ import { UsersModule } from "./users/users.module";
   controllers: [AppController],
   providers: [AppService],
 })
-export class AppModule {}
+export class AppModule implements NestModule {
+  configure(consumer: MiddlewareConsumer) {
+    consumer.apply(SecurityHeadersMiddleware, CsrfMiddleware).forRoutes("*");
+  }
+}

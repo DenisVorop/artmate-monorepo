@@ -3,6 +3,7 @@
 import { cookies } from "next/headers";
 
 import { ApiResult, type ApiResultDTO } from "@/shared/lib/api-result";
+import { apiCsrfHeader } from "@/shared/lib/api-security";
 
 import type {
   AddCartItemInputDTO,
@@ -80,6 +81,7 @@ async function requestCart(path: string, init: RequestInit = {}) {
       "content-type": "application/json",
       ...(cartId ? { cookie: `${CART_COOKIE_NAME}=${encodeURIComponent(cartId)}` } : {}),
       ...init.headers,
+      ...apiCsrfHeader,
     },
   });
 

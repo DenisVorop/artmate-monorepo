@@ -1,6 +1,7 @@
 "use server";
 
 import { ApiResult, type ApiResultDTO } from "@/shared/lib/api-result";
+import { apiCsrfHeader } from "@/shared/lib/api-security";
 
 import type {
   ContactMessageResultDTO,
@@ -29,6 +30,7 @@ async function requestContactForm<T>(path: string, init: RequestInit = {}) {
     headers: {
       "content-type": "application/json",
       ...init.headers,
+      ...apiCsrfHeader,
     },
   });
 

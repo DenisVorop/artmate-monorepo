@@ -2,6 +2,8 @@
 
 import { cookies, headers } from "next/headers";
 
+import { apiCsrfHeader, getForwardedIpHeaders } from "@/shared/lib/api-security";
+
 import type {
   AdminUserDTO,
   UpdateAdminUserRolesInputDTO,
@@ -57,6 +59,7 @@ async function requestAdminApi<T>(path: string, init: RequestInit = {}) {
         : {}),
       ...getForwardedIpHeaders(headerStore),
       ...init.headers,
+      ...apiCsrfHeader,
     },
   });
 
@@ -69,19 +72,6 @@ async function requestAdminApi<T>(path: string, init: RequestInit = {}) {
 
 function getApiBaseUrl() {
   return process.env.API_BASE_URL ?? DEFAULT_API_BASE_URL;
-}
-
-function getForwardedIpHeaders(headerStore: Headers) {
-  const forwardedFor = headerStore.get("x-forwarded-for");
-  const realIp =
-    headerStore.get("x-real-ip") ??
-    headerStore.get("cf-connecting-ip") ??
-    headerStore.get("true-client-ip");
-
-  return {
-    ...(forwardedFor ? { "x-forwarded-for": forwardedFor } : {}),
-    ...(realIp ? { "x-real-ip": realIp } : {}),
-  };
 }
 
 async function getErrorMessage(response: Response) {
