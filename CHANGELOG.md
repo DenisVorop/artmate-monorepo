@@ -1,5 +1,21 @@
 # Changelog
 
+## [0.10.0](https://github.com/DenisVorop/artmate-monorepo/compare/v0.9.0...v0.10.0) (2026-05-07)
+
+
+### Features
+
+* **auth:** add password reset and email credentials ([c13d5d9](https://github.com/DenisVorop/artmate-monorepo/commit/c13d5d9d86d1f46684ccad6ba9ac49e643cf269f))
+* **security:** add csrf and browser hardening ([9ba11cb](https://github.com/DenisVorop/artmate-monorepo/commit/9ba11cb247a5feb50896df878f290d659bd312d2))
+* **site:** resume checkout after authentication ([f3eaf62](https://github.com/DenisVorop/artmate-monorepo/commit/f3eaf6282359cabc76d9523196d75e92f492f2b3))
+
+
+### Bug Fixes
+
+* **api:** require authenticated order ownership ([82f0fc1](https://github.com/DenisVorop/artmate-monorepo/commit/82f0fc1acf03c314f5a2c9d4e41d6c80b3f4f6cd))
+* **auth:** prevent checkout email spoofing and enumeration ([955f213](https://github.com/DenisVorop/artmate-monorepo/commit/955f213f28c6c94f236fb53099eced63371d4beb))
+* **seo:** sanitize json ld structured data ([140f687](https://github.com/DenisVorop/artmate-monorepo/commit/140f687e83ebe691eedf62bc18907caa742f61d6))
+
 ## [0.9.0](https://github.com/DenisVorop/artmate-monorepo/compare/v0.8.0...v0.9.0) (2026-05-07)
 
 
