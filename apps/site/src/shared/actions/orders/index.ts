@@ -11,6 +11,7 @@ export type {
   CalculateCheckoutInputDTO,
   CheckoutCalculationDTO,
   ConfirmOrderPaymentInputDTO,
+  CreateOrderDeliveryInputDTO,
   CreateOrderInputDTO,
   OrderCustomerDTO,
   OrderDeliveryDTO,

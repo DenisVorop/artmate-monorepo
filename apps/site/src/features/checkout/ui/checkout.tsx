@@ -1,7 +1,7 @@
 "use client";
 
 import { ArrowLeft, ShoppingBag } from "lucide-react";
-import { useEffect, useMemo, useState } from "react";
+import { useMemo } from "react";
 import { useRouter } from "next/navigation";
 
 import { useCartData } from "@/entities/cart";
@@ -11,30 +11,19 @@ import { Button, DataState } from "@/shared/ui";
 import { Link } from "@/shared/ui/link";
 import { PageTitle } from "@/shared/ui/typography";
 
-import { useCheckoutCalculation, useCreateOrderMutation, useOzonPickupPoints } from "../model";
+import { useCreateOrderMutation } from "../model";
 import {
-  getSelectedDeliveryPoint,
-  markPendingOrderPayment,
   type CheckoutCreateOrderInput,
   type CheckoutCustomerDefaults,
-  type CheckoutDeliveryCityId,
 } from "../lib";
 
 import { CheckoutForm } from "./form";
 import { OrderSummary } from "./order-summary";
-import { PickupPointSelector } from "./pickup-point-selector";
 
 export function Checkout() {
   const router = useRouter();
   const user = useUser();
   const cart = useCartData();
-  const [cityId, setCityId] = useState<CheckoutDeliveryCityId>("moscow");
-  const [selectedPickupPointId, setSelectedPickupPointId] = useState("");
-  const pickupPoints = useOzonPickupPoints(cityId);
-  const pointInfo = useMemo(() => pickupPoints.data?.points ?? [], [pickupPoints.data?.points]);
-  const selectedPoint = getSelectedDeliveryPoint(pointInfo, selectedPickupPointId);
-  const selectedPickupPointAddress = selectedPoint?.available ? selectedPoint.address : undefined;
-  const calculation = useCheckoutCalculation(selectedPickupPointAddress);
   const { createOrder, isPending, error } = useCreateOrderMutation();
   const customerDefaults = useMemo<CheckoutCustomerDefaults>(
     () => ({
@@ -43,43 +32,13 @@ export function Checkout() {
     }),
     [user?.email, user?.name],
   );
-  const canSubmitOrder = Boolean(
-    selectedPoint?.available &&
-    calculation.data &&
-    !calculation.isError &&
-    !calculation.isPending &&
-    !calculation.isFetching,
-  );
-
-  useEffect(() => {
-    if (pointInfo.length === 0) {
-      setSelectedPickupPointId("");
-
-      return;
-    }
-
-    const currentPoint = getSelectedDeliveryPoint(pointInfo, selectedPickupPointId);
-
-    if (currentPoint?.available) {
-      return;
-    }
-
-    const firstAvailablePoint = pointInfo.find((point) => point.available);
-
-    setSelectedPickupPointId(firstAvailablePoint ? String(firstAvailablePoint.map_point_id) : "");
-  }, [pointInfo, selectedPickupPointId]);
 
   const handleSubmit = async (input: CheckoutCreateOrderInput) => {
-    if (!canSubmitOrder) {
-      return;
-    }
-
     try {
       const order = await createOrder(input);
 
-      if (order?.payment.redirectUrl) {
-        markPendingOrderPayment(order.id);
-        router.push(order.payment.redirectUrl);
+      if (order?.id) {
+        router.push(`${routes.checkoutSuccess}?orderId=${encodeURIComponent(order.id)}`);
       }
     } catch {
       // Ошибка уже сохранена в mutation state и показана под формой.
@@ -91,7 +50,7 @@ export function Checkout() {
       <section className="container py-10">
         <DataState
           title="Готовим оформление"
-          description="Проверяем товары в корзине и доступные способы доставки."
+          description="Проверяем товары в корзине перед отправкой заказа."
         />
       </section>
     );
@@ -133,9 +92,10 @@ export function Checkout() {
       <div className="mb-8 flex flex-col justify-between gap-4 sm:flex-row sm:items-end">
         <div className="space-y-2">
           <p className="text-sm font-medium tracking-wide text-rose-500 uppercase">Оформление</p>
-          <PageTitle className="text-foreground">Доставка и оплата</PageTitle>
+          <PageTitle className="text-foreground">Оформление заказа</PageTitle>
           <p className="max-w-2xl text-muted-foreground">
-            Выберите ПВЗ Ozon, проверьте контакты и перейдите к защищенной оплате заказа.
+            Проверьте товары, оставьте контакты и отправьте заказ. Мы свяжемся для подтверждения
+            деталей.
           </p>
         </div>
 
@@ -149,39 +109,9 @@ export function Checkout() {
 
       <div className="grid gap-6 lg:grid-cols-[minmax(0,1fr)_22rem] lg:items-start">
         <div className="space-y-4">
-          <PickupPointSelector
-            cityId={cityId}
-            map={pickupPoints.data?.map}
-            points={pointInfo}
-            selectedPickupPointId={selectedPickupPointId}
-            isPending={pickupPoints.isPending}
-            isFetching={pickupPoints.isFetching}
-            isError={pickupPoints.isError}
-            error={pickupPoints.error}
-            onCityChange={(nextCityId) => {
-              setCityId(nextCityId);
-              setSelectedPickupPointId("");
-            }}
-            onPickupPointChange={setSelectedPickupPointId}
-            onRetry={() => {
-              void pickupPoints.refetch();
-            }}
-          />
-
-          {calculation.isError && selectedPickupPointAddress && (
-            <DataState
-              variant="error"
-              title="Не удалось рассчитать доставку"
-              description={getQueryErrorMessage(calculation.error)}
-              className="max-w-none"
-            />
-          )}
-
           <CheckoutForm
-            selectedPickupPointAddress={selectedPickupPointAddress ?? ""}
             customerDefaults={customerDefaults}
             isSubmitting={isPending}
-            isSubmitDisabled={!canSubmitOrder}
             onSubmit={handleSubmit}
           />
 
@@ -195,20 +125,10 @@ export function Checkout() {
           )}
         </div>
 
-        <OrderSummary
-          cart={cart.data}
-          calculation={calculation.data}
-          selectedPoint={selectedPoint}
-          isCalculationPending={calculation.isPending || calculation.isFetching}
-          isCalculationError={calculation.isError}
-        />
+        <OrderSummary cart={cart.data} />
       </div>
     </section>
   );
-}
-
-function getQueryErrorMessage(error: Error | null) {
-  return error?.message || "Выберите другой ПВЗ или попробуйте обновить расчет.";
 }
 
 function getMutationErrorMessage(error: Error) {

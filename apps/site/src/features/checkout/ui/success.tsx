@@ -1,8 +1,9 @@
 "use client";
 
 import { CheckCircle2, ShoppingBag } from "lucide-react";
-import { useEffect, useRef, useState, type ReactNode } from "react";
+import type { ReactNode } from "react";
 
+import { useOrderData } from "@/entities/orders";
 import { routes } from "@/shared/constants";
 import {
   Button,
@@ -15,35 +16,14 @@ import {
 } from "@/shared/ui";
 import { Link } from "@/shared/ui/link";
 
-import { canConfirmPendingOrderPayment, formatMoney, type CheckoutOrder } from "../lib";
-import { useConfirmOrderPaymentMutation } from "../model";
+import { formatMoney, type CheckoutOrder } from "../lib";
 
 type CheckoutSuccessProps = {
   orderId?: string;
 };
 
 export function CheckoutSuccess({ orderId }: CheckoutSuccessProps) {
-  const submittedOrderIdRef = useRef<string | undefined>(undefined);
-  const [canConfirmOrder, setCanConfirmOrder] = useState<boolean>();
-  const { confirmPayment, order, error, isError, isPending, isSuccess } =
-    useConfirmOrderPaymentMutation();
-
-  useEffect(() => {
-    if (!orderId) {
-      return;
-    }
-
-    setCanConfirmOrder(canConfirmPendingOrderPayment(orderId));
-  }, [orderId]);
-
-  useEffect(() => {
-    if (!orderId || !canConfirmOrder || submittedOrderIdRef.current === orderId) {
-      return;
-    }
-
-    submittedOrderIdRef.current = orderId;
-    void confirmPayment({ orderId });
-  }, [canConfirmOrder, confirmPayment, orderId]);
+  const { data: order, error, isError, isPending } = useOrderData({ orderId });
 
   if (!orderId) {
     return (
@@ -55,21 +35,11 @@ export function CheckoutSuccess({ orderId }: CheckoutSuccessProps) {
     );
   }
 
-  if (canConfirmOrder === false) {
+  if (isPending) {
     return (
       <CheckoutSuccessState
-        variant="error"
-        title="Не удалось подтвердить оплату"
-        description="Эта ссылка не связана с текущим оформлением заказа."
-      />
-    );
-  }
-
-  if (canConfirmOrder === undefined || isPending || (!isError && !isSuccess)) {
-    return (
-      <CheckoutSuccessState
-        title="Подтверждаем оплату"
-        description="Проверяем заказ и обновляем статус оплаты."
+        title="Загружаем заказ"
+        description="Проверяем детали заказа."
       />
     );
   }
@@ -78,7 +48,7 @@ export function CheckoutSuccess({ orderId }: CheckoutSuccessProps) {
     return (
       <CheckoutSuccessState
         variant="error"
-        title="Не удалось подтвердить оплату"
+        title="Не удалось загрузить заказ"
         description={error?.message ?? "Проверьте ссылку или попробуйте позже."}
       />
     );
@@ -96,10 +66,9 @@ function CheckoutSuccessDetails({ order }: { order: CheckoutOrder }) {
             <CheckCircle2 className="size-6" />
           </span>
           <div className="space-y-2">
-            <CardTitle className="text-2xl">Заказ оплачен</CardTitle>
+            <CardTitle className="text-2xl">Заказ принят</CardTitle>
             <CardDescription>
-              Заказ {order.id} принят. Мы подготовим отправление и передадим его в выбранный ПВЗ
-              Ozon.
+              Заказ {order.id} принят. Мы свяжемся с вами для подтверждения деталей.
             </CardDescription>
           </div>
         </CardHeader>
@@ -112,10 +81,9 @@ function CheckoutSuccessDetails({ order }: { order: CheckoutOrder }) {
               <p>{order.customer.email}</p>
             </InfoBlock>
 
-            <InfoBlock title="Пункт выдачи">
-              <p>{order.delivery.pickupPoint.title}</p>
-              <p>{order.delivery.pickupPoint.address}</p>
-              <p>{order.delivery.pickupPoint.workHours}</p>
+            <InfoBlock title="Статус">
+              <p>Заявка передана менеджеру</p>
+              <p>Детали заказа согласуем отдельно</p>
             </InfoBlock>
           </div>
 
@@ -125,10 +93,6 @@ function CheckoutSuccessDetails({ order }: { order: CheckoutOrder }) {
             <div className="flex items-center justify-between gap-4">
               <span className="text-muted-foreground">Товары</span>
               <span className="font-medium">{formatMoney(order.subtotal)}</span>
-            </div>
-            <div className="flex items-center justify-between gap-4">
-              <span className="text-muted-foreground">Доставка</span>
-              <span className="font-medium">{formatMoney(order.deliveryPrice)}</span>
             </div>
             <div className="flex items-center justify-between gap-4 text-lg font-semibold">
               <span>Итого</span>

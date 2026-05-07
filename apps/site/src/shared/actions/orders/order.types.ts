@@ -13,6 +13,11 @@ export type OzonPickupPointDTO = {
   deliveryPrice: number;
 };
 
+export type CreateOrderDeliveryInputDTO = {
+  provider: OrderDeliveryProviderDTO;
+  pickupPointAddress: string;
+};
+
 export type OrderCustomerDTO = {
   name: string;
   phone: string;
@@ -60,19 +65,12 @@ export type CheckoutCalculationDTO = {
 
 export type CreateOrderInputDTO = {
   customer: OrderCustomerDTO;
-  delivery: {
-    provider: OrderDeliveryProviderDTO;
-    pickupPointAddress: string;
-  };
-  payment: {
-    method: OrderPaymentMethodDTO;
-  };
   comment?: string;
   acceptedLegal: boolean;
 };
 
 export type CalculateCheckoutInputDTO = {
-  delivery: CreateOrderInputDTO["delivery"];
+  delivery: CreateOrderDeliveryInputDTO;
 };
 
 export type ConfirmOrderPaymentInputDTO = {

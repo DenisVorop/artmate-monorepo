@@ -21,15 +21,15 @@ export class CreateOrderRequestDTO {
   @Type(() => OrderCustomerDTO)
   customer!: OrderCustomerDTO;
 
-  @IsDefined()
+  @IsOptional()
   @ValidateNested()
   @Type(() => CreateOrderDeliveryRequestDTO)
-  delivery!: CreateOrderDeliveryRequestDTO;
+  delivery?: CreateOrderDeliveryRequestDTO;
 
-  @IsDefined()
+  @IsOptional()
   @ValidateNested()
   @Type(() => CreateOrderPaymentRequestDTO)
-  payment!: CreateOrderPaymentRequestDTO;
+  payment?: CreateOrderPaymentRequestDTO;
 
   @IsOptional()
   @IsString()

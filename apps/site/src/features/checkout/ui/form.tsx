@@ -1,7 +1,7 @@
 "use client";
 
 import { zodResolver } from "@hookform/resolvers/zod";
-import { CreditCard, LoaderCircle } from "lucide-react";
+import { LoaderCircle, Send } from "lucide-react";
 import { useEffect, useMemo } from "react";
 import { useForm } from "react-hook-form";
 
@@ -30,32 +30,24 @@ import {
 } from "../lib";
 
 type CheckoutFormProps = {
-  selectedPickupPointAddress: string;
   customerDefaults?: CheckoutCustomerDefaults;
   isSubmitting: boolean;
-  isSubmitDisabled: boolean;
   onSubmit: (_input: ReturnType<typeof toCreateOrderInput>) => Promise<void>;
 };
 
 export function CheckoutForm({
-  selectedPickupPointAddress,
   customerDefaults,
   isSubmitting,
-  isSubmitDisabled,
   onSubmit,
 }: CheckoutFormProps) {
   const defaultValues = useMemo(
-    () => ({
-      ...getDefaultCheckoutFormValues(customerDefaults),
-      pickupPointAddress: selectedPickupPointAddress,
-    }),
-    [customerDefaults, selectedPickupPointAddress],
+    () => getDefaultCheckoutFormValues(customerDefaults),
+    [customerDefaults],
   );
   const {
     register,
     handleSubmit,
     reset,
-    setValue,
     formState: { errors, isDirty },
   } = useForm<CheckoutFormValues>({
     defaultValues,
@@ -70,25 +62,16 @@ export function CheckoutForm({
     }
   }, [defaultValues, isDirty, reset]);
 
-  useEffect(() => {
-    setValue("pickupPointAddress", selectedPickupPointAddress, {
-      shouldDirty: false,
-      shouldValidate: false,
-    });
-  }, [selectedPickupPointAddress, setValue]);
-
   const submitForm = handleSubmit(async (values) => {
     await onSubmit(toCreateOrderInput(values));
   });
 
   return (
     <form onSubmit={submitForm} className="space-y-4">
-      <input type="hidden" {...register("pickupPointAddress")} />
-
       <Card>
         <CardHeader>
-          <CardTitle>Контакты</CardTitle>
-          <CardDescription>Используем эти данные для заказа и уведомлений.</CardDescription>
+          <CardTitle>Оформление заказа</CardTitle>
+          <CardDescription>Оставьте контакты, и мы свяжемся для подтверждения.</CardDescription>
         </CardHeader>
         <CardContent className="grid gap-4 sm:grid-cols-2">
           <div className="space-y-2">
@@ -135,31 +118,8 @@ export function CheckoutForm({
             />
             <FieldError message={errors.email?.message} />
           </div>
-        </CardContent>
-      </Card>
 
-      <Card>
-        <CardHeader>
-          <CardTitle>Оплата</CardTitle>
-          <CardDescription>
-            Оплата проходит на защищенной платежной странице Ozon Pay.
-          </CardDescription>
-        </CardHeader>
-        <CardContent className="space-y-4">
-          <div className="flex items-center gap-3 rounded-lg border bg-muted/40 p-4">
-            <span className="flex size-9 shrink-0 items-center justify-center rounded-lg bg-background text-muted-foreground ring-1 ring-border">
-              <CreditCard className="size-4" />
-            </span>
-            <div>
-              <p className="font-medium">Онлайн-оплата картой</p>
-              <p className="text-sm text-muted-foreground">
-                После подтверждения заказа откроется платежная страница. Artmate не хранит реквизиты
-                банковских карт.
-              </p>
-            </div>
-          </div>
-
-          <div className="space-y-2">
+          <div className="space-y-2 sm:col-span-2">
             <Label htmlFor="checkout-comment">
               Комментарий <span className="text-muted-foreground">(необязательно)</span>
             </Label>
@@ -173,7 +133,7 @@ export function CheckoutForm({
             <FieldError message={errors.comment?.message} />
           </div>
 
-          <label className="flex items-start gap-3 text-sm">
+          <label className="flex items-start gap-3 text-sm sm:col-span-2">
             <input
               type="checkbox"
               className="mt-0.5 size-4 rounded border-border accent-rose-500"
@@ -192,22 +152,24 @@ export function CheckoutForm({
               .
             </span>
           </label>
-          <FieldError message={errors.acceptedLegal?.message} />
+          <div className="sm:col-span-2">
+            <FieldError message={errors.acceptedLegal?.message} />
+          </div>
         </CardContent>
       </Card>
 
       <Button
         type="submit"
         size="lg"
-        disabled={isSubmitting || isSubmitDisabled}
+        disabled={isSubmitting}
         className="h-11 w-full bg-gradient-to-r from-rose-500 to-orange-400 text-white shadow-lg shadow-rose-500/20 hover:from-rose-600 hover:to-orange-500"
       >
         {isSubmitting ? (
           <LoaderCircle data-icon="inline-start" className="animate-spin" />
         ) : (
-          <CreditCard data-icon="inline-start" />
+          <Send data-icon="inline-start" />
         )}
-        Перейти к оплате
+        Отправить заказ
       </Button>
     </form>
   );

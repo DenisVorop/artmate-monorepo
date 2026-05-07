@@ -14,6 +14,7 @@ import type {
   OrderStateDTO,
   PickupPointDTO,
 } from "./dto";
+import { OrdersTelegramService } from "./orders-telegram.service";
 import { OrdersStorage } from "./orders.storage";
 
 const MAX_COMMENT_LENGTH = ORDER_COMMENT_MAX_LENGTH;
@@ -25,6 +26,7 @@ export class OrdersService {
     private readonly cartService: CartService,
     private readonly ozonLogisticsService: OzonLogisticsService,
     private readonly ordersStorage: OrdersStorage,
+    private readonly ordersTelegramService: OrdersTelegramService,
   ) {}
 
   getPickupPoints(): Promise<PickupPointDTO[]> {
@@ -90,8 +92,8 @@ export class OrdersService {
     }
 
     const customer = this.parseCustomer(request.customer);
-    const pickupPoint = this.parsePickupPoint(request.delivery);
-    const paymentMethod = request.payment?.method;
+    const pickupPoint = this.getFormOrderDelivery();
+    const paymentMethod = request.payment?.method ?? "bank_card_mock";
     const comment = this.parseComment(request.comment);
 
     if (paymentMethod !== "bank_card_mock") {
@@ -102,7 +104,7 @@ export class OrdersService {
       throw new BadRequestException("Legal terms must be accepted");
     }
 
-    return this.ordersStorage.createOrder({
+    const order = await this.ordersStorage.createOrder({
       userId: user?.id,
       cartId: cartDTO.id,
       customer,
@@ -115,6 +117,10 @@ export class OrdersService {
       subtotal: cartDTO.subtotal,
       comment,
     });
+    await this.ordersTelegramService.sendOrderCreated(order);
+    await this.cartService.clearCart(order.cartId);
+
+    return order;
   }
 
   async confirmPayment(orderId: string): Promise<OrderDTO> {
@@ -158,9 +164,19 @@ export class OrdersService {
 
     return {
       id: "manual-ozon-pickup",
-      title: "ПВЗ Ozon",
+      title: "Заявка из формы",
       address: pickupPointAddress,
       workHours: "Уточняется",
+      deliveryPrice: 0,
+    };
+  }
+
+  private getFormOrderDelivery(): PickupPointDTO {
+    return {
+      id: "telegram-order",
+      title: "Заявка из формы",
+      address: "Детали согласуются после подтверждения заказа",
+      workHours: "Менеджер свяжется с клиентом",
       deliveryPrice: 0,
     };
   }

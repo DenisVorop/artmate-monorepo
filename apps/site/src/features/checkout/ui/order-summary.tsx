@@ -1,39 +1,21 @@
 import Image from "next/image";
-import { LoaderCircle } from "lucide-react";
 
 import type { Cart } from "@/entities/cart";
 import { shouldBypassNextImageOptimization } from "@/shared/lib";
 import { Card, CardContent, CardDescription, CardHeader, CardTitle, Separator } from "@/shared/ui";
 
-import { formatMoney, type CheckoutCalculation, type CheckoutDeliveryPoint } from "../lib";
+import { formatMoney } from "../lib";
 
 type OrderSummaryProps = {
   cart: Cart;
-  calculation?: CheckoutCalculation;
-  selectedPoint?: CheckoutDeliveryPoint;
-  isCalculationPending: boolean;
-  isCalculationError: boolean;
 };
 
-export function OrderSummary({
-  cart,
-  calculation,
-  selectedPoint,
-  isCalculationPending,
-  isCalculationError,
-}: OrderSummaryProps) {
-  const pickupPoint = calculation?.delivery.pickupPoint;
-  const selectedPointTitle = pickupPoint?.title ?? selectedPoint?.name;
-  const selectedPointAddress = pickupPoint?.address ?? selectedPoint?.address;
-  const selectedPointWorkHours = pickupPoint?.workHours ?? selectedPoint?.work_hours;
-
+export function OrderSummary({ cart }: OrderSummaryProps) {
   return (
     <Card className="lg:sticky lg:top-24">
       <CardHeader>
         <CardTitle>Ваш заказ</CardTitle>
-        <CardDescription>
-          {cart.itemsCount} товаров с расчетом доставки Ozon Pickup
-        </CardDescription>
+        <CardDescription>{cart.itemsCount} товаров в корзине</CardDescription>
       </CardHeader>
       <CardContent className="space-y-4">
         <ul className="space-y-3">
@@ -65,40 +47,15 @@ export function OrderSummary({
         <div className="space-y-2 text-sm">
           <div className="flex items-center justify-between gap-4">
             <span className="text-muted-foreground">Товары</span>
-            <span className="font-medium">{formatMoney(calculation?.subtotal ?? cart.subtotal)}</span>
-          </div>
-          <div className="flex items-center justify-between gap-4">
-            <span className="text-muted-foreground">Доставка</span>
-            <span className="font-medium">
-              {isCalculationPending && (
-                <LoaderCircle className="size-4 animate-spin text-muted-foreground" />
-              )}
-              {!isCalculationPending &&
-                (isCalculationError
-                  ? "недоступно"
-                  : calculation
-                    ? formatMoney(calculation.deliveryPrice)
-                    : "—")}
-            </span>
+            <span className="font-medium">{formatMoney(cart.subtotal)}</span>
           </div>
         </div>
-
-        {selectedPointTitle && selectedPointAddress && selectedPointWorkHours && (
-          <>
-            <Separator />
-            <div className="space-y-1 text-sm">
-              <p className="font-medium">{selectedPointTitle}</p>
-              <p className="text-muted-foreground">{selectedPointAddress}</p>
-              <p className="text-muted-foreground">{selectedPointWorkHours}</p>
-            </div>
-          </>
-        )}
 
         <Separator />
 
         <div className="flex items-center justify-between text-lg font-semibold">
-          <span>К оплате</span>
-          <span>{calculation ? formatMoney(calculation.total) : "—"}</span>
+          <span>Итого</span>
+          <span>{formatMoney(cart.subtotal)}</span>
         </div>
       </CardContent>
     </Card>

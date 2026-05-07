@@ -26,12 +26,12 @@ type OrderCardProps = {
 
 const orderStatusMeta = {
   paid: {
-    label: "Оплачен",
+    label: "Завершен",
     className: "border-emerald-200 bg-emerald-50 text-emerald-700",
   },
   pending_payment: {
-    label: "Ожидает оплаты",
-    className: "border-amber-200 bg-amber-50 text-amber-700",
+    label: "В обработке",
+    className: "border-sky-200 bg-sky-50 text-sky-700",
   },
 } satisfies Record<Order["status"], { label: string; className: string }>;
 
@@ -83,10 +83,10 @@ export function OrderCard({ order }: OrderCardProps) {
           <div className="space-y-1 rounded-lg border bg-muted/30 p-4">
             <p className="flex items-center gap-2 font-medium">
               <MapPin className="size-4 text-rose-500" />
-              Пункт выдачи
+              Детали заказа
             </p>
-            <p className="text-muted-foreground">{order.delivery.pickupPoint.title}</p>
-            <p className="text-muted-foreground">{order.delivery.pickupPoint.address}</p>
+            <p className="text-muted-foreground">Заявка передана менеджеру</p>
+            <p className="text-muted-foreground">Детали согласуем отдельно</p>
           </div>
         </div>
 

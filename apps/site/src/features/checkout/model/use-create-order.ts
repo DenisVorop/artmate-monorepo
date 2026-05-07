@@ -1,11 +1,13 @@
 "use client";
 
-import { useMutation } from "@tanstack/react-query";
+import { useMutation, useQueryClient } from "@tanstack/react-query";
 
+import { cartQuery } from "@/entities/cart";
 import { createOrder, type CreateOrderInputDTO } from "@/shared/actions/orders";
 import { ApiResult } from "@/shared/lib/api-result";
 
 export function useCreateOrderMutation() {
+  const queryClient = useQueryClient();
   const {
     mutateAsync: createOrderMutation,
     isPending,
@@ -13,6 +15,9 @@ export function useCreateOrderMutation() {
   } = useMutation({
     mutationFn: async (input: CreateOrderInputDTO) =>
       ApiResult.fromDTO(await createOrder(input)).unwrap(),
+    onSuccess: () => {
+      queryClient.setQueryData(cartQuery.getCart().queryKey, null);
+    },
   });
 
   return {

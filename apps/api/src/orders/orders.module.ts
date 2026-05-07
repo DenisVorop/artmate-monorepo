@@ -5,12 +5,13 @@ import { CartModule } from "../cart/cart.module";
 import { OzonModule } from "../ozon/ozon.module";
 
 import { OrdersController } from "./orders.controller";
+import { OrdersTelegramService } from "./orders-telegram.service";
 import { OrdersService } from "./orders.service";
 import { OrdersStorage } from "./orders.storage";
 
 @Module({
   imports: [AuthModule, CartModule, OzonModule],
   controllers: [OrdersController],
-  providers: [OrdersService, OrdersStorage],
+  providers: [OrdersService, OrdersStorage, OrdersTelegramService],
 })
 export class OrdersModule {}
