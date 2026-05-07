@@ -1,5 +1,15 @@
 # Changelog
 
+## [0.9.0](https://github.com/DenisVorop/artmate-monorepo/compare/v0.8.0...v0.9.0) (2026-05-07)
+
+
+### Features
+
+* add email verification flow ([62dbf5c](https://github.com/DenisVorop/artmate-monorepo/commit/62dbf5caa3af3e97836ba23526d4d5aac2f9af8a))
+* simplify checkout order flow ([f06e3ea](https://github.com/DenisVorop/artmate-monorepo/commit/f06e3ea75de5d07121bdcf90c66d22ad1e99c62b))
+* **site:** add cookie consent and marketplace links ([c854870](https://github.com/DenisVorop/artmate-monorepo/commit/c854870f7dcd45c5463f122fcf9d8b9ff924cb20))
+* **site:** add review count tooltip ([19122b7](https://github.com/DenisVorop/artmate-monorepo/commit/19122b70cd6d056bccca3ce361378904a59f88a9))
+
 ## [0.8.0](https://github.com/DenisVorop/artmate-monorepo/compare/v0.7.1...v0.8.0) (2026-05-06)
 
 
