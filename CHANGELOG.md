@@ -1,5 +1,12 @@
 # Changelog
 
+## [0.10.1](https://github.com/DenisVorop/artmate-monorepo/compare/v0.10.0...v0.10.1) (2026-05-08)
+
+
+### Bug Fixes
+
+* **deploy:** pass smtp env to production ([23ecf40](https://github.com/DenisVorop/artmate-monorepo/commit/23ecf4001444cc68eb9a9d541e69436820f5e792))
+
 ## [0.10.0](https://github.com/DenisVorop/artmate-monorepo/compare/v0.9.0...v0.10.0) (2026-05-07)
 
 
