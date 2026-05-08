@@ -1,5 +1,12 @@
 # Changelog
 
+## [0.10.2](https://github.com/DenisVorop/artmate-monorepo/compare/v0.10.1...v0.10.2) (2026-05-08)
+
+
+### Bug Fixes
+
+* **deploy:** pass email verification env ([77377dd](https://github.com/DenisVorop/artmate-monorepo/commit/77377ddf3f82950e3e732028dbf701faa60197be))
+
 ## [0.10.1](https://github.com/DenisVorop/artmate-monorepo/compare/v0.10.0...v0.10.1) (2026-05-08)
 
 
