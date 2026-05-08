@@ -95,7 +95,10 @@ function syncAccessTokenCookie(cookieStore: CookieStore, response: Response) {
     return;
   }
 
+  const domain = cookie.domain ?? getCookieDomain();
+
   cookieStore.set(AUTH_ACCESS_TOKEN_COOKIE_NAME, cookie.value, {
+    ...(domain ? { domain } : {}),
     httpOnly: true,
     maxAge: cookie.maxAge ?? AUTH_ACCESS_TOKEN_MAX_AGE_SECONDS,
     path: "/",
@@ -105,7 +108,10 @@ function syncAccessTokenCookie(cookieStore: CookieStore, response: Response) {
 }
 
 function clearAccessTokenCookie(cookieStore: CookieStore) {
+  const domain = getCookieDomain();
+
   cookieStore.set(AUTH_ACCESS_TOKEN_COOKIE_NAME, "", {
+    ...(domain ? { domain } : {}),
     httpOnly: true,
     maxAge: 0,
     path: "/",
@@ -144,14 +150,25 @@ function parseSetCookie(header: string | null, name: string) {
   const maxAge = maxAgeAttribute
     ? Number(maxAgeAttribute.slice("max-age=".length))
     : undefined;
+  const domainAttribute = attributes.find((attribute) =>
+    attribute.toLowerCase().startsWith("domain="),
+  );
+  const domain = domainAttribute?.slice("domain=".length).trim();
 
   return {
+    domain: domain || undefined,
     value,
     maxAge:
       typeof maxAge === "number" && Number.isFinite(maxAge)
         ? maxAge
         : undefined,
   };
+}
+
+function getCookieDomain() {
+  const domain = process.env.AUTH_COOKIE_DOMAIN?.trim();
+
+  return domain || undefined;
 }
 
 function getApiBaseUrl() {

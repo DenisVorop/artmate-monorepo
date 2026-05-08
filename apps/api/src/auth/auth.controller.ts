@@ -53,6 +53,7 @@ type CookieResponse = {
     name: string,
     value: string,
     options: {
+      domain?: string;
       httpOnly: boolean;
       maxAge?: number;
       path: string;
@@ -63,6 +64,7 @@ type CookieResponse = {
   clearCookie: (
     name: string,
     options: {
+      domain?: string;
       path: string;
       sameSite: "lax";
       secure: boolean;
@@ -389,7 +391,10 @@ export class AuthController {
   }
 
   private setAccessTokenCookie(response: CookieResponse, accessToken: string) {
+    const domain = this.getCookieDomain();
+
     response.cookie(AUTH_ACCESS_TOKEN_COOKIE_NAME, accessToken, {
+      ...(domain ? { domain } : {}),
       httpOnly: true,
       maxAge: AUTH_ACCESS_TOKEN_MAX_AGE_MS,
       path: "/",
@@ -399,7 +404,10 @@ export class AuthController {
   }
 
   private clearAccessTokenCookie(response: CookieResponse) {
+    const domain = this.getCookieDomain();
+
     response.clearCookie(AUTH_ACCESS_TOKEN_COOKIE_NAME, {
+      ...(domain ? { domain } : {}),
       path: "/",
       sameSite: "lax",
       secure: process.env.NODE_ENV === "production",
@@ -439,6 +447,12 @@ export class AuthController {
 
   private getProviderCookiePath(provider: string) {
     return `/auth/oauth/${provider}`;
+  }
+
+  private getCookieDomain() {
+    const domain = process.env.AUTH_COOKIE_DOMAIN?.trim();
+
+    return domain || undefined;
   }
 
   private getClientIp(
