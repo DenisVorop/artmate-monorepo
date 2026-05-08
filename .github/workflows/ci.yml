@@ -57,6 +57,8 @@ jobs:
             dockerfile: apps/site/Dockerfile
           - app: admin
             dockerfile: apps/admin/Dockerfile
+          - app: tg
+            dockerfile: apps/tg/Dockerfile
 
     steps:
       - name: Checkout

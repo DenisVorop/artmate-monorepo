@@ -50,3 +50,11 @@ api.art-mate.ru {
 		import proxy_headers
 	}
 }
+
+tg.art-mate.ru {
+	import security_headers
+	encode zstd gzip
+	reverse_proxy tg:3004 {
+		import proxy_headers
+	}
+}
