@@ -69,14 +69,18 @@ type AuthMode = "login" | "register";
 type AuthFormProps = {
   embedded?: boolean;
   initialEmail?: string;
+  initialName?: string;
   isEmailLocked?: boolean;
+  showNameOptionalHint?: boolean;
   onAuthenticated?: () => void;
 };
 
 export function AuthForm({
   embedded = false,
   initialEmail,
+  initialName,
   isEmailLocked = false,
+  showNameOptionalHint = true,
   onAuthenticated,
 }: AuthFormProps = {}) {
   const [mode, setMode] = useState<AuthMode>("login");
@@ -125,7 +129,9 @@ export function AuthForm({
         <RegisterForm
           hideOAuth={embedded}
           initialEmail={initialEmail}
+          initialName={initialName}
           lockedEmail={lockedEmail}
+          showNameOptionalHint={showNameOptionalHint}
           onVerificationRequired={setVerificationState}
         />
       </TabsContent>
@@ -470,12 +476,16 @@ export function PasswordResetForm({ token }: { readonly token?: string }) {
 function RegisterForm({
   hideOAuth,
   initialEmail,
+  initialName,
   lockedEmail,
+  showNameOptionalHint,
   onVerificationRequired,
 }: {
   readonly hideOAuth: boolean;
   readonly initialEmail?: string;
+  readonly initialName?: string;
   readonly lockedEmail?: string;
+  readonly showNameOptionalHint: boolean;
   readonly onVerificationRequired: (_verification: AuthEmailVerificationStateDTO) => void;
 }) {
   const [submitError, setSubmitError] = useState<string>();
@@ -487,7 +497,7 @@ function RegisterForm({
   } = useForm<RegisterFormValues>({
     defaultValues: {
       email: lockedEmail ?? initialEmail ?? "",
-      name: "",
+      name: initialName?.trim() ?? "",
       password: "",
       passwordConfirm: "",
     },
@@ -516,7 +526,8 @@ function RegisterForm({
     <form onSubmit={submitForm} className="space-y-4">
       <div className="space-y-2">
         <Label htmlFor="register-name">
-          Имя <span className="text-muted-foreground">(необязательно)</span>
+          Имя{" "}
+          {showNameOptionalHint && <span className="text-muted-foreground">(необязательно)</span>}
         </Label>
         <Input id="register-name" type="text" autoComplete="name" {...register("name")} />
       </div>
