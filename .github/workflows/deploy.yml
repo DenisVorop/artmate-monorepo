@@ -236,53 +236,7 @@ jobs:
           append_secret OZON_OAUTH_REFRESH_TOKEN "$OZON_OAUTH_REFRESH_TOKEN"
           append_secret OZON_OAUTH_SCOPE "$OZON_OAUTH_SCOPE"
 
-          require_env_file_value() {
-            local name="$1"
-
-            if ! grep -Eq "^${name}=.+" "$production_env"; then
-              printf 'Required production env is missing or empty: %s\n' "$name" >&2
-              missing_required_env=1
-            fi
-          }
-
-          missing_required_env=0
-          required_env_names=(
-            ACME_EMAIL
-            POSTGRES_DB
-            POSTGRES_USER
-            POSTGRES_PASSWORD
-            DATABASE_URL
-            SITE_URL
-            ADMIN_URL
-            API_PUBLIC_URL
-            API_BASE_URL
-            NEXT_PUBLIC_SITE_URL
-            AUTH_SUCCESS_REDIRECT_URL
-            CORS_ORIGIN
-            AUTH_JWT_SECRET
-            AUTH_EMAIL_VERIFICATION_SECRET
-            AUTH_PASSWORD_RESET_SECRET
-            MAIL_FROM
-            SMTP_HOST
-            SMTP_PORT
-            SMTP_SECURE
-            SMTP_USER
-            SMTP_PASSWORD
-            YANDEX_OAUTH_CLIENT_ID
-            YANDEX_OAUTH_CLIENT_SECRET
-            TELEGRAM_BOT_TOKEN
-            TELEGRAM_CONTACTS_CHAT_ID
-            TELEGRAM_WEBHOOK_SECRET
-            TELEGRAM_WEB_APP_URL
-          )
-
-          for name in "${required_env_names[@]}"; do
-            require_env_file_value "$name"
-          done
-
-          if [ "$missing_required_env" -ne 0 ]; then
-            exit 1
-          fi
+          bash infra/validate-prod-env.sh --env-file "$production_env"
 
           image_env="$(mktemp)"
           printf 'IMAGE_TAG=%s\n' "$IMAGE_TAG" > "$image_env"
