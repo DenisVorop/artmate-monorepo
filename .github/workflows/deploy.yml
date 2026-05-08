@@ -66,6 +66,20 @@ jobs:
 
       - name: Upload production env
         env:
+          IMAGE_TAG: ${{ steps.image.outputs.tag }}
+          ACME_EMAIL: ${{ secrets.ACME_EMAIL || vars.ACME_EMAIL }}
+          POSTGRES_DB: ${{ secrets.POSTGRES_DB || vars.POSTGRES_DB }}
+          POSTGRES_USER: ${{ secrets.POSTGRES_USER || vars.POSTGRES_USER }}
+          POSTGRES_PASSWORD: ${{ secrets.POSTGRES_PASSWORD }}
+          DATABASE_URL: ${{ secrets.DATABASE_URL }}
+          SITE_URL: ${{ secrets.SITE_URL || vars.SITE_URL }}
+          ADMIN_URL: ${{ secrets.ADMIN_URL || vars.ADMIN_URL }}
+          API_PUBLIC_URL: ${{ secrets.API_PUBLIC_URL || vars.API_PUBLIC_URL }}
+          API_BASE_URL: ${{ secrets.API_BASE_URL || vars.API_BASE_URL }}
+          NEXT_PUBLIC_SITE_URL: ${{ secrets.NEXT_PUBLIC_SITE_URL || vars.NEXT_PUBLIC_SITE_URL }}
+          AUTH_SUCCESS_REDIRECT_URL: ${{ secrets.AUTH_SUCCESS_REDIRECT_URL || vars.AUTH_SUCCESS_REDIRECT_URL }}
+          CORS_ORIGIN: ${{ secrets.CORS_ORIGIN || vars.CORS_ORIGIN }}
+          SWAGGER_ENABLED: ${{ secrets.SWAGGER_ENABLED || vars.SWAGGER_ENABLED }}
           CONTENT_ASSISTANT_DEFAULT_BLOG_AUTHOR_ID: ${{ secrets.CONTENT_ASSISTANT_DEFAULT_BLOG_AUTHOR_ID }}
           CONTENT_ASSISTANT_DEFAULT_BLOG_CATEGORY_ID: ${{ secrets.CONTENT_ASSISTANT_DEFAULT_BLOG_CATEGORY_ID }}
           CONTENT_ASSISTANT_TELEGRAM_APPROVAL_CHAT_ID: ${{ secrets.CONTENT_ASSISTANT_TELEGRAM_APPROVAL_CHAT_ID }}
@@ -85,20 +99,50 @@ jobs:
           SMTP_SECURE: ${{ secrets.SMTP_SECURE || vars.SMTP_SECURE }}
           SMTP_USER: ${{ secrets.SMTP_USER || vars.SMTP_USER }}
           SMTP_PASSWORD: ${{ secrets.SMTP_PASSWORD }}
+          MAIL_LOG_ONLY: ${{ secrets.MAIL_LOG_ONLY || vars.MAIL_LOG_ONLY }}
           TELEGRAM_BOT_TOKEN: ${{ secrets.TELEGRAM_BOT_TOKEN }}
+          TELEGRAM_CONTACTS_CHAT_ID: ${{ secrets.TELEGRAM_CONTACTS_CHAT_ID }}
+          TELEGRAM_ORDERS_CHAT_ID: ${{ secrets.TELEGRAM_ORDERS_CHAT_ID }}
           TELEGRAM_WEBHOOK_SECRET: ${{ secrets.TELEGRAM_WEBHOOK_SECRET }}
           TELEGRAM_WEB_APP_URL: ${{ secrets.TELEGRAM_WEB_APP_URL || vars.TELEGRAM_WEB_APP_URL }}
+          AUTH_JWT_SECRET: ${{ secrets.AUTH_JWT_SECRET }}
+          AUTH_PASSWORD_EMAIL: ${{ secrets.AUTH_PASSWORD_EMAIL || vars.AUTH_PASSWORD_EMAIL }}
+          AUTH_PASSWORD_NAME: ${{ secrets.AUTH_PASSWORD_NAME || vars.AUTH_PASSWORD_NAME }}
+          AUTH_PASSWORD_HASH: ${{ secrets.AUTH_PASSWORD_HASH }}
+          AUTH_PASSWORD_ROLES: ${{ secrets.AUTH_PASSWORD_ROLES || vars.AUTH_PASSWORD_ROLES }}
           AUTH_EMAIL_VERIFICATION_SECRET: ${{ secrets.AUTH_EMAIL_VERIFICATION_SECRET }}
           AUTH_EMAIL_VERIFICATION_CODE_TTL_SECONDS: ${{ secrets.AUTH_EMAIL_VERIFICATION_CODE_TTL_SECONDS || vars.AUTH_EMAIL_VERIFICATION_CODE_TTL_SECONDS }}
           AUTH_EMAIL_VERIFICATION_RESEND_COOLDOWN_SECONDS: ${{ secrets.AUTH_EMAIL_VERIFICATION_RESEND_COOLDOWN_SECONDS || vars.AUTH_EMAIL_VERIFICATION_RESEND_COOLDOWN_SECONDS }}
           AUTH_EMAIL_VERIFICATION_MAX_ATTEMPTS: ${{ secrets.AUTH_EMAIL_VERIFICATION_MAX_ATTEMPTS || vars.AUTH_EMAIL_VERIFICATION_MAX_ATTEMPTS }}
           AUTH_EMAIL_VERIFICATION_MAX_SENDS_PER_HOUR: ${{ secrets.AUTH_EMAIL_VERIFICATION_MAX_SENDS_PER_HOUR || vars.AUTH_EMAIL_VERIFICATION_MAX_SENDS_PER_HOUR }}
           AUTH_EMAIL_VERIFICATION_IP_MAX_SENDS_PER_HOUR: ${{ secrets.AUTH_EMAIL_VERIFICATION_IP_MAX_SENDS_PER_HOUR || vars.AUTH_EMAIL_VERIFICATION_IP_MAX_SENDS_PER_HOUR }}
+          AUTH_PASSWORD_RESET_SECRET: ${{ secrets.AUTH_PASSWORD_RESET_SECRET }}
+          AUTH_PASSWORD_RESET_URL: ${{ secrets.AUTH_PASSWORD_RESET_URL || vars.AUTH_PASSWORD_RESET_URL }}
+          AUTH_PASSWORD_RESET_TOKEN_TTL_SECONDS: ${{ secrets.AUTH_PASSWORD_RESET_TOKEN_TTL_SECONDS || vars.AUTH_PASSWORD_RESET_TOKEN_TTL_SECONDS }}
+          AUTH_PASSWORD_RESET_RESEND_COOLDOWN_SECONDS: ${{ secrets.AUTH_PASSWORD_RESET_RESEND_COOLDOWN_SECONDS || vars.AUTH_PASSWORD_RESET_RESEND_COOLDOWN_SECONDS }}
+          AUTH_PASSWORD_RESET_MAX_SENDS_PER_HOUR: ${{ secrets.AUTH_PASSWORD_RESET_MAX_SENDS_PER_HOUR || vars.AUTH_PASSWORD_RESET_MAX_SENDS_PER_HOUR }}
+          AUTH_PASSWORD_RESET_IP_MAX_SENDS_PER_HOUR: ${{ secrets.AUTH_PASSWORD_RESET_IP_MAX_SENDS_PER_HOUR || vars.AUTH_PASSWORD_RESET_IP_MAX_SENDS_PER_HOUR }}
+          YANDEX_OAUTH_CLIENT_ID: ${{ secrets.YANDEX_OAUTH_CLIENT_ID }}
+          YANDEX_OAUTH_CLIENT_SECRET: ${{ secrets.YANDEX_OAUTH_CLIENT_SECRET }}
+          YANDEX_OAUTH_REDIRECT_URI: ${{ secrets.YANDEX_OAUTH_REDIRECT_URI || vars.YANDEX_OAUTH_REDIRECT_URI }}
+          OZON_API: ${{ secrets.OZON_API || vars.OZON_API }}
+          OZON_API_KEY: ${{ secrets.OZON_API_KEY }}
+          OZON_CLIENT_ID: ${{ secrets.OZON_CLIENT_ID }}
+          OZON_LOGISTICS_MODE: ${{ secrets.OZON_LOGISTICS_MODE || vars.OZON_LOGISTICS_MODE }}
+          OZON_OAUTH_ACCESS_TYPE: ${{ secrets.OZON_OAUTH_ACCESS_TYPE || vars.OZON_OAUTH_ACCESS_TYPE }}
+          OZON_OAUTH_CLIENT_ID: ${{ secrets.OZON_OAUTH_CLIENT_ID }}
+          OZON_OAUTH_CLIENT_SECRET: ${{ secrets.OZON_OAUTH_CLIENT_SECRET }}
+          OZON_OAUTH_PROMPT: ${{ secrets.OZON_OAUTH_PROMPT || vars.OZON_OAUTH_PROMPT }}
+          OZON_OAUTH_REDIRECT_URI: ${{ secrets.OZON_OAUTH_REDIRECT_URI || vars.OZON_OAUTH_REDIRECT_URI }}
+          OZON_OAUTH_REFRESH_TOKEN: ${{ secrets.OZON_OAUTH_REFRESH_TOKEN }}
+          OZON_OAUTH_SCOPE: ${{ secrets.OZON_OAUTH_SCOPE || vars.OZON_OAUTH_SCOPE }}
           PRODUCTION_ENV_FILE: ${{ secrets.PRODUCTION_ENV_FILE }}
           PRODUCTION_HOST: ${{ secrets.PRODUCTION_HOST }}
           PRODUCTION_USER: ${{ secrets.PRODUCTION_USER }}
         shell: bash
         run: |
+          set -euo pipefail
+
           production_env="$(mktemp)"
           clean_env="$(mktemp)"
           printf '%s\n' "$PRODUCTION_ENV_FILE" > "$production_env"
@@ -110,6 +154,11 @@ jobs:
             local value="$2"
 
             if [ -n "$value" ]; then
+              local next_env
+
+              next_env="$(mktemp)"
+              grep -Ev "^${name}=" "$production_env" > "$next_env" || true
+              mv "$next_env" "$production_env"
               printf '%s=%s\n' "$name" "$value" >> "$production_env"
             fi
           }
@@ -118,6 +167,19 @@ jobs:
             OPENAI_BASE_URL="https://${AI_RELAY_DOMAIN}/v1"
           fi
 
+          append_secret ACME_EMAIL "$ACME_EMAIL"
+          append_secret POSTGRES_DB "$POSTGRES_DB"
+          append_secret POSTGRES_USER "$POSTGRES_USER"
+          append_secret POSTGRES_PASSWORD "$POSTGRES_PASSWORD"
+          append_secret DATABASE_URL "$DATABASE_URL"
+          append_secret SITE_URL "$SITE_URL"
+          append_secret ADMIN_URL "$ADMIN_URL"
+          append_secret API_PUBLIC_URL "$API_PUBLIC_URL"
+          append_secret API_BASE_URL "$API_BASE_URL"
+          append_secret NEXT_PUBLIC_SITE_URL "$NEXT_PUBLIC_SITE_URL"
+          append_secret AUTH_SUCCESS_REDIRECT_URL "$AUTH_SUCCESS_REDIRECT_URL"
+          append_secret CORS_ORIGIN "$CORS_ORIGIN"
+          append_secret SWAGGER_ENABLED "$SWAGGER_ENABLED"
           append_secret OPENAI_API_KEY "$OPENAI_API_KEY"
           append_secret OPENAI_BASE_URL "$OPENAI_BASE_URL"
           append_secret OPENAI_MODEL "$OPENAI_MODEL"
@@ -136,15 +198,95 @@ jobs:
           append_secret SMTP_SECURE "$SMTP_SECURE"
           append_secret SMTP_USER "$SMTP_USER"
           append_secret SMTP_PASSWORD "$SMTP_PASSWORD"
+          append_secret MAIL_LOG_ONLY "$MAIL_LOG_ONLY"
           append_secret TELEGRAM_BOT_TOKEN "$TELEGRAM_BOT_TOKEN"
+          append_secret TELEGRAM_CONTACTS_CHAT_ID "$TELEGRAM_CONTACTS_CHAT_ID"
+          append_secret TELEGRAM_ORDERS_CHAT_ID "$TELEGRAM_ORDERS_CHAT_ID"
           append_secret TELEGRAM_WEBHOOK_SECRET "$TELEGRAM_WEBHOOK_SECRET"
           append_secret TELEGRAM_WEB_APP_URL "$TELEGRAM_WEB_APP_URL"
+          append_secret AUTH_JWT_SECRET "$AUTH_JWT_SECRET"
+          append_secret AUTH_PASSWORD_EMAIL "$AUTH_PASSWORD_EMAIL"
+          append_secret AUTH_PASSWORD_NAME "$AUTH_PASSWORD_NAME"
+          append_secret AUTH_PASSWORD_HASH "$AUTH_PASSWORD_HASH"
+          append_secret AUTH_PASSWORD_ROLES "$AUTH_PASSWORD_ROLES"
           append_secret AUTH_EMAIL_VERIFICATION_SECRET "$AUTH_EMAIL_VERIFICATION_SECRET"
           append_secret AUTH_EMAIL_VERIFICATION_CODE_TTL_SECONDS "$AUTH_EMAIL_VERIFICATION_CODE_TTL_SECONDS"
           append_secret AUTH_EMAIL_VERIFICATION_RESEND_COOLDOWN_SECONDS "$AUTH_EMAIL_VERIFICATION_RESEND_COOLDOWN_SECONDS"
           append_secret AUTH_EMAIL_VERIFICATION_MAX_ATTEMPTS "$AUTH_EMAIL_VERIFICATION_MAX_ATTEMPTS"
           append_secret AUTH_EMAIL_VERIFICATION_MAX_SENDS_PER_HOUR "$AUTH_EMAIL_VERIFICATION_MAX_SENDS_PER_HOUR"
           append_secret AUTH_EMAIL_VERIFICATION_IP_MAX_SENDS_PER_HOUR "$AUTH_EMAIL_VERIFICATION_IP_MAX_SENDS_PER_HOUR"
+          append_secret AUTH_PASSWORD_RESET_SECRET "$AUTH_PASSWORD_RESET_SECRET"
+          append_secret AUTH_PASSWORD_RESET_URL "$AUTH_PASSWORD_RESET_URL"
+          append_secret AUTH_PASSWORD_RESET_TOKEN_TTL_SECONDS "$AUTH_PASSWORD_RESET_TOKEN_TTL_SECONDS"
+          append_secret AUTH_PASSWORD_RESET_RESEND_COOLDOWN_SECONDS "$AUTH_PASSWORD_RESET_RESEND_COOLDOWN_SECONDS"
+          append_secret AUTH_PASSWORD_RESET_MAX_SENDS_PER_HOUR "$AUTH_PASSWORD_RESET_MAX_SENDS_PER_HOUR"
+          append_secret AUTH_PASSWORD_RESET_IP_MAX_SENDS_PER_HOUR "$AUTH_PASSWORD_RESET_IP_MAX_SENDS_PER_HOUR"
+          append_secret YANDEX_OAUTH_CLIENT_ID "$YANDEX_OAUTH_CLIENT_ID"
+          append_secret YANDEX_OAUTH_CLIENT_SECRET "$YANDEX_OAUTH_CLIENT_SECRET"
+          append_secret YANDEX_OAUTH_REDIRECT_URI "$YANDEX_OAUTH_REDIRECT_URI"
+          append_secret OZON_API "$OZON_API"
+          append_secret OZON_API_KEY "$OZON_API_KEY"
+          append_secret OZON_CLIENT_ID "$OZON_CLIENT_ID"
+          append_secret OZON_LOGISTICS_MODE "$OZON_LOGISTICS_MODE"
+          append_secret OZON_OAUTH_ACCESS_TYPE "$OZON_OAUTH_ACCESS_TYPE"
+          append_secret OZON_OAUTH_CLIENT_ID "$OZON_OAUTH_CLIENT_ID"
+          append_secret OZON_OAUTH_CLIENT_SECRET "$OZON_OAUTH_CLIENT_SECRET"
+          append_secret OZON_OAUTH_PROMPT "$OZON_OAUTH_PROMPT"
+          append_secret OZON_OAUTH_REDIRECT_URI "$OZON_OAUTH_REDIRECT_URI"
+          append_secret OZON_OAUTH_REFRESH_TOKEN "$OZON_OAUTH_REFRESH_TOKEN"
+          append_secret OZON_OAUTH_SCOPE "$OZON_OAUTH_SCOPE"
+
+          require_env_file_value() {
+            local name="$1"
+
+            if ! grep -Eq "^${name}=.+" "$production_env"; then
+              printf 'Required production env is missing or empty: %s\n' "$name" >&2
+              missing_required_env=1
+            fi
+          }
+
+          missing_required_env=0
+          required_env_names=(
+            ACME_EMAIL
+            POSTGRES_DB
+            POSTGRES_USER
+            POSTGRES_PASSWORD
+            DATABASE_URL
+            SITE_URL
+            ADMIN_URL
+            API_PUBLIC_URL
+            API_BASE_URL
+            NEXT_PUBLIC_SITE_URL
+            AUTH_SUCCESS_REDIRECT_URL
+            CORS_ORIGIN
+            AUTH_JWT_SECRET
+            AUTH_EMAIL_VERIFICATION_SECRET
+            AUTH_PASSWORD_RESET_SECRET
+            MAIL_FROM
+            SMTP_HOST
+            SMTP_PORT
+            SMTP_SECURE
+            SMTP_USER
+            SMTP_PASSWORD
+            YANDEX_OAUTH_CLIENT_ID
+            YANDEX_OAUTH_CLIENT_SECRET
+            TELEGRAM_BOT_TOKEN
+            TELEGRAM_CONTACTS_CHAT_ID
+            TELEGRAM_WEBHOOK_SECRET
+            TELEGRAM_WEB_APP_URL
+          )
+
+          for name in "${required_env_names[@]}"; do
+            require_env_file_value "$name"
+          done
+
+          if [ "$missing_required_env" -ne 0 ]; then
+            exit 1
+          fi
+
+          image_env="$(mktemp)"
+          printf 'IMAGE_TAG=%s\n' "$IMAGE_TAG" > "$image_env"
+          docker compose --env-file "$production_env" --env-file "$image_env" -f docker-compose.prod.yml config --quiet
 
           ssh "$PRODUCTION_USER@$PRODUCTION_HOST" 'cat > /opt/artmate/.env && chmod 600 /opt/artmate/.env' < "$production_env"
 

@@ -5,8 +5,8 @@ services:
     image: postgres:17-alpine
     restart: unless-stopped
     environment:
-      POSTGRES_DB: ${POSTGRES_DB:-artmate}
-      POSTGRES_USER: ${POSTGRES_USER:-artmate}
+      POSTGRES_DB: ${POSTGRES_DB:?POSTGRES_DB is required}
+      POSTGRES_USER: ${POSTGRES_USER:?POSTGRES_USER is required}
       POSTGRES_PASSWORD: ${POSTGRES_PASSWORD:?POSTGRES_PASSWORD is required}
     volumes:
       - postgres-data:/var/lib/postgresql/data
@@ -19,9 +19,6 @@ services:
   api-migrate:
     image: ghcr.io/denisvorop/artmate-monorepo-api:${IMAGE_TAG:-latest}
     profiles: ["migrate"]
-    env_file:
-      - path: .env
-        required: false
     environment:
       DATABASE_URL: ${DATABASE_URL:?DATABASE_URL is required}
       NODE_ENV: production
@@ -34,18 +31,69 @@ services:
   api:
     image: ghcr.io/denisvorop/artmate-monorepo-api:${IMAGE_TAG:-latest}
     restart: unless-stopped
-    env_file:
-      - path: .env
-        required: false
     environment:
       DATABASE_URL: ${DATABASE_URL:?DATABASE_URL is required}
       NODE_ENV: production
       PORT: 3002
-      SITE_URL: https://www.art-mate.ru
-      ADMIN_URL: https://admin.art-mate.ru
-      API_PUBLIC_URL: https://api.art-mate.ru
-      CORS_ORIGIN: https://www.art-mate.ru,https://admin.art-mate.ru
+      SITE_URL: ${SITE_URL:?SITE_URL is required}
+      ADMIN_URL: ${ADMIN_URL:?ADMIN_URL is required}
+      API_PUBLIC_URL: ${API_PUBLIC_URL:?API_PUBLIC_URL is required}
+      CORS_ORIGIN: ${CORS_ORIGIN:?CORS_ORIGIN is required}
       SWAGGER_ENABLED: ${SWAGGER_ENABLED:-false}
+      AUTH_SUCCESS_REDIRECT_URL: ${AUTH_SUCCESS_REDIRECT_URL:?AUTH_SUCCESS_REDIRECT_URL is required}
+      AUTH_JWT_SECRET: ${AUTH_JWT_SECRET:?AUTH_JWT_SECRET is required}
+      AUTH_PASSWORD_EMAIL: ${AUTH_PASSWORD_EMAIL:-}
+      AUTH_PASSWORD_NAME: ${AUTH_PASSWORD_NAME:-}
+      AUTH_PASSWORD_HASH: ${AUTH_PASSWORD_HASH:-}
+      AUTH_PASSWORD_ROLES: ${AUTH_PASSWORD_ROLES:-admin,customer}
+      AUTH_EMAIL_VERIFICATION_SECRET: ${AUTH_EMAIL_VERIFICATION_SECRET:?AUTH_EMAIL_VERIFICATION_SECRET is required}
+      AUTH_EMAIL_VERIFICATION_CODE_TTL_SECONDS: ${AUTH_EMAIL_VERIFICATION_CODE_TTL_SECONDS:-600}
+      AUTH_EMAIL_VERIFICATION_RESEND_COOLDOWN_SECONDS: ${AUTH_EMAIL_VERIFICATION_RESEND_COOLDOWN_SECONDS:-60}
+      AUTH_EMAIL_VERIFICATION_MAX_ATTEMPTS: ${AUTH_EMAIL_VERIFICATION_MAX_ATTEMPTS:-5}
+      AUTH_EMAIL_VERIFICATION_MAX_SENDS_PER_HOUR: ${AUTH_EMAIL_VERIFICATION_MAX_SENDS_PER_HOUR:-5}
+      AUTH_EMAIL_VERIFICATION_IP_MAX_SENDS_PER_HOUR: ${AUTH_EMAIL_VERIFICATION_IP_MAX_SENDS_PER_HOUR:-20}
+      AUTH_PASSWORD_RESET_SECRET: ${AUTH_PASSWORD_RESET_SECRET:?AUTH_PASSWORD_RESET_SECRET is required}
+      AUTH_PASSWORD_RESET_URL: ${AUTH_PASSWORD_RESET_URL:-https://www.art-mate.ru/auth/reset-password}
+      AUTH_PASSWORD_RESET_TOKEN_TTL_SECONDS: ${AUTH_PASSWORD_RESET_TOKEN_TTL_SECONDS:-1800}
+      AUTH_PASSWORD_RESET_RESEND_COOLDOWN_SECONDS: ${AUTH_PASSWORD_RESET_RESEND_COOLDOWN_SECONDS:-60}
+      AUTH_PASSWORD_RESET_MAX_SENDS_PER_HOUR: ${AUTH_PASSWORD_RESET_MAX_SENDS_PER_HOUR:-5}
+      AUTH_PASSWORD_RESET_IP_MAX_SENDS_PER_HOUR: ${AUTH_PASSWORD_RESET_IP_MAX_SENDS_PER_HOUR:-20}
+      MAIL_FROM: ${MAIL_FROM:?MAIL_FROM is required}
+      MAIL_REPLY_TO: ${MAIL_REPLY_TO:-}
+      MAIL_LOG_ONLY: ${MAIL_LOG_ONLY:-false}
+      SMTP_HOST: ${SMTP_HOST:?SMTP_HOST is required}
+      SMTP_PORT: ${SMTP_PORT:?SMTP_PORT is required}
+      SMTP_SECURE: ${SMTP_SECURE:?SMTP_SECURE is required}
+      SMTP_USER: ${SMTP_USER:?SMTP_USER is required}
+      SMTP_PASSWORD: ${SMTP_PASSWORD:?SMTP_PASSWORD is required}
+      YANDEX_OAUTH_CLIENT_ID: ${YANDEX_OAUTH_CLIENT_ID:?YANDEX_OAUTH_CLIENT_ID is required}
+      YANDEX_OAUTH_CLIENT_SECRET: ${YANDEX_OAUTH_CLIENT_SECRET:?YANDEX_OAUTH_CLIENT_SECRET is required}
+      YANDEX_OAUTH_REDIRECT_URI: ${YANDEX_OAUTH_REDIRECT_URI:-https://api.art-mate.ru/auth/oauth/yandex/callback}
+      OZON_API: ${OZON_API:-}
+      OZON_API_KEY: ${OZON_API_KEY:-}
+      OZON_CLIENT_ID: ${OZON_CLIENT_ID:-}
+      OZON_LOGISTICS_MODE: ${OZON_LOGISTICS_MODE:-mock}
+      OZON_OAUTH_ACCESS_TYPE: ${OZON_OAUTH_ACCESS_TYPE:-offline}
+      OZON_OAUTH_CLIENT_ID: ${OZON_OAUTH_CLIENT_ID:-}
+      OZON_OAUTH_CLIENT_SECRET: ${OZON_OAUTH_CLIENT_SECRET:-}
+      OZON_OAUTH_PROMPT: ${OZON_OAUTH_PROMPT:-consent}
+      OZON_OAUTH_REDIRECT_URI: ${OZON_OAUTH_REDIRECT_URI:-https://api.art-mate.ru/ozon/oauth/callback}
+      OZON_OAUTH_REFRESH_TOKEN: ${OZON_OAUTH_REFRESH_TOKEN:-}
+      OZON_OAUTH_SCOPE: ${OZON_OAUTH_SCOPE:-}
+      TELEGRAM_BOT_TOKEN: ${TELEGRAM_BOT_TOKEN:?TELEGRAM_BOT_TOKEN is required}
+      TELEGRAM_CONTACTS_CHAT_ID: ${TELEGRAM_CONTACTS_CHAT_ID:?TELEGRAM_CONTACTS_CHAT_ID is required}
+      TELEGRAM_ORDERS_CHAT_ID: ${TELEGRAM_ORDERS_CHAT_ID:-}
+      OPENAI_API_KEY: ${OPENAI_API_KEY:-}
+      OPENAI_BASE_URL: ${OPENAI_BASE_URL:-}
+      OPENAI_MODEL: ${OPENAI_MODEL:-gpt-5.2}
+      OPENAI_RELAY_TOKEN: ${OPENAI_RELAY_TOKEN:-}
+      UNSPLASH_ACCESS_KEY: ${UNSPLASH_ACCESS_KEY:-}
+      UNSPLASH_UTM_SOURCE: ${UNSPLASH_UTM_SOURCE:-artmate_blog}
+      CONTENT_ASSISTANT_TELEGRAM_BOT_TOKEN: ${CONTENT_ASSISTANT_TELEGRAM_BOT_TOKEN:-}
+      CONTENT_ASSISTANT_TELEGRAM_APPROVAL_CHAT_ID: ${CONTENT_ASSISTANT_TELEGRAM_APPROVAL_CHAT_ID:-}
+      CONTENT_ASSISTANT_TELEGRAM_WEBHOOK_SECRET: ${CONTENT_ASSISTANT_TELEGRAM_WEBHOOK_SECRET:-}
+      CONTENT_ASSISTANT_DEFAULT_BLOG_AUTHOR_ID: ${CONTENT_ASSISTANT_DEFAULT_BLOG_AUTHOR_ID:-}
+      CONTENT_ASSISTANT_DEFAULT_BLOG_CATEGORY_ID: ${CONTENT_ASSISTANT_DEFAULT_BLOG_CATEGORY_ID:-}
     volumes:
       - api-uploads:/app/apps/api/uploads
     depends_on:
@@ -55,46 +103,39 @@ services:
   site:
     image: ghcr.io/denisvorop/artmate-monorepo-site:${IMAGE_TAG:-latest}
     restart: unless-stopped
-    env_file:
-      - path: .env
-        required: false
     environment:
       NODE_ENV: production
       PORT: 3000
       HOSTNAME: 0.0.0.0
-      API_BASE_URL: http://api:3002
-      API_PUBLIC_URL: https://api.art-mate.ru
-      NEXT_PUBLIC_SITE_URL: https://www.art-mate.ru
+      API_BASE_URL: ${API_BASE_URL:?API_BASE_URL is required}
+      API_PUBLIC_URL: ${API_PUBLIC_URL:?API_PUBLIC_URL is required}
+      NEXT_PUBLIC_SITE_URL: ${NEXT_PUBLIC_SITE_URL:?NEXT_PUBLIC_SITE_URL is required}
     depends_on:
       - api
 
   admin:
     image: ghcr.io/denisvorop/artmate-monorepo-admin:${IMAGE_TAG:-latest}
     restart: unless-stopped
-    env_file:
-      - path: .env
-        required: false
     environment:
       NODE_ENV: production
       PORT: 3003
       HOSTNAME: 0.0.0.0
-      API_BASE_URL: http://api:3002
-      API_PUBLIC_URL: https://api.art-mate.ru
-      NEXT_PUBLIC_SITE_URL: https://www.art-mate.ru
+      API_BASE_URL: ${API_BASE_URL:?API_BASE_URL is required}
+      API_PUBLIC_URL: ${API_PUBLIC_URL:?API_PUBLIC_URL is required}
+      NEXT_PUBLIC_SITE_URL: ${NEXT_PUBLIC_SITE_URL:?NEXT_PUBLIC_SITE_URL is required}
     depends_on:
       - api
 
   tg:
     image: ghcr.io/denisvorop/artmate-monorepo-tg:${IMAGE_TAG:-latest}
     restart: unless-stopped
-    env_file:
-      - path: .env
-        required: false
     environment:
       NODE_ENV: production
       PORT: 3004
-      SITE_URL: https://www.art-mate.ru
-      TELEGRAM_WEB_APP_URL: ${TELEGRAM_WEB_APP_URL:-https://www.art-mate.ru}
+      SITE_URL: ${SITE_URL:?SITE_URL is required}
+      TELEGRAM_BOT_TOKEN: ${TELEGRAM_BOT_TOKEN:?TELEGRAM_BOT_TOKEN is required}
+      TELEGRAM_WEBHOOK_SECRET: ${TELEGRAM_WEBHOOK_SECRET:?TELEGRAM_WEBHOOK_SECRET is required}
+      TELEGRAM_WEB_APP_URL: ${TELEGRAM_WEB_APP_URL:?TELEGRAM_WEB_APP_URL is required}
 
   caddy:
     image: caddy:2-alpine
