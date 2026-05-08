@@ -1,3 +1,4 @@
+import Fuse, { type IFuseOptions } from "fuse.js";
 import type { Product, ProductCategory } from "@/entities/products";
 import { routes } from "@/shared/constants";
 
@@ -17,6 +18,39 @@ export type FiltersState = {
   onlyPixel: boolean;
   sortBy: SortValue;
 };
+
+type CatalogSearchItem = {
+  product: Product;
+  index: number;
+};
+
+const fuzzySearchOptions = {
+  threshold: 0.36,
+  ignoreLocation: true,
+  ignoreDiacritics: true,
+  keys: [
+    {
+      name: "title",
+      weight: 0.85,
+      getFn: ({ product }) => normalizeSearchText(product.title),
+    },
+    {
+      name: "category",
+      weight: 0.15,
+      getFn: ({ product }) => normalizeSearchText(product.category ?? ""),
+    },
+    {
+      name: "description",
+      weight: 0.1,
+      getFn: ({ product }) => normalizeSearchText(product.description),
+    },
+    {
+      name: "slug",
+      weight: 0.05,
+      getFn: ({ product }) => normalizeSearchText(product.slug),
+    },
+  ],
+} satisfies IFuseOptions<CatalogSearchItem>;
 
 export function normalizeCategoryId(
   categories: readonly ProductCategory[],
@@ -40,52 +74,46 @@ export function getCatalogHref(categories: readonly ProductCategory[], categoryI
 }
 
 export function filterProducts(products: readonly Product[], filters: FiltersState) {
-  const normalizedQuery = filters.query.trim().toLocaleLowerCase("ru-RU");
-  let list = [...products];
+  const normalizedQuery = normalizeSearchText(filters.query);
+  let list = products.map((product, index) => ({ product, index }));
 
   if (filters.categoryId) {
-    list = list.filter((product) => product.categoryId === filters.categoryId);
+    list = list.filter(({ product }) => product.categoryId === filters.categoryId);
   }
 
   if (filters.onlyBestsellers) {
-    list = list.filter((product) => product.isHit);
+    list = list.filter(({ product }) => product.isHit);
   }
 
   if (filters.onlyPixel) {
-    list = list.filter((product) => {
-      const slug = product.slug.toLocaleLowerCase("ru-RU");
-      const title = product.title.toLocaleLowerCase("ru-RU");
-      const description = product.description.toLocaleLowerCase("ru-RU");
+    list = list.filter(({ product }) => {
+      const slug = normalizeSearchText(product.slug);
+      const title = normalizeSearchText(product.title);
+      const description = normalizeSearchText(product.description);
 
       return slug.includes("pixel") || title.includes("пиксел") || description.includes("пиксел");
     });
   }
 
   if (normalizedQuery) {
-    list = list.filter((product) => {
-      const title = product.title.toLocaleLowerCase("ru-RU");
-      const category = product.category?.toLocaleLowerCase("ru-RU") ?? "";
-      const description = product.description.toLocaleLowerCase("ru-RU");
-
-      return (
-        title.includes(normalizedQuery) ||
-        category.includes(normalizedQuery) ||
-        description.includes(normalizedQuery)
-      );
-    });
+    list = new Fuse(list, fuzzySearchOptions).search(normalizedQuery).map((result) => result.item);
   }
 
   switch (filters.sortBy) {
     case "newest":
-      return list.reverse();
+      return list.sort((a, b) => b.index - a.index).map(({ product }) => product);
     case "price-asc":
-      return list.sort((a, b) => a.price - b.price);
+      return list.sort((a, b) => a.product.price - b.product.price).map(({ product }) => product);
     case "price-desc":
-      return list.sort((a, b) => b.price - a.price);
+      return list.sort((a, b) => b.product.price - a.product.price).map(({ product }) => product);
     case "featured":
     default:
-      return list;
+      return list.map(({ product }) => product);
   }
+}
+
+function normalizeSearchText(value: string) {
+  return value.trim().toLocaleLowerCase("ru-RU").replaceAll("ё", "е");
 }
 
 export function formatCount(count: number) {
