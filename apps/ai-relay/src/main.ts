@@ -4,7 +4,7 @@ import {
   type ServerResponse,
 } from "node:http";
 
-const defaultPort = 3004;
+const defaultPort = 3005;
 const defaultOpenAiBaseUrl = "https://api.openai.com/v1";
 const maxBodySizeBytes = 2 * 1024 * 1024;
 const requestTimeoutMs = 180_000;

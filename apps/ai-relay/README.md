@@ -8,8 +8,11 @@ using `OPENAI_API_KEY` stored on the relay host. The main Artmate API should use
 
 ## Environment
 
+For local development the relay listens on `http://localhost:3005` by default.
+Set `PORT` to override it. Production Docker and GitHub deploy configuration set
+`PORT=3004` explicitly.
+
 ```bash
-PORT=3004
 AI_RELAY_DOMAIN=77-221-158-124.sslip.io
 AI_RELAY_TOKEN=change-me
 OPENAI_API_KEY=sk-...
