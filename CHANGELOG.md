@@ -1,5 +1,13 @@
 # Changelog
 
+## [0.11.1](https://github.com/DenisVorop/artmate-monorepo/compare/v0.11.0...v0.11.1) (2026-05-08)
+
+
+### Bug Fixes
+
+* **ai-relay:** avoid local port conflict ([30c06e9](https://github.com/DenisVorop/artmate-monorepo/commit/30c06e9563a39a328f7c2738c41faf5d3ddcc3d9))
+* **auth:** support shared cookie domain ([491426e](https://github.com/DenisVorop/artmate-monorepo/commit/491426e1a235ea3f2cd00067c13c1750d09637b1))
+
 ## [0.11.0](https://github.com/DenisVorop/artmate-monorepo/compare/v0.10.2...v0.11.0) (2026-05-08)
 
 
