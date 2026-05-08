@@ -51,7 +51,7 @@ export function BaseBestsellers({
           <Button
             asChild
             size="lg"
-            className="border-0 bg-gradient-to-r from-rose-500 via-rose-400 to-orange-400 font-semibold text-white shadow-sm shadow-rose-500/20 hover:from-rose-500/95 hover:via-rose-400/95 hover:to-orange-400/95"
+            className={catalogButtonClassName}
           >
             <CtaGradientLink href={routes.catalog}>
               Весь каталог
@@ -77,7 +77,20 @@ export function BaseBestsellers({
             description="Когда товары получат отметку хита, они появятся в этом блоке."
           />
         )}
+
+        <Button asChild size="lg" className={cn(catalogButtonClassName, "mt-5 w-full sm:hidden")}>
+          <CtaGradientLink href={routes.catalog}>
+            Весь каталог
+            <ArrowRight
+              data-icon="inline-end"
+              className="transition-transform group-hover/button:translate-x-0.5"
+            />
+          </CtaGradientLink>
+        </Button>
       </div>
     </section>
   );
 }
+
+const catalogButtonClassName =
+  "border-0 bg-gradient-to-r from-rose-500 via-rose-400 to-orange-400 font-semibold text-white shadow-sm shadow-rose-500/20 hover:from-rose-500/95 hover:via-rose-400/95 hover:to-orange-400/95";
