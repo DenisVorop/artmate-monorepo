@@ -2,9 +2,16 @@
 
 import { ChevronLeft, ChevronRight, Expand, X } from "lucide-react";
 import Image from "next/image";
-import { useCallback, useEffect, useState, type MouseEvent } from "react";
+import { useCallback, useEffect, useRef, useState, type MouseEvent, type UIEvent } from "react";
 
-import { AspectRatio, Button, Dialog, DialogClose, DialogContent, DialogTitle } from "@/shared/ui";
+import {
+  AspectRatio,
+  Button,
+  Dialog,
+  DialogClose,
+  DialogContent,
+  DialogTitle,
+} from "@/shared/ui";
 import { cn, shouldBypassNextImageOptimization } from "@/shared/lib";
 
 type GalleryProps = {
@@ -12,30 +19,90 @@ type GalleryProps = {
   title: string;
 };
 
+function getPreviousIndex(index: number, length: number) {
+  return (index - 1 + length) % length;
+}
+
+function getNextIndex(index: number, length: number) {
+  return (index + 1) % length;
+}
+
+function getScrollIndex(track: HTMLDivElement, length: number) {
+  if (track.clientWidth === 0) {
+    return 0;
+  }
+
+  return Math.min(length - 1, Math.max(0, Math.round(track.scrollLeft / track.clientWidth)));
+}
+
+function scrollTrackToIndex(
+  track: HTMLDivElement | null,
+  index: number,
+  behavior: ScrollBehavior = "smooth",
+) {
+  if (!track) return;
+
+  track.scrollTo({
+    left: track.clientWidth * index,
+    behavior,
+  });
+}
+
 export function Gallery({ images, title }: GalleryProps) {
   const [activeIndex, setActiveIndex] = useState(0);
   const [lightboxIndex, setLightboxIndex] = useState(0);
   const [isLightboxOpen, setIsLightboxOpen] = useState(false);
+  const mainTrackRef = useRef<HTMLDivElement>(null);
+  const lightboxTrackRef = useRef<HTMLDivElement>(null);
+  const initialLightboxIndexRef = useRef(0);
+  const mainScrollTargetIndexRef = useRef<number | null>(null);
+  const lightboxScrollTargetIndexRef = useRef<number | null>(null);
 
   const hasMultipleImages = images.length > 1;
   const activeImage = images[activeIndex];
   const lightboxImage = images[lightboxIndex] ?? activeImage;
 
+  const selectMainImage = useCallback((index: number, behavior?: ScrollBehavior) => {
+    mainScrollTargetIndexRef.current = index;
+    setActiveIndex(index);
+    scrollTrackToIndex(mainTrackRef.current, index, behavior);
+  }, []);
+
+  const selectLightboxImage = useCallback((index: number, behavior?: ScrollBehavior) => {
+    lightboxScrollTargetIndexRef.current = index;
+    setLightboxIndex(index);
+    scrollTrackToIndex(lightboxTrackRef.current, index, behavior);
+  }, []);
+
   const showPrevious = useCallback(() => {
-    setActiveIndex((index) => (index - 1 + images.length) % images.length);
-  }, [images.length]);
+    selectMainImage(getPreviousIndex(activeIndex, images.length));
+  }, [activeIndex, images.length, selectMainImage]);
 
   const showNext = useCallback(() => {
-    setActiveIndex((index) => (index + 1) % images.length);
-  }, [images.length]);
+    selectMainImage(getNextIndex(activeIndex, images.length));
+  }, [activeIndex, images.length, selectMainImage]);
 
   const showPreviousInLightbox = useCallback(() => {
-    setLightboxIndex((index) => (index - 1 + images.length) % images.length);
-  }, [images.length]);
+    selectLightboxImage(getPreviousIndex(lightboxIndex, images.length));
+  }, [images.length, lightboxIndex, selectLightboxImage]);
 
   const showNextInLightbox = useCallback(() => {
-    setLightboxIndex((index) => (index + 1) % images.length);
-  }, [images.length]);
+    selectLightboxImage(getNextIndex(lightboxIndex, images.length));
+  }, [images.length, lightboxIndex, selectLightboxImage]);
+
+  useEffect(() => {
+    if (!isLightboxOpen) {
+      return;
+    }
+
+    const frameId = requestAnimationFrame(() => {
+      scrollTrackToIndex(lightboxTrackRef.current, initialLightboxIndexRef.current, "auto");
+    });
+
+    return () => {
+      cancelAnimationFrame(frameId);
+    };
+  }, [isLightboxOpen]);
 
   useEffect(() => {
     if (!isLightboxOpen) {
@@ -54,12 +121,53 @@ export function Gallery({ images, title }: GalleryProps) {
 
     document.addEventListener("keydown", handleKeyDown);
 
-    return () => document.removeEventListener("keydown", handleKeyDown);
+    return () => {
+      document.removeEventListener("keydown", handleKeyDown);
+    };
   }, [isLightboxOpen, showNextInLightbox, showPreviousInLightbox]);
 
   const openLightbox = () => {
+    initialLightboxIndexRef.current = activeIndex;
     setLightboxIndex(activeIndex);
     setIsLightboxOpen(true);
+  };
+
+  const handleMainScroll = (event: UIEvent<HTMLDivElement>) => {
+    if (!hasMultipleImages) return;
+
+    const nextIndex = getScrollIndex(event.currentTarget, images.length);
+    const targetIndex = mainScrollTargetIndexRef.current;
+
+    if (targetIndex !== null && nextIndex !== targetIndex) {
+      return;
+    }
+
+    mainScrollTargetIndexRef.current = null;
+
+    setActiveIndex((index) => (index === nextIndex ? index : nextIndex));
+  };
+
+  const handleLightboxScroll = (event: UIEvent<HTMLDivElement>) => {
+    if (!hasMultipleImages) return;
+
+    const nextIndex = getScrollIndex(event.currentTarget, images.length);
+    const targetIndex = lightboxScrollTargetIndexRef.current;
+
+    if (targetIndex !== null && nextIndex !== targetIndex) {
+      return;
+    }
+
+    lightboxScrollTargetIndexRef.current = null;
+
+    setLightboxIndex((index) => (index === nextIndex ? index : nextIndex));
+  };
+
+  const clearMainScrollTarget = () => {
+    mainScrollTargetIndexRef.current = null;
+  };
+
+  const clearLightboxScrollTarget = () => {
+    lightboxScrollTargetIndexRef.current = null;
   };
 
   const handlePreviousClick = (event: MouseEvent<HTMLButtonElement>) => {
@@ -82,11 +190,11 @@ export function Gallery({ images, title }: GalleryProps) {
         <div className="hidden w-18 shrink-0 flex-col gap-3 md:flex">
           {images.map((image, index) => (
             <button
-              key={image}
+              key={`${image}-${index}`}
               type="button"
               aria-label={`Показать фото ${index + 1}`}
               aria-pressed={activeIndex === index}
-              onClick={() => setActiveIndex(index)}
+              onClick={() => selectMainImage(index)}
               className={cn(
                 "relative aspect-[3/4] overflow-hidden rounded-lg border bg-muted transition",
                 activeIndex === index
@@ -113,24 +221,34 @@ export function Gallery({ images, title }: GalleryProps) {
           ratio={3 / 4}
           className="group/gallery relative overflow-hidden rounded-xl bg-muted"
         >
-          <button
-            type="button"
-            aria-label="Открыть галерею"
-            onClick={openLightbox}
-            className="absolute inset-0 cursor-zoom-in"
+          <div
+            ref={mainTrackRef}
+            onScroll={handleMainScroll}
+            onPointerDown={clearMainScrollTarget}
+            className="absolute inset-0 flex snap-x snap-mandatory overflow-x-auto overscroll-x-contain scroll-smooth [scrollbar-width:none] [&::-webkit-scrollbar]:hidden"
           >
-            <Image
-              fill
-              src={activeImage}
-              alt={`${title}, фото ${activeIndex + 1}`}
-              unoptimized={shouldBypassNextImageOptimization(activeImage)}
-              loading={activeIndex === 0 ? "eager" : "lazy"}
-              fetchPriority={activeIndex === 0 ? "high" : undefined}
-              sizes="(min-width: 1024px) 48vw, 100vw"
-              className="object-cover"
-              draggable={false}
-            />
-          </button>
+            {images.map((image, index) => (
+              <button
+                key={`${image}-${index}`}
+                type="button"
+                aria-label={`Открыть фото ${index + 1} в галерее`}
+                onClick={openLightbox}
+                className="relative h-full w-full flex-none cursor-zoom-in snap-center"
+              >
+                <Image
+                  fill
+                  src={image}
+                  alt={`${title}, фото ${index + 1}`}
+                  unoptimized={shouldBypassNextImageOptimization(image)}
+                  loading={index === 0 ? "eager" : "lazy"}
+                  fetchPriority={index === 0 ? "high" : undefined}
+                  sizes="(min-width: 1024px) 48vw, 100vw"
+                  className="object-cover"
+                  draggable={false}
+                />
+              </button>
+            ))}
+          </div>
 
           <Button
             type="button"
@@ -176,11 +294,11 @@ export function Gallery({ images, title }: GalleryProps) {
           <div className="flex gap-2 overflow-x-auto pb-1 md:hidden">
             {images.map((image, index) => (
               <button
-                key={image}
+                key={`${image}-${index}`}
                 type="button"
                 aria-label={`Показать фото ${index + 1}`}
                 aria-pressed={activeIndex === index}
-                onClick={() => setActiveIndex(index)}
+                onClick={() => selectMainImage(index)}
                 className={cn(
                   "relative h-20 w-15 shrink-0 overflow-hidden rounded-lg border bg-muted transition",
                   activeIndex === index ? "border-foreground" : "border-border opacity-70",
@@ -225,54 +343,66 @@ export function Gallery({ images, title }: GalleryProps) {
             </DialogClose>
           </div>
 
-          <div className="flex min-h-0 flex-1 items-center justify-center px-4 py-16">
-            <div className="relative aspect-[3/4] w-[min(78vw,calc((100dvh-12rem)*0.75),42rem)] overflow-hidden rounded-xl bg-black/20 shadow-2xl ring-1 ring-white/15 max-md:w-[min(92vw,calc((100dvh-11rem)*0.75))]">
-              <Image
-                fill
-                src={lightboxImage}
-                alt={`${title}, фото ${lightboxIndex + 1}`}
-                unoptimized={shouldBypassNextImageOptimization(lightboxImage)}
-                sizes="(min-width: 768px) 42rem, 92vw"
-                className="object-cover"
-                draggable={false}
-              />
-            </div>
-
-            {hasMultipleImages && (
-              <>
-                <Button
-                  type="button"
-                  variant="ghost"
-                  size="icon-lg"
-                  aria-label="Предыдущее фото"
-                  onClick={showPreviousInLightbox}
-                  className="absolute top-[calc(50%-1.125rem)] left-4 bg-black/35 text-white backdrop-blur hover:bg-black/50 hover:text-white active:not-aria-[haspopup]:translate-y-0"
-                >
-                  <ChevronLeft />
-                </Button>
-                <Button
-                  type="button"
-                  variant="ghost"
-                  size="icon-lg"
-                  aria-label="Следующее фото"
-                  onClick={showNextInLightbox}
-                  className="absolute top-[calc(50%-1.125rem)] right-4 bg-black/35 text-white backdrop-blur hover:bg-black/50 hover:text-white active:not-aria-[haspopup]:translate-y-0"
-                >
-                  <ChevronRight />
-                </Button>
-              </>
-            )}
+          <div
+            ref={lightboxTrackRef}
+            onScroll={handleLightboxScroll}
+            onPointerDown={clearLightboxScrollTarget}
+            className="flex min-h-0 flex-1 snap-x snap-mandatory overflow-x-auto overscroll-x-contain scroll-smooth [scrollbar-width:none] [&::-webkit-scrollbar]:hidden"
+          >
+            {images.map((image, index) => (
+              <div
+                key={`${image}-${index}`}
+                className="flex h-full w-full flex-none snap-center items-center justify-center px-4 py-16"
+              >
+                <div className="relative aspect-[3/4] w-[min(78vw,calc((100dvh-12rem)*0.75),42rem)] overflow-hidden rounded-xl bg-black/20 shadow-2xl ring-1 ring-white/15 max-md:w-[min(92vw,calc((100dvh-11rem)*0.75))]">
+                  <Image
+                    fill
+                    src={image}
+                    alt={`${title}, фото ${index + 1}`}
+                    unoptimized={shouldBypassNextImageOptimization(image)}
+                    sizes="(min-width: 768px) 42rem, 92vw"
+                    className="object-cover"
+                    draggable={false}
+                  />
+                </div>
+              </div>
+            ))}
           </div>
+
+          {hasMultipleImages && (
+            <>
+              <Button
+                type="button"
+                variant="ghost"
+                size="icon-lg"
+                aria-label="Предыдущее фото"
+                onClick={showPreviousInLightbox}
+                className="absolute top-[calc(50%-1.125rem)] left-4 bg-black/35 text-white backdrop-blur hover:bg-black/50 hover:text-white active:not-aria-[haspopup]:translate-y-0"
+              >
+                <ChevronLeft />
+              </Button>
+              <Button
+                type="button"
+                variant="ghost"
+                size="icon-lg"
+                aria-label="Следующее фото"
+                onClick={showNextInLightbox}
+                className="absolute top-[calc(50%-1.125rem)] right-4 bg-black/35 text-white backdrop-blur hover:bg-black/50 hover:text-white active:not-aria-[haspopup]:translate-y-0"
+              >
+                <ChevronRight />
+              </Button>
+            </>
+          )}
 
           {hasMultipleImages && (
             <div className="flex shrink-0 justify-center gap-2 overflow-x-auto px-4 py-4">
               {images.map((image, index) => (
                 <button
-                  key={image}
+                  key={`${image}-${index}`}
                   type="button"
                   aria-label={`Открыть фото ${index + 1}`}
                   aria-pressed={lightboxIndex === index}
-                  onClick={() => setLightboxIndex(index)}
+                  onClick={() => selectLightboxImage(index)}
                   className={cn(
                     "relative h-16 w-12 shrink-0 overflow-hidden rounded-lg border transition",
                     lightboxIndex === index
