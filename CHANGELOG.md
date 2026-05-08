@@ -1,5 +1,12 @@
 # Changelog
 
+## [0.11.2](https://github.com/DenisVorop/artmate-monorepo/compare/v0.11.1...v0.11.2) (2026-05-08)
+
+
+### Bug Fixes
+
+* **tg:** use separate mini app bot token ([660f4a7](https://github.com/DenisVorop/artmate-monorepo/commit/660f4a7bbc2e6be9c294a1745921ee3acb18201b))
+
 ## [0.11.1](https://github.com/DenisVorop/artmate-monorepo/compare/v0.11.0...v0.11.1) (2026-05-08)
 
 
