@@ -303,6 +303,10 @@ OZON_OAUTH_SCOPE=
 
 TELEGRAM_BOT_TOKEN=
 TELEGRAM_CONTACTS_CHAT_ID=
+TELEGRAM_ORDERS_CHAT_ID=
+TELEGRAM_MINI_APP_BOT_TOKEN=
+TELEGRAM_WEBHOOK_SECRET=
+TELEGRAM_WEB_APP_URL=https://www.art-mate.ru
 ```
 
 Provider sources:
@@ -310,8 +314,12 @@ Provider sources:
 - `YANDEX_*`: Yandex OAuth application settings.
 - `OZON_API_KEY` and `OZON_CLIENT_ID`: Ozon Seller API settings.
 - `OZON_OAUTH_*`: Ozon OAuth application and OAuth flow.
-- `TELEGRAM_BOT_TOKEN`: BotFather.
+- `TELEGRAM_BOT_TOKEN`: BotFather token for contact and order notifications.
 - `TELEGRAM_CONTACTS_CHAT_ID`: target Telegram chat id for contact form messages.
+- `TELEGRAM_ORDERS_CHAT_ID`: target Telegram chat id for order notifications, falls back to `TELEGRAM_CONTACTS_CHAT_ID`.
+- `TELEGRAM_MINI_APP_BOT_TOKEN`: BotFather token for the Mini App bot served by `apps/tg`.
+- `TELEGRAM_WEBHOOK_SECRET`: secret path segment for the Mini App bot webhook.
+- `TELEGRAM_WEB_APP_URL`: Mini App URL opened by the Telegram bot.
 
 If any real secret was pasted into chat, logs, or committed by mistake, rotate it in the provider dashboard before production use.
 

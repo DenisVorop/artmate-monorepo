@@ -138,7 +138,7 @@ async function sendTelegramMethod(
 
   try {
     const response = await fetch(
-      `https://api.telegram.org/bot${getRequiredEnv("TELEGRAM_BOT_TOKEN")}/${method}`,
+      `https://api.telegram.org/bot${getRequiredEnv("TELEGRAM_MINI_APP_BOT_TOKEN")}/${method}`,
       {
         body: JSON.stringify(body),
         headers: {
