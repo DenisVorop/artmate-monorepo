@@ -1,5 +1,21 @@
 # Changelog
 
+## [0.11.0](https://github.com/DenisVorop/artmate-monorepo/compare/v0.10.2...v0.11.0) (2026-05-08)
+
+
+### Features
+
+* **site:** add draggable product gallery ([6a47e17](https://github.com/DenisVorop/artmate-monorepo/commit/6a47e17f97ff1e14af1349c966a52446f349df62))
+* **site:** add fuzzy catalog search ([a683dd9](https://github.com/DenisVorop/artmate-monorepo/commit/a683dd992a297bb8e856c4e3ebf909a0d49b22a7))
+* **tg:** add telegram bot service ([f6fb376](https://github.com/DenisVorop/artmate-monorepo/commit/f6fb376106bf73eb482dff252693c95b50eb9c11))
+
+
+### Bug Fixes
+
+* **site:** add mobile catalog cta after bestsellers ([0770669](https://github.com/DenisVorop/artmate-monorepo/commit/0770669495509624e957a55563fd8f591a625b42))
+* **site:** improve mobile reviews tooltip ([0f6a840](https://github.com/DenisVorop/artmate-monorepo/commit/0f6a840c19681165bb537ac2dac337077cfddb91))
+* **site:** prefill checkout auth name ([3fd78c6](https://github.com/DenisVorop/artmate-monorepo/commit/3fd78c6bfd3790344db4f80ee2603eac690ae658))
+
 ## [0.10.2](https://github.com/DenisVorop/artmate-monorepo/compare/v0.10.1...v0.10.2) (2026-05-08)
 
 
