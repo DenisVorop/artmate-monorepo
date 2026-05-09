@@ -1,5 +1,6 @@
 export {
   createAdminOrderComment,
+  getAdminOrder,
   getAdminOrders,
   updateAdminOrderStatus,
 } from "./orders.actions";

@@ -82,6 +82,20 @@ export class OrdersController {
 
   @UseGuards(AuthGuard)
   @ValidateResponse(AdminOrderDTO)
+  @ApiOperation({ summary: "Get order details for admin CRM" })
+  @ApiOkResponse({ type: AdminOrderDTO })
+  @Get("admin/:orderId")
+  getAdminOrder(
+    @Param("orderId") orderId: string,
+    @Req() request: AuthenticatedRequest,
+  ) {
+    this.usersService.assertRole(request.user, "admin");
+
+    return this.ordersService.getAdminOrder(orderId);
+  }
+
+  @UseGuards(AuthGuard)
+  @ValidateResponse(AdminOrderDTO)
   @ApiOperation({ summary: "Update order status from admin panel" })
   @ApiOkResponse({ type: AdminOrderDTO })
   @Patch("admin/:orderId/status")

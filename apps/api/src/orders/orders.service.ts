@@ -70,6 +70,10 @@ export class OrdersService {
     return this.ordersStorage.getAdminOrders();
   }
 
+  getAdminOrder(orderId: string): Promise<AdminOrderDTO> {
+    return this.ordersStorage.getAdminOrder(this.parseOrderId(orderId));
+  }
+
   async updateAdminOrderStatus(
     orderId: string,
     status: unknown,

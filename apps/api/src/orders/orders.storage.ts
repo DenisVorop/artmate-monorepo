@@ -328,7 +328,7 @@ export class OrdersStorage {
     return this.getAdminOrder(orderId);
   }
 
-  private async getAdminOrder(orderId: string): Promise<AdminOrderDTO> {
+  async getAdminOrder(orderId: string): Promise<AdminOrderDTO> {
     const order = await this.prisma.order.findUnique({
       where: { id: orderId },
       include: adminOrderInclude,

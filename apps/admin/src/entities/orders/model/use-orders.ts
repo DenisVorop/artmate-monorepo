@@ -14,3 +14,16 @@ export function useOrders() {
     refetch,
   };
 }
+
+export function useOrder(orderId: string) {
+  const { data, isError, isPending, refetch } = useQuery(
+    ordersQuery.detail(orderId),
+  );
+
+  return {
+    isError,
+    isPending,
+    order: data,
+    refetch,
+  };
+}

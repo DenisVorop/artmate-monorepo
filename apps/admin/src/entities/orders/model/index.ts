@@ -1,5 +1,5 @@
 export { ordersQuery, ordersQueryKeys } from "./query";
-export { useOrders } from "./use-orders";
+export { useOrder, useOrders } from "./use-orders";
 export type {
   AdminOrder,
   AdminOrderComment,

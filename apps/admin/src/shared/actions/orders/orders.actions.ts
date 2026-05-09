@@ -17,6 +17,12 @@ export async function getAdminOrders(): Promise<AdminOrderDTO[]> {
   return requestAdminApi<AdminOrderDTO[]>("/orders/admin");
 }
 
+export async function getAdminOrder(orderId: string): Promise<AdminOrderDTO> {
+  return requestAdminApi<AdminOrderDTO>(
+    `/orders/admin/${encodeURIComponent(orderId)}`,
+  );
+}
+
 export async function updateAdminOrderStatus(
   orderId: string,
   input: UpdateAdminOrderStatusInputDTO,

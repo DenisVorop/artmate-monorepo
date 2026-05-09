@@ -7,6 +7,7 @@ import {
   CalendarDays,
   ChevronLeft,
   ChevronRight,
+  ExternalLink,
   GripVertical,
   History,
   Mail,
@@ -24,6 +25,7 @@ import {
   type AdminOrder,
   type OrderStatus,
 } from "@/entities/orders";
+import { routes } from "@/shared/constants";
 import { cn } from "@/shared/lib/utils";
 import {
   Badge,
@@ -343,7 +345,15 @@ function OrderCard({
               <History className="size-4" aria-hidden="true" />
               История
             </p>
-            <Badge variant="outline">{order.history.length}</Badge>
+            <div className="flex items-center gap-2">
+              <Badge variant="outline">{order.history.length}</Badge>
+              <Button asChild size="sm" variant="outline">
+                <a href={routes.order(order.id)}>
+                  <ExternalLink data-icon="inline-start" aria-hidden="true" />
+                  Вся
+                </a>
+              </Button>
+            </div>
           </div>
 
           {visibleHistory.length > 0 ? (
