@@ -169,9 +169,9 @@ export class OrdersController {
   @ValidateResponse(OrderDTO)
   @Post()
   @ApiOperation({
-    summary: "Create order from the current cart and notify Telegram",
+    summary: "Create order from the current cart",
     description:
-      "Creates an order from the current cart, sends the order details to Telegram, and clears the cart after successful notification.",
+      "Creates an order from the current cart, clears the cart, and queues order notifications.",
   })
   @ApiOkResponse({ type: OrderDTO })
   async createOrder(

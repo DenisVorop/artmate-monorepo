@@ -172,11 +172,8 @@ export class OrdersService {
       subtotal: cartDTO.subtotal,
       comment,
     });
-    await Promise.all([
-      this.notifyAdminAboutOrderCreated(order),
-      this.notifyCustomerAboutOrderCreated(order, user.id),
-    ]);
     await this.cartService.clearCart(order.cartId);
+    this.queueOrderCreatedNotifications(order, user.id);
 
     return order;
   }
@@ -355,6 +352,25 @@ export class OrdersService {
     }
   }
 
+  private queueOrderCreatedNotifications(order: OrderDTO, userId: string) {
+    setImmediate(() => {
+      void this.notifyOrderCreated(order, userId).catch((error) => {
+        this.logger.warn(
+          `Failed to process queued notifications for order ${order.id}: ${
+            error instanceof Error ? error.message : String(error)
+          }`,
+        );
+      });
+    });
+  }
+
+  private async notifyOrderCreated(order: OrderDTO, userId: string) {
+    await Promise.all([
+      this.notifyAdminAboutOrderCreated(order),
+      this.notifyCustomerAboutOrderCreated(order, userId),
+    ]);
+  }
+
   private async notifyCustomerAboutOrderCreated(
     order: OrderDTO,
     userId: string,
@@ -411,6 +427,10 @@ export class OrdersService {
       "",
       `${order.customer.name}, спасибо за заказ. Мы получили заявку и скоро свяжемся с вами для подтверждения деталей.`,
       "",
+      "Товары:",
+      ...this.renderOrderItemsTextEmail(order),
+      "",
+      `Подытог: ${this.formatMoney(order.subtotal)}`,
       `Итого: ${this.formatMoney(order.total)}`,
       `Телефон: ${order.customer.phone}`,
       "",
@@ -429,7 +449,9 @@ export class OrdersService {
         ${renderEmailParagraph(
           `${escapedName}, спасибо за заказ ${escapedOrderId}. Мы получили заявку и скоро свяжемся с вами для подтверждения деталей.`,
         )}
+        ${this.renderOrderItemsHtmlEmail(order)}
         ${renderEmailDetails([
+          { label: "Подытог", value: this.formatMoney(order.subtotal) },
           { label: "Итого", value: this.formatMoney(order.total) },
           { label: "Телефон", value: order.customer.phone },
         ])}
@@ -437,6 +459,60 @@ export class OrdersService {
       footerHtml:
         "Если вы не оформляли этот заказ, ответьте на это письмо или свяжитесь с поддержкой Artmate.",
     });
+  }
+
+  private renderOrderItemsTextEmail(order: OrderDTO) {
+    if (order.items.length === 0) {
+      return ["Товары не указаны."];
+    }
+
+    return order.items.map(
+      (item) =>
+        `- ${item.title}: ${item.quantity} x ${this.formatMoney(
+          item.price,
+        )} = ${this.formatMoney(item.lineTotal)}`,
+    );
+  }
+
+  private renderOrderItemsHtmlEmail(order: OrderDTO) {
+    if (order.items.length === 0) {
+      return renderEmailParagraph("Товары не указаны.");
+    }
+
+    const rowsHtml = order.items
+      .map(
+        (item) => `
+          <tr>
+            <td style="padding:10px 0;border-bottom:1px solid #e7e5e4;color:#1c1917;font-family:Arial,Helvetica,sans-serif;font-size:14px;line-height:20px;font-weight:700;">
+              ${escapeEmailHtml(item.title)}
+            </td>
+            <td align="right" style="padding:10px 0;border-bottom:1px solid #e7e5e4;color:#78716c;font-family:Arial,Helvetica,sans-serif;font-size:14px;line-height:20px;white-space:nowrap;">
+              ${item.quantity} x ${escapeEmailHtml(this.formatMoney(item.price))}
+            </td>
+            <td align="right" style="padding:10px 0 10px 14px;border-bottom:1px solid #e7e5e4;color:#1c1917;font-family:Arial,Helvetica,sans-serif;font-size:14px;line-height:20px;font-weight:700;white-space:nowrap;">
+              ${escapeEmailHtml(this.formatMoney(item.lineTotal))}
+            </td>
+          </tr>
+        `,
+      )
+      .join("");
+
+    return `
+      <table role="presentation" width="100%" cellspacing="0" cellpadding="0" style="margin-top:24px;border:1px solid #e7e5e4;border-radius:16px;background:#fafaf9;">
+        <tr>
+          <td style="padding:16px 18px 4px;color:#78716c;font-family:Arial,Helvetica,sans-serif;font-size:13px;line-height:18px;text-transform:uppercase;letter-spacing:.08em;font-weight:700;">
+            Товары
+          </td>
+        </tr>
+        <tr>
+          <td style="padding:0 18px 8px;">
+            <table role="presentation" width="100%" cellspacing="0" cellpadding="0">
+              ${rowsHtml}
+            </table>
+          </td>
+        </tr>
+      </table>
+    `;
   }
 
   private formatMoney(value: number) {
