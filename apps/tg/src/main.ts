@@ -137,7 +137,7 @@ async function handleMessage(message: TelegramMessage) {
     return;
   }
 
-  if (text?.startsWith("/link")) {
+  if (isTelegramLinkCommand(text)) {
     await sendTelegramLinkMessage(message.chat.id, message.from?.first_name);
     return;
   }
@@ -576,6 +576,10 @@ function getPort() {
 
 function isRecord(value: unknown): value is Record<string, unknown> {
   return typeof value === "object" && value !== null;
+}
+
+function isTelegramLinkCommand(text: string | undefined) {
+  return Boolean(text?.startsWith("/link") || text?.startsWith("/start link"));
 }
 
 function escapeMarkdownV2(value: string) {

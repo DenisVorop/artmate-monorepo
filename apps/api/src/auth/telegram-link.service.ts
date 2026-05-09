@@ -366,7 +366,10 @@ export class TelegramLinkService {
     }
 
     try {
-      return new URL(rawUrl).toString();
+      const url = new URL(rawUrl);
+      url.searchParams.set("start", "link");
+
+      return url.toString();
     } catch {
       return undefined;
     }
