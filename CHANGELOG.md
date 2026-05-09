@@ -1,5 +1,12 @@
 # Changelog
 
+## [0.15.1](https://github.com/DenisVorop/artmate-monorepo/compare/v0.15.0...v0.15.1) (2026-05-09)
+
+
+### Bug Fixes
+
+* **api:** exempt content assistant webhook from csrf ([90d8505](https://github.com/DenisVorop/artmate-monorepo/commit/90d85050d2f5bad07628cc9701e0b27135a52ffc))
+
 ## [0.15.0](https://github.com/DenisVorop/artmate-monorepo/compare/v0.14.1...v0.15.0) (2026-05-09)
 
 
