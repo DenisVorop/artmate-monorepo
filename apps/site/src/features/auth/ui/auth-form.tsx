@@ -183,6 +183,8 @@ function LoginForm({
   const { mutate: login, isPending } = useLoginMutation({
     onSuccess: completeAuthentication,
   });
+  const { mutate: resendEmailVerification, isPending: isSendingVerification } =
+    useResendEmailVerificationMutation();
   const {
     register,
     handleSubmit,
@@ -195,7 +197,7 @@ function LoginForm({
     mode: "onSubmit",
     resolver: zodResolver(loginFormSchema),
   });
-  const isSubmitting = isPending;
+  const isSubmitting = isPending || isSendingVerification;
 
   const submitForm = handleSubmit((values) => {
     setSubmitError(undefined);
@@ -204,10 +206,7 @@ function LoginForm({
     login(toLoginInput({ ...values, email }), {
       onError: (error) => {
         if (isEmailNotVerifiedError(error)) {
-          onVerificationRequired({
-            email,
-            resendAvailableAt: new Date().toISOString(),
-          });
+          sendVerificationCode(email);
           return;
         }
 
@@ -224,6 +223,35 @@ function LoginForm({
 
     router.replace(redirectPath);
     router.refresh();
+  }
+
+  function sendVerificationCode(email: string) {
+    resendEmailVerification(
+      { email },
+      {
+        onSuccess: (response) => {
+          if (!response) {
+            setSubmitError("Не удалось отправить код подтверждения.");
+            return;
+          }
+
+          onVerificationRequired(response.verification);
+        },
+        onError: (error) => {
+          const resendAvailableAt = getEmailVerificationResendAvailableAt(error);
+
+          if (resendAvailableAt) {
+            onVerificationRequired({
+              email,
+              resendAvailableAt,
+            });
+            return;
+          }
+
+          setSubmitError(getAuthErrorMessage(error));
+        },
+      },
+    );
   }
 
   return (
@@ -792,6 +820,25 @@ function FormMessage({ message }: { message?: string }) {
 
 function isEmailNotVerifiedError(error: unknown) {
   return error instanceof Error && error.message === "Email is not verified";
+}
+
+function getEmailVerificationResendAvailableAt(error: unknown) {
+  const message = error instanceof Error ? error.message : "";
+
+  if (!message.startsWith("Email verification code resend is temporarily unavailable")) {
+    return undefined;
+  }
+
+  const retryAfterSeconds = getRetryAfterSeconds(message) ?? 60;
+
+  return new Date(Date.now() + retryAfterSeconds * 1000).toISOString();
+}
+
+function getRetryAfterSeconds(message: string) {
+  const match = message.match(/Retry after (?<seconds>\d+) seconds$/);
+  const seconds = Number(match?.groups?.seconds);
+
+  return Number.isFinite(seconds) && seconds > 0 ? Math.ceil(seconds) : undefined;
 }
 
 function getWaitSeconds(value: string, now: number) {
