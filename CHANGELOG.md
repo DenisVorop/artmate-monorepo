@@ -1,5 +1,24 @@
 # Changelog
 
+## [0.14.0](https://github.com/DenisVorop/artmate-monorepo/compare/v0.13.0...v0.14.0) (2026-05-09)
+
+
+### Features
+
+* add admin order history page ([74b8c1c](https://github.com/DenisVorop/artmate-monorepo/commit/74b8c1c3b90335de917602d5cda9b6c5272bd0f2))
+* add order crm workflow ([16634de](https://github.com/DenisVorop/artmate-monorepo/commit/16634de1cb02f4c310e30af72e893c2f05a92404))
+* **auth:** unlink telegram accounts ([6bbcac7](https://github.com/DenisVorop/artmate-monorepo/commit/6bbcac72d95d612c0e55c363697fa73ff99c9f17))
+* notify customers about order status changes ([d25b0ea](https://github.com/DenisVorop/artmate-monorepo/commit/d25b0ea94a23456284c3c5d067a05064fcbaeba7))
+* **site:** add catalog search suggestions ([8a7988e](https://github.com/DenisVorop/artmate-monorepo/commit/8a7988e3771019a8e7c751f210a574ffd643492c))
+
+
+### Bug Fixes
+
+* add production favicon assets ([009ccc5](https://github.com/DenisVorop/artmate-monorepo/commit/009ccc5920059606069cec41757667780ab98c4e))
+* **auth:** handle yandex oauth redirect ([c3cc1c8](https://github.com/DenisVorop/artmate-monorepo/commit/c3cc1c8d3515fef4b2f653a2de4e29070a9a489d))
+* **site:** send verification code on unverified login ([f34e5e0](https://github.com/DenisVorop/artmate-monorepo/commit/f34e5e060c31e82dc950211133a029c0d497acb6))
+* **tg:** open account link flow from bot link ([8a9e99d](https://github.com/DenisVorop/artmate-monorepo/commit/8a9e99d0d6bfc2fdb466ec70059c7e5e58469847))
+
 ## [0.13.0](https://github.com/DenisVorop/artmate-monorepo/compare/v0.12.0...v0.13.0) (2026-05-09)
 
 
