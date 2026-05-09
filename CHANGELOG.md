@@ -1,5 +1,12 @@
 # Changelog
 
+## [0.11.4](https://github.com/DenisVorop/artmate-monorepo/compare/v0.11.3...v0.11.4) (2026-05-09)
+
+
+### Bug Fixes
+
+* **edge-proxy:** proxy telegram webhooks through edge ([e938ca2](https://github.com/DenisVorop/artmate-monorepo/commit/e938ca2fb5eb104e63ee269013372ad596f5f318))
+
 ## [0.11.3](https://github.com/DenisVorop/artmate-monorepo/compare/v0.11.2...v0.11.3) (2026-05-09)
 
 
