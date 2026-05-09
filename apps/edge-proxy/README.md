@@ -57,7 +57,8 @@ OPENAI_BASE_URL=https://77-221-158-124.sslip.io/v1
 OPENAI_RELAY_TOKEN=<same-as-EDGE_PROXY_TOKEN>
 ```
 
-Telegram Mini App bot webhook should point at the edge proxy domain:
+Telegram Mini App bot webhook should point at the edge proxy domain, not the
+regional `tg.art-mate.ru` host:
 
 ```bash
 curl -sS -X POST "https://api.telegram.org/bot${TELEGRAM_MINI_APP_BOT_TOKEN}/setWebhook" \
