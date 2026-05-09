@@ -1,5 +1,12 @@
 # Changelog
 
+## [0.11.3](https://github.com/DenisVorop/artmate-monorepo/compare/v0.11.2...v0.11.3) (2026-05-09)
+
+
+### Bug Fixes
+
+* **tg:** acknowledge webhook before replying ([fe71d4d](https://github.com/DenisVorop/artmate-monorepo/commit/fe71d4db04a1bc731ebf3e7fda409959453f81ef))
+
 ## [0.11.2](https://github.com/DenisVorop/artmate-monorepo/compare/v0.11.1...v0.11.2) (2026-05-08)
 
 
