@@ -1,4 +1,4 @@
-import { BadRequestException, Injectable } from "@nestjs/common";
+import { BadRequestException, Injectable, Logger } from "@nestjs/common";
 
 import type { AuthUser } from "../auth/auth.types";
 import { CartService } from "../cart/cart.service";
@@ -28,6 +28,8 @@ const MAX_ADMIN_COMMENT_LENGTH = ORDER_ADMIN_COMMENT_MAX_LENGTH;
 
 @Injectable()
 export class OrdersService {
+  private readonly logger = new Logger(OrdersService.name);
+
   constructor(
     private readonly cartStorage: CartStorage,
     private readonly cartService: CartService,
@@ -68,16 +70,22 @@ export class OrdersService {
     return this.ordersStorage.getAdminOrders();
   }
 
-  updateAdminOrderStatus(
+  async updateAdminOrderStatus(
     orderId: string,
     status: unknown,
     author: AuthUser,
   ): Promise<AdminOrderDTO> {
-    return this.ordersStorage.updateAdminOrderStatus(
+    const result = await this.ordersStorage.updateAdminOrderStatus(
       this.parseOrderId(orderId),
       this.parseStatus(status),
       author.id,
     );
+
+    if (result.changed) {
+      await this.notifyCustomerAboutStatusChange(result);
+    }
+
+    return result.order;
   }
 
   createAdminOrderComment(
@@ -290,5 +298,39 @@ export class OrdersService {
     }
 
     return value as OrderStatus;
+  }
+
+  private async notifyCustomerAboutStatusChange(result: {
+    order: AdminOrderDTO;
+    previousStatus: OrderStatus;
+    nextStatus: OrderStatus;
+    userId?: string;
+  }) {
+    if (!result.userId) {
+      return;
+    }
+
+    try {
+      const chatId = await this.ordersStorage.getUserTelegramChatId(
+        result.userId,
+      );
+
+      if (!chatId) {
+        return;
+      }
+
+      await this.ordersTelegramService.sendOrderStatusChangedToCustomer({
+        chatId,
+        nextStatus: result.nextStatus,
+        order: result.order,
+        previousStatus: result.previousStatus,
+      });
+    } catch (error) {
+      this.logger.warn(
+        `Failed to send Telegram status notification for order ${result.order.id}: ${
+          error instanceof Error ? error.message : String(error)
+        }`,
+      );
+    }
   }
 }

@@ -5,6 +5,7 @@ import {
 } from "@nestjs/common";
 
 import type { OrderDTO } from "./dto";
+import type { OrderStatus } from "./orders.constants";
 
 type TelegramSendMessageResponse = {
   ok?: boolean;
@@ -13,6 +14,17 @@ type TelegramSendMessageResponse = {
 };
 
 const telegramRequestTimeoutMs = 10000;
+const defaultTelegramWebAppUrl = "https://www.art-mate.ru";
+
+const customerOrderStatusLabels: Record<OrderStatus, string> = {
+  new: "В обработке",
+  in_progress: "В работе",
+  waiting_payment: "Ожидает оплаты",
+  paid: "Оплачен",
+  delivering: "Доставляется",
+  completed: "Завершен",
+  cancelled: "Отменен",
+};
 
 @Injectable()
 export class OrdersTelegramService {
@@ -25,6 +37,30 @@ export class OrdersTelegramService {
     if (!response.ok || responseBody.ok === false) {
       throw new BadGatewayException({
         message: "Telegram order message request failed",
+        status: response.status,
+        errorCode: responseBody.error_code,
+        description: responseBody.description,
+      });
+    }
+  }
+
+  async sendOrderStatusChangedToCustomer(input: {
+    chatId: string;
+    order: OrderDTO;
+    previousStatus: OrderStatus;
+    nextStatus: OrderStatus;
+  }) {
+    const response = await this.requestTelegramToCustomer(
+      input.chatId,
+      this.formatOrderStatusChangedMessage(input),
+    );
+    const responseBody = (await this.parseTelegramResponseBody(
+      response,
+    )) as TelegramSendMessageResponse;
+
+    if (!response.ok || responseBody.ok === false) {
+      throw new BadGatewayException({
+        message: "Telegram order status message request failed",
         status: response.status,
         errorCode: responseBody.error_code,
         description: responseBody.description,
@@ -50,6 +86,41 @@ export class OrdersTelegramService {
     } catch (error) {
       throw new BadGatewayException({
         message: "Telegram order message request failed",
+        cause: error instanceof Error ? error.message : String(error),
+      });
+    }
+  }
+
+  private async requestTelegramToCustomer(chatId: string, text: string) {
+    try {
+      return await fetch(this.getTelegramMiniAppSendMessageUrl(), {
+        method: "POST",
+        headers: {
+          "content-type": "application/json",
+        },
+        body: JSON.stringify({
+          chat_id: chatId,
+          disable_web_page_preview: true,
+          parse_mode: "HTML",
+          reply_markup: {
+            inline_keyboard: [
+              [
+                {
+                  text: "Открыть Artmate",
+                  web_app: {
+                    url: this.getTelegramWebAppUrl(),
+                  },
+                },
+              ],
+            ],
+          },
+          text,
+        }),
+        signal: AbortSignal.timeout(telegramRequestTimeoutMs),
+      });
+    } catch (error) {
+      throw new BadGatewayException({
+        message: "Telegram order status message request failed",
         cause: error instanceof Error ? error.message : String(error),
       });
     }
@@ -84,6 +155,46 @@ export class OrdersTelegramService {
     ].filter((line): line is string => typeof line === "string");
 
     return this.trimTelegramMessage(lines.join("\n"));
+  }
+
+  private formatOrderStatusChangedMessage(input: {
+    order: OrderDTO;
+    previousStatus: OrderStatus;
+    nextStatus: OrderStatus;
+  }) {
+    const lines = [
+      "<b>Статус заказа изменен</b>",
+      "",
+      `<b>Заказ:</b> <code>${this.formatText(input.order.id)}</code>`,
+      `<b>Было:</b> ${this.formatText(
+        customerOrderStatusLabels[input.previousStatus],
+      )}`,
+      `<b>Стало:</b> ${this.formatText(
+        customerOrderStatusLabels[input.nextStatus],
+      )}`,
+      "",
+      this.getStatusHint(input.nextStatus),
+    ];
+
+    return this.trimTelegramMessage(lines.join("\n"));
+  }
+
+  private getStatusHint(status: OrderStatus) {
+    switch (status) {
+      case "new":
+      case "in_progress":
+        return "Мы обновили информацию по вашему заказу.";
+      case "waiting_payment":
+        return "Заказ ожидает оплаты. Откройте Artmate, чтобы посмотреть детали.";
+      case "paid":
+        return "Оплата получена. Мы продолжим работу с заказом.";
+      case "delivering":
+        return "Заказ передан в доставку.";
+      case "completed":
+        return "Заказ завершен.";
+      case "cancelled":
+        return "Заказ отменен. Если это ошибка, свяжитесь с нами.";
+    }
   }
 
   private formatDate(value: string) {
@@ -131,6 +242,10 @@ export class OrdersTelegramService {
     return `https://api.telegram.org/bot${this.getTelegramBotToken()}/sendMessage`;
   }
 
+  private getTelegramMiniAppSendMessageUrl() {
+    return `https://api.telegram.org/bot${this.getTelegramMiniAppBotToken()}/sendMessage`;
+  }
+
   private getTelegramBotToken() {
     const token = process.env.TELEGRAM_BOT_TOKEN?.trim();
 
@@ -153,6 +268,31 @@ export class OrdersTelegramService {
     }
 
     return chatId;
+  }
+
+  private getTelegramMiniAppBotToken() {
+    const token = process.env.TELEGRAM_MINI_APP_BOT_TOKEN?.trim();
+
+    if (!token) {
+      throw new InternalServerErrorException(
+        "TELEGRAM_MINI_APP_BOT_TOKEN is not configured",
+      );
+    }
+
+    return token;
+  }
+
+  private getTelegramWebAppUrl() {
+    const rawUrl =
+      process.env.TELEGRAM_WEB_APP_URL?.trim() ??
+      process.env.SITE_URL?.trim() ??
+      defaultTelegramWebAppUrl;
+
+    try {
+      return new URL(rawUrl).toString();
+    } catch {
+      return defaultTelegramWebAppUrl;
+    }
   }
 
   private async parseTelegramResponseBody(response: Response) {

@@ -85,6 +85,14 @@ type StoredAdminOrder = Prisma.OrderGetPayload<{
   include: typeof adminOrderInclude;
 }>;
 
+export type UpdateAdminOrderStatusResult = {
+  order: AdminOrderDTO;
+  changed: boolean;
+  previousStatus: OrderStatus;
+  nextStatus: OrderStatus;
+  userId?: string;
+};
+
 @Injectable()
 export class OrdersStorage {
   constructor(private readonly prisma: PrismaService) {}
@@ -211,21 +219,24 @@ export class OrdersStorage {
     orderId: string,
     status: OrderStatus,
     authorId: string,
-  ): Promise<AdminOrderDTO> {
+  ): Promise<UpdateAdminOrderStatusResult> {
     const existingAuthorId = await this.getExistingUserId(authorId);
     const nextStatus = this.mapPrismaOrderStatus(status);
 
     return this.prisma.$transaction(async (tx) => {
       const existingOrder = await tx.order.findUnique({
         where: { id: orderId },
-        select: { crmStatus: true, paidAt: true },
+        select: { crmStatus: true, paidAt: true, userId: true },
       });
 
       if (!existingOrder) {
         throw new NotFoundException("Order not found");
       }
 
-      if (existingOrder.crmStatus !== nextStatus) {
+      const previousStatus = this.mapOrderCrmStatus(existingOrder.crmStatus);
+      const changed = existingOrder.crmStatus !== nextStatus;
+
+      if (changed) {
         await tx.order.update({
           where: { id: orderId },
           data: {
@@ -245,7 +256,7 @@ export class OrdersStorage {
             authorId: existingAuthorId,
             eventType: "status_changed",
             payload: this.toPrismaJson({
-              fromStatus: this.mapOrderCrmStatus(existingOrder.crmStatus),
+              fromStatus: previousStatus,
               toStatus: status,
             }),
           },
@@ -261,8 +272,23 @@ export class OrdersStorage {
         throw new NotFoundException("Order not found");
       }
 
-      return this.mapAdminOrder(order);
+      return {
+        order: this.mapAdminOrder(order),
+        changed,
+        previousStatus,
+        nextStatus: status,
+        userId: existingOrder.userId ?? undefined,
+      };
     });
+  }
+
+  async getUserTelegramChatId(userId: string): Promise<string | undefined> {
+    const account = await this.prisma.telegramAccount.findUnique({
+      where: { userId },
+      select: { telegramChatId: true },
+    });
+
+    return account?.telegramChatId;
   }
 
   async createAdminOrderComment(
