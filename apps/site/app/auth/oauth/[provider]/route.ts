@@ -16,5 +16,5 @@ export async function GET(_request: Request, { params }: OAuthRouteProps) {
 }
 
 function getApiBaseUrl() {
-  return process.env.API_BASE_URL ?? DEFAULT_API_BASE_URL;
+  return process.env.API_PUBLIC_URL ?? process.env.API_BASE_URL ?? DEFAULT_API_BASE_URL;
 }

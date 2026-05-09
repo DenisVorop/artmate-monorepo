@@ -49,6 +49,7 @@ export class YandexOAuthService {
     url.searchParams.set("response_type", "code");
     url.searchParams.set("client_id", this.getClientId());
     url.searchParams.set("redirect_uri", this.getRedirectUri());
+    url.searchParams.set("force_confirm", "yes");
     url.searchParams.set("state", state);
 
     return url.toString();
