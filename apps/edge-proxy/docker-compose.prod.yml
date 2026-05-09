@@ -1,6 +1,6 @@
 services:
-  ai-relay:
-    image: ghcr.io/denisvorop/artmate-monorepo-ai-relay:${IMAGE_TAG:-latest}
+  edge-proxy:
+    image: ghcr.io/denisvorop/artmate-monorepo-edge-proxy:${IMAGE_TAG:-latest}
     restart: unless-stopped
     env_file:
       - .env
@@ -21,7 +21,7 @@ services:
     image: caddy:2-alpine
     restart: unless-stopped
     depends_on:
-      ai-relay:
+      edge-proxy:
         condition: service_healthy
     env_file:
       - .env

@@ -1,0 +1,15 @@
+{$EDGE_PROXY_DOMAIN} {
+	handle /content-assistant/telegram/* {
+		reverse_proxy https://api.art-mate.ru {
+			header_up Host api.art-mate.ru
+		}
+	}
+
+	handle /telegram/* {
+		reverse_proxy https://tg.art-mate.ru {
+			header_up Host tg.art-mate.ru
+		}
+	}
+
+	reverse_proxy edge-proxy:3004
+}

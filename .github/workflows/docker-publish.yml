@@ -35,8 +35,8 @@ jobs:
             dockerfile: apps/site/Dockerfile
           - app: admin
             dockerfile: apps/admin/Dockerfile
-          - app: ai-relay
-            dockerfile: apps/ai-relay/Dockerfile
+          - app: edge-proxy
+            dockerfile: apps/edge-proxy/Dockerfile
           - app: tg
             dockerfile: apps/tg/Dockerfile
 

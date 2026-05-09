@@ -1,9 +1,0 @@
-{$AI_RELAY_DOMAIN} {
-	handle /content-assistant/telegram/* {
-		reverse_proxy https://api.art-mate.ru {
-			header_up Host api.art-mate.ru
-		}
-	}
-
-	reverse_proxy ai-relay:3004
-}

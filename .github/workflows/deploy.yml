@@ -86,11 +86,12 @@ jobs:
           CONTENT_ASSISTANT_TELEGRAM_APPROVAL_CHAT_ID: ${{ secrets.CONTENT_ASSISTANT_TELEGRAM_APPROVAL_CHAT_ID }}
           CONTENT_ASSISTANT_TELEGRAM_BOT_TOKEN: ${{ secrets.CONTENT_ASSISTANT_TELEGRAM_BOT_TOKEN }}
           CONTENT_ASSISTANT_TELEGRAM_WEBHOOK_SECRET: ${{ secrets.CONTENT_ASSISTANT_TELEGRAM_WEBHOOK_SECRET }}
+          EDGE_PROXY_DOMAIN: ${{ secrets.EDGE_PROXY_DOMAIN }}
           AI_RELAY_DOMAIN: ${{ secrets.AI_RELAY_DOMAIN }}
           OPENAI_API_KEY: ${{ secrets.OPENAI_API_KEY }}
           OPENAI_BASE_URL: ${{ secrets.OPENAI_BASE_URL }}
           OPENAI_MODEL: ${{ secrets.OPENAI_MODEL }}
-          OPENAI_RELAY_TOKEN: ${{ secrets.OPENAI_RELAY_TOKEN || secrets.AI_RELAY_TOKEN }}
+          OPENAI_RELAY_TOKEN: ${{ secrets.OPENAI_RELAY_TOKEN || secrets.EDGE_PROXY_TOKEN || secrets.AI_RELAY_TOKEN }}
           UNSPLASH_ACCESS_KEY: ${{ secrets.UNSPLASH_ACCESS_KEY }}
           UNSPLASH_UTM_SOURCE: ${{ secrets.UNSPLASH_UTM_SOURCE }}
           MAIL_FROM: ${{ secrets.MAIL_FROM || vars.MAIL_FROM }}
@@ -165,7 +166,9 @@ jobs:
             fi
           }
 
-          if [ -z "$OPENAI_BASE_URL" ] && [ -n "$AI_RELAY_DOMAIN" ]; then
+          if [ -z "$OPENAI_BASE_URL" ] && [ -n "$EDGE_PROXY_DOMAIN" ]; then
+            OPENAI_BASE_URL="https://${EDGE_PROXY_DOMAIN}/v1"
+          elif [ -z "$OPENAI_BASE_URL" ] && [ -n "$AI_RELAY_DOMAIN" ]; then
             OPENAI_BASE_URL="https://${AI_RELAY_DOMAIN}/v1"
           fi
 

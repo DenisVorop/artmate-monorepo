@@ -14,7 +14,7 @@ const server = createServer((request, response) => {
 });
 
 server.listen(getPort(), () => {
-  console.log(`AI relay listening on port ${getPort()}`);
+  console.log(`Edge proxy listening on port ${getPort()}`);
 });
 
 async function handleRequest(
@@ -39,7 +39,7 @@ async function handleRequest(
       return;
     }
 
-    const relayToken = getRequiredEnv("AI_RELAY_TOKEN");
+    const relayToken = getRequiredEnv("EDGE_PROXY_TOKEN", "AI_RELAY_TOKEN");
     const authorization = request.headers.authorization;
 
     if (authorization !== `Bearer ${relayToken}`) {
@@ -184,8 +184,10 @@ function sendJson(
   response.end(JSON.stringify(body));
 }
 
-function getRequiredEnv(name: string) {
-  const value = process.env[name]?.trim();
+function getRequiredEnv(name: string, fallbackName?: string) {
+  const value =
+    process.env[name]?.trim() ??
+    (fallbackName ? process.env[fallbackName]?.trim() : undefined);
 
   if (!value) {
     throw new Error(`${name} is not configured`);
