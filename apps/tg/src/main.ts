@@ -9,6 +9,7 @@ const defaultApiInternalUrl = "http://localhost:3002";
 const defaultWebAppUrl = "https://www.art-mate.ru";
 const maxBodySizeBytes = 512 * 1024;
 const telegramRequestTimeoutMs = 10000;
+const linkAccountCallbackData = "link_account";
 
 type TelegramChat = {
   id: number | string;
@@ -55,6 +56,13 @@ const server = createServer((request, response) => {
 
 server.listen(getPort(), () => {
   console.log(`Telegram bot service listening on port ${getPort()}`);
+
+  void configureTelegramBot().catch((error: unknown) => {
+    const message =
+      error instanceof Error ? error.message : "Unknown Telegram setup error";
+
+    console.error(`Telegram bot setup failed: ${message}`);
+  });
 });
 
 async function handleRequest(
@@ -106,6 +114,11 @@ async function handleRequest(
 }
 
 async function handleTelegramUpdate(update: TelegramUpdate) {
+  if (update.callback_query) {
+    await handleCallbackQuery(update.callback_query);
+    return;
+  }
+
   if (update.message) {
     await handleMessage(update.message);
   }
@@ -124,12 +137,37 @@ async function handleMessage(message: TelegramMessage) {
     return;
   }
 
-  if (!text || text.startsWith("/start") || text.startsWith("/link")) {
+  if (text?.startsWith("/link")) {
     await sendTelegramLinkMessage(message.chat.id, message.from?.first_name);
     return;
   }
 
-  await sendTelegramLinkMessage(message.chat.id, message.from?.first_name);
+  await sendHomeMessage(message.chat.id, message.from?.first_name);
+}
+
+async function handleCallbackQuery(
+  callbackQuery: NonNullable<TelegramUpdate["callback_query"]>,
+) {
+  await sendTelegramMethod("answerCallbackQuery", {
+    callback_query_id: callbackQuery.id,
+  });
+
+  if (!callbackQuery.message) {
+    return;
+  }
+
+  if (callbackQuery.data === linkAccountCallbackData) {
+    await sendTelegramLinkMessage(
+      callbackQuery.message.chat.id,
+      callbackQuery.from.first_name,
+    );
+    return;
+  }
+
+  await sendHomeMessage(
+    callbackQuery.message.chat.id,
+    callbackQuery.from.first_name,
+  );
 }
 
 async function handleContact(
@@ -158,12 +196,24 @@ async function handleContact(
     await sendTelegramMethod("sendMessage", {
       chat_id: message.chat.id,
       reply_markup: {
-        remove_keyboard: true,
+        inline_keyboard: [
+          [
+            {
+              text: "Открыть личный кабинет",
+              web_app: {
+                url: getAccountUrl(),
+              },
+            },
+          ],
+        ],
       },
+      parse_mode: "MarkdownV2",
       text: [
-        `Код привязки Artmate: ${linkCode.code}`,
+        `${escapeMarkdownV2("Код привязки Artmate: ")}\`${linkCode.code}\``,
         "",
-        "Введите его в личном кабинете на сайте. Код действует 10 минут.",
+        escapeMarkdownV2(
+          "Введите его в личном кабинете на сайте. Код действует 10 минут.",
+        ),
       ].join("\n"),
     });
   } catch (error) {
@@ -177,6 +227,39 @@ async function handleContact(
       text: messageText,
     });
   }
+}
+
+async function sendHomeMessage(chatId: TelegramChat["id"], firstName?: string) {
+  const greeting = firstName
+    ? `${firstName}, выберите действие в Artmate`
+    : "Выберите действие в Artmate";
+
+  await sendTelegramMethod("sendMessage", {
+    chat_id: chatId,
+    reply_markup: {
+      inline_keyboard: [
+        [
+          {
+            text: "Открыть Artmate",
+            web_app: {
+              url: getWebAppUrl(),
+            },
+          },
+        ],
+        [
+          {
+            callback_data: linkAccountCallbackData,
+            text: "Привязать Telegram",
+          },
+        ],
+      ],
+    },
+    text: [
+      greeting,
+      "",
+      "Здесь можно открыть сайт Artmate и привязать Telegram к личному кабинету для уведомлений.",
+    ].join("\n"),
+  });
 }
 
 async function sendTelegramLinkMessage(
@@ -197,6 +280,14 @@ async function sendTelegramLinkMessage(
             text: "Поделиться телефоном",
           },
         ],
+        [
+          {
+            text: "Открыть Artmate",
+            web_app: {
+              url: getWebAppUrl(),
+            },
+          },
+        ],
       ],
       one_time_keyboard: true,
       resize_keyboard: true,
@@ -213,7 +304,9 @@ async function sendOpenAppMessage(
   chatId: TelegramChat["id"],
   firstName?: string,
 ) {
-  const greeting = firstName ? `${firstName}, откройте Artmate` : "Откройте Artmate";
+  const greeting = firstName
+    ? `${firstName}, откройте Artmate`
+    : "Откройте Artmate";
 
   await sendTelegramMethod("sendMessage", {
     chat_id: chatId,
@@ -233,12 +326,45 @@ async function sendOpenAppMessage(
   });
 }
 
+async function configureTelegramBot() {
+  await Promise.all([
+    sendTelegramMethod("setMyCommands", {
+      commands: [
+        {
+          command: "start",
+          description: "Главное меню Artmate",
+        },
+        {
+          command: "link",
+          description: "Привязать Telegram",
+        },
+        {
+          command: "app",
+          description: "Открыть сайт Artmate",
+        },
+      ],
+    }),
+    sendTelegramMethod("setChatMenuButton", {
+      menu_button: {
+        type: "web_app",
+        text: "Artmate",
+        web_app: {
+          url: getWebAppUrl(),
+        },
+      },
+    }),
+  ]);
+}
+
 async function sendTelegramMethod(
   method: string,
   body: Record<string, unknown>,
 ) {
   const controller = new AbortController();
-  const timeout = setTimeout(() => controller.abort(), telegramRequestTimeoutMs);
+  const timeout = setTimeout(
+    () => controller.abort(),
+    telegramRequestTimeoutMs,
+  );
 
   try {
     const response = await fetch(
@@ -277,21 +403,27 @@ type TelegramLinkCodeResponse = {
 
 async function createTelegramLinkCode(body: TelegramLinkCodeRequest) {
   const controller = new AbortController();
-  const timeout = setTimeout(() => controller.abort(), telegramRequestTimeoutMs);
+  const timeout = setTimeout(
+    () => controller.abort(),
+    telegramRequestTimeoutMs,
+  );
 
   try {
-    const response = await fetch(`${getApiInternalUrl()}/auth/telegram/link/code`, {
-      body: JSON.stringify(body),
-      headers: {
-        "content-type": "application/json",
-        "x-artmate-csrf": "1",
-        "x-telegram-link-service-token": getRequiredEnv(
-          "TELEGRAM_LINK_SERVICE_TOKEN",
-        ),
+    const response = await fetch(
+      `${getApiInternalUrl()}/auth/telegram/link/code`,
+      {
+        body: JSON.stringify(body),
+        headers: {
+          "content-type": "application/json",
+          "x-artmate-csrf": "1",
+          "x-telegram-link-service-token": getRequiredEnv(
+            "TELEGRAM_LINK_SERVICE_TOKEN",
+          ),
+        },
+        method: "POST",
+        signal: controller.signal,
       },
-      method: "POST",
-      signal: controller.signal,
-    });
+    );
 
     if (!response.ok) {
       throw new Error(await getApiErrorMessage(response));
@@ -343,10 +475,21 @@ function getWebhookSecretFromPath(pathname: string) {
 }
 
 function getWebAppUrl() {
-  const rawUrl = process.env.TELEGRAM_WEB_APP_URL ?? process.env.SITE_URL ?? defaultWebAppUrl;
+  const rawUrl =
+    process.env.TELEGRAM_WEB_APP_URL ??
+    process.env.SITE_URL ??
+    defaultWebAppUrl;
 
   try {
     return new URL(rawUrl).toString();
+  } catch {
+    return defaultWebAppUrl;
+  }
+}
+
+function getAccountUrl() {
+  try {
+    return new URL("/account", getWebAppUrl()).toString();
   } catch {
     return defaultWebAppUrl;
   }
@@ -433,4 +576,8 @@ function getPort() {
 
 function isRecord(value: unknown): value is Record<string, unknown> {
   return typeof value === "object" && value !== null;
+}
+
+function escapeMarkdownV2(value: string) {
+  return value.replace(/[_*[\]()~`>#+\-=|{}.!]/g, "\\$&");
 }

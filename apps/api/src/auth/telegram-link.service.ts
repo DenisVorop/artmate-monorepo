@@ -5,6 +5,7 @@ import {
   HttpStatus,
   Injectable,
   InternalServerErrorException,
+  Logger,
 } from "@nestjs/common";
 import crypto from "node:crypto";
 
@@ -20,9 +21,13 @@ const codePurpose = "telegram-link";
 const defaultCodeTtlSeconds = 600;
 const defaultMaxAttempts = 5;
 const defaultResendCooldownSeconds = 60;
+const defaultTelegramWebAppUrl = "https://www.art-mate.ru";
+const telegramRequestTimeoutMs = 10000;
 
 @Injectable()
 export class TelegramLinkService {
+  private readonly logger = new Logger(TelegramLinkService.name);
+
   constructor(private readonly prisma: PrismaService) {}
 
   assertServiceToken(token: string | undefined) {
@@ -163,6 +168,19 @@ export class TelegramLinkService {
         });
       });
 
+      await this.sendLinkedMessage(account.telegramChatId).catch(
+        (error: unknown) => {
+          const message =
+            error instanceof Error
+              ? error.message
+              : "Unknown Telegram notification error";
+
+          this.logger.error(
+            `Failed to send Telegram link notification: ${message}`,
+          );
+        },
+      );
+
       return {
         linked: true as const,
         account: this.mapAccount(account),
@@ -215,6 +233,58 @@ export class TelegramLinkService {
       where: { id },
       data: { consumedAt: new Date() },
     });
+  }
+
+  private async sendLinkedMessage(chatId: string) {
+    const token = process.env.TELEGRAM_MINI_APP_BOT_TOKEN?.trim();
+
+    if (!token) {
+      this.logger.warn(
+        "TELEGRAM_MINI_APP_BOT_TOKEN is not configured; skipping Telegram link notification",
+      );
+      return;
+    }
+
+    const controller = new AbortController();
+    const timeout = setTimeout(
+      () => controller.abort(),
+      telegramRequestTimeoutMs,
+    );
+
+    try {
+      const response = await fetch(
+        `https://api.telegram.org/bot${token}/sendMessage`,
+        {
+          body: JSON.stringify({
+            chat_id: chatId,
+            reply_markup: {
+              inline_keyboard: [
+                [
+                  {
+                    text: "Открыть Artmate",
+                    web_app: {
+                      url: this.getTelegramWebAppUrl(),
+                    },
+                  },
+                ],
+              ],
+            },
+            text: "Готово, Telegram подключён к аккаунту Artmate.",
+          }),
+          headers: {
+            "content-type": "application/json",
+          },
+          method: "POST",
+          signal: controller.signal,
+        },
+      );
+
+      if (!response.ok) {
+        throw new Error(`Telegram API request failed: ${response.status}`);
+      }
+    } finally {
+      clearTimeout(timeout);
+    }
   }
 
   private mapAccount(account: {
@@ -299,6 +369,19 @@ export class TelegramLinkService {
       return new URL(rawUrl).toString();
     } catch {
       return undefined;
+    }
+  }
+
+  private getTelegramWebAppUrl() {
+    const rawUrl =
+      process.env.TELEGRAM_WEB_APP_URL?.trim() ??
+      process.env.SITE_URL?.trim() ??
+      defaultTelegramWebAppUrl;
+
+    try {
+      return new URL(rawUrl).toString();
+    } catch {
+      return defaultTelegramWebAppUrl;
     }
   }
 
