@@ -77,7 +77,14 @@ async function handleRequest(
     }
 
     const update = parseTelegramUpdate(await readJsonBody(request));
-    await handleTelegramUpdate(update);
+
+    void handleTelegramUpdate(update).catch((error: unknown) => {
+      const message =
+        error instanceof Error ? error.message : "Unknown Telegram bot error";
+
+      console.error(`Telegram update ${update.update_id} failed: ${message}`);
+    });
+
     sendJson(response, 200, { ok: true });
   } catch (error) {
     const message =
