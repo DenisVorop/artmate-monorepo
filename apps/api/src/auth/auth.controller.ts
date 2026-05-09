@@ -5,6 +5,7 @@ import {
   Body,
   ConflictException,
   Controller,
+  Delete,
   Get,
   Headers,
   Ip,
@@ -341,6 +342,13 @@ export class AuthController {
     @Body() body: ConfirmTelegramLinkRequestDTO,
   ) {
     return this.telegramLinkService.confirmLinkCode(request.user.id, body.code);
+  }
+
+  @ValidateResponse(AuthTelegramLinkStatusDTO)
+  @UseGuards(AuthGuard)
+  @Delete("telegram/link")
+  unlinkTelegram(@Req() request: AuthenticatedRequest) {
+    return this.telegramLinkService.unlinkAccount(request.user.id);
   }
 
   private async validateCredentialsLogin(

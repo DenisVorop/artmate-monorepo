@@ -10,6 +10,7 @@ export {
   register,
   requestPasswordReset,
   resendEmailVerification,
+  unlinkTelegram,
 } from "./auth.actions";
 export type {
   AuthOAuthProvider,

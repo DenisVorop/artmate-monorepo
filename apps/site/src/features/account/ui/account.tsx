@@ -10,6 +10,7 @@ import {
   MessageCircle,
   Phone,
   ShoppingBag,
+  Unlink,
   UserRound,
   type LucideIcon,
 } from "lucide-react";
@@ -32,6 +33,14 @@ import {
   CardHeader,
   CardTitle,
   DataState,
+  Dialog,
+  DialogClose,
+  DialogContent,
+  DialogDescription,
+  DialogFooter,
+  DialogHeader,
+  DialogTitle,
+  DialogTrigger,
   Input,
   Label,
 } from "@/shared/ui";
@@ -43,7 +52,7 @@ import {
   toConfirmTelegramLinkInput,
   type TelegramLinkFormValues,
 } from "../lib";
-import { useConfirmTelegramLink, useTelegramLinkStatus } from "../model";
+import { useConfirmTelegramLink, useTelegramLinkStatus, useUnlinkTelegram } from "../model";
 
 export function Account() {
   const { user, isPending: isSessionPending } = useSession();
@@ -176,6 +185,7 @@ type TelegramLinkCardProps = {
 function TelegramLinkCard({ telegramLink }: TelegramLinkCardProps) {
   const [formError, setFormError] = useState<string>();
   const [successMessage, setSuccessMessage] = useState<string>();
+  const [isUnlinkDialogOpen, setIsUnlinkDialogOpen] = useState(false);
   const {
     formState: { errors },
     handleSubmit,
@@ -193,6 +203,14 @@ function TelegramLinkCard({ telegramLink }: TelegramLinkCardProps) {
       setSuccessMessage("Telegram привязан к аккаунту.");
     },
   });
+  const unlinkTelegram = useUnlinkTelegram({
+    onSuccess: () => {
+      reset();
+      setFormError(undefined);
+      setSuccessMessage("Telegram отвязан от аккаунта.");
+      setIsUnlinkDialogOpen(false);
+    },
+  });
   const account = telegramLink.data?.account;
   const isLinked = Boolean(telegramLink.data?.linked && account);
 
@@ -204,6 +222,17 @@ function TelegramLinkCard({ telegramLink }: TelegramLinkCardProps) {
       await confirmTelegramLink.mutate(toConfirmTelegramLinkInput(values));
     } catch (error) {
       setFormError(error instanceof Error ? error.message : "Не удалось привязать Telegram");
+    }
+  }
+
+  async function handleUnlink() {
+    setFormError(undefined);
+    setSuccessMessage(undefined);
+
+    try {
+      await unlinkTelegram.mutate();
+    } catch (error) {
+      setFormError(error instanceof Error ? error.message : "Не удалось отвязать Telegram");
     }
   }
 
@@ -219,8 +248,8 @@ function TelegramLinkCard({ telegramLink }: TelegramLinkCardProps) {
         <div className="flex items-start gap-3 rounded-lg bg-muted/60 p-3 text-sm text-muted-foreground">
           <Bell className="mt-0.5 size-4 shrink-0 text-rose-500" />
           <p>
-            Привяжите Telegram, чтобы получать уведомления о заказах, событиях и важных
-            обновлениях Artmate.
+            Привяжите Telegram, чтобы получать уведомления о заказах, событиях и важных обновлениях
+            Artmate.
           </p>
         </div>
 
@@ -236,16 +265,53 @@ function TelegramLinkCard({ telegramLink }: TelegramLinkCardProps) {
             <Badge variant="secondary" className="w-fit">
               Привязан
             </Badge>
-            <ContactLine
-              icon={Phone}
-              label="Телефон Telegram"
-              value={account.phone}
-            />
+            <ContactLine icon={Phone} label="Телефон Telegram" value={account.phone} />
             <ContactLine
               icon={UserRound}
               label="Аккаунт Telegram"
               value={formatTelegramAccountName(account)}
             />
+            {formError ? <p className="text-sm text-destructive">{formError}</p> : null}
+            {successMessage ? <p className="text-sm text-emerald-600">{successMessage}</p> : null}
+            <Dialog open={isUnlinkDialogOpen} onOpenChange={setIsUnlinkDialogOpen}>
+              <DialogTrigger asChild>
+                <Button
+                  type="button"
+                  variant="destructive"
+                  className="w-full"
+                  disabled={unlinkTelegram.isPending}
+                >
+                  <Unlink data-icon="inline-start" />
+                  Отключить Telegram
+                </Button>
+              </DialogTrigger>
+              <DialogContent>
+                <DialogHeader>
+                  <DialogTitle>Отключить Telegram?</DialogTitle>
+                  <DialogDescription>
+                    Аккаунт Telegram перестанет получать уведомления Artmate. Подключить его заново
+                    можно будет в этом же разделе.
+                  </DialogDescription>
+                </DialogHeader>
+                <DialogFooter>
+                  <DialogClose asChild>
+                    <Button type="button" variant="outline" disabled={unlinkTelegram.isPending}>
+                      Отмена
+                    </Button>
+                  </DialogClose>
+                  <Button
+                    type="button"
+                    variant="destructive"
+                    disabled={unlinkTelegram.isPending}
+                    onClick={() => {
+                      void handleUnlink();
+                    }}
+                  >
+                    Отключить
+                  </Button>
+                </DialogFooter>
+              </DialogContent>
+            </Dialog>
           </div>
         ) : (
           <div className="space-y-4">
@@ -285,9 +351,7 @@ function TelegramLinkCard({ telegramLink }: TelegramLinkCardProps) {
               </div>
 
               {formError ? <p className="text-sm text-destructive">{formError}</p> : null}
-              {successMessage ? (
-                <p className="text-sm text-emerald-600">{successMessage}</p>
-              ) : null}
+              {successMessage ? <p className="text-sm text-emerald-600">{successMessage}</p> : null}
 
               <Button type="submit" className="w-full" disabled={confirmTelegramLink.isPending}>
                 Подтвердить код

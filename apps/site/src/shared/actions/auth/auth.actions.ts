@@ -168,6 +168,16 @@ export async function confirmTelegramLink(
   return result.toDTO() as ApiResultDTO<AuthTelegramLinkResponseDTO>;
 }
 
+export async function unlinkTelegram(): Promise<ApiResultDTO<AuthTelegramLinkStatusDTO>> {
+  const result = await ApiResult.prepareApi(async () =>
+    requestAuth<AuthTelegramLinkStatusDTO>("/auth/telegram/link", {
+      method: "DELETE",
+    }),
+  )();
+
+  return result.toDTO() as ApiResultDTO<AuthTelegramLinkStatusDTO>;
+}
+
 async function requestAuth<T>(
   path: string,
   init: RequestInit = {},

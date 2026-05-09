@@ -3,3 +3,4 @@ export {
   telegramLinkStatusQueryKey,
   useTelegramLinkStatus,
 } from "./use-telegram-link-status";
+export { useUnlinkTelegram } from "./use-unlink-telegram";

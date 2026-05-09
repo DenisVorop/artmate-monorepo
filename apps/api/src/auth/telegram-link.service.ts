@@ -194,6 +194,50 @@ export class TelegramLinkService {
     }
   }
 
+  async unlinkAccount(userId: string) {
+    const account = await this.prisma.telegramAccount.findUnique({
+      where: { userId },
+    });
+
+    if (!account) {
+      return {
+        linked: false as const,
+        botUrl: this.getBotUrl(),
+      };
+    }
+
+    await this.prisma.$transaction(async (tx) => {
+      await tx.telegramAccount.deleteMany({
+        where: { userId },
+      });
+      await tx.authTelegramLinkCode.updateMany({
+        where: {
+          telegramUserId: account.telegramUserId,
+          consumedAt: null,
+        },
+        data: { consumedAt: new Date() },
+      });
+    });
+
+    await this.sendUnlinkedMessage(account.telegramChatId).catch(
+      (error: unknown) => {
+        const message =
+          error instanceof Error
+            ? error.message
+            : "Unknown Telegram notification error";
+
+        this.logger.error(
+          `Failed to send Telegram unlink notification: ${message}`,
+        );
+      },
+    );
+
+    return {
+      linked: false as const,
+      botUrl: this.getBotUrl(),
+    };
+  }
+
   private async assertCanSendCode(telegramUserId: string) {
     const latestCode = await this.prisma.authTelegramLinkCode.findFirst({
       where: { telegramUserId },
@@ -236,11 +280,25 @@ export class TelegramLinkService {
   }
 
   private async sendLinkedMessage(chatId: string) {
+    await this.sendTelegramMessage(
+      chatId,
+      "Готово, Telegram подключён к аккаунту Artmate.",
+    );
+  }
+
+  private async sendUnlinkedMessage(chatId: string) {
+    await this.sendTelegramMessage(
+      chatId,
+      "Telegram отключён от аккаунта Artmate. Его можно подключить заново в личном кабинете.",
+    );
+  }
+
+  private async sendTelegramMessage(chatId: string, text: string) {
     const token = process.env.TELEGRAM_MINI_APP_BOT_TOKEN?.trim();
 
     if (!token) {
       this.logger.warn(
-        "TELEGRAM_MINI_APP_BOT_TOKEN is not configured; skipping Telegram link notification",
+        "TELEGRAM_MINI_APP_BOT_TOKEN is not configured; skipping Telegram notification",
       );
       return;
     }
@@ -269,7 +327,7 @@ export class TelegramLinkService {
                 ],
               ],
             },
-            text: "Готово, Telegram подключён к аккаунту Artmate.",
+            text,
           }),
           headers: {
             "content-type": "application/json",
