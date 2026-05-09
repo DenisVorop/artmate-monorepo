@@ -1,5 +1,12 @@
 # Changelog
 
+## [0.12.0](https://github.com/DenisVorop/artmate-monorepo/compare/v0.11.4...v0.12.0) (2026-05-09)
+
+
+### Features
+
+* **auth:** link telegram accounts ([8762fac](https://github.com/DenisVorop/artmate-monorepo/commit/8762fac27fe3af0b3453ffd18d73d1c8e0583a7a))
+
 ## [0.11.4](https://github.com/DenisVorop/artmate-monorepo/compare/v0.11.3...v0.11.4) (2026-05-09)
 
 
