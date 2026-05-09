@@ -1,4 +1,8 @@
-export { getFeatureBannerCta } from "./lib";
+export {
+  featureBannerSlugs,
+  getFeatureBannerCta,
+  getFeatureBannersBySlug,
+} from "./lib";
 export {
   featureBannersQuery,
   featureBannersQueryKeys,

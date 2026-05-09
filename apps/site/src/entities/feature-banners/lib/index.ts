@@ -1,1 +1,5 @@
-export { getFeatureBannerCta } from "./banner-selectors";
+export {
+  featureBannerSlugs,
+  getFeatureBannerCta,
+  getFeatureBannersBySlug,
+} from "./banner-selectors";

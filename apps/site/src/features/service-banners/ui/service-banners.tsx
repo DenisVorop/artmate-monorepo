@@ -3,25 +3,28 @@
 import { Megaphone } from "lucide-react";
 
 import {
+  featureBannerSlugs,
   getFeatureBannerCta,
   type FeatureBanner,
   useFeatureBanners,
 } from "@/entities/feature-banners";
 import { cn } from "@/shared/lib/utils";
-import { Button } from "@/shared/ui";
 import { Link } from "@/shared/ui/link";
 
 export function ServiceBanners() {
   const { banners, isError, isPending } = useFeatureBanners();
+  const visibleBanners = banners.filter(
+    (banner) => banner.slug !== featureBannerSlugs.siteDevelopment,
+  );
 
-  if (isPending || isError || banners.length === 0) {
+  if (isPending || isError || visibleBanners.length === 0) {
     return null;
   }
 
   return (
-    <section aria-label="Сервисные уведомления" className="border-b bg-background">
-      <div className="container grid gap-2 py-2">
-        {banners.map((banner) => (
+    <section aria-label="Сервисные уведомления" className="bg-background">
+      <div className="grid">
+        {visibleBanners.map((banner) => (
           <ServiceBannerItem banner={banner} key={banner.id} />
         ))}
       </div>
@@ -35,25 +38,23 @@ function ServiceBannerItem({ banner }: { readonly banner: FeatureBanner }) {
   return (
     <div
       className={cn(
-        "flex flex-col gap-3 rounded-lg border px-3 py-2.5 text-sm sm:flex-row sm:items-center sm:justify-between",
+        "border-b px-3 py-1.5 text-xs sm:text-sm",
         getToneClassName(banner.tone),
       )}
     >
-      <div className="flex min-w-0 items-start gap-2.5">
-        <span className="mt-0.5 flex size-7 shrink-0 items-center justify-center rounded-lg bg-background/70">
-          <Megaphone className="size-3.5" aria-hidden="true" />
-        </span>
-        <div className="min-w-0">
-          <p className="font-medium">{banner.title}</p>
-          <p className="text-muted-foreground">{banner.description}</p>
-        </div>
+      <div className="container flex min-h-7 flex-wrap items-center justify-center gap-x-2 gap-y-1 text-center">
+        <Megaphone className="size-3.5 shrink-0" aria-hidden="true" />
+        <span className="font-medium">{banner.title}</span>
+        <span className="text-current/80">{banner.description}</span>
+        {cta ? (
+          <Link
+            href={cta.href}
+            className="font-semibold underline underline-offset-4 hover:text-current/80 focus-visible:text-current/80"
+          >
+            {cta.label}
+          </Link>
+        ) : null}
       </div>
-
-      {cta ? (
-        <Button asChild size="sm" variant="outline" className="shrink-0">
-          <Link href={cta.href}>{cta.label}</Link>
-        </Button>
-      ) : null}
     </div>
   );
 }

@@ -1,6 +1,12 @@
 "use client";
 
+import {
+  featureBannerSlugs,
+  getFeatureBannersBySlug,
+  useFeatureBanners,
+} from "@/entities/feature-banners";
 import { SessionMenu } from "@/features/auth";
+import { cn } from "@/shared/lib/utils";
 
 import { Logo } from "./ui/logo";
 import { CartButton } from "./ui/cart-button";
@@ -8,9 +14,20 @@ import { DevelopmentBanner } from "./ui/development-banner";
 import { Menu, MobileMenu } from "./ui/menu";
 
 export function Header() {
+  const { banners } = useFeatureBanners();
+  const bannersBySlug = getFeatureBannersBySlug(banners);
+  const hasDevelopmentBanner = Boolean(bannersBySlug[featureBannerSlugs.siteDevelopment]);
+
   return (
-    <header className="sticky top-0 z-11 h-[var(--site-header-height)] border-b-[1px] border-stone-200 bg-white backdrop-blur-md">
-      <DevelopmentBanner />
+    <header
+      className={cn(
+        "sticky top-0 z-11 border-b-[1px] border-stone-200 bg-white backdrop-blur-md",
+        hasDevelopmentBanner
+          ? "h-[var(--site-header-height)]"
+          : "h-[var(--site-header-nav-height)]",
+      )}
+    >
+      {hasDevelopmentBanner ? <DevelopmentBanner /> : null}
       <div className="container flex h-[var(--site-header-nav-height)] items-center gap-2 sm:gap-3">
         <Logo />
 
