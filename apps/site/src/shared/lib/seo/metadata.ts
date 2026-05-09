@@ -25,6 +25,10 @@ export function createRootMetadata(): Metadata {
     keywords: getSeoKeywords("common", "products", "catalog"),
     creator: siteConfig.name,
     publisher: siteConfig.name,
+    icons: {
+      icon: "/favicon.ico",
+      shortcut: "/favicon.ico",
+    },
     robots: getIndexRobots(),
     openGraph: {
       siteName: siteConfig.name,

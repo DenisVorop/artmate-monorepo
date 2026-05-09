@@ -6,6 +6,10 @@ import { AppProviders } from "@/app/providers";
 export const metadata: Metadata = {
   title: "Artmate Admin",
   description: "Административная панель Artmate",
+  icons: {
+    icon: "/favicon.ico",
+    shortcut: "/favicon.ico",
+  },
   robots: {
     index: false,
     follow: false,
