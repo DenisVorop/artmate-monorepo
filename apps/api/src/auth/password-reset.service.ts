@@ -11,6 +11,12 @@ import {
   AuthProvider as PrismaAuthProvider,
   UserStatus,
 } from "../generated/prisma/client";
+import {
+  renderBrandedEmail,
+  renderEmailButton,
+  renderEmailNotice,
+  renderEmailParagraph,
+} from "../mailer/branded-email";
 import { MailerService } from "../mailer/mailer.service";
 import { PrismaService } from "../prisma/prisma.service";
 
@@ -291,60 +297,20 @@ export class PasswordResetService {
 
   private renderHtmlEmail(resetUrl: string) {
     const ttlMinutes = this.getTokenTtlMinutes();
-    const escapedResetUrl = this.escapeHtml(resetUrl);
 
-    return `
-      <!doctype html>
-      <html lang="ru">
-        <head>
-          <meta charset="utf-8" />
-          <meta name="viewport" content="width=device-width,initial-scale=1" />
-          <title>Восстановление пароля Artmate</title>
-        </head>
-        <body style="margin:0;padding:0;background:#f4f1ec;color:#2f2923;">
-          <table role="presentation" width="100%" cellspacing="0" cellpadding="0" style="background:#f4f1ec;margin:0;padding:32px 16px;">
-            <tr>
-              <td align="center">
-                <table role="presentation" width="100%" cellspacing="0" cellpadding="0" style="max-width:560px;background:#ffffff;border:1px solid #e6ded3;border-radius:18px;overflow:hidden;">
-                  <tr>
-                    <td style="padding:28px 32px 22px;background:#2f2923;">
-                      <div style="font-family:Arial,Helvetica,sans-serif;font-size:12px;line-height:16px;font-weight:700;letter-spacing:3px;text-transform:uppercase;color:#d9b46d;">ARTMATE</div>
-                      <div style="margin-top:8px;font-family:Arial,Helvetica,sans-serif;font-size:22px;line-height:28px;font-weight:700;color:#fffaf0;">Смена пароля</div>
-                    </td>
-                  </tr>
-                  <tr>
-                    <td style="padding:30px 32px 12px;font-family:Arial,Helvetica,sans-serif;">
-                      <p style="margin:0;color:#5f554b;font-size:16px;line-height:24px;">Перейдите по ссылке, чтобы задать новый пароль для аккаунта Artmate.</p>
-                    </td>
-                  </tr>
-                  <tr>
-                    <td align="center" style="padding:18px 32px 20px;">
-                      <a href="${escapedResetUrl}" style="display:inline-block;border-radius:12px;background:#2f2923;padding:13px 20px;font-family:Arial,Helvetica,sans-serif;font-size:15px;line-height:20px;font-weight:700;color:#fffaf0;text-decoration:none;">Сменить пароль</a>
-                    </td>
-                  </tr>
-                  <tr>
-                    <td style="padding:8px 32px 30px;font-family:Arial,Helvetica,sans-serif;">
-                      <table role="presentation" width="100%" cellspacing="0" cellpadding="0" style="border-radius:14px;background:#faf7f1;">
-                        <tr>
-                          <td style="padding:16px 18px;color:#6b6055;font-size:14px;line-height:21px;">
-                            Ссылка действует ${ttlMinutes} минут. Если вы не запрашивали смену пароля, просто игнорируйте это письмо.
-                          </td>
-                        </tr>
-                      </table>
-                    </td>
-                  </tr>
-                  <tr>
-                    <td style="padding:18px 32px;background:#fbfaf8;border-top:1px solid #eee7dc;font-family:Arial,Helvetica,sans-serif;color:#8b8177;font-size:12px;line-height:18px;">
-                      Artmate отправляет это письмо только для подтверждения действия в аккаунте.
-                    </td>
-                  </tr>
-                </table>
-              </td>
-            </tr>
-          </table>
-        </body>
-      </html>
-    `;
+    return renderBrandedEmail({
+      title: "Смена пароля",
+      previewText: "Ссылка для восстановления пароля Artmate.",
+      contentHtml: `
+        ${renderEmailParagraph("Перейдите по ссылке, чтобы задать новый пароль для аккаунта Artmate.")}
+        ${renderEmailButton({ href: resetUrl, label: "Сменить пароль" })}
+        ${renderEmailNotice(
+          `Ссылка действует <strong style="color:#202530;">${ttlMinutes} минут</strong>. Если вы не запрашивали смену пароля, просто игнорируйте это письмо.`,
+        )}
+      `,
+      footerHtml:
+        "Artmate отправляет это письмо только для подтверждения действия в аккаунте.",
+    });
   }
 
   private createRateLimitException(message: string, retryAfterSeconds: number) {
@@ -355,14 +321,6 @@ export class PasswordResetService {
       },
       HttpStatus.TOO_MANY_REQUESTS,
     );
-  }
-
-  private escapeHtml(value: string) {
-    return value
-      .replaceAll("&", "&amp;")
-      .replaceAll('"', "&quot;")
-      .replaceAll("<", "&lt;")
-      .replaceAll(">", "&gt;");
   }
 
   private normalizeEmail(email: string) {

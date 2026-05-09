@@ -11,6 +11,11 @@ import {
   AuthProvider as PrismaAuthProvider,
   UserStatus,
 } from "../generated/prisma/client";
+import {
+  renderBrandedEmail,
+  renderEmailNotice,
+  renderEmailParagraph,
+} from "../mailer/branded-email";
 import { MailerService } from "../mailer/mailer.service";
 import { PrismaService } from "../prisma/prisma.service";
 
@@ -95,9 +100,7 @@ export class EmailVerificationService {
     return {
       email: normalizedEmail,
       emailMasked: this.maskEmail(normalizedEmail),
-      expiresAt: new Date(
-        now + this.getCodeTtlSeconds() * 1000,
-      ).toISOString(),
+      expiresAt: new Date(now + this.getCodeTtlSeconds() * 1000).toISOString(),
       resendAvailableAt: new Date(
         now + this.getResendCooldownSeconds() * 1000,
       ).toISOString(),
@@ -328,67 +331,28 @@ export class EmailVerificationService {
       .split("")
       .map(
         (digit) => `
-          <td style="width:42px;height:48px;border:1px solid #d8cfc3;border-radius:10px;background:#fffdf8;text-align:center;font-family:Arial,Helvetica,sans-serif;font-size:24px;line-height:48px;font-weight:700;color:#2f2923;">
+          <td style="width:42px;height:50px;border:1px solid #f2bfd7;border-radius:12px;background:#fff9fc;text-align:center;font-family:Arial,Helvetica,sans-serif;font-size:24px;line-height:50px;font-weight:700;color:#202530;">
             ${digit}
           </td>
         `,
       )
       .join('<td style="width:8px;"></td>');
 
-    return `
-      <!doctype html>
-      <html lang="ru">
-        <head>
-          <meta charset="utf-8" />
-          <meta name="viewport" content="width=device-width,initial-scale=1" />
-          <title>Код подтверждения Artmate</title>
-        </head>
-        <body style="margin:0;padding:0;background:#f4f1ec;color:#2f2923;">
-          <table role="presentation" width="100%" cellspacing="0" cellpadding="0" style="background:#f4f1ec;margin:0;padding:32px 16px;">
-            <tr>
-              <td align="center">
-                <table role="presentation" width="100%" cellspacing="0" cellpadding="0" style="max-width:560px;background:#ffffff;border:1px solid #e6ded3;border-radius:18px;overflow:hidden;">
-                  <tr>
-                    <td style="padding:28px 32px 22px;background:#2f2923;">
-                      <div style="font-family:Arial,Helvetica,sans-serif;font-size:12px;line-height:16px;font-weight:700;letter-spacing:3px;text-transform:uppercase;color:#d9b46d;">ARTMATE</div>
-                      <div style="margin-top:8px;font-family:Arial,Helvetica,sans-serif;font-size:22px;line-height:28px;font-weight:700;color:#fffaf0;">Подтверждение почты</div>
-                    </td>
-                  </tr>
-                  <tr>
-                    <td style="padding:30px 32px 12px;font-family:Arial,Helvetica,sans-serif;">
-                      <p style="margin:0;color:#5f554b;font-size:16px;line-height:24px;">Введите этот код на сайте, чтобы завершить регистрацию и войти в аккаунт.</p>
-                    </td>
-                  </tr>
-                  <tr>
-                    <td align="center" style="padding:18px 32px 14px;">
-                      <table role="presentation" cellspacing="0" cellpadding="0">
-                        <tr>${codeCells}</tr>
-                      </table>
-                    </td>
-                  </tr>
-                  <tr>
-                    <td style="padding:8px 32px 30px;font-family:Arial,Helvetica,sans-serif;">
-                      <table role="presentation" width="100%" cellspacing="0" cellpadding="0" style="border-radius:14px;background:#faf7f1;">
-                        <tr>
-                          <td style="padding:16px 18px;color:#6b6055;font-size:14px;line-height:21px;">
-                            Код действует ${ttlMinutes} минут. Если вы не регистрировались в Artmate, просто игнорируйте это письмо.
-                          </td>
-                        </tr>
-                      </table>
-                    </td>
-                  </tr>
-                  <tr>
-                    <td style="padding:18px 32px;background:#fbfaf8;border-top:1px solid #eee7dc;font-family:Arial,Helvetica,sans-serif;color:#8b8177;font-size:12px;line-height:18px;">
-                      Artmate отправляет это письмо только для подтверждения действия в аккаунте.
-                    </td>
-                  </tr>
-                </table>
-              </td>
-            </tr>
-          </table>
-        </body>
-      </html>
-    `;
+    return renderBrandedEmail({
+      title: "Подтверждение почты",
+      previewText: `Код подтверждения Artmate: ${code}`,
+      contentHtml: `
+        ${renderEmailParagraph("Введите этот код на сайте, чтобы завершить регистрацию и войти в аккаунт.")}
+        <table role="presentation" cellspacing="0" cellpadding="0" style="margin:22px auto 4px;">
+          <tr>${codeCells}</tr>
+        </table>
+        ${renderEmailNotice(
+          `Код действует <strong style="color:#202530;">${ttlMinutes} минут</strong>. Если вы не регистрировались в Artmate, просто игнорируйте это письмо.`,
+        )}
+      `,
+      footerHtml:
+        "Artmate отправляет это письмо только для подтверждения действия в аккаунте.",
+    });
   }
 
   private getCodeTtlMinutes() {
