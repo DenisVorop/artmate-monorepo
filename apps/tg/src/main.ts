@@ -5,6 +5,7 @@ import {
 } from "node:http";
 
 const defaultPort = 3004;
+const defaultApiInternalUrl = "http://localhost:3002";
 const defaultWebAppUrl = "https://www.art-mate.ru";
 const maxBodySizeBytes = 512 * 1024;
 const telegramRequestTimeoutMs = 10000;
@@ -18,11 +19,20 @@ type TelegramUser = {
   first_name?: string;
   id: number;
   is_bot?: boolean;
+  last_name?: string;
   username?: string;
+};
+
+type TelegramContact = {
+  first_name?: string;
+  last_name?: string;
+  phone_number: string;
+  user_id?: number;
 };
 
 type TelegramMessage = {
   chat: TelegramChat;
+  contact?: TelegramContact;
   from?: TelegramUser;
   message_id: number;
   text?: string;
@@ -104,12 +114,99 @@ async function handleTelegramUpdate(update: TelegramUpdate) {
 async function handleMessage(message: TelegramMessage) {
   const text = message.text?.trim();
 
-  if (!text || text.startsWith("/start") || text.startsWith("/app")) {
+  if (message.contact) {
+    await handleContact(message, message.contact);
+    return;
+  }
+
+  if (text?.startsWith("/app")) {
     await sendOpenAppMessage(message.chat.id, message.from?.first_name);
     return;
   }
 
-  await sendOpenAppMessage(message.chat.id, message.from?.first_name);
+  if (!text || text.startsWith("/start") || text.startsWith("/link")) {
+    await sendTelegramLinkMessage(message.chat.id, message.from?.first_name);
+    return;
+  }
+
+  await sendTelegramLinkMessage(message.chat.id, message.from?.first_name);
+}
+
+async function handleContact(
+  message: TelegramMessage,
+  contact: TelegramContact,
+) {
+  if (!message.from || contact.user_id !== message.from.id) {
+    await sendTelegramMethod("sendMessage", {
+      chat_id: message.chat.id,
+      text: "Пожалуйста, нажмите кнопку ниже и поделитесь своим Telegram-контактом.",
+    });
+    await sendTelegramLinkMessage(message.chat.id, message.from?.first_name);
+    return;
+  }
+
+  try {
+    const linkCode = await createTelegramLinkCode({
+      firstName: message.from.first_name ?? contact.first_name,
+      lastName: message.from.last_name ?? contact.last_name,
+      phone: contact.phone_number,
+      telegramChatId: String(message.chat.id),
+      telegramUserId: String(message.from.id),
+      username: message.from.username,
+    });
+
+    await sendTelegramMethod("sendMessage", {
+      chat_id: message.chat.id,
+      reply_markup: {
+        remove_keyboard: true,
+      },
+      text: [
+        `Код привязки Artmate: ${linkCode.code}`,
+        "",
+        "Введите его в личном кабинете на сайте. Код действует 10 минут.",
+      ].join("\n"),
+    });
+  } catch (error) {
+    const messageText = getTelegramLinkErrorMessage(error);
+
+    await sendTelegramMethod("sendMessage", {
+      chat_id: message.chat.id,
+      reply_markup: {
+        remove_keyboard: true,
+      },
+      text: messageText,
+    });
+  }
+}
+
+async function sendTelegramLinkMessage(
+  chatId: TelegramChat["id"],
+  firstName?: string,
+) {
+  const greeting = firstName
+    ? `${firstName}, привяжите Telegram к Artmate`
+    : "Привяжите Telegram к Artmate";
+
+  await sendTelegramMethod("sendMessage", {
+    chat_id: chatId,
+    reply_markup: {
+      keyboard: [
+        [
+          {
+            request_contact: true,
+            text: "Поделиться телефоном",
+          },
+        ],
+      ],
+      one_time_keyboard: true,
+      resize_keyboard: true,
+    },
+    text: [
+      greeting,
+      "",
+      "Так мы сможем отправлять уведомления о заказах, событиях и важных обновлениях. После контакта я пришлю код для личного кабинета.",
+    ].join("\n"),
+  });
 }
 
 async function sendOpenAppMessage(
@@ -164,6 +261,48 @@ async function sendTelegramMethod(
   }
 }
 
+type TelegramLinkCodeRequest = {
+  firstName?: string;
+  lastName?: string;
+  phone: string;
+  telegramChatId: string;
+  telegramUserId: string;
+  username?: string;
+};
+
+type TelegramLinkCodeResponse = {
+  code: string;
+  expiresAt: string;
+};
+
+async function createTelegramLinkCode(body: TelegramLinkCodeRequest) {
+  const controller = new AbortController();
+  const timeout = setTimeout(() => controller.abort(), telegramRequestTimeoutMs);
+
+  try {
+    const response = await fetch(`${getApiInternalUrl()}/auth/telegram/link/code`, {
+      body: JSON.stringify(body),
+      headers: {
+        "content-type": "application/json",
+        "x-artmate-csrf": "1",
+        "x-telegram-link-service-token": getRequiredEnv(
+          "TELEGRAM_LINK_SERVICE_TOKEN",
+        ),
+      },
+      method: "POST",
+      signal: controller.signal,
+    });
+
+    if (!response.ok) {
+      throw new Error(await getApiErrorMessage(response));
+    }
+
+    return (await response.json()) as TelegramLinkCodeResponse;
+  } finally {
+    clearTimeout(timeout);
+  }
+}
+
 async function readJsonBody(request: IncomingMessage) {
   const chunks: Buffer[] = [];
   let bodySize = 0;
@@ -211,6 +350,48 @@ function getWebAppUrl() {
   } catch {
     return defaultWebAppUrl;
   }
+}
+
+function getApiInternalUrl() {
+  const rawUrl = process.env.API_INTERNAL_URL ?? defaultApiInternalUrl;
+
+  try {
+    return new URL(rawUrl).toString().replace(/\/+$/, "");
+  } catch {
+    return defaultApiInternalUrl;
+  }
+}
+
+async function getApiErrorMessage(response: Response) {
+  try {
+    const body = (await response.json()) as { message?: unknown };
+
+    if (typeof body.message === "string") {
+      return body.message;
+    }
+
+    if (Array.isArray(body.message)) {
+      return body.message.join(", ");
+    }
+  } catch {
+    return `API request failed: ${response.status}`;
+  }
+
+  return `API request failed: ${response.status}`;
+}
+
+function getTelegramLinkErrorMessage(error: unknown) {
+  const message = error instanceof Error ? error.message : "";
+
+  if (message.includes("already linked")) {
+    return "Этот Telegram уже привязан к аккаунту Artmate. Сначала отвяжите его в личном кабинете.";
+  }
+
+  if (message.includes("temporarily unavailable")) {
+    return "Код уже был отправлен недавно. Попробуйте запросить новый код чуть позже.";
+  }
+
+  return "Не удалось создать код привязки. Попробуйте ещё раз позже.";
 }
 
 function sendJson(

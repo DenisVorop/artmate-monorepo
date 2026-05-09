@@ -22,6 +22,10 @@ export class AuthUserDTO {
 
   @IsOptional()
   @IsString()
+  phone?: string;
+
+  @IsOptional()
+  @IsString()
   image?: string;
 
   @IsArray()

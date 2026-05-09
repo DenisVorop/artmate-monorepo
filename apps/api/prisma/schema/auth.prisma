@@ -132,3 +132,43 @@ model AuthPasswordResetToken {
   @@index([sentAt])
   @@map("auth_password_reset_tokens")
 }
+
+model TelegramAccount {
+  id             String   @id @default(cuid())
+  userId         String   @unique @map("user_id")
+  telegramUserId String   @unique @map("telegram_user_id") @db.VarChar(80)
+  telegramChatId String   @map("telegram_chat_id") @db.VarChar(80)
+  phone          String   @db.VarChar(80)
+  username       String?  @db.VarChar(80)
+  firstName      String?  @map("first_name") @db.VarChar(120)
+  lastName       String?  @map("last_name") @db.VarChar(120)
+  linkedAt       DateTime @default(now()) @map("linked_at")
+  updatedAt      DateTime @default(now()) @updatedAt @map("updated_at")
+
+  user User @relation(fields: [userId], references: [id], onDelete: Cascade)
+
+  @@index([userId])
+  @@map("telegram_accounts")
+}
+
+model AuthTelegramLinkCode {
+  id             String    @id @default(cuid())
+  telegramUserId String    @map("telegram_user_id") @db.VarChar(80)
+  telegramChatId String    @map("telegram_chat_id") @db.VarChar(80)
+  phone          String    @db.VarChar(80)
+  username       String?   @db.VarChar(80)
+  firstName      String?   @map("first_name") @db.VarChar(120)
+  lastName       String?   @map("last_name") @db.VarChar(120)
+  codeHash       String    @map("code_hash") @db.VarChar(128)
+  expiresAt      DateTime  @map("expires_at")
+  consumedAt     DateTime? @map("consumed_at")
+  failedAttempts Int       @default(0) @map("failed_attempts")
+  sentAt         DateTime  @default(now()) @map("sent_at")
+  createdAt      DateTime  @default(now()) @map("created_at")
+
+  @@index([telegramUserId])
+  @@index([codeHash])
+  @@index([expiresAt])
+  @@index([sentAt])
+  @@map("auth_telegram_link_codes")
+}

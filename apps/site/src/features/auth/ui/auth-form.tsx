@@ -683,9 +683,7 @@ function EmailVerificationForm({
     <form onSubmit={submitForm} className="space-y-4">
       <div className="rounded-lg border bg-muted/40 px-3 py-2 text-sm text-muted-foreground">
         <MailCheck data-icon="inline-start" aria-hidden="true" />
-        {verification.emailMasked
-          ? `Код отправлен на ${verification.emailMasked}`
-          : "Код отправлен на почту аккаунта"}
+        {`Код отправлен на ${verification.email}`}
       </div>
 
       <div className="space-y-2">

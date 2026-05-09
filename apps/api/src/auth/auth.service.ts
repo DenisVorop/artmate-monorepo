@@ -31,6 +31,7 @@ export class AuthService {
       providerUserId: user.providerUserId,
       email: user.email,
       name: user.name,
+      phone: user.phone,
       image: user.image,
       roles: user.roles,
     };
@@ -120,6 +121,7 @@ export class AuthService {
         email: true,
         image: true,
         name: true,
+        phone: true,
         roles: true,
         status: true,
       },
@@ -141,6 +143,7 @@ export class AuthService {
       ...user,
       email: storedUser.email ?? user.email,
       name: storedUser.name ?? user.name,
+      phone: storedUser.phone ?? user.phone,
       image: storedUser.image ?? user.image,
       roles: this.usersService.mapPrismaRoles(storedUser.roles),
     };
@@ -163,6 +166,7 @@ export class AuthService {
       providerUserId: payload.providerUserId,
       email: payload.email,
       name: payload.name,
+      phone: payload.phone,
       image: payload.image,
       roles: payload.roles,
     };

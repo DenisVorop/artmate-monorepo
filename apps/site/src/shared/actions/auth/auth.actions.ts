@@ -9,8 +9,11 @@ import type {
   AuthEmailVerificationResponseDTO,
   AuthProvidersDTO,
   AuthSessionDTO,
+  AuthTelegramLinkResponseDTO,
+  AuthTelegramLinkStatusDTO,
   ConfirmEmailVerificationInputDTO,
   ConfirmPasswordResetInputDTO,
+  ConfirmTelegramLinkInputDTO,
   LoginInputDTO,
   LogoutDTO,
   PasswordResetDTO,
@@ -142,6 +145,27 @@ export async function logout(): Promise<ApiResultDTO<LogoutDTO>> {
   })();
 
   return result.toDTO() as ApiResultDTO<LogoutDTO>;
+}
+
+export async function getTelegramLinkStatus(): Promise<ApiResultDTO<AuthTelegramLinkStatusDTO>> {
+  const result = await ApiResult.prepareApi(async () =>
+    requestAuth<AuthTelegramLinkStatusDTO>("/auth/telegram/link/status"),
+  )();
+
+  return result.toDTO() as ApiResultDTO<AuthTelegramLinkStatusDTO>;
+}
+
+export async function confirmTelegramLink(
+  input: ConfirmTelegramLinkInputDTO,
+): Promise<ApiResultDTO<AuthTelegramLinkResponseDTO>> {
+  const result = await ApiResult.prepareApi(async () =>
+    requestAuth<AuthTelegramLinkResponseDTO>("/auth/telegram/link/confirm", {
+      method: "POST",
+      body: JSON.stringify(input),
+    }),
+  )();
+
+  return result.toDTO() as ApiResultDTO<AuthTelegramLinkResponseDTO>;
 }
 
 async function requestAuth<T>(

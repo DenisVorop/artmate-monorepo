@@ -1,6 +1,19 @@
 "use client";
 
-import { LogIn, Mail, Phone, ShoppingBag, UserRound, type LucideIcon } from "lucide-react";
+import { useState } from "react";
+import { zodResolver } from "@hookform/resolvers/zod";
+import {
+  Bell,
+  ExternalLink,
+  LogIn,
+  Mail,
+  MessageCircle,
+  Phone,
+  ShoppingBag,
+  UserRound,
+  type LucideIcon,
+} from "lucide-react";
+import { useForm } from "react-hook-form";
 
 import {
   getLatestOrder,
@@ -11,13 +24,31 @@ import {
 } from "@/entities/orders";
 import { getSessionUserDisplayName, useSession } from "@/entities/session";
 import { routes } from "@/shared/constants";
-import { Button, Card, CardContent, CardHeader, CardTitle, DataState } from "@/shared/ui";
+import {
+  Badge,
+  Button,
+  Card,
+  CardContent,
+  CardHeader,
+  CardTitle,
+  DataState,
+  Input,
+  Label,
+} from "@/shared/ui";
 import { Link } from "@/shared/ui/link";
 import { PageTitle, SectionTitle } from "@/shared/ui/typography";
+
+import {
+  telegramLinkFormSchema,
+  toConfirmTelegramLinkInput,
+  type TelegramLinkFormValues,
+} from "../lib";
+import { useConfirmTelegramLink, useTelegramLinkStatus } from "../model";
 
 export function Account() {
   const { user, isPending: isSessionPending } = useSession();
   const orders = useOrdersData({ enabled: Boolean(user) });
+  const telegramLink = useTelegramLinkStatus({ enabled: Boolean(user) });
 
   if (isSessionPending) {
     return (
@@ -52,7 +83,7 @@ export function Account() {
   const accountOrders = orders.isError ? [] : orders.data;
   const latestOrder = getLatestOrder(accountOrders);
   const email = user.email ?? getPreferredCustomerEmail(accountOrders);
-  const phone = getPreferredCustomerPhone(accountOrders);
+  const phone = user.phone ?? getPreferredCustomerPhone(accountOrders);
   const userTitle = getSessionUserDisplayName(user);
 
   return (
@@ -88,6 +119,8 @@ export function Account() {
               <ContactLine icon={Phone} label="Телефон" value={phone ?? "Не указан"} />
             </CardContent>
           </Card>
+
+          <TelegramLinkCard telegramLink={telegramLink} />
         </aside>
 
         <div className="space-y-4">
@@ -134,6 +167,151 @@ export function Account() {
       </div>
     </section>
   );
+}
+
+type TelegramLinkCardProps = {
+  telegramLink: ReturnType<typeof useTelegramLinkStatus>;
+};
+
+function TelegramLinkCard({ telegramLink }: TelegramLinkCardProps) {
+  const [formError, setFormError] = useState<string>();
+  const [successMessage, setSuccessMessage] = useState<string>();
+  const {
+    formState: { errors },
+    handleSubmit,
+    register,
+    reset,
+  } = useForm<TelegramLinkFormValues>({
+    defaultValues: {
+      code: "",
+    },
+    resolver: zodResolver(telegramLinkFormSchema),
+  });
+  const confirmTelegramLink = useConfirmTelegramLink({
+    onSuccess: () => {
+      reset();
+      setSuccessMessage("Telegram привязан к аккаунту.");
+    },
+  });
+  const account = telegramLink.data?.account;
+  const isLinked = Boolean(telegramLink.data?.linked && account);
+
+  async function onSubmit(values: TelegramLinkFormValues) {
+    setFormError(undefined);
+    setSuccessMessage(undefined);
+
+    try {
+      await confirmTelegramLink.mutate(toConfirmTelegramLinkInput(values));
+    } catch (error) {
+      setFormError(error instanceof Error ? error.message : "Не удалось привязать Telegram");
+    }
+  }
+
+  return (
+    <Card>
+      <CardHeader>
+        <CardTitle className="flex items-center gap-2">
+          <MessageCircle className="size-5 text-rose-500" />
+          Telegram
+        </CardTitle>
+      </CardHeader>
+      <CardContent className="space-y-4">
+        <div className="flex items-start gap-3 rounded-lg bg-muted/60 p-3 text-sm text-muted-foreground">
+          <Bell className="mt-0.5 size-4 shrink-0 text-rose-500" />
+          <p>
+            Привяжите Telegram, чтобы получать уведомления о заказах, событиях и важных
+            обновлениях Artmate.
+          </p>
+        </div>
+
+        {telegramLink.isPending ? (
+          <div className="space-y-3" aria-hidden="true">
+            <div className="h-10 rounded bg-muted motion-safe:animate-pulse" />
+            <div className="h-10 rounded bg-muted motion-safe:animate-pulse" />
+          </div>
+        ) : telegramLink.isError ? (
+          <p className="text-sm text-destructive">Не удалось загрузить статус Telegram.</p>
+        ) : isLinked && account ? (
+          <div className="space-y-3">
+            <Badge variant="secondary" className="w-fit">
+              Привязан
+            </Badge>
+            <ContactLine
+              icon={Phone}
+              label="Телефон Telegram"
+              value={account.phone}
+            />
+            <ContactLine
+              icon={UserRound}
+              label="Аккаунт Telegram"
+              value={formatTelegramAccountName(account)}
+            />
+          </div>
+        ) : (
+          <div className="space-y-4">
+            {telegramLink.data?.botUrl ? (
+              <Button asChild className="w-full">
+                <a href={telegramLink.data.botUrl} target="_blank" rel="noreferrer">
+                  <ExternalLink data-icon="inline-start" />
+                  Открыть бота
+                </a>
+              </Button>
+            ) : (
+              <Button className="w-full" disabled>
+                Бот не настроен
+              </Button>
+            )}
+
+            <form
+              className="space-y-3"
+              onSubmit={(event) => {
+                void handleSubmit(onSubmit)(event);
+              }}
+            >
+              <div className="space-y-2">
+                <Label htmlFor="telegram-link-code">Код из Telegram</Label>
+                <Input
+                  id="telegram-link-code"
+                  inputMode="numeric"
+                  maxLength={6}
+                  placeholder="123456"
+                  autoComplete="one-time-code"
+                  aria-invalid={Boolean(errors.code)}
+                  {...register("code")}
+                />
+                {errors.code?.message ? (
+                  <p className="text-sm text-destructive">{errors.code.message}</p>
+                ) : null}
+              </div>
+
+              {formError ? <p className="text-sm text-destructive">{formError}</p> : null}
+              {successMessage ? (
+                <p className="text-sm text-emerald-600">{successMessage}</p>
+              ) : null}
+
+              <Button type="submit" className="w-full" disabled={confirmTelegramLink.isPending}>
+                Подтвердить код
+              </Button>
+            </form>
+          </div>
+        )}
+      </CardContent>
+    </Card>
+  );
+}
+
+function formatTelegramAccountName(account: {
+  firstName?: string;
+  lastName?: string;
+  username?: string;
+}) {
+  if (account.username) {
+    return `@${account.username}`;
+  }
+
+  const fullName = [account.firstName, account.lastName].filter(Boolean).join(" ");
+
+  return fullName || "Привязан";
 }
 
 type ContactLineProps = {

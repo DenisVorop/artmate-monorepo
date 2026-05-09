@@ -188,6 +188,7 @@ export class YandexOAuthService {
       providerUserId: account.providerUserId,
       email: account.user.email ?? account.providerEmail ?? undefined,
       name: account.user.name ?? undefined,
+      phone: account.user.phone ?? undefined,
       image: account.user.image ?? undefined,
       roles: this.usersService.mapPrismaRoles(account.user.roles),
     };

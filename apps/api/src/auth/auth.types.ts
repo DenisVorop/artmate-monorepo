@@ -8,6 +8,7 @@ export type AuthUser = {
   providerUserId: string;
   email?: string;
   name?: string;
+  phone?: string;
   image?: string;
   roles: UserRole[];
 };
@@ -18,6 +19,7 @@ export type AuthTokenPayload = {
   providerUserId: string;
   email?: string;
   name?: string;
+  phone?: string;
   image?: string;
   roles: UserRole[];
 };

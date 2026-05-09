@@ -32,9 +32,14 @@ import {
   AuthEmailVerificationResponseDTO,
   AuthPasswordResetResponseDTO,
   AuthSessionDTO,
+  AuthTelegramLinkCodeDTO,
+  AuthTelegramLinkResponseDTO,
+  AuthTelegramLinkStatusDTO,
   AuthUserDTO,
   ConfirmEmailVerificationRequestDTO,
   ConfirmPasswordResetRequestDTO,
+  ConfirmTelegramLinkRequestDTO,
+  CreateTelegramLinkCodeRequestDTO,
   LoginRequestDTO,
   RegisterRequestDTO,
   RequestPasswordResetRequestDTO,
@@ -47,6 +52,7 @@ import { EmailVerificationService } from "./email-verification.service";
 import { LoginThrottleService } from "./login-throttle.service";
 import { OAuthProvidersService } from "./oauth-providers.service";
 import { PasswordResetService } from "./password-reset.service";
+import { TelegramLinkService } from "./telegram-link.service";
 
 type CookieResponse = {
   cookie: (
@@ -85,6 +91,7 @@ export class AuthController {
     private readonly loginThrottleService: LoginThrottleService,
     private readonly oauthProvidersService: OAuthProvidersService,
     private readonly passwordResetService: PasswordResetService,
+    private readonly telegramLinkService: TelegramLinkService,
     private readonly usersService: UsersService,
   ) {}
 
@@ -306,6 +313,34 @@ export class AuthController {
     this.clearAccessTokenCookie(response);
 
     return { ok: true };
+  }
+
+  @ValidateResponse(AuthTelegramLinkCodeDTO)
+  @Post("telegram/link/code")
+  createTelegramLinkCode(
+    @Body() request: CreateTelegramLinkCodeRequestDTO,
+    @Headers("x-telegram-link-service-token") serviceToken: string | undefined,
+  ) {
+    this.telegramLinkService.assertServiceToken(serviceToken);
+
+    return this.telegramLinkService.createLinkCode(request);
+  }
+
+  @ValidateResponse(AuthTelegramLinkStatusDTO)
+  @UseGuards(AuthGuard)
+  @Get("telegram/link/status")
+  getTelegramLinkStatus(@Req() request: AuthenticatedRequest) {
+    return this.telegramLinkService.getLinkStatus(request.user.id);
+  }
+
+  @ValidateResponse(AuthTelegramLinkResponseDTO)
+  @UseGuards(AuthGuard)
+  @Post("telegram/link/confirm")
+  confirmTelegramLink(
+    @Req() request: AuthenticatedRequest,
+    @Body() body: ConfirmTelegramLinkRequestDTO,
+  ) {
+    return this.telegramLinkService.confirmLinkCode(request.user.id, body.code);
   }
 
   private async validateCredentialsLogin(

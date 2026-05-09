@@ -178,6 +178,7 @@ export class CredentialsAuthService {
       providerUserId: expectedEmail,
       email: expectedEmail,
       name: this.getOptionalEnv("AUTH_PASSWORD_NAME"),
+      phone: undefined,
       roles: this.getRoles(),
     };
   }
@@ -250,6 +251,7 @@ export class CredentialsAuthService {
       providerUserId: account.providerUserId,
       email: account.user.email ?? account.providerEmail ?? undefined,
       name: account.user.name ?? undefined,
+      phone: account.user.phone ?? undefined,
       image: account.user.image ?? undefined,
       roles: this.usersService.mapPrismaRoles(account.user.roles),
     };

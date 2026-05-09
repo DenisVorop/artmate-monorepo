@@ -17,6 +17,8 @@ The bot service listens on `http://localhost:3004`.
 Required environment:
 
 ```bash
+API_INTERNAL_URL=http://localhost:3002
+TELEGRAM_LINK_SERVICE_TOKEN=...
 TELEGRAM_MINI_APP_BOT_TOKEN=...
 TELEGRAM_WEBHOOK_SECRET=...
 TELEGRAM_WEB_APP_URL=https://www.art-mate.ru
@@ -29,5 +31,6 @@ TELEGRAM_WEB_APP_URL=https://www.art-mate.ru
 3. Set the webhook to `/telegram/webhook/<TELEGRAM_WEBHOOK_SECRET>`.
 4. Configure the bot menu button to open `TELEGRAM_WEB_APP_URL`.
 
-The service sends the same `TELEGRAM_WEB_APP_URL` through the `/start` inline
-keyboard button.
+The service asks users to share their Telegram contact through `/start` or
+`/link`, requests a one-time link code from the API, and sends that code back to
+the user. `/app` still sends the `TELEGRAM_WEB_APP_URL` Mini App button.

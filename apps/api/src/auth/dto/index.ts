@@ -2,9 +2,15 @@ export { AuthEmailVerificationResponseDTO } from "./auth-email-verification-resp
 export { AuthEmailVerificationStateDTO } from "./auth-email-verification-state.dto";
 export { AuthPasswordResetResponseDTO } from "./auth-password-reset-response.dto";
 export { AuthSessionDTO } from "./auth-session.dto";
+export { AuthTelegramAccountDTO } from "./auth-telegram-account.dto";
+export { AuthTelegramLinkCodeDTO } from "./auth-telegram-link-code.dto";
+export { AuthTelegramLinkResponseDTO } from "./auth-telegram-link-response.dto";
+export { AuthTelegramLinkStatusDTO } from "./auth-telegram-link-status.dto";
 export { AuthUserDTO } from "./auth-user.dto";
 export { ConfirmEmailVerificationRequestDTO } from "./confirm-email-verification-request.dto";
 export { ConfirmPasswordResetRequestDTO } from "./confirm-password-reset-request.dto";
+export { ConfirmTelegramLinkRequestDTO } from "./confirm-telegram-link-request.dto";
+export { CreateTelegramLinkCodeRequestDTO } from "./create-telegram-link-code-request.dto";
 export { LoginRequestDTO } from "./login-request.dto";
 export { RegisterRequestDTO } from "./register-request.dto";
 export { RequestPasswordResetRequestDTO } from "./request-password-reset-request.dto";

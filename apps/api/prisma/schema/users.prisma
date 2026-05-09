@@ -18,6 +18,7 @@ model User {
   email           String?    @unique @db.VarChar(320)
   emailVerifiedAt DateTime?  @map("email_verified_at")
   name            String?    @db.VarChar(120)
+  phone           String?    @db.VarChar(80)
   image           String?    @db.Text
   roles           UserRole[] @default([CUSTOMER])
   status          UserStatus @default(ACTIVE)
@@ -29,6 +30,7 @@ model User {
   authSessions           AuthSession[]
   emailVerificationCodes AuthEmailVerificationCode[]
   passwordResetTokens    AuthPasswordResetToken[]
+  telegramAccount        TelegramAccount?
   aiBlogDraftRuns        AiBlogDraftRun[]            @relation("AiBlogDraftRunCreator")
   createdBlogPosts       BlogPost[]                  @relation("BlogPostCreator")
   orders                 Order[]

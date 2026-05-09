@@ -12,6 +12,7 @@ import { EmailVerificationService } from "./email-verification.service";
 import { LoginThrottleService } from "./login-throttle.service";
 import { OAuthProvidersService } from "./oauth-providers.service";
 import { PasswordResetService } from "./password-reset.service";
+import { TelegramLinkService } from "./telegram-link.service";
 import { YandexOAuthService } from "./yandex-oauth.service";
 
 @Module({
@@ -29,6 +30,7 @@ import { YandexOAuthService } from "./yandex-oauth.service";
     LoginThrottleService,
     OAuthProvidersService,
     PasswordResetService,
+    TelegramLinkService,
     YandexOAuthService,
   ],
   exports: [AuthGuard, AuthService],
