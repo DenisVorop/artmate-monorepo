@@ -23,8 +23,15 @@ export function useCreateOrderComment({ onSuccess }: MutationOptions = {}) {
       errorMessage: "Не удалось добавить комментарий",
       successMessage: "Комментарий добавлен",
     },
-    mutationFn: ({ body, orderId }) =>
-      createAdminOrderComment(orderId, { body }),
+    mutationFn: async ({ body, orderId }) => {
+      const result = await createAdminOrderComment(orderId, { body });
+
+      if (!result.ok) {
+        throw new Error(result.error);
+      }
+
+      return result.data;
+    },
     onSuccess: async (updatedOrder) => {
       queryClient.setQueryData<AdminOrder[]>(
         ordersQueryKeys.board(),

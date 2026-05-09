@@ -34,8 +34,15 @@ export function useUpdateOrderCrmStatus({
       errorMessage: "Не удалось переместить заказ",
       successMessage: "Статус заказа обновлен",
     },
-    mutationFn: ({ status, orderId }) =>
-      updateAdminOrderStatus(orderId, { status }),
+    mutationFn: async ({ status, orderId }) => {
+      const result = await updateAdminOrderStatus(orderId, { status });
+
+      if (!result.ok) {
+        throw new Error(result.error);
+      }
+
+      return result.data;
+    },
     onMutate: async ({ status, orderId }) => {
       await queryClient.cancelQueries({ queryKey: ordersQueryKeys.board() });
       const previousOrders = queryClient.getQueryData<AdminOrder[]>(

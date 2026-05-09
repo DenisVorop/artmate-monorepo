@@ -9,6 +9,7 @@ import crypto from "node:crypto";
 import {
   AuthProvider as PrismaAuthProvider,
   Prisma,
+  UserRole as PrismaUserRole,
   UserStatus,
 } from "../generated/prisma/client";
 import { PrismaService } from "../prisma/prisma.service";
@@ -143,6 +144,24 @@ export class CredentialsAuthService {
     return this.mapStoredAccount(account);
   }
 
+  async getEnvCredentialsUserByEmail(
+    email: string,
+  ): Promise<AuthUser | undefined> {
+    const envEmail = this.getOptionalEnv("AUTH_PASSWORD_EMAIL");
+
+    if (!envEmail) {
+      return undefined;
+    }
+
+    const expectedEmail = this.normalizeEmail(envEmail);
+
+    if (this.normalizeEmail(email) !== expectedEmail) {
+      return undefined;
+    }
+
+    return this.upsertEnvCredentialsUser(expectedEmail);
+  }
+
   async createPasswordHash(password: string) {
     const salt = crypto.randomBytes(16).toString("hex");
     const hash = await this.scrypt(password, salt);
@@ -172,15 +191,89 @@ export class CredentialsAuthService {
       throw new UnauthorizedException("Invalid email or password");
     }
 
-    return {
-      id: `credentials:${expectedEmail}`,
-      provider: "credentials",
-      providerUserId: expectedEmail,
-      email: expectedEmail,
-      name: this.getOptionalEnv("AUTH_PASSWORD_NAME"),
-      phone: undefined,
-      roles: this.getRoles(),
-    };
+    return this.upsertEnvCredentialsUser(expectedEmail);
+  }
+
+  private async upsertEnvCredentialsUser(email: string): Promise<AuthUser> {
+    const account = await this.prisma.$transaction(async (tx) => {
+      const existingAccount = await tx.authAccount.findUnique({
+        where: {
+          provider_providerUserId: {
+            provider: PrismaAuthProvider.CREDENTIALS,
+            providerUserId: email,
+          },
+        },
+        include: credentialsAccountInclude,
+      });
+
+      if (existingAccount) {
+        return tx.authAccount.update({
+          where: { id: existingAccount.id },
+          data: {
+            providerEmail: email,
+            user: {
+              update: this.getEnvUserUpdateData(email),
+            },
+          },
+          include: credentialsAccountInclude,
+        });
+      }
+
+      const existingUser = await tx.user.findUnique({
+        where: { email },
+        select: { id: true },
+      });
+      const existingUserCredentialsAccount = existingUser
+        ? await tx.authAccount.findUnique({
+            where: {
+              userId_provider: {
+                provider: PrismaAuthProvider.CREDENTIALS,
+                userId: existingUser.id,
+              },
+            },
+            include: credentialsAccountInclude,
+          })
+        : null;
+
+      if (existingUserCredentialsAccount) {
+        return tx.authAccount.update({
+          where: { id: existingUserCredentialsAccount.id },
+          data: {
+            providerEmail: email,
+            providerUserId: email,
+            user: {
+              update: this.getEnvUserUpdateData(email),
+            },
+          },
+          include: credentialsAccountInclude,
+        });
+      }
+
+      if (existingUser) {
+        await tx.user.update({
+          where: { id: existingUser.id },
+          data: this.getEnvUserUpdateData(email),
+        });
+      }
+
+      return tx.authAccount.create({
+        data: {
+          provider: PrismaAuthProvider.CREDENTIALS,
+          providerEmail: email,
+          providerUserId: email,
+          user: existingUser
+            ? {
+                connect: { id: existingUser.id },
+              }
+            : {
+                create: this.getEnvUserCreateData(email),
+              },
+        },
+        include: credentialsAccountInclude,
+      });
+    });
+
+    return this.mapStoredAccount(account);
   }
 
   private async verifyEnvPassword(password: string) {
@@ -255,6 +348,32 @@ export class CredentialsAuthService {
       image: account.user.image ?? undefined,
       roles: this.usersService.mapPrismaRoles(account.user.roles),
     };
+  }
+
+  private getEnvUserCreateData(email: string): Prisma.UserCreateWithoutAuthAccountsInput {
+    return {
+      email,
+      emailVerifiedAt: new Date(),
+      name: this.getOptionalEnv("AUTH_PASSWORD_NAME"),
+      roles: this.getPrismaRoles(),
+      status: UserStatus.ACTIVE,
+    };
+  }
+
+  private getEnvUserUpdateData(email: string): Prisma.UserUpdateWithoutAuthAccountsInput {
+    return {
+      email,
+      emailVerifiedAt: new Date(),
+      name: this.getOptionalEnv("AUTH_PASSWORD_NAME"),
+      roles: this.getPrismaRoles(),
+      status: UserStatus.ACTIVE,
+    };
+  }
+
+  private getPrismaRoles() {
+    return this.getRoles().map((role) =>
+      role === "admin" ? PrismaUserRole.ADMIN : PrismaUserRole.CUSTOMER,
+    );
   }
 
   private isUniqueConstraintError(error: unknown) {

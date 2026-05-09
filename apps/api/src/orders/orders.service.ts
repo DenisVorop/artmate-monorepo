@@ -3,6 +3,7 @@ import { BadRequestException, Injectable, Logger } from "@nestjs/common";
 import type { AuthUser } from "../auth/auth.types";
 import { CartService } from "../cart/cart.service";
 import { CartStorage } from "../cart/cart.storage";
+import { MailerService } from "../mailer/mailer.service";
 import { OzonLogisticsService } from "../ozon/ozon-logistics.service";
 
 import { ORDER_COMMENT_MAX_LENGTH } from "./orders.constants";
@@ -33,6 +34,7 @@ export class OrdersService {
   constructor(
     private readonly cartStorage: CartStorage,
     private readonly cartService: CartService,
+    private readonly mailerService: MailerService,
     private readonly ozonLogisticsService: OzonLogisticsService,
     private readonly ordersStorage: OrdersStorage,
     private readonly ordersTelegramService: OrdersTelegramService,
@@ -170,7 +172,10 @@ export class OrdersService {
       subtotal: cartDTO.subtotal,
       comment,
     });
-    await this.ordersTelegramService.sendOrderCreated(order);
+    await Promise.all([
+      this.notifyAdminAboutOrderCreated(order),
+      this.notifyCustomerAboutOrderCreated(order, user.id),
+    ]);
     await this.cartService.clearCart(order.cartId);
 
     return order;
@@ -336,5 +341,149 @@ export class OrdersService {
         }`,
       );
     }
+  }
+
+  private async notifyAdminAboutOrderCreated(order: OrderDTO) {
+    try {
+      await this.ordersTelegramService.sendOrderCreated(order);
+    } catch (error) {
+      this.logger.warn(
+        `Failed to send Telegram order notification for order ${order.id}: ${
+          error instanceof Error ? error.message : String(error)
+        }`,
+      );
+    }
+  }
+
+  private async notifyCustomerAboutOrderCreated(order: OrderDTO, userId: string) {
+    await Promise.all([
+      this.sendOrderCreatedEmail(order),
+      this.sendOrderCreatedTelegram(order, userId),
+    ]);
+  }
+
+  private async sendOrderCreatedEmail(order: OrderDTO) {
+    try {
+      await this.mailerService.sendMail({
+        to: order.customer.email,
+        subject: `Заказ ${order.id} принят - Artmate`,
+        text: this.renderOrderCreatedTextEmail(order),
+        html: this.renderOrderCreatedHtmlEmail(order),
+      });
+    } catch (error) {
+      this.logger.warn(
+        `Failed to send customer order email for order ${order.id}: ${
+          error instanceof Error ? error.message : String(error)
+        }`,
+      );
+    }
+  }
+
+  private async sendOrderCreatedTelegram(order: OrderDTO, userId: string) {
+    try {
+      const chatId = await this.ordersStorage.getUserTelegramChatId(userId);
+
+      if (!chatId) {
+        return;
+      }
+
+      await this.ordersTelegramService.sendOrderCreatedToCustomer({
+        chatId,
+        order,
+      });
+    } catch (error) {
+      this.logger.warn(
+        `Failed to send customer Telegram order notification for order ${order.id}: ${
+          error instanceof Error ? error.message : String(error)
+        }`,
+      );
+    }
+  }
+
+  private renderOrderCreatedTextEmail(order: OrderDTO) {
+    return [
+      "ARTMATE",
+      "",
+      `Заказ ${order.id} принят.`,
+      "",
+      `${order.customer.name}, спасибо за заказ. Мы получили заявку и скоро свяжемся с вами для подтверждения деталей.`,
+      "",
+      `Итого: ${this.formatMoney(order.total)}`,
+      `Телефон: ${order.customer.phone}`,
+      "",
+      "Если вы не оформляли этот заказ, ответьте на это письмо или свяжитесь с поддержкой Artmate.",
+    ].join("\n");
+  }
+
+  private renderOrderCreatedHtmlEmail(order: OrderDTO) {
+    const escapedOrderId = this.escapeHtml(order.id);
+    const escapedName = this.escapeHtml(order.customer.name);
+    const escapedPhone = this.escapeHtml(order.customer.phone);
+    const total = this.escapeHtml(this.formatMoney(order.total));
+
+    return `
+      <!doctype html>
+      <html lang="ru">
+        <head>
+          <meta charset="utf-8" />
+          <meta name="viewport" content="width=device-width,initial-scale=1" />
+          <title>Заказ ${escapedOrderId} принят</title>
+        </head>
+        <body style="margin:0;padding:0;background:#f4f1ec;color:#2f2923;">
+          <table role="presentation" width="100%" cellspacing="0" cellpadding="0" style="background:#f4f1ec;margin:0;padding:32px 16px;">
+            <tr>
+              <td align="center">
+                <table role="presentation" width="100%" cellspacing="0" cellpadding="0" style="max-width:560px;background:#ffffff;border:1px solid #e6ded3;border-radius:18px;overflow:hidden;">
+                  <tr>
+                    <td style="padding:28px 32px 22px;background:#2f2923;">
+                      <div style="font-family:Arial,Helvetica,sans-serif;font-size:12px;line-height:16px;font-weight:700;letter-spacing:3px;text-transform:uppercase;color:#d9b46d;">ARTMATE</div>
+                      <div style="margin-top:8px;font-family:Arial,Helvetica,sans-serif;font-size:22px;line-height:28px;font-weight:700;color:#fffaf0;">Заказ принят</div>
+                    </td>
+                  </tr>
+                  <tr>
+                    <td style="padding:30px 32px 12px;font-family:Arial,Helvetica,sans-serif;">
+                      <p style="margin:0;color:#5f554b;font-size:16px;line-height:24px;">${escapedName}, спасибо за заказ ${escapedOrderId}. Мы получили заявку и скоро свяжемся с вами для подтверждения деталей.</p>
+                    </td>
+                  </tr>
+                  <tr>
+                    <td style="padding:18px 32px 20px;font-family:Arial,Helvetica,sans-serif;">
+                      <table role="presentation" width="100%" cellspacing="0" cellpadding="0" style="border-radius:14px;background:#faf7f1;">
+                        <tr>
+                          <td style="padding:16px 18px;color:#6b6055;font-size:14px;line-height:22px;">
+                            <strong style="color:#2f2923;">Итого:</strong> ${total}<br />
+                            <strong style="color:#2f2923;">Телефон:</strong> ${escapedPhone}
+                          </td>
+                        </tr>
+                      </table>
+                    </td>
+                  </tr>
+                  <tr>
+                    <td style="padding:18px 32px;background:#fbfaf8;border-top:1px solid #eee7dc;font-family:Arial,Helvetica,sans-serif;color:#8b8177;font-size:12px;line-height:18px;">
+                      Если вы не оформляли этот заказ, ответьте на это письмо или свяжитесь с поддержкой Artmate.
+                    </td>
+                  </tr>
+                </table>
+              </td>
+            </tr>
+          </table>
+        </body>
+      </html>
+    `;
+  }
+
+  private formatMoney(value: number) {
+    return new Intl.NumberFormat("ru-RU", {
+      style: "currency",
+      currency: "RUB",
+      maximumFractionDigits: 0,
+    }).format(value);
+  }
+
+  private escapeHtml(value: string) {
+    return value
+      .replaceAll("&", "&amp;")
+      .replaceAll('"', "&quot;")
+      .replaceAll("<", "&lt;")
+      .replaceAll(">", "&gt;");
   }
 }

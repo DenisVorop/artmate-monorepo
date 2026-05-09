@@ -5,7 +5,10 @@ import {
 } from "@nestjs/common";
 import { JwtService } from "@nestjs/jwt";
 
-import { UserStatus as PrismaUserStatus } from "../generated/prisma/client";
+import {
+  AuthProvider as PrismaAuthProvider,
+  UserStatus as PrismaUserStatus,
+} from "../generated/prisma/client";
 import { PrismaService } from "../prisma/prisma.service";
 import { isUserRole } from "../users/users.types";
 import { UsersService } from "../users/users.service";
@@ -15,11 +18,13 @@ import {
   AUTH_ACCESS_TOKEN_EXPIRES_IN,
 } from "./auth.constants";
 import type { AuthTokenPayload, AuthUser } from "./auth.types";
+import { CredentialsAuthService } from "./credentials-auth.service";
 
 @Injectable()
 export class AuthService {
   constructor(
     private readonly jwtService: JwtService,
+    private readonly credentialsAuthService: CredentialsAuthService,
     private readonly prisma: PrismaService,
     private readonly usersService: UsersService,
   ) {}
@@ -129,7 +134,11 @@ export class AuthService {
 
     if (!storedUser) {
       if (user.id === `${user.provider}:${user.providerUserId}`) {
-        return user;
+        const legacyUser = await this.getLegacyProviderUser(user);
+
+        if (legacyUser) {
+          return legacyUser;
+        }
       }
 
       throw new UnauthorizedException("Invalid access token");
@@ -146,6 +155,48 @@ export class AuthService {
       phone: storedUser.phone ?? user.phone,
       image: storedUser.image ?? user.image,
       roles: this.usersService.mapPrismaRoles(storedUser.roles),
+    };
+  }
+
+  private async getLegacyProviderUser(
+    user: AuthUser,
+  ): Promise<AuthUser | undefined> {
+    if (user.provider === "credentials") {
+      const envUser =
+        await this.credentialsAuthService.getEnvCredentialsUserByEmail(
+          user.providerUserId,
+        );
+
+      if (envUser) {
+        return envUser;
+      }
+    }
+
+    const account = await this.prisma.authAccount.findUnique({
+      where: {
+        provider_providerUserId: {
+          provider: this.mapPrismaAuthProvider(user.provider),
+          providerUserId: user.providerUserId,
+        },
+      },
+      include: {
+        user: true,
+      },
+    });
+
+    if (!account || account.user.status !== PrismaUserStatus.ACTIVE) {
+      return undefined;
+    }
+
+    return {
+      id: account.user.id,
+      provider: user.provider,
+      providerUserId: account.providerUserId,
+      email: account.user.email ?? account.providerEmail ?? user.email,
+      name: account.user.name ?? user.name,
+      phone: account.user.phone ?? user.phone,
+      image: account.user.image ?? user.image,
+      roles: this.usersService.mapPrismaRoles(account.user.roles),
     };
   }
 
@@ -174,6 +225,15 @@ export class AuthService {
 
   private isAuthProvider(provider: unknown): provider is AuthUser["provider"] {
     return provider === "credentials" || provider === "yandex";
+  }
+
+  private mapPrismaAuthProvider(provider: AuthUser["provider"]) {
+    switch (provider) {
+      case "credentials":
+        return PrismaAuthProvider.CREDENTIALS;
+      case "yandex":
+        return PrismaAuthProvider.YANDEX;
+    }
   }
 
   private getJwtSecret() {

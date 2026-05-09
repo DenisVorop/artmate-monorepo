@@ -68,6 +68,28 @@ export class OrdersTelegramService {
     }
   }
 
+  async sendOrderCreatedToCustomer(input: {
+    chatId: string;
+    order: OrderDTO;
+  }) {
+    const response = await this.requestTelegramToCustomer(
+      input.chatId,
+      this.formatCustomerOrderCreatedMessage(input.order),
+    );
+    const responseBody = (await this.parseTelegramResponseBody(
+      response,
+    )) as TelegramSendMessageResponse;
+
+    if (!response.ok || responseBody.ok === false) {
+      throw new BadGatewayException({
+        message: "Telegram customer order message request failed",
+        status: response.status,
+        errorCode: responseBody.error_code,
+        description: responseBody.description,
+      });
+    }
+  }
+
   private async requestTelegram(text: string) {
     try {
       return await fetch(this.getTelegramSendMessageUrl(), {
@@ -174,6 +196,19 @@ export class OrdersTelegramService {
       )}`,
       "",
       this.getStatusHint(input.nextStatus),
+    ];
+
+    return this.trimTelegramMessage(lines.join("\n"));
+  }
+
+  private formatCustomerOrderCreatedMessage(order: OrderDTO) {
+    const lines = [
+      "<b>Заказ принят</b>",
+      "",
+      `<b>Заказ:</b> <code>${this.formatText(order.id)}</code>`,
+      `<b>Итого:</b> ${this.formatMoney(order.total)}`,
+      "",
+      "Спасибо! Мы получили ваш заказ и скоро свяжемся с вами для подтверждения деталей.",
     ];
 
     return this.trimTelegramMessage(lines.join("\n"));

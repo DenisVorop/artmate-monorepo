@@ -93,3 +93,14 @@ export type UpdateAdminOrderStatusInputDTO = {
 export type CreateAdminOrderCommentInputDTO = {
   body: string;
 };
+
+export type AdminOrderMutationResultDTO =
+  | {
+      ok: true;
+      data: AdminOrderDTO;
+    }
+  | {
+      ok: false;
+      error: string;
+      status?: number;
+    };

@@ -5,6 +5,7 @@ import { cookies, headers } from "next/headers";
 import { apiCsrfHeader, getForwardedIpHeaders } from "@/shared/lib/api-security";
 
 import type {
+  AdminOrderMutationResultDTO,
   AdminOrderDTO,
   CreateAdminOrderCommentInputDTO,
   UpdateAdminOrderStatusInputDTO,
@@ -12,6 +13,16 @@ import type {
 
 const AUTH_ACCESS_TOKEN_COOKIE_NAME = "artmate_access_token";
 const DEFAULT_API_BASE_URL = "http://localhost:3002";
+
+class AdminApiError extends Error {
+  constructor(
+    message: string,
+    readonly status: number,
+  ) {
+    super(message);
+    this.name = "AdminApiError";
+  }
+}
 
 export async function getAdminOrders(): Promise<AdminOrderDTO[]> {
   return requestAdminApi<AdminOrderDTO[]>("/orders/admin");
@@ -27,7 +38,7 @@ export async function updateAdminOrderStatus(
   orderId: string,
   input: UpdateAdminOrderStatusInputDTO,
 ) {
-  return requestAdminApi<AdminOrderDTO>(
+  return requestAdminMutation(
     `/orders/admin/${encodeURIComponent(orderId)}/status`,
     {
       method: "PATCH",
@@ -40,13 +51,31 @@ export async function createAdminOrderComment(
   orderId: string,
   input: CreateAdminOrderCommentInputDTO,
 ) {
-  return requestAdminApi<AdminOrderDTO>(
+  return requestAdminMutation(
     `/orders/admin/${encodeURIComponent(orderId)}/comments`,
     {
       method: "POST",
       body: JSON.stringify(input),
     },
   );
+}
+
+async function requestAdminMutation(
+  path: string,
+  init: RequestInit,
+): Promise<AdminOrderMutationResultDTO> {
+  try {
+    return {
+      ok: true,
+      data: await requestAdminApi<AdminOrderDTO>(path, init),
+    };
+  } catch (error) {
+    return {
+      ok: false,
+      error: getActionErrorMessage(error),
+      status: getActionErrorStatus(error),
+    };
+  }
 }
 
 async function requestAdminApi<T>(path: string, init: RequestInit = {}) {
@@ -70,7 +99,10 @@ async function requestAdminApi<T>(path: string, init: RequestInit = {}) {
   });
 
   if (!response.ok) {
-    throw new Error(await getResponseErrorMessage(response));
+    throw new AdminApiError(
+      await getResponseErrorMessage(response),
+      response.status,
+    );
   }
 
   return (await response.json()) as T;
@@ -100,4 +132,20 @@ async function getResponseErrorMessage(response: Response) {
   }
 
   return fallback;
+}
+
+function getActionErrorMessage(error: unknown) {
+  if (error instanceof Error && error.message) {
+    return error.message;
+  }
+
+  return "Orders API request failed";
+}
+
+function getActionErrorStatus(error: unknown) {
+  if (error instanceof AdminApiError) {
+    return error.status;
+  }
+
+  return undefined;
 }

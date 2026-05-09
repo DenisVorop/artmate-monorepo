@@ -8,6 +8,7 @@ export type {
   AdminOrderCommentDTO,
   AdminOrderHistoryEventDTO,
   AdminOrderDTO,
+  AdminOrderMutationResultDTO,
   CreateAdminOrderCommentInputDTO,
   OrderCustomerDTO,
   OrderDeliveryDTO,
