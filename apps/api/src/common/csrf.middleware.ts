@@ -9,8 +9,10 @@ const csrfHeaderValue = "1";
 const safeMethods = new Set(["GET", "HEAD", "OPTIONS"]);
 
 type CsrfRequest = {
+  baseUrl?: string;
   headers: Record<string, string | string[] | undefined>;
   method?: string;
+  originalUrl?: string;
   path?: string;
   url?: string;
 };
@@ -36,9 +38,18 @@ export class CsrfMiddleware implements NestMiddleware {
   }
 
   private isExempt(request: CsrfRequest) {
-    const path = request.path ?? request.url ?? "";
+    const paths = [
+      request.originalUrl,
+      request.baseUrl && request.url
+        ? `${request.baseUrl}${request.url}`
+        : undefined,
+      request.path,
+      request.url,
+    ].filter((path): path is string => Boolean(path));
 
-    return path.startsWith("/content-assistant/telegram/webhook/");
+    return paths.some((path) =>
+      path.startsWith("/content-assistant/telegram/webhook/"),
+    );
   }
 
   private getHeaderValue(value: string | string[] | undefined) {
