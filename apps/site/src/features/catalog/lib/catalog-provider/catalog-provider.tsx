@@ -4,9 +4,9 @@ import { useCallback, useEffect, useMemo, useState, type ReactNode } from "react
 import { useRouter } from "next/navigation";
 import { getProductCategory, type Product, type ProductCategory } from "@/entities/products";
 import {
-  filterProducts,
   formatCount,
   getCatalogHref,
+  getCatalogSearchResult,
   normalizeCategoryId,
   type SortValue,
 } from "../catalog-state";
@@ -40,9 +40,9 @@ export function CatalogProvider({
     setCategoryId(normalizeCategoryId(categories, initialCategoryId));
   }, [categories, initialCategoryId]);
 
-  const filteredProducts = useMemo(
+  const { products: filteredProducts, suggestions: suggestedProducts } = useMemo(
     () =>
-      filterProducts(products, {
+      getCatalogSearchResult(products, {
         categoryId,
         query,
         sortBy,
@@ -81,6 +81,7 @@ export function CatalogProvider({
       categories,
       products,
       filteredProducts,
+      suggestedProducts,
       renderProductCard,
       activeCategory: getProductCategory(categories, categoryId),
       categoryId,
@@ -117,6 +118,7 @@ export function CatalogProvider({
       renderProductCard,
       setCategory,
       sortBy,
+      suggestedProducts,
     ],
   );
 

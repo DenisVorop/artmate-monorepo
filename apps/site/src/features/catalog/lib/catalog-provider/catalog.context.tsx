@@ -8,6 +8,7 @@ export type CatalogContextValue = {
   categories: readonly ProductCategory[];
   products: readonly Product[];
   filteredProducts: Product[];
+  suggestedProducts: Product[];
   renderProductCard?: (_product: Product, _index: number) => ReactNode;
   activeCategory?: ProductCategory;
   categoryId?: string;

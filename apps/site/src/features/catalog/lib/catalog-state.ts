@@ -24,7 +24,9 @@ type CatalogSearchItem = {
   index: number;
 };
 
-const fuzzySearchOptions = {
+const maxSearchSuggestions = 4;
+
+const searchSuggestionOptions = {
   threshold: 0.36,
   ignoreLocation: true,
   ignoreDiacritics: true,
@@ -52,6 +54,11 @@ const fuzzySearchOptions = {
   ],
 } satisfies IFuseOptions<CatalogSearchItem>;
 
+export type CatalogSearchResult = {
+  products: Product[];
+  suggestions: Product[];
+};
+
 export function normalizeCategoryId(
   categories: readonly ProductCategory[],
   categoryValue?: string,
@@ -74,6 +81,13 @@ export function getCatalogHref(categories: readonly ProductCategory[], categoryI
 }
 
 export function filterProducts(products: readonly Product[], filters: FiltersState) {
+  return getCatalogSearchResult(products, filters).products;
+}
+
+export function getCatalogSearchResult(
+  products: readonly Product[],
+  filters: FiltersState,
+): CatalogSearchResult {
   const normalizedQuery = normalizeSearchText(filters.query);
   let list = products.map((product, index) => ({ product, index }));
 
@@ -95,11 +109,31 @@ export function filterProducts(products: readonly Product[], filters: FiltersSta
     });
   }
 
+  const searchableList = list;
+
   if (normalizedQuery) {
-    list = new Fuse(list, fuzzySearchOptions).search(normalizedQuery).map((result) => result.item);
+    list = list.filter(({ product }) =>
+      normalizeSearchText(product.title).includes(normalizedQuery),
+    );
   }
 
-  switch (filters.sortBy) {
+  const sortedProducts = sortCatalogItems(list, filters.sortBy);
+  const suggestions =
+    normalizedQuery && sortedProducts.length === 0
+      ? new Fuse(searchableList, searchSuggestionOptions)
+          .search(normalizedQuery)
+          .map((result) => result.item.product)
+          .slice(0, maxSearchSuggestions)
+      : [];
+
+  return {
+    products: sortedProducts,
+    suggestions,
+  };
+}
+
+function sortCatalogItems(list: CatalogSearchItem[], sortBy: SortValue) {
+  switch (sortBy) {
     case "newest":
       return list.sort((a, b) => b.index - a.index).map(({ product }) => product);
     case "price-asc":
@@ -113,7 +147,7 @@ export function filterProducts(products: readonly Product[], filters: FiltersSta
 }
 
 function normalizeSearchText(value: string) {
-  return value.trim().toLocaleLowerCase("ru-RU").replaceAll("ё", "е");
+  return value.trim().toLocaleLowerCase("ru-RU").replaceAll("ё", "е").replace(/\s+/g, " ");
 }
 
 export function formatCount(count: number) {
