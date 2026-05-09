@@ -7,19 +7,16 @@ WORKDIR /app
 RUN corepack enable && corepack prepare yarn@1.22.22 --activate
 
 COPY package.json yarn.lock .npmrc .yarnrc turbo.json ./
-COPY apps/admin/package.json apps/admin/package.json
 COPY apps/edge-proxy/package.json apps/edge-proxy/package.json
-COPY apps/api/package.json apps/api/package.json
-COPY apps/site/package.json apps/site/package.json
 COPY packages/eslint-config/package.json packages/eslint-config/package.json
 COPY packages/typescript-config/package.json packages/typescript-config/package.json
-COPY packages/ui/package.json packages/ui/package.json
 
 RUN yarn install --frozen-lockfile
 
 FROM deps AS builder
 
-COPY . .
+COPY apps/edge-proxy apps/edge-proxy
+COPY packages/typescript-config packages/typescript-config
 
 RUN yarn workspace edge-proxy build
 
