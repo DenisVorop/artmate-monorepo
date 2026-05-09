@@ -5,6 +5,7 @@ export const routes = {
   blogPost: (postId: string) => `/blog/${postId}`,
   blogPosts: "/blog/posts",
   blogTags: "/blog/tags",
+  featureBanners: "/feature-banners",
   home: "/",
   login: "/login",
   order: (orderId: string) => `/orders/${orderId}`,

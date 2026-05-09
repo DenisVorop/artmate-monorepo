@@ -1,35 +1,43 @@
 import { Suspense, type ReactNode } from "react";
 
+import type { DehydratedState } from "@tanstack/react-query";
+import { HydrationBoundary } from "@tanstack/react-query";
 import { ReactQueryDevtools } from "@tanstack/react-query-devtools";
 
 import { UserProvider, type AuthSession } from "@/entities/session";
 import { DeviceProvider, type DeviceInfo } from "@/shared/lib/device";
-import { ComposeProviders } from "@/shared/lib/react";
 import { QueryStateProvider } from "@/shared/lib/query-state-manager";
 
 import { QueryProvider } from "./query-provider";
 
 type AppProvidersProps = {
   readonly children: ReactNode;
+  readonly dehydratedState?: DehydratedState;
   readonly initialDeviceInfo: DeviceInfo;
   readonly initialSession: AuthSession;
 };
 
-export function AppProviders({ children, initialDeviceInfo, initialSession }: AppProvidersProps) {
+export function AppProviders({
+  children,
+  dehydratedState,
+  initialDeviceInfo,
+  initialSession,
+}: AppProvidersProps) {
   return (
     <QueryProvider>
       <ReactQueryDevtools initialIsOpen={false} />
 
-      <ComposeProviders>
-        <DeviceProvider initialDeviceInfo={initialDeviceInfo} />
-        <UserProvider initialSession={initialSession} />
+      <HydrationBoundary state={dehydratedState}>
+        <DeviceProvider initialDeviceInfo={initialDeviceInfo}>
+          <UserProvider initialSession={initialSession}>
+            <Suspense fallback={null}>
+              <QueryStateProvider />
+            </Suspense>
 
-        <Suspense fallback={null}>
-          <QueryStateProvider />
-        </Suspense>
-
-        {children}
-      </ComposeProviders>
+            {children}
+          </UserProvider>
+        </DeviceProvider>
+      </HydrationBoundary>
     </QueryProvider>
   );
 }

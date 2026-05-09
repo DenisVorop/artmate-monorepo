@@ -9,7 +9,7 @@ type UseTelegramLinkStatusOptions = {
   enabled?: boolean;
 };
 
-export const telegramLinkStatusQueryKey = ["account", "telegram-link"] as const;
+export const telegramLinkStatusQueryKey = ["session", "telegram-link"] as const;
 
 export function useTelegramLinkStatus(options: UseTelegramLinkStatusOptions = {}) {
   const { data, isError, isPending } = useQuery({

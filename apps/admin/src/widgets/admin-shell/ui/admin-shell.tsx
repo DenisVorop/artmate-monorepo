@@ -2,6 +2,7 @@ import type { ReactNode } from "react";
 import type { LucideIcon } from "lucide-react";
 import {
   FileText,
+  Megaphone,
   LogOut,
   PackageSearch,
   SearchCode,
@@ -29,6 +30,7 @@ const navigation: readonly NavigationItem[] = [
   { label: "Товары", href: routes.products, Icon: PackageSearch },
   { label: "Блог", href: routes.blog, Icon: FileText },
   { label: "SEO", href: routes.seo, Icon: SearchCode },
+  { label: "Баннеры", href: routes.featureBanners, Icon: Megaphone },
   { label: "Пользователи", href: routes.users, Icon: Users },
 ];
 

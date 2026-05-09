@@ -1,0 +1,36 @@
+enum FeatureBannerAudience {
+  ALL               @map("all")
+  AUTHENTICATED     @map("authenticated")
+  ANONYMOUS         @map("anonymous")
+  TELEGRAM_UNLINKED @map("telegram_unlinked")
+
+  @@map("feature_banner_audience")
+}
+
+enum FeatureBannerTone {
+  INFO    @map("info")
+  SUCCESS @map("success")
+  WARNING @map("warning")
+
+  @@map("feature_banner_tone")
+}
+
+model FeatureBanner {
+  id          String                @id @default(cuid()) @db.VarChar(32)
+  slug        String                @unique @db.VarChar(120)
+  title       String                @db.VarChar(160)
+  description String                @db.Text
+  ctaLabel    String?               @map("cta_label") @db.VarChar(80)
+  ctaHref     String?               @map("cta_href") @db.Text
+  audience    FeatureBannerAudience @default(ALL)
+  tone        FeatureBannerTone     @default(INFO)
+  enabled     Boolean               @default(false)
+  sortOrder   Int                   @default(0) @map("sort_order")
+  archivedAt  DateTime?             @map("archived_at")
+  createdAt   DateTime              @default(now()) @map("created_at")
+  updatedAt   DateTime              @default(now()) @updatedAt @map("updated_at")
+
+  @@index([enabled, archivedAt, sortOrder])
+  @@index([audience, enabled])
+  @@map("feature_banners")
+}

@@ -1,10 +1,13 @@
 import type { ReactNode } from "react";
 import { Comfortaa, Nunito } from "next/font/google";
 
+import { featureBannersQuery } from "@/entities/feature-banners";
 import type { AuthSession } from "@/entities/session";
 import { getAuthSession } from "@/shared/actions/auth";
 import { ApiResult } from "@/shared/lib/api-result";
+import { dehydrateQueryClient } from "@/shared/lib/dehydrate-query-client";
 import { getServerDeviceInfo } from "@/shared/lib/device/server";
+import { getQueryClient } from "@/shared/lib/query-client";
 import { RootStructuredData } from "@/shared/lib/seo";
 
 import { AppProviders } from "../providers/app-providers";
@@ -32,12 +35,18 @@ export async function RootLayout({ children }: RootLayoutProps) {
     getServerDeviceInfo(),
     getInitialAuthSession(),
   ]);
+  const queryClient = getQueryClient();
+  await queryClient.prefetchQuery(featureBannersQuery.list());
 
   return (
     <html lang="ru" className={`${comfortaa.variable} ${nunito.variable}`}>
       <body>
         <RootStructuredData />
-        <AppProviders initialDeviceInfo={initialDeviceInfo} initialSession={initialSession}>
+        <AppProviders
+          dehydratedState={dehydrateQueryClient(queryClient)}
+          initialDeviceInfo={initialDeviceInfo}
+          initialSession={initialSession}
+        >
           {children}
         </AppProviders>
       </body>

@@ -23,7 +23,11 @@ import {
   OrderCard,
   useOrdersData,
 } from "@/entities/orders";
-import { getSessionUserDisplayName, useSession } from "@/entities/session";
+import {
+  getSessionUserDisplayName,
+  useSession,
+  useTelegramLinkStatus,
+} from "@/entities/session";
 import { routes } from "@/shared/constants";
 import {
   Badge,
@@ -52,7 +56,7 @@ import {
   toConfirmTelegramLinkInput,
   type TelegramLinkFormValues,
 } from "../lib";
-import { useConfirmTelegramLink, useTelegramLinkStatus, useUnlinkTelegram } from "../model";
+import { useConfirmTelegramLink, useUnlinkTelegram } from "../model";
 
 export function Account() {
   const { user, isPending: isSessionPending } = useSession();

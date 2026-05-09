@@ -9,6 +9,7 @@ import { CsrfMiddleware } from "./common/csrf.middleware";
 import { SecurityHeadersMiddleware } from "./common/security-headers.middleware";
 import { ContactsModule } from "./contacts/contacts.module";
 import { ContentAssistantModule } from "./content-assistant/content-assistant.module";
+import { FeatureBannersModule } from "./feature-banners/feature-banners.module";
 import { OrdersModule } from "./orders/orders.module";
 import { OzonModule } from "./ozon/ozon.module";
 import { PrismaModule } from "./prisma/prisma.module";
@@ -29,6 +30,7 @@ import { UsersModule } from "./users/users.module";
     ContactsModule,
     SeoModule,
     ContentAssistantModule,
+    FeatureBannersModule,
   ],
   controllers: [AppController],
   providers: [AppService],

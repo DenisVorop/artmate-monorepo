@@ -2,15 +2,13 @@
 
 import { useMutation, useQueryClient } from "@tanstack/react-query";
 
-import { sessionQuery } from "@/entities/session";
+import { sessionQuery, telegramLinkStatusQueryKey } from "@/entities/session";
 import {
   confirmTelegramLink,
   type AuthTelegramLinkResponseDTO,
   type ConfirmTelegramLinkInputDTO,
 } from "@/shared/actions/auth";
 import { ApiResult } from "@/shared/lib/api-result";
-
-import { telegramLinkStatusQueryKey } from "./use-telegram-link-status";
 
 type UseConfirmTelegramLinkOptions = {
   onSuccess?: (_response: AuthTelegramLinkResponseDTO | undefined) => void;

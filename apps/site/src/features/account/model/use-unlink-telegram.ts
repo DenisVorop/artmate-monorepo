@@ -2,10 +2,9 @@
 
 import { useMutation, useQueryClient } from "@tanstack/react-query";
 
+import { telegramLinkStatusQueryKey } from "@/entities/session";
 import { unlinkTelegram, type AuthTelegramLinkStatusDTO } from "@/shared/actions/auth";
 import { ApiResult } from "@/shared/lib/api-result";
-
-import { telegramLinkStatusQueryKey } from "./use-telegram-link-status";
 
 type UseUnlinkTelegramOptions = {
   onSuccess?: (_response: AuthTelegramLinkStatusDTO | undefined) => void;
