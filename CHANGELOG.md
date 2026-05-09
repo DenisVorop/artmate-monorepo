@@ -1,5 +1,12 @@
 # Changelog
 
+## [0.13.0](https://github.com/DenisVorop/artmate-monorepo/compare/v0.12.0...v0.13.0) (2026-05-09)
+
+
+### Features
+
+* **tg:** improve bot account linking ([585a2d9](https://github.com/DenisVorop/artmate-monorepo/commit/585a2d946c38463c604658d3e247fb7274609d38))
+
 ## [0.12.0](https://github.com/DenisVorop/artmate-monorepo/compare/v0.11.4...v0.12.0) (2026-05-09)
 
 
