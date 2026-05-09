@@ -1,6 +1,15 @@
 export const ORDER_COMMENT_MAX_LENGTH = 1000;
+export const ORDER_ADMIN_COMMENT_MAX_LENGTH = 1000;
 
-export const orderStatuses = ["pending_payment", "paid"] as const;
+export const orderStatuses = [
+  "new",
+  "in_progress",
+  "waiting_payment",
+  "paid",
+  "delivering",
+  "completed",
+  "cancelled",
+] as const;
 export const paymentMethods = ["bank_card_mock"] as const;
 export const paymentStatuses = ["pending", "paid"] as const;
 export const deliveryProviders = ["ozon"] as const;

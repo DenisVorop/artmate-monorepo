@@ -1,6 +1,13 @@
 import type { CartItemDTO } from "@/shared/actions/cart";
 
-export type OrderStatusDTO = "pending_payment" | "paid";
+export type OrderStatusDTO =
+  | "new"
+  | "in_progress"
+  | "waiting_payment"
+  | "paid"
+  | "delivering"
+  | "completed"
+  | "cancelled";
 export type OrderPaymentMethodDTO = "bank_card_mock";
 export type OrderPaymentStatusDTO = "pending" | "paid";
 export type OrderDeliveryProviderDTO = "ozon";

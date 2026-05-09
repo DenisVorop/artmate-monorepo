@@ -7,6 +7,7 @@ export const routes = {
   blogTags: "/blog/tags",
   home: "/",
   login: "/login",
+  orders: "/orders",
   product: (productId: string) => `/products/${productId}`,
   productCategories: "/products/categories",
   products: "/products",

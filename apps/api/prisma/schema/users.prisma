@@ -33,6 +33,8 @@ model User {
   telegramAccount        TelegramAccount?
   aiBlogDraftRuns        AiBlogDraftRun[]            @relation("AiBlogDraftRunCreator")
   createdBlogPosts       BlogPost[]                  @relation("BlogPostCreator")
+  orderAdminComments     OrderAdminComment[]         @relation("OrderAdminCommentAuthor")
+  orderHistory           OrderHistory[]              @relation("OrderHistoryAuthor")
   orders                 Order[]
 
   @@index([status])

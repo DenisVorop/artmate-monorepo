@@ -18,6 +18,18 @@ enum OrderPaymentStatus {
   @@map("order_payment_status")
 }
 
+enum OrderCrmStatus {
+  NEW             @map("new")
+  IN_PROGRESS     @map("in_progress")
+  WAITING_PAYMENT @map("waiting_payment")
+  PAID            @map("paid")
+  DELIVERING      @map("delivering")
+  COMPLETED       @map("completed")
+  CANCELLED       @map("cancelled")
+
+  @@map("order_crm_status")
+}
+
 enum OrderDeliveryProvider {
   OZON @map("ozon")
 
@@ -29,6 +41,7 @@ model Order {
   userId               String?               @map("user_id")
   cartId               String                @map("cart_id") @db.VarChar(128)
   status               OrderStatus           @default(PENDING_PAYMENT)
+  crmStatus            OrderCrmStatus        @default(NEW) @map("crm_status")
   customerName         String                @map("customer_name") @db.VarChar(160)
   customerPhone        String                @map("customer_phone") @db.VarChar(80)
   customerEmail        String                @map("customer_email") @db.VarChar(320)
@@ -50,12 +63,15 @@ model Order {
   createdAt            DateTime              @default(now()) @map("created_at")
   updatedAt            DateTime              @default(now()) @updatedAt @map("updated_at")
 
-  items OrderItem[]
-  user  User?       @relation(fields: [userId], references: [id], onDelete: SetNull)
+  adminComments OrderAdminComment[]
+  items         OrderItem[]
+  history       OrderHistory[]
+  user          User?                @relation(fields: [userId], references: [id], onDelete: SetNull)
 
   @@index([userId, createdAt])
   @@index([cartId])
   @@index([status, createdAt])
+  @@index([crmStatus, createdAt])
   @@index([customerEmail])
   @@map("orders")
 }
@@ -78,4 +94,36 @@ model OrderItem {
   @@id([orderId, productId])
   @@index([productId])
   @@map("order_items")
+}
+
+model OrderAdminComment {
+  id        String   @id @default(cuid())
+  orderId   String   @map("order_id") @db.VarChar(32)
+  authorId  String?  @map("author_id")
+  body      String   @db.Text
+  createdAt DateTime @default(now()) @map("created_at")
+
+  author User? @relation("OrderAdminCommentAuthor", fields: [authorId], references: [id], onDelete: SetNull)
+  order  Order @relation(fields: [orderId], references: [id], onDelete: Cascade)
+
+  @@index([orderId, createdAt])
+  @@index([authorId])
+  @@map("order_admin_comments")
+}
+
+model OrderHistory {
+  id        String   @id @default(cuid())
+  orderId   String   @map("order_id") @db.VarChar(32)
+  authorId  String?  @map("author_id")
+  eventType String   @map("event_type") @db.VarChar(80)
+  payload   Json     @db.JsonB
+  createdAt DateTime @default(now()) @map("created_at")
+
+  author User? @relation("OrderHistoryAuthor", fields: [authorId], references: [id], onDelete: SetNull)
+  order  Order @relation(fields: [orderId], references: [id], onDelete: Cascade)
+
+  @@index([orderId, createdAt])
+  @@index([authorId])
+  @@index([eventType])
+  @@map("order_history")
 }

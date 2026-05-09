@@ -25,13 +25,33 @@ type OrderCardProps = {
 };
 
 const orderStatusMeta = {
+  new: {
+    label: "В обработке",
+    className: "border-sky-200 bg-sky-50 text-sky-700",
+  },
+  in_progress: {
+    label: "В работе",
+    className: "border-amber-200 bg-amber-50 text-amber-700",
+  },
+  waiting_payment: {
+    label: "Ожидает оплаты",
+    className: "border-violet-200 bg-violet-50 text-violet-700",
+  },
   paid: {
+    label: "Оплачен",
+    className: "border-teal-200 bg-teal-50 text-teal-700",
+  },
+  delivering: {
+    label: "Доставляется",
+    className: "border-cyan-200 bg-cyan-50 text-cyan-700",
+  },
+  completed: {
     label: "Завершен",
     className: "border-emerald-200 bg-emerald-50 text-emerald-700",
   },
-  pending_payment: {
-    label: "В обработке",
-    className: "border-sky-200 bg-sky-50 text-sky-700",
+  cancelled: {
+    label: "Отменен",
+    className: "border-rose-200 bg-rose-50 text-rose-700",
   },
 } satisfies Record<Order["status"], { label: string; className: string }>;
 

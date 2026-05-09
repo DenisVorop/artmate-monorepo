@@ -10,6 +10,7 @@ import {
   Get,
   Headers,
   Param,
+  Patch,
   Post,
   Req,
   UseGuards,
@@ -18,14 +19,18 @@ import {
 import { AuthGuard } from "../auth/auth.guard";
 import type { AuthUser } from "../auth/auth.types";
 import { ValidateResponse } from "../common/response-validation.interceptor";
+import { UsersService } from "../users/users.service";
 
 import {
+  AdminOrderDTO,
   CalculateCheckoutRequestDTO,
   CheckoutCalculationDTO,
+  CreateOrderAdminCommentRequestDTO,
   CreateOrderRequestDTO,
   OrderDTO,
   OrderStateDTO,
   PickupPointDTO,
+  UpdateOrderStatusRequestDTO,
 } from "./dto";
 import { OrdersService } from "./orders.service";
 
@@ -38,7 +43,10 @@ type AuthenticatedRequest = {
 @ApiTags("Orders")
 @Controller("orders")
 export class OrdersController {
-  constructor(private readonly ordersService: OrdersService) {}
+  constructor(
+    private readonly ordersService: OrdersService,
+    private readonly usersService: UsersService,
+  ) {}
 
   @ValidateResponse(PickupPointDTO, { isArray: true })
   @ApiOperation({
@@ -59,6 +67,55 @@ export class OrdersController {
   @Get("my")
   getMyOrders(@Req() request: AuthenticatedRequest) {
     return this.ordersService.getMyOrders(request.user);
+  }
+
+  @UseGuards(AuthGuard)
+  @ValidateResponse(AdminOrderDTO, { isArray: true })
+  @ApiOperation({ summary: "List all orders for admin CRM board" })
+  @ApiOkResponse({ type: [AdminOrderDTO] })
+  @Get("admin")
+  getAdminOrders(@Req() request: AuthenticatedRequest) {
+    this.usersService.assertRole(request.user, "admin");
+
+    return this.ordersService.getAdminOrders();
+  }
+
+  @UseGuards(AuthGuard)
+  @ValidateResponse(AdminOrderDTO)
+  @ApiOperation({ summary: "Update order status from admin panel" })
+  @ApiOkResponse({ type: AdminOrderDTO })
+  @Patch("admin/:orderId/status")
+  updateAdminOrderStatus(
+    @Param("orderId") orderId: string,
+    @Body() request: UpdateOrderStatusRequestDTO,
+    @Req() authRequest: AuthenticatedRequest,
+  ) {
+    this.usersService.assertRole(authRequest.user, "admin");
+
+    return this.ordersService.updateAdminOrderStatus(
+      orderId,
+      request.status,
+      authRequest.user,
+    );
+  }
+
+  @UseGuards(AuthGuard)
+  @ValidateResponse(AdminOrderDTO)
+  @ApiOperation({ summary: "Add internal order comment from admin panel" })
+  @ApiOkResponse({ type: AdminOrderDTO })
+  @Post("admin/:orderId/comments")
+  createAdminOrderComment(
+    @Param("orderId") orderId: string,
+    @Body() request: CreateOrderAdminCommentRequestDTO,
+    @Req() authRequest: AuthenticatedRequest,
+  ) {
+    this.usersService.assertRole(authRequest.user, "admin");
+
+    return this.ordersService.createAdminOrderComment(
+      orderId,
+      request.body,
+      authRequest.user,
+    );
   }
 
   @UseGuards(AuthGuard)

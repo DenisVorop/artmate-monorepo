@@ -6,10 +6,16 @@ import { CartStorage } from "../cart/cart.storage";
 import { OzonLogisticsService } from "../ozon/ozon-logistics.service";
 
 import { ORDER_COMMENT_MAX_LENGTH } from "./orders.constants";
+import {
+  ORDER_ADMIN_COMMENT_MAX_LENGTH,
+  orderStatuses,
+  type OrderStatus,
+} from "./orders.constants";
 import type {
   CalculateCheckoutRequestDTO,
   CheckoutCalculationDTO,
   CreateOrderRequestDTO,
+  AdminOrderDTO,
   OrderDTO,
   OrderStateDTO,
   PickupPointDTO,
@@ -18,6 +24,7 @@ import { OrdersTelegramService } from "./orders-telegram.service";
 import { OrdersStorage } from "./orders.storage";
 
 const MAX_COMMENT_LENGTH = ORDER_COMMENT_MAX_LENGTH;
+const MAX_ADMIN_COMMENT_LENGTH = ORDER_ADMIN_COMMENT_MAX_LENGTH;
 
 @Injectable()
 export class OrdersService {
@@ -55,6 +62,34 @@ export class OrdersService {
 
   getMyOrders(user: AuthUser): Promise<OrderDTO[]> {
     return this.ordersStorage.getOrdersByUserId(user.id);
+  }
+
+  getAdminOrders(): Promise<AdminOrderDTO[]> {
+    return this.ordersStorage.getAdminOrders();
+  }
+
+  updateAdminOrderStatus(
+    orderId: string,
+    status: unknown,
+    author: AuthUser,
+  ): Promise<AdminOrderDTO> {
+    return this.ordersStorage.updateAdminOrderStatus(
+      this.parseOrderId(orderId),
+      this.parseStatus(status),
+      author.id,
+    );
+  }
+
+  createAdminOrderComment(
+    orderId: string,
+    body: unknown,
+    author: AuthUser,
+  ): Promise<AdminOrderDTO> {
+    return this.ordersStorage.createAdminOrderComment(
+      this.parseOrderId(orderId),
+      this.parseAdminComment(body),
+      author.id,
+    );
   }
 
   async calculateCheckout(
@@ -232,5 +267,28 @@ export class OrdersService {
     }
 
     return comment;
+  }
+
+  private parseAdminComment(value: unknown): string {
+    const comment = this.parseRequiredString(value, "body");
+
+    if (comment.length > MAX_ADMIN_COMMENT_LENGTH) {
+      throw new BadRequestException(
+        `body must be ${MAX_ADMIN_COMMENT_LENGTH} characters or less`,
+      );
+    }
+
+    return comment;
+  }
+
+  private parseStatus(value: unknown): OrderStatus {
+    if (
+      typeof value !== "string" ||
+      !orderStatuses.includes(value as OrderStatus)
+    ) {
+      throw new BadRequestException("status must be a valid order status");
+    }
+
+    return value as OrderStatus;
   }
 }
