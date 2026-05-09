@@ -1,5 +1,12 @@
 # Changelog
 
+## [0.14.1](https://github.com/DenisVorop/artmate-monorepo/compare/v0.14.0...v0.14.1) (2026-05-09)
+
+
+### Bug Fixes
+
+* send order notifications and resolve admin status updates ([103af1b](https://github.com/DenisVorop/artmate-monorepo/commit/103af1b28f56ece8b0564c256cd2a33b71d351c7))
+
 ## [0.14.0](https://github.com/DenisVorop/artmate-monorepo/compare/v0.13.0...v0.14.0) (2026-05-09)
 
 
