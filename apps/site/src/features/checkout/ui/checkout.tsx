@@ -5,6 +5,7 @@ import { useCallback, useMemo, useState } from "react";
 import { useRouter } from "next/navigation";
 
 import { useCartData } from "@/entities/cart";
+import { getPreferredCustomerPhone, useOrdersData } from "@/entities/orders";
 import { useUser } from "@/entities/session";
 import { AuthForm } from "@/features/auth";
 import { routes } from "@/shared/constants";
@@ -34,6 +35,7 @@ export function Checkout() {
   const router = useRouter();
   const user = useUser();
   const cart = useCartData();
+  const orders = useOrdersData({ enabled: Boolean(user) });
   const [pendingOrderInput, setPendingOrderInput] = useState<CheckoutCreateOrderInput>();
   const [isAuthDialogOpen, setIsAuthDialogOpen] = useState(false);
   const handleOrderCreated = useCallback(
@@ -52,12 +54,15 @@ export function Checkout() {
   });
   const pendingCustomerEmail = pendingOrderInput?.customer.email;
   const pendingCustomerName = pendingOrderInput?.customer.name;
+  const customerOrders = orders.isError ? [] : orders.data;
+  const customerPhone = user?.phone ?? getPreferredCustomerPhone(customerOrders);
   const customerDefaults = useMemo<CheckoutCustomerDefaults>(
     () => ({
       ...(user?.email ? { email: user.email } : {}),
       ...(user?.name ? { name: user.name } : {}),
+      ...(customerPhone ? { phone: customerPhone } : {}),
     }),
-    [user?.email, user?.name],
+    [customerPhone, user?.email, user?.name],
   );
 
   const handleSubmit = async (input: CheckoutCreateOrderInput) => {
@@ -146,6 +151,7 @@ export function Checkout() {
         <div className="space-y-4">
           <CheckoutForm
             customerDefaults={customerDefaults}
+            isEmailLocked={Boolean(user?.email)}
             isSubmitting={isPending}
             onSubmit={handleSubmit}
           />

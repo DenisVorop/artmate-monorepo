@@ -31,12 +31,14 @@ import {
 
 type CheckoutFormProps = {
   customerDefaults?: CheckoutCustomerDefaults;
+  isEmailLocked?: boolean;
   isSubmitting: boolean;
   onSubmit: (_input: ReturnType<typeof toCreateOrderInput>) => Promise<void>;
 };
 
 export function CheckoutForm({
   customerDefaults,
+  isEmailLocked = false,
   isSubmitting,
   onSubmit,
 }: CheckoutFormProps) {
@@ -113,7 +115,10 @@ export function CheckoutForm({
               type="email"
               autoComplete="email"
               placeholder="anna@example.com"
+              readOnly={isEmailLocked}
+              aria-readonly={isEmailLocked}
               aria-invalid={Boolean(errors.email)}
+              className={isEmailLocked ? "cursor-not-allowed bg-input/50 opacity-75" : undefined}
               {...register("email")}
             />
             <FieldError message={errors.email?.message} />
