@@ -1,5 +1,20 @@
 # Changelog
 
+## [0.15.0](https://github.com/DenisVorop/artmate-monorepo/compare/v0.14.1...v0.15.0) (2026-05-09)
+
+
+### Features
+
+* add managed service banners ([6607896](https://github.com/DenisVorop/artmate-monorepo/commit/6607896146da1d6ca0a078cca3eded9afd6b52a1))
+* **email:** brand transactional emails ([cd3c0c1](https://github.com/DenisVorop/artmate-monorepo/commit/cd3c0c16f3fe37a3b3c43206f306f7571c2ee716))
+
+
+### Bug Fixes
+
+* **api:** queue order notifications ([fe574fe](https://github.com/DenisVorop/artmate-monorepo/commit/fe574fea52db254dd998cec0ccf4b759eb386414))
+* **site:** gate development banner by feature flag ([e99fd58](https://github.com/DenisVorop/artmate-monorepo/commit/e99fd5864e3930357837336233600bee04e25a6e))
+* **site:** prefill checkout contacts ([9acc222](https://github.com/DenisVorop/artmate-monorepo/commit/9acc2222880d58a67d0ee504c91bc92b7a55d646))
+
 ## [0.14.1](https://github.com/DenisVorop/artmate-monorepo/compare/v0.14.0...v0.14.1) (2026-05-09)
 
 
