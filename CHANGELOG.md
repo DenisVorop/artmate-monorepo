@@ -1,5 +1,18 @@
 # Changelog
 
+## [0.17.0](https://github.com/DenisVorop/artmate-monorepo/compare/v0.16.0...v0.17.0) (2026-05-11)
+
+
+### Features
+
+* **site:** add google analytics ([d54eff1](https://github.com/DenisVorop/artmate-monorepo/commit/d54eff1a57e1a53db2e645e8051da3558ccfd47b))
+
+
+### Bug Fixes
+
+* **infra:** allow metrika frame access ([08e3bdd](https://github.com/DenisVorop/artmate-monorepo/commit/08e3bdd08c627c6a41d7fa519ea54043bcc6d9b5))
+* **site:** update support email ([e5ab344](https://github.com/DenisVorop/artmate-monorepo/commit/e5ab3448719de335d638491c7878a0d7b33bb7af))
+
 ## [0.16.0](https://github.com/DenisVorop/artmate-monorepo/compare/v0.15.1...v0.16.0) (2026-05-11)
 
 
