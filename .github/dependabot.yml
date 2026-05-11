@@ -7,11 +7,7 @@ updates:
       day: monday
       time: "05:00"
       timezone: Europe/Moscow
-    open-pull-requests-limit: 2
-    groups:
-      npm-dependencies:
-        patterns:
-          - "*"
+    open-pull-requests-limit: 20
 
   - package-ecosystem: github-actions
     directory: /
@@ -20,11 +16,7 @@ updates:
       day: monday
       time: "05:30"
       timezone: Europe/Moscow
-    open-pull-requests-limit: 1
-    groups:
-      github-actions:
-        patterns:
-          - "*"
+    open-pull-requests-limit: 10
 
   - package-ecosystem: docker
     directory: /apps/api
