@@ -4524,10 +4524,10 @@ eslint-plugin-react@^7.37.5:
     string.prototype.matchall "^4.0.12"
     string.prototype.repeat "^1.0.0"
 
-eslint-plugin-turbo@^2.7.1:
-  version "2.9.6"
-  resolved "https://registry.npmjs.org/eslint-plugin-turbo/-/eslint-plugin-turbo-2.9.6.tgz#88a9ebcbd9bb70fbeab2d18172d4d8f837093399"
-  integrity sha512-mntEkRe71izva2mJHZGxH2ccOdySqXiNJf5tdzRabaxhudLCeonPUdTE6aNGOhgVeL1lclxg5/ibp3C/cpe+kQ==
+eslint-plugin-turbo@^2.9.12:
+  version "2.9.12"
+  resolved "https://registry.npmjs.org/eslint-plugin-turbo/-/eslint-plugin-turbo-2.9.12.tgz#ab9e765c977472dfc459e0364c1d649cbc9a06e1"
+  integrity sha512-Ilv1DTYyghdIdTUsW/VbjVTYKt1Hfs7X2C+rq/i4u7ZVofzcHZwk/3QwrV5UyOGADmxmWNyD+xcRS7+ZE5arQg==
   dependencies:
     dotenv "16.0.3"
 
