@@ -10,7 +10,7 @@ type GoogleAnalyticsPageViewProps = {
 type GtagArguments = [command: string, targetId: string, config?: Record<string, string>];
 
 type GoogleAnalyticsWindow = Window & {
-  gtag?: (...args: GtagArguments) => void;
+  gtag?: (..._args: GtagArguments) => void;
 };
 
 export function GoogleAnalyticsPageView({ measurementId }: GoogleAnalyticsPageViewProps) {
