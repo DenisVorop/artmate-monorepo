@@ -21,11 +21,13 @@ const brand = {
   card: "#ffffff",
   gradientFallback: "#e0197d",
   gradient: "linear-gradient(135deg, #fcb316 0%, #e0197d 52%, #6252a2 100%)",
-  logoPath: "/brand/artmate-logo.svg",
+  logoPath: "/brand/artmate-logo-email.png",
   muted: "#667085",
   mutedBackground: "#fff9fc",
   text: "#202530",
 } as const;
+
+const supportEmail = "support@art-mate.ru";
 
 export function renderBrandedEmail(input: BrandedEmailInput) {
   const logoUrl = getAbsoluteSiteUrl(brand.logoPath);
@@ -83,6 +85,16 @@ export function renderBrandedEmail(input: BrandedEmailInput) {
       </body>
     </html>
   `;
+}
+
+export function renderSupportEmailFooterText() {
+  return `Пожалуйста, не отвечайте на это письмо. Если у вас есть вопросы или вы не ожидали это письмо, напишите нам на ${supportEmail}.`;
+}
+
+export function renderSupportEmailFooter() {
+  const escapedSupportEmail = escapeEmailHtml(supportEmail);
+
+  return `Пожалуйста, не отвечайте на это письмо. Если у вас есть вопросы или вы не ожидали это письмо, напишите нам на <a href="mailto:${escapedSupportEmail}" style="color:${brand.text};font-weight:700;text-decoration:none;">${escapedSupportEmail}</a>.`;
 }
 
 export function renderEmailParagraph(contentHtml: string) {

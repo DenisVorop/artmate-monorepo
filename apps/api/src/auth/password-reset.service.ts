@@ -16,6 +16,8 @@ import {
   renderEmailButton,
   renderEmailNotice,
   renderEmailParagraph,
+  renderSupportEmailFooter,
+  renderSupportEmailFooterText,
 } from "../mailer/branded-email";
 import { MailerService } from "../mailer/mailer.service";
 import { PrismaService } from "../prisma/prisma.service";
@@ -292,6 +294,8 @@ export class PasswordResetService {
       "",
       `Ссылка действует ${ttlMinutes} минут.`,
       "Если вы не запрашивали смену пароля, просто игнорируйте письмо.",
+      "",
+      renderSupportEmailFooterText(),
     ].join("\n");
   }
 
@@ -308,8 +312,7 @@ export class PasswordResetService {
           `Ссылка действует <strong style="color:#202530;">${ttlMinutes} минут</strong>. Если вы не запрашивали смену пароля, просто игнорируйте это письмо.`,
         )}
       `,
-      footerHtml:
-        "Artmate отправляет это письмо только для подтверждения действия в аккаунте.",
+      footerHtml: renderSupportEmailFooter(),
     });
   }
 

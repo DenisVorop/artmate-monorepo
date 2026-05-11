@@ -8,6 +8,8 @@ import {
   renderBrandedEmail,
   renderEmailDetails,
   renderEmailParagraph,
+  renderSupportEmailFooter,
+  renderSupportEmailFooterText,
 } from "../mailer/branded-email";
 import { MailerService } from "../mailer/mailer.service";
 import { OzonLogisticsService } from "../ozon/ozon-logistics.service";
@@ -430,11 +432,10 @@ export class OrdersService {
       "Товары:",
       ...this.renderOrderItemsTextEmail(order),
       "",
-      `Подытог: ${this.formatMoney(order.subtotal)}`,
       `Итого: ${this.formatMoney(order.total)}`,
       `Телефон: ${order.customer.phone}`,
       "",
-      "Если вы не оформляли этот заказ, ответьте на это письмо или свяжитесь с поддержкой Artmate.",
+      renderSupportEmailFooterText(),
     ].join("\n");
   }
 
@@ -451,13 +452,11 @@ export class OrdersService {
         )}
         ${this.renderOrderItemsHtmlEmail(order)}
         ${renderEmailDetails([
-          { label: "Подытог", value: this.formatMoney(order.subtotal) },
           { label: "Итого", value: this.formatMoney(order.total) },
           { label: "Телефон", value: order.customer.phone },
         ])}
       `,
-      footerHtml:
-        "Если вы не оформляли этот заказ, ответьте на это письмо или свяжитесь с поддержкой Artmate.",
+      footerHtml: renderSupportEmailFooter(),
     });
   }
 
