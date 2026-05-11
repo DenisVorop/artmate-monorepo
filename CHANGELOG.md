@@ -1,5 +1,12 @@
 # Changelog
 
+## [0.17.1](https://github.com/DenisVorop/artmate-monorepo/compare/v0.17.0...v0.17.1) (2026-05-11)
+
+
+### Bug Fixes
+
+* align eslint version with react plugin ([ed0a15a](https://github.com/DenisVorop/artmate-monorepo/commit/ed0a15a6d180f7f95fd6f2c6eb4f6c348aa446cc))
+
 ## [0.17.0](https://github.com/DenisVorop/artmate-monorepo/compare/v0.16.0...v0.17.0) (2026-05-11)
 
 
