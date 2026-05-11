@@ -15,6 +15,31 @@
 	}
 }
 
+(site_security_headers) {
+	@allowed_frame_ancestor {
+		header_regexp Referer ^https?://([^/]+\.)?(art-mate\.ru|webvisor\.com|metri[ck]a\.yandex\.(com|ru|by|com\.tr))/
+	}
+	@blocked_frame_ancestor {
+		not {
+			header_regexp Referer ^https?://([^/]+\.)?(art-mate\.ru|webvisor\.com|metri[ck]a\.yandex\.(com|ru|by|com\.tr))/
+		}
+	}
+
+	header {
+		Strict-Transport-Security "max-age=31536000; includeSubDomains; preload"
+		X-Content-Type-Options "nosniff"
+		Referrer-Policy "strict-origin-when-cross-origin"
+		Cross-Origin-Opener-Policy "same-origin"
+		Permissions-Policy "camera=(), geolocation=(), microphone=(), payment=()"
+		-Server
+	}
+	header @allowed_frame_ancestor Content-Security-Policy "base-uri 'self'; frame-ancestors 'self' http://art-mate.ru https://art-mate.ru http://www.art-mate.ru https://www.art-mate.ru http://*.art-mate.ru https://*.art-mate.ru http://webvisor.com https://webvisor.com http://*.webvisor.com https://*.webvisor.com http://metrika.yandex.ru https://metrika.yandex.ru http://metrika.yandex.by https://metrika.yandex.by http://metrica.yandex.com https://metrica.yandex.com http://metrica.yandex.com.tr https://metrica.yandex.com.tr; object-src 'none'; upgrade-insecure-requests"
+	header @blocked_frame_ancestor {
+		X-Frame-Options "DENY"
+		Content-Security-Policy "base-uri 'self'; frame-ancestors 'none'; object-src 'none'; upgrade-insecure-requests"
+	}
+}
+
 (proxy_headers) {
 	header_up X-Forwarded-For {remote_host}
 	header_up X-Real-IP {remote_host}
@@ -23,12 +48,12 @@
 }
 
 art-mate.ru {
-	import security_headers
+	import site_security_headers
 	redir https://www.art-mate.ru{uri} permanent
 }
 
 www.art-mate.ru {
-	import security_headers
+	import site_security_headers
 	encode zstd gzip
 	reverse_proxy site:3000 {
 		import proxy_headers
