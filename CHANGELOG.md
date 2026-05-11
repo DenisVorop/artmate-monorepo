@@ -1,5 +1,13 @@
 # Changelog
 
+## [0.16.0](https://github.com/DenisVorop/artmate-monorepo/compare/v0.15.1...v0.16.0) (2026-05-11)
+
+
+### Features
+
+* **api:** update transactional email templates ([02ae71c](https://github.com/DenisVorop/artmate-monorepo/commit/02ae71cd65e399cf078360a91e5616c1a555b0b5))
+* **site:** add Yandex Metrika ([8b4165a](https://github.com/DenisVorop/artmate-monorepo/commit/8b4165a4dce91b68844387e2d92b5fc325c28f86))
+
 ## [0.15.1](https://github.com/DenisVorop/artmate-monorepo/compare/v0.15.0...v0.15.1) (2026-05-09)
 
 
