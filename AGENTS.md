@@ -81,6 +81,25 @@ ssh -i /Users/denis.voropayev/.ssh/artmate-github-actions-deploy -o IdentitiesOn
 
 Для SSH-команд на VPS всегда запрашивай разрешение пользователя. Не записывай в `AGENTS.md` значения production-секретов, токены, пароли или содержимое `.env`.
 
+## Production Environment
+
+Production-переменные приходят из GitHub Actions/Environment, а не задаются вручную в контейнере. Если добавляешь новую переменную окружения для production runtime или build, обязательно проверь и обнови весь путь доставки:
+
+- `.github/workflows/deploy.yml` - переменная должна браться из `secrets.*` или `vars.*` и попадать в генерируемый `/opt/artmate/.env`.
+- `docker-compose.prod.yml` - переменная должна быть передана в нужный service через `environment`.
+- `infra/env.prod.example` и корневой `.env.example` - добавь пример значения без секретов.
+- `infra/required-prod-env.txt` - добавь переменную, если production без неё не должен запускаться.
+- `turbo.json` `globalEnv` - добавь переменную, если она используется в коде, build, lint или typecheck.
+
+После изменения production env проверяй минимум:
+
+```bash
+bash infra/validate-prod-env.sh --env-file infra/env.prod.example
+docker compose --env-file infra/env.prod.example -f docker-compose.prod.yml config --quiet
+```
+
+Если `infra/env.prod.example` не содержит другие уже обязательные значения, допускается подставить для проверки временные значения через `env ...`, не записывая реальные секреты в репозиторий.
+
 ## Frontend
 
 Frontend workspaces: `apps/site`, `apps/admin`. Все frontend-приложения используют одинаковый базовый стек и FSD-подобную архитектуру.

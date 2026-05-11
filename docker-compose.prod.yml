@@ -120,6 +120,7 @@ services:
       API_PUBLIC_URL: ${API_PUBLIC_URL:?API_PUBLIC_URL is required}
       AUTH_COOKIE_DOMAIN: ${AUTH_COOKIE_DOMAIN:?AUTH_COOKIE_DOMAIN is required}
       NEXT_PUBLIC_SITE_URL: ${NEXT_PUBLIC_SITE_URL:?NEXT_PUBLIC_SITE_URL is required}
+      YANDEX_METRIKA_ID: ${YANDEX_METRIKA_ID:?YANDEX_METRIKA_ID is required}
     depends_on:
       - api
 
