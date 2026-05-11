@@ -5,7 +5,7 @@ import { featureBannersQuery } from "@/entities/feature-banners";
 import type { AuthSession } from "@/entities/session";
 import { getAuthSession } from "@/shared/actions/auth";
 import { ApiResult } from "@/shared/lib/api-result";
-import { YandexMetrika } from "@/shared/lib/analytics";
+import { GoogleAnalytics, YandexMetrika } from "@/shared/lib/analytics";
 import { dehydrateQueryClient } from "@/shared/lib/dehydrate-query-client";
 import { getServerDeviceInfo } from "@/shared/lib/device/server";
 import { getQueryClient } from "@/shared/lib/query-client";
@@ -43,6 +43,7 @@ export async function RootLayout({ children }: RootLayoutProps) {
     <html lang="ru" className={`${comfortaa.variable} ${nunito.variable}`}>
       <body>
         <RootStructuredData />
+        <GoogleAnalytics />
         <YandexMetrika />
         <AppProviders
           dehydratedState={dehydrateQueryClient(queryClient)}
