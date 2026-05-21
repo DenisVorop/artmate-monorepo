@@ -23,6 +23,8 @@ import {
   checkoutFormValidationSchema,
   checkoutPhonePlaceholder,
   type CheckoutCustomerDefaults,
+  type CheckoutCreateOrderInput,
+  type CheckoutDeliverySelection,
   formatCheckoutPhone,
   getDefaultCheckoutFormValues,
   toCreateOrderInput,
@@ -31,13 +33,15 @@ import {
 
 type CheckoutFormProps = {
   customerDefaults?: CheckoutCustomerDefaults;
+  delivery?: CheckoutDeliverySelection;
   isEmailLocked?: boolean;
   isSubmitting: boolean;
-  onSubmit: (_input: ReturnType<typeof toCreateOrderInput>) => Promise<void>;
+  onSubmit: (_input: CheckoutCreateOrderInput) => Promise<void>;
 };
 
 export function CheckoutForm({
   customerDefaults,
+  delivery,
   isEmailLocked = false,
   isSubmitting,
   onSubmit,
@@ -65,7 +69,11 @@ export function CheckoutForm({
   }, [defaultValues, isDirty, reset]);
 
   const submitForm = handleSubmit(async (values) => {
-    await onSubmit(toCreateOrderInput(values));
+    if (!delivery) {
+      return;
+    }
+
+    await onSubmit(toCreateOrderInput(values, delivery));
   });
 
   return (
@@ -166,7 +174,7 @@ export function CheckoutForm({
       <Button
         type="submit"
         size="lg"
-        disabled={isSubmitting}
+        disabled={isSubmitting || !delivery}
         className="h-11 w-full bg-gradient-to-r from-rose-500 to-orange-400 text-white shadow-lg shadow-rose-500/20 hover:from-rose-600 hover:to-orange-500"
       >
         {isSubmitting ? (
@@ -174,7 +182,7 @@ export function CheckoutForm({
         ) : (
           <Send data-icon="inline-start" />
         )}
-        Отправить заказ
+        {delivery ? "Отправить заказ" : "Выберите доставку"}
       </Button>
     </form>
   );

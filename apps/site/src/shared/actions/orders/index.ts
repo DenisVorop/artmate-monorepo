@@ -23,4 +23,5 @@ export type {
   OrderStateDTO,
   OrderStatusDTO,
   OzonPickupPointDTO,
+  PickupPointDTO,
 } from "./order.types";

@@ -10,19 +10,26 @@ export type OrderStatusDTO =
   | "cancelled";
 export type OrderPaymentMethodDTO = "bank_card_mock";
 export type OrderPaymentStatusDTO = "pending" | "paid";
-export type OrderDeliveryProviderDTO = "ozon";
+export type OrderDeliveryProviderDTO = "ozon" | "cdek";
 
-export type OzonPickupPointDTO = {
+export type PickupPointDTO = {
   id: string;
   title: string;
   address: string;
   workHours: string;
   deliveryPrice: number;
+  cityCode?: number;
+  latitude?: number;
+  longitude?: number;
 };
+
+export type OzonPickupPointDTO = PickupPointDTO;
 
 export type CreateOrderDeliveryInputDTO = {
   provider: OrderDeliveryProviderDTO;
-  pickupPointAddress: string;
+  cityCode?: number;
+  pickupPointAddress?: string;
+  pickupPointId?: string;
 };
 
 export type OrderCustomerDTO = {
@@ -33,7 +40,7 @@ export type OrderCustomerDTO = {
 
 export type OrderDeliveryDTO = {
   provider: OrderDeliveryProviderDTO;
-  pickupPoint: OzonPickupPointDTO;
+  pickupPoint: PickupPointDTO;
 };
 
 export type OrderPaymentDTO = {
@@ -72,6 +79,7 @@ export type CheckoutCalculationDTO = {
 
 export type CreateOrderInputDTO = {
   customer: OrderCustomerDTO;
+  delivery: CreateOrderDeliveryInputDTO;
   comment?: string;
   acceptedLegal: boolean;
 };

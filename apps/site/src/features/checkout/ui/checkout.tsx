@@ -21,13 +21,14 @@ import {
 import { Link } from "@/shared/ui/link";
 import { PageTitle } from "@/shared/ui/typography";
 
-import { useCreateOrderMutation } from "../model";
+import { useCheckoutCalculation, useCreateOrderMutation } from "../model";
 import {
   type CheckoutCreateOrderInput,
   type CheckoutCustomerDefaults,
   type CheckoutOrder,
 } from "../lib";
 
+import { DeliverySelector } from "./delivery-selector";
 import { CheckoutForm } from "./form";
 import { OrderSummary } from "./order-summary";
 
@@ -37,7 +38,11 @@ export function Checkout() {
   const cart = useCartData();
   const orders = useOrdersData({ enabled: Boolean(user) });
   const [pendingOrderInput, setPendingOrderInput] = useState<CheckoutCreateOrderInput>();
+  const [selectedDelivery, setSelectedDelivery] = useState<
+    CheckoutCreateOrderInput["delivery"] | undefined
+  >();
   const [isAuthDialogOpen, setIsAuthDialogOpen] = useState(false);
+  const checkoutCalculation = useCheckoutCalculation(selectedDelivery);
   const handleOrderCreated = useCallback(
     (order: CheckoutOrder | undefined) => {
       setPendingOrderInput(undefined);
@@ -134,8 +139,8 @@ export function Checkout() {
           <p className="text-sm font-medium tracking-wide text-rose-500 uppercase">Оформление</p>
           <PageTitle className="text-foreground">Оформление заказа</PageTitle>
           <p className="max-w-2xl text-muted-foreground">
-            Проверьте товары, оставьте контакты и войдите в аккаунт, если еще не авторизованы.
-            После этого мы автоматически отправим заказ.
+            Проверьте товары, оставьте контакты и войдите в аккаунт, если еще не авторизованы. После
+            этого мы автоматически отправим заказ.
           </p>
         </div>
 
@@ -149,8 +154,20 @@ export function Checkout() {
 
       <div className="grid gap-6 lg:grid-cols-[minmax(0,1fr)_22rem] lg:items-start">
         <div className="space-y-4">
+          <DeliverySelector selectedDelivery={selectedDelivery} onChange={setSelectedDelivery} />
+
+          {checkoutCalculation.isError ? (
+            <DataState
+              variant="error"
+              title="Не удалось рассчитать доставку"
+              description="Попробуйте выбрать другой пункт выдачи или обновить страницу."
+              className="max-w-none"
+            />
+          ) : null}
+
           <CheckoutForm
             customerDefaults={customerDefaults}
+            delivery={selectedDelivery}
             isEmailLocked={Boolean(user?.email)}
             isSubmitting={isPending}
             onSubmit={handleSubmit}
@@ -166,7 +183,11 @@ export function Checkout() {
           )}
         </div>
 
-        <OrderSummary cart={cart.data} />
+        <OrderSummary
+          cart={cart.data}
+          calculation={checkoutCalculation.calculation}
+          isDeliveryPending={checkoutCalculation.isPending}
+        />
       </div>
 
       <Dialog open={isAuthDialogOpen} onOpenChange={setIsAuthDialogOpen}>

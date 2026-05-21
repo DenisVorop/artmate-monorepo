@@ -25,6 +25,7 @@ export const checkoutFormValidationSchema = z.object({
 export type CheckoutFormValues = z.infer<typeof checkoutFormValidationSchema>;
 
 export type CheckoutCustomerDefaults = Partial<Pick<CheckoutFormValues, "email" | "name" | "phone">>;
+export type CheckoutDeliverySelection = CreateOrderInputDTO["delivery"];
 
 export function getDefaultCheckoutFormValues(
   customerDefaults: CheckoutCustomerDefaults = {},
@@ -81,6 +82,7 @@ export function formatCheckoutPhone(value: string) {
 
 export function toCreateOrderInput(
   values: CheckoutFormValues,
+  delivery: CheckoutDeliverySelection,
 ): CreateOrderInputDTO {
   const comment = values.comment.trim();
 
@@ -90,6 +92,7 @@ export function toCreateOrderInput(
       phone: values.phone.trim(),
       email: values.email.trim(),
     },
+    delivery,
     comment: comment || undefined,
     acceptedLegal: values.acceptedLegal,
   };
