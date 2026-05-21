@@ -26,7 +26,17 @@ export function createRootMetadata(): Metadata {
     creator: siteConfig.name,
     publisher: siteConfig.name,
     icons: {
-      icon: "/favicon.ico",
+      icon: [
+        {
+          url: "/favicon.svg",
+          type: "image/svg+xml",
+          sizes: "any",
+        },
+        {
+          url: "/favicon.ico",
+          sizes: "any",
+        },
+      ],
       shortcut: "/favicon.ico",
     },
     robots: getIndexRobots(),
