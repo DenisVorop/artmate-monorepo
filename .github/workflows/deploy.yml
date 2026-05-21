@@ -297,6 +297,18 @@ jobs:
             printf '%s\n' "$GHCR_READ_TOKEN" | ssh "$PRODUCTION_USER@$PRODUCTION_HOST" "docker login ghcr.io -u '$GHCR_USERNAME' --password-stdin"
           fi
 
+      - name: Login to Docker Hub on server
+        env:
+          DOCKERHUB_TOKEN: ${{ secrets.DOCKERHUB_TOKEN }}
+          DOCKERHUB_USERNAME: ${{ secrets.DOCKERHUB_USERNAME }}
+          PRODUCTION_HOST: ${{ secrets.PRODUCTION_HOST }}
+          PRODUCTION_USER: ${{ secrets.PRODUCTION_USER }}
+        shell: bash
+        run: |
+          if [ -n "$DOCKERHUB_TOKEN" ] && [ -n "$DOCKERHUB_USERNAME" ]; then
+            printf '%s\n' "$DOCKERHUB_TOKEN" | ssh "$PRODUCTION_USER@$PRODUCTION_HOST" "docker login docker.io -u '$DOCKERHUB_USERNAME' --password-stdin"
+          fi
+
       - name: Deploy
         env:
           IMAGE_TAG: ${{ steps.image.outputs.tag }}
