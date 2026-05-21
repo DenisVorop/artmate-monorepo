@@ -1,0 +1,62 @@
+.root {
+  isolation: isolate;
+}
+
+.markerShell {
+  background: transparent;
+  border: 0;
+}
+
+.marker {
+  background: var(--color-background);
+  border: 2px solid var(--color-muted-foreground);
+  border-radius: 9999px;
+  box-shadow: 0 4px 14px rgb(15 23 42 / 0.14);
+  display: block;
+  height: 18px;
+  opacity: 0.7;
+  position: relative;
+  width: 18px;
+}
+
+.marker::after {
+  background: var(--color-muted-foreground);
+  border-radius: 9999px;
+  content: "";
+  inset: 4px;
+  position: absolute;
+}
+
+.markerSelected {
+  background: var(--color-rose-50);
+  border-color: var(--color-rose-600);
+  box-shadow: 0 8px 24px rgb(244 63 94 / 0.3);
+  height: 24px;
+  opacity: 1;
+  width: 24px;
+}
+
+.markerSelected::after {
+  background: var(--color-rose-600);
+}
+
+.root :global(.leaflet-control-attribution) {
+  font-size: 10px;
+}
+
+.root :global(.leaflet-pane) {
+  z-index: 1;
+}
+
+.root :global(.leaflet-marker-pane) {
+  z-index: 2;
+}
+
+.root :global(.leaflet-tooltip-pane) {
+  z-index: 3;
+}
+
+.root :global(.leaflet-control-container .leaflet-top),
+.root :global(.leaflet-control-container .leaflet-bottom) {
+  z-index: 4;
+}

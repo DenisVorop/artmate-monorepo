@@ -63,6 +63,7 @@ export {
 export { Input } from "./input";
 export { InfiniteCarousel } from "./infinite-carousel";
 export { Label } from "./label";
+export { Popover, PopoverAnchor, PopoverContent, PopoverTrigger } from "./popover";
 export { Progress } from "./progress";
 export { Separator } from "./separator";
 export { Tabs, TabsContent, TabsList, TabsTrigger, tabsListVariants } from "./tabs";
