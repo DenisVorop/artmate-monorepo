@@ -44,7 +44,7 @@ export function CheckoutSuccess({ orderId }: CheckoutSuccessProps) {
       <CheckoutSuccessState
         variant="error"
         title="Не удалось загрузить заказ"
-        description={error?.message ?? "Проверьте ссылку или попробуйте позже."}
+        description={getOrderLoadErrorMessage(error)}
       />
     );
   }
@@ -162,4 +162,18 @@ function InfoBlock({ title, children }: { title: string; children: ReactNode }) 
       <div className="space-y-1 text-muted-foreground">{children}</div>
     </div>
   );
+}
+
+function getOrderLoadErrorMessage(error: Error | null) {
+  const message = error?.message ?? "";
+
+  if (
+    message === "Authentication required" ||
+    message.toLowerCase().includes("unauthorized") ||
+    message.toLowerCase().includes("forbidden")
+  ) {
+    return "Заказ доступен только в аккаунте, с которого он был оформлен. Войдите в нужный аккаунт или свяжитесь с нами.";
+  }
+
+  return "Проверьте ссылку или попробуйте позже.";
 }
