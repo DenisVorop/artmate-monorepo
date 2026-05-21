@@ -27,6 +27,7 @@ function CollagePhoto({
   image,
   ratio,
   sizes,
+  quality,
   className,
   frameClassName,
   frameRingClassName,
@@ -36,6 +37,7 @@ function CollagePhoto({
   image: CollageImage;
   ratio: number;
   sizes: string;
+  quality: number;
   className?: string;
   frameClassName?: string;
   frameRingClassName?: string;
@@ -51,8 +53,9 @@ function CollagePhoto({
           src={image.src}
           alt={image.alt}
           sizes={sizes}
-          loading={eager ? "eager" : "lazy"}
-          fetchPriority={eager ? "high" : undefined}
+          quality={quality}
+          loading={eager ? undefined : "lazy"}
+          fetchPriority={eager ? undefined : "low"}
           className="object-cover"
         />
         {children}
@@ -129,6 +132,7 @@ export function Collage({ metrics }: { metrics: HeroMetrics }) {
           image={heroImages.middle}
           ratio={3 / 4}
           sizes="(min-width: 1024px) 30vw, (min-width: 640px) 27vw, 58vw"
+          quality={68}
           className="z-20 w-[58%] rotate-[-2deg] sm:w-[52%] lg:w-[55%]"
           frameClassName="rounded-[2rem] shadow-2xl shadow-stone-300/60"
           frameRingClassName={frameGradients.middle}
@@ -141,6 +145,7 @@ export function Collage({ metrics }: { metrics: HeroMetrics }) {
           image={heroImages.right}
           ratio={3 / 4}
           sizes="(min-width: 1024px) 23vw, (min-width: 640px) 18vw, 38vw"
+          quality={56}
           className="absolute top-4 right-0 z-30 w-[38%] rotate-[4deg] sm:w-[34%] lg:top-8 lg:-right-4 lg:w-[38%]"
           frameClassName="rounded-[1.5rem] shadow-xl shadow-stone-300/50"
           frameRingClassName={frameGradients.right}
@@ -150,6 +155,7 @@ export function Collage({ metrics }: { metrics: HeroMetrics }) {
           image={heroImages.left}
           ratio={3 / 4}
           sizes="(min-width: 1024px) 20vw, (min-width: 640px) 16vw, 36vw"
+          quality={56}
           className="absolute bottom-4 left-0 z-10 w-[36%] rotate-[3deg] sm:w-[30%] lg:bottom-6 lg:-left-2"
           frameClassName="rounded-[1.5rem] shadow-xl shadow-stone-300/40"
           frameRingClassName={frameGradients.left}
