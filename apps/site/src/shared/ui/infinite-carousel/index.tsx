@@ -83,6 +83,12 @@ function InfiniteCarousel({
     let prevTime = performance.now();
 
     const animate = (currTime: number) => {
+      if (document.hidden) {
+        prevTime = currTime;
+        animationFrameId = requestAnimationFrame(animate);
+        return;
+      }
+
       const deltaTime = currTime - prevTime;
 
       prevTime = currTime;
@@ -92,7 +98,7 @@ function InfiniteCarousel({
         position = 0;
       }
 
-      track.style.transform = `translateX(${position}px)`;
+      track.style.transform = `translate3d(${position}px, 0, 0)`;
       animationFrameId = requestAnimationFrame(animate);
     };
 
@@ -107,7 +113,7 @@ function InfiniteCarousel({
 
   return (
     <div ref={carouselRef} className={cn("w-full overflow-hidden", className)} {...props}>
-      <div ref={trackRef} className={cn("w-max", trackClassName)}>
+      <div ref={trackRef} className={cn("w-max will-change-transform", trackClassName)}>
         {clonedChildren}
       </div>
     </div>
