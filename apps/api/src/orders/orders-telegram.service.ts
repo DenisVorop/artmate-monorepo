@@ -68,10 +68,7 @@ export class OrdersTelegramService {
     }
   }
 
-  async sendOrderCreatedToCustomer(input: {
-    chatId: string;
-    order: OrderDTO;
-  }) {
+  async sendOrderCreatedToCustomer(input: { chatId: string; order: OrderDTO }) {
     const response = await this.requestTelegramToCustomer(
       input.chatId,
       this.formatCustomerOrderCreatedMessage(input.order),
@@ -170,6 +167,12 @@ export class OrdersTelegramService {
         ].join("\n"),
       ),
       "",
+      "<b>Доставка</b>",
+      `<b>Служба:</b> ${this.formatText(this.getDeliveryProviderLabel(order.delivery.provider))}`,
+      `<b>ПВЗ:</b> ${this.formatText(order.delivery.pickupPoint.address)}`,
+      `<b>Стоимость:</b> ${this.formatMoney(order.deliveryPrice)}`,
+      "",
+      `<b>Статус:</b> ${this.formatText(customerOrderStatusLabels[order.status])}`,
       `<b>Итого:</b> ${this.formatMoney(order.total)}`,
       order.comment ? "" : undefined,
       order.comment ? "<b>Комментарий</b>" : undefined,
@@ -207,8 +210,9 @@ export class OrdersTelegramService {
       "",
       `<b>Заказ:</b> <code>${this.formatText(order.id)}</code>`,
       `<b>Итого:</b> ${this.formatMoney(order.total)}`,
+      `<b>Статус:</b> ${this.formatText(customerOrderStatusLabels[order.status])}`,
       "",
-      "Спасибо! Мы получили ваш заказ и скоро свяжемся с вами для подтверждения деталей.",
+      "Спасибо! Мы получили ваш заказ. Менеджер проверит детали и отправит ссылку на оплату.",
     ];
 
     return this.trimTelegramMessage(lines.join("\n"));
@@ -230,6 +234,10 @@ export class OrdersTelegramService {
       case "cancelled":
         return "Заказ отменен. Если это ошибка, свяжитесь с нами.";
     }
+  }
+
+  private getDeliveryProviderLabel(provider: OrderDTO["delivery"]["provider"]) {
+    return provider === "cdek" ? "СДЭК" : "Ozon";
   }
 
   private formatDate(value: string) {
@@ -285,7 +293,9 @@ export class OrdersTelegramService {
     const token = process.env.TELEGRAM_BOT_TOKEN?.trim();
 
     if (!token) {
-      throw new InternalServerErrorException("TELEGRAM_BOT_TOKEN is not configured");
+      throw new InternalServerErrorException(
+        "TELEGRAM_BOT_TOKEN is not configured",
+      );
     }
 
     return token;

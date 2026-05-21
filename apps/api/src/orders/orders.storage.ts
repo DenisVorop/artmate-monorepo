@@ -101,6 +101,9 @@ export class OrdersStorage {
     const deliveryPrice = input.delivery.pickupPoint.deliveryPrice;
     const total = input.subtotal + deliveryPrice;
     const userId = await this.getExistingUserId(input.userId);
+    const deliveryProvider = this.toPrismaDeliveryProvider(
+      input.delivery.provider,
+    );
 
     for (let attempt = 0; attempt < 3; attempt += 1) {
       const id = this.createOrderId();
@@ -112,10 +115,11 @@ export class OrdersStorage {
             userId,
             cartId: input.cartId,
             status: PrismaOrderStatus.PENDING_PAYMENT,
+            crmStatus: PrismaOrderCrmStatus.WAITING_PAYMENT,
             customerName: input.customer.name,
             customerPhone: input.customer.phone,
             customerEmail: input.customer.email,
-            deliveryProvider: PrismaOrderDeliveryProvider.OZON,
+            deliveryProvider,
             pickupPointId: input.delivery.pickupPoint.id,
             pickupPointTitle: input.delivery.pickupPoint.title,
             pickupPointAddress: input.delivery.pickupPoint.address,
@@ -136,7 +140,7 @@ export class OrdersStorage {
                 payload: this.toPrismaJson({
                   fromStatus: null,
                   source: "order_created",
-                  toStatus: "new",
+                  toStatus: "waiting_payment",
                 }),
               },
             },
@@ -537,8 +541,21 @@ export class OrdersStorage {
     provider: PrismaOrderDeliveryProvider,
   ): OrderDeliveryDTO["provider"] {
     switch (provider) {
+      case PrismaOrderDeliveryProvider.CDEK:
+        return "cdek";
       case PrismaOrderDeliveryProvider.OZON:
         return "ozon";
+    }
+  }
+
+  private toPrismaDeliveryProvider(
+    provider: OrderDeliveryDTO["provider"],
+  ): PrismaOrderDeliveryProvider {
+    switch (provider) {
+      case "cdek":
+        return PrismaOrderDeliveryProvider.CDEK;
+      case "ozon":
+        return PrismaOrderDeliveryProvider.OZON;
     }
   }
 
@@ -555,9 +572,7 @@ export class OrdersStorage {
 
   private isPaidWorkflowStatus(status: OrderStatus) {
     return (
-      status === "paid" ||
-      status === "delivering" ||
-      status === "completed"
+      status === "paid" || status === "delivering" || status === "completed"
     );
   }
 
