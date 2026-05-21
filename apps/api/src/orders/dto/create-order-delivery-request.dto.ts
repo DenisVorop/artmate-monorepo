@@ -1,9 +1,13 @@
-import { IsIn, IsNotEmpty, IsString } from "class-validator";
-
 import {
-  deliveryProviders,
-  type DeliveryProvider,
-} from "../orders.constants";
+  IsIn,
+  IsInt,
+  IsNotEmpty,
+  IsOptional,
+  IsString,
+  Min,
+} from "class-validator";
+
+import { deliveryProviders, type DeliveryProvider } from "../orders.constants";
 
 export class CreateOrderDeliveryRequestDTO {
   @IsIn(deliveryProviders)
@@ -11,5 +15,16 @@ export class CreateOrderDeliveryRequestDTO {
 
   @IsString()
   @IsNotEmpty()
-  pickupPointAddress!: string;
+  @IsOptional()
+  pickupPointAddress?: string;
+
+  @IsString()
+  @IsNotEmpty()
+  @IsOptional()
+  pickupPointId?: string;
+
+  @IsInt()
+  @Min(1)
+  @IsOptional()
+  cityCode?: number;
 }

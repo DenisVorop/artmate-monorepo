@@ -3,6 +3,8 @@ import { BadRequestException, Injectable, Logger } from "@nestjs/common";
 import type { AuthUser } from "../auth/auth.types";
 import { CartService } from "../cart/cart.service";
 import { CartStorage } from "../cart/cart.storage";
+import { DeliveryService } from "../delivery/delivery.service";
+import type { DeliverySelection } from "../delivery/providers/delivery-provider.interface";
 import {
   escapeEmailHtml,
   renderBrandedEmail,
@@ -42,6 +44,7 @@ export class OrdersService {
   constructor(
     private readonly cartStorage: CartStorage,
     private readonly cartService: CartService,
+    private readonly deliveryService: DeliveryService,
     private readonly mailerService: MailerService,
     private readonly ozonLogisticsService: OzonLogisticsService,
     private readonly ordersStorage: OrdersStorage,
@@ -119,8 +122,11 @@ export class OrdersService {
       throw new BadRequestException("Cart is empty");
     }
 
-    const pickupPoint = this.parsePickupPoint(request.delivery);
-    const deliveryPrice = pickupPoint.deliveryPrice;
+    const delivery = await this.deliveryService.calculatePickupPointDelivery(
+      this.parseDeliverySelection(request.delivery),
+      cartDTO.items,
+    );
+    const deliveryPrice = delivery.deliveryPrice;
 
     return {
       cartId: cartDTO.id,
@@ -130,8 +136,8 @@ export class OrdersService {
       total: cartDTO.subtotal + deliveryPrice,
       currency: "RUB",
       delivery: {
-        provider: "ozon",
-        pickupPoint,
+        provider: delivery.provider,
+        pickupPoint: delivery.pickupPoint,
       },
     };
   }
@@ -149,7 +155,10 @@ export class OrdersService {
     }
 
     const customer = this.parseCustomer(request.customer);
-    const pickupPoint = this.getFormOrderDelivery();
+    const delivery = await this.deliveryService.calculatePickupPointDelivery(
+      this.parseDeliverySelection(request.delivery),
+      cartDTO.items,
+    );
     const paymentMethod = request.payment?.method ?? "bank_card_mock";
     const comment = this.parseComment(request.comment);
 
@@ -166,8 +175,8 @@ export class OrdersService {
       cartId: cartDTO.id,
       customer,
       delivery: {
-        provider: "ozon",
-        pickupPoint,
+        provider: delivery.provider,
+        pickupPoint: delivery.pickupPoint,
       },
       items: cartDTO.items,
       itemsCount: cartDTO.itemsCount,
@@ -204,38 +213,26 @@ export class OrdersService {
     };
   }
 
-  private parsePickupPoint(value: unknown): PickupPointDTO {
+  private parseDeliverySelection(value: unknown): DeliverySelection {
     if (!value || typeof value !== "object") {
       throw new BadRequestException("delivery is required");
     }
 
     const delivery = value as Record<string, unknown>;
+    const provider = delivery.provider;
 
-    if (delivery.provider !== "ozon") {
-      throw new BadRequestException("delivery.provider must be ozon");
+    if (provider !== "ozon" && provider !== "cdek") {
+      throw new BadRequestException("delivery.provider must be ozon or cdek");
     }
 
-    const pickupPointAddress = this.parseRequiredString(
-      delivery.pickupPointAddress,
-      "delivery.pickupPointAddress",
-    );
-
     return {
-      id: "manual-ozon-pickup",
-      title: "Заявка из формы",
-      address: pickupPointAddress,
-      workHours: "Уточняется",
-      deliveryPrice: 0,
-    };
-  }
-
-  private getFormOrderDelivery(): PickupPointDTO {
-    return {
-      id: "telegram-order",
-      title: "Заявка из формы",
-      address: "Детали согласуются после подтверждения заказа",
-      workHours: "Менеджер свяжется с клиентом",
-      deliveryPrice: 0,
+      cityCode: this.parseOptionalPositiveInteger(
+        delivery.cityCode,
+        "delivery.cityCode",
+      ),
+      pickupPointAddress: this.parseOptionalString(delivery.pickupPointAddress),
+      pickupPointId: this.parseOptionalString(delivery.pickupPointId),
+      provider,
     };
   }
 
@@ -249,6 +246,27 @@ export class OrdersService {
     }
 
     return value.trim();
+  }
+
+  private parseOptionalString(value: unknown): string | undefined {
+    return typeof value === "string" && value.trim() ? value.trim() : undefined;
+  }
+
+  private parseOptionalPositiveInteger(
+    value: unknown,
+    field: string,
+  ): number | undefined {
+    if (value === undefined || value === null || value === "") {
+      return undefined;
+    }
+
+    const parsedValue = typeof value === "number" ? value : Number(value);
+
+    if (!Number.isInteger(parsedValue) || parsedValue <= 0) {
+      throw new BadRequestException(`${field} must be a positive integer`);
+    }
+
+    return parsedValue;
   }
 
   private parseEmail(value: unknown): string {

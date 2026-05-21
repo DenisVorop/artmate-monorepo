@@ -1,9 +1,4 @@
-import {
-  ApiBody,
-  ApiOkResponse,
-  ApiOperation,
-  ApiTags,
-} from "@nestjs/swagger";
+import { ApiBody, ApiOkResponse, ApiOperation, ApiTags } from "@nestjs/swagger";
 import {
   Body,
   Controller,
@@ -132,23 +127,23 @@ export class OrdersController {
     );
   }
 
-  @UseGuards(AuthGuard)
   @ValidateResponse(CheckoutCalculationDTO)
   @Post("checkout/calculate")
   @ApiOperation({
-    summary: "Calculate checkout totals for Ozon pickup address",
+    summary: "Calculate checkout totals for selected delivery",
     description:
-      "Uses the current cart cookie and provided nearest Ozon pickup address to calculate order total on the backend.",
+      "Uses the current cart cookie and selected delivery provider to calculate order total on the backend.",
   })
   @ApiBody({
     type: CalculateCheckoutRequestDTO,
     examples: {
-      ozonPickup: {
-        summary: "Ozon pickup address",
+      cdekPickup: {
+        summary: "CDEK pickup point",
         value: {
           delivery: {
-            provider: "ozon",
-            pickupPointAddress: "Москва, ул. Примерная, 1",
+            cityCode: 44,
+            pickupPointId: "MOS4",
+            provider: "cdek",
           },
         },
       },

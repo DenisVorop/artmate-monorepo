@@ -12,7 +12,7 @@ export const orderStatuses = [
 ] as const;
 export const paymentMethods = ["bank_card_mock"] as const;
 export const paymentStatuses = ["pending", "paid"] as const;
-export const deliveryProviders = ["ozon"] as const;
+export const deliveryProviders = ["ozon", "cdek"] as const;
 
 export type OrderStatus = (typeof orderStatuses)[number];
 export type PaymentMethod = (typeof paymentMethods)[number];
