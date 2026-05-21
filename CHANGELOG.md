@@ -1,5 +1,12 @@
 # Changelog
 
+## [0.17.2](https://github.com/DenisVorop/artmate-monorepo/compare/v0.17.1...v0.17.2) (2026-05-21)
+
+
+### Bug Fixes
+
+* **site:** update favicon assets ([106e960](https://github.com/DenisVorop/artmate-monorepo/commit/106e9603edf424f17685e644e713d9774b403f5c))
+
 ## [0.17.1](https://github.com/DenisVorop/artmate-monorepo/compare/v0.17.0...v0.17.1) (2026-05-11)
 
 
