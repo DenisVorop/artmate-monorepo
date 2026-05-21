@@ -1,5 +1,26 @@
 # Changelog
 
+## [0.18.0](https://github.com/DenisVorop/artmate-monorepo/compare/v0.17.2...v0.18.0) (2026-05-21)
+
+
+### Features
+
+* **api:** add CDEK delivery module ([631d70f](https://github.com/DenisVorop/artmate-monorepo/commit/631d70f25e0951c487f62c3b410519ae4afd4347))
+* **api:** support CDEK order delivery ([6342f4b](https://github.com/DenisVorop/artmate-monorepo/commit/6342f4bc6b23e33f2fb5746e261ae97cb04d6b26))
+* **site:** add CDEK delivery selector ([a1f7e2f](https://github.com/DenisVorop/artmate-monorepo/commit/a1f7e2f343e7ba492cd43c434e404fa2c112d629))
+* **site:** wire delivery into checkout orders ([bd21510](https://github.com/DenisVorop/artmate-monorepo/commit/bd2151096ee2f42480d7f16c7fe7683a2ac11b88))
+
+
+### Bug Fixes
+
+* **api:** remove hardcoded cdek credentials ([1f2deab](https://github.com/DenisVorop/artmate-monorepo/commit/1f2deab135a98afc38433dd43a5f0bae2c9a8510))
+* **site:** localize checkout order load error ([3db83fa](https://github.com/DenisVorop/artmate-monorepo/commit/3db83faf1bec319da9b5ee7d97d9bc150e7fc220))
+
+
+### Performance Improvements
+
+* **site:** optimize home hero rendering ([29628ad](https://github.com/DenisVorop/artmate-monorepo/commit/29628ad3f78bdcffd3fcb67a8cef4aa80e48b249))
+
 ## [0.17.2](https://github.com/DenisVorop/artmate-monorepo/compare/v0.17.1...v0.17.2) (2026-05-21)
 
 
