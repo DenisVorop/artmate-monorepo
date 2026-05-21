@@ -8,8 +8,6 @@ import {
 import type { CdekTokenResponse } from "./cdek.types";
 
 const defaultCdekApiBaseUrl = "https://api.edu.cdek.ru";
-const defaultCdekClientId = "change-me";
-const defaultCdekClientSecret = "change-me";
 const tokenExpirySafetyMs = 60_000;
 
 type CdekAccessToken = {
@@ -124,22 +122,17 @@ export class CdekClientService {
   }
 
   private getClientId() {
-    // CDEK publishes these EDU credentials in the API docs for local testing.
-    // Production must override them through CDEK_CLIENT_ID / CDEK_CLIENT_SECRET.
-    return this.getRequiredConfig("CDEK_CLIENT_ID", defaultCdekClientId);
+    return this.getRequiredConfig("CDEK_CLIENT_ID");
   }
 
   private getClientSecret() {
-    return this.getRequiredConfig(
-      "CDEK_CLIENT_SECRET",
-      defaultCdekClientSecret,
-    );
+    return this.getRequiredConfig("CDEK_CLIENT_SECRET");
   }
 
-  private getRequiredConfig(name: string, fallback: string) {
-    const value = process.env[name] ?? fallback;
+  private getRequiredConfig(name: string) {
+    const value = process.env[name];
 
-    if (!value.trim()) {
+    if (!value?.trim()) {
       throw new InternalServerErrorException(`${name} is required`);
     }
 
