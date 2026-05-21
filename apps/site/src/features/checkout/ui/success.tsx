@@ -36,12 +36,7 @@ export function CheckoutSuccess({ orderId }: CheckoutSuccessProps) {
   }
 
   if (isPending) {
-    return (
-      <CheckoutSuccessState
-        title="Загружаем заказ"
-        description="Проверяем детали заказа."
-      />
-    );
+    return <CheckoutSuccessState title="Загружаем заказ" description="Проверяем детали заказа." />;
   }
 
   if (isError || !order) {
@@ -82,8 +77,14 @@ function CheckoutSuccessDetails({ order }: { order: CheckoutOrder }) {
             </InfoBlock>
 
             <InfoBlock title="Статус">
-              <p>Заявка передана менеджеру</p>
-              <p>Детали заказа согласуем отдельно</p>
+              <p>Заказ ожидает оплаты</p>
+              <p>Менеджер отправит ссылку на оплату после проверки заказа.</p>
+            </InfoBlock>
+
+            <InfoBlock title="Доставка">
+              <p>{order.delivery.provider === "cdek" ? "СДЭК" : "Ozon"}</p>
+              <p>{order.delivery.pickupPoint.address}</p>
+              <p>{order.delivery.pickupPoint.workHours}</p>
             </InfoBlock>
           </div>
 
@@ -93,6 +94,10 @@ function CheckoutSuccessDetails({ order }: { order: CheckoutOrder }) {
             <div className="flex items-center justify-between gap-4">
               <span className="text-muted-foreground">Товары</span>
               <span className="font-medium">{formatMoney(order.subtotal)}</span>
+            </div>
+            <div className="flex items-center justify-between gap-4">
+              <span className="text-muted-foreground">Доставка</span>
+              <span className="font-medium">{formatMoney(order.deliveryPrice)}</span>
             </div>
             <div className="flex items-center justify-between gap-4 text-lg font-semibold">
               <span>Итого</span>

@@ -103,10 +103,13 @@ export function OrderCard({ order }: OrderCardProps) {
           <div className="space-y-1 rounded-lg border bg-muted/30 p-4">
             <p className="flex items-center gap-2 font-medium">
               <MapPin className="size-4 text-rose-500" />
-              Детали заказа
+              Доставка
             </p>
-            <p className="text-muted-foreground">Заявка передана менеджеру</p>
-            <p className="text-muted-foreground">Детали согласуем отдельно</p>
+            <p className="text-muted-foreground">
+              {order.delivery.provider === "cdek" ? "СДЭК" : "Ozon"}
+            </p>
+            <p className="text-muted-foreground">{order.delivery.pickupPoint.address}</p>
+            <p className="text-muted-foreground">{order.delivery.pickupPoint.workHours}</p>
           </div>
         </div>
 
@@ -166,9 +169,7 @@ function OrderItemRow({ item }: { item: OrderItem }) {
 
       <div className="min-w-0">
         <p className="truncate font-medium">{item.title}</p>
-        {item.category && (
-          <p className="text-sm text-muted-foreground">{item.category}</p>
-        )}
+        {item.category && <p className="text-sm text-muted-foreground">{item.category}</p>}
       </div>
 
       <div className="text-right text-sm">

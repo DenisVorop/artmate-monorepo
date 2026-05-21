@@ -8,7 +8,7 @@ export type OrderStatusDTO =
   | "cancelled";
 export type OrderPaymentMethodDTO = "bank_card_mock";
 export type OrderPaymentStatusDTO = "pending" | "paid";
-export type OrderDeliveryProviderDTO = "ozon";
+export type OrderDeliveryProviderDTO = "ozon" | "cdek";
 
 export type OrderItemDTO = {
   id: string;
@@ -34,6 +34,9 @@ export type PickupPointDTO = {
   address: string;
   workHours: string;
   deliveryPrice: number;
+  cityCode?: number;
+  latitude?: number;
+  longitude?: number;
 };
 
 export type OrderDeliveryDTO = {
