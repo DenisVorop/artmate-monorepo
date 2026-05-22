@@ -11,6 +11,7 @@ export {
   type CheckoutFormValues,
   type CheckoutSubmitLabelInput,
 } from "./checkout-form";
+export { filterPickupPoints, formatPickupPointCount } from "./delivery-selector";
 export {
   CheckoutProvider,
   checkoutSteps,
