@@ -1,5 +1,19 @@
 # Changelog
 
+## [0.19.0](https://github.com/DenisVorop/artmate-monorepo/compare/v0.18.0...v0.19.0) (2026-05-22)
+
+
+### Features
+
+* **checkout:** add delivery provider selector ([9872355](https://github.com/DenisVorop/artmate-monorepo/commit/987235584d359b737bef20f965ba654aa021e29c))
+* **site:** adapt blog article images ([6f16dc7](https://github.com/DenisVorop/artmate-monorepo/commit/6f16dc7f096334bfcc985c7b87996935f7edd61e))
+* **site:** improve checkout wizard ([e607732](https://github.com/DenisVorop/artmate-monorepo/commit/e6077324781a9cce3692627a4403dbe7082fe0e5))
+
+
+### Bug Fixes
+
+* **orders:** show delivery price to customers ([bcd4c69](https://github.com/DenisVorop/artmate-monorepo/commit/bcd4c6954a678e62a814940f92f83b482011fb5f))
+
 ## [0.18.0](https://github.com/DenisVorop/artmate-monorepo/compare/v0.17.2...v0.18.0) (2026-05-21)
 
 
