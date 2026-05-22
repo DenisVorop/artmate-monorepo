@@ -6,8 +6,12 @@ import {
   ChevronsUpDown,
   LoaderCircle,
   MapPin,
+  Package,
+  Store,
   Search,
+  Truck,
 } from "lucide-react";
+import type { LucideIcon } from "lucide-react";
 import type { ReactNode } from "react";
 import { useEffect, useMemo, useRef, useState } from "react";
 
@@ -15,6 +19,7 @@ import type { DeliveryCityDTO, DeliveryPickupPointDTO } from "@/shared/actions/d
 import type { CreateOrderDeliveryInputDTO } from "@/shared/actions/orders";
 import { cn } from "@/shared/lib";
 import {
+  Badge,
   Button,
   Card,
   CardContent,
@@ -37,7 +42,42 @@ type DeliverySelectorProps = {
   selectedDelivery?: CreateOrderDeliveryInputDTO;
 };
 
+type DeliveryCompanyCode = "cdek" | "ozon" | "wildberries";
+
+const deliveryCompanies: Array<{
+  accentClassName: string;
+  code: DeliveryCompanyCode;
+  icon: LucideIcon;
+  isEnabled: boolean;
+  label: string;
+}> = [
+  {
+    accentClassName: "bg-emerald-50 text-emerald-700 ring-emerald-200",
+    code: "cdek",
+    icon: Truck,
+    isEnabled: true,
+    label: "СДЭК",
+  },
+  {
+    accentClassName: "bg-blue-50 text-blue-700 ring-blue-200",
+    code: "ozon",
+    icon: Package,
+    isEnabled: false,
+    label: "Ozon",
+  },
+  {
+    accentClassName: "bg-fuchsia-50 text-fuchsia-700 ring-fuchsia-200",
+    code: "wildberries",
+    icon: Store,
+    isEnabled: false,
+    label: "Wildberries",
+  },
+];
+
 export function DeliverySelector({ onChange, selectedDelivery }: DeliverySelectorProps) {
+  const [selectedCompany, setSelectedCompany] = useState<DeliveryCompanyCode | undefined>(
+    selectedDelivery?.provider === "cdek" ? "cdek" : undefined,
+  );
   const [cityQuery, setCityQuery] = useState("");
   const [pickupPointQuery, setPickupPointQuery] = useState("");
   const [isCityOpen, setIsCityOpen] = useState(false);
@@ -57,6 +97,20 @@ export function DeliverySelector({ onChange, selectedDelivery }: DeliverySelecto
 
   const resetDelivery = () => {
     setPickupPointQuery("");
+    onChange(undefined);
+  };
+
+  const selectCompany = (company: DeliveryCompanyCode) => {
+    if (company === selectedCompany) {
+      return;
+    }
+
+    setSelectedCompany(company);
+    setCityQuery("");
+    setPickupPointQuery("");
+    setSelectedCity(undefined);
+    setIsCityOpen(false);
+    setIsPickupPointOpen(false);
     onChange(undefined);
   };
 
@@ -84,113 +138,186 @@ export function DeliverySelector({ onChange, selectedDelivery }: DeliverySelecto
   return (
     <Card>
       <CardHeader>
-        <CardTitle>Доставка СДЭК</CardTitle>
-        <CardDescription>Выберите город и пункт выдачи для расчета стоимости.</CardDescription>
+        <CardTitle>Доставка</CardTitle>
+        <CardDescription>
+          Сначала выберите службу доставки, затем пункт выдачи для расчета стоимости.
+        </CardDescription>
       </CardHeader>
       <CardContent className="space-y-5">
-        <div className="grid gap-5 md:grid-cols-[minmax(0,0.95fr)_minmax(18rem,1.05fr)]">
-          <div className="space-y-4">
-            <ComboboxField
-              emptyText={
-                cityQuery.trim().length < 2 ? "Введите минимум 2 символа" : "Город не найден"
-              }
-              inputValue={cityQuery}
-              isOpen={isCityOpen}
-              isPending={areCitiesPending}
-              label="Город"
-              onInputChange={(value) => {
-                setCityQuery(value);
-                setSelectedCity(undefined);
-                resetDelivery();
-              }}
-              onOpenChange={setIsCityOpen}
-              placeholder="Москва"
-              selectedLabel={selectedCity?.name}
-              triggerLabel={selectedCity?.name ?? "Выберите город"}
-            >
-              {cities.map((city) => (
-                <ComboboxOption
-                  key={city.code}
-                  icon={<MapPin className="size-4 text-muted-foreground" />}
-                  isSelected={selectedCity?.code === city.code}
-                  label={city.name}
-                  onSelect={() => selectCity(city)}
-                />
-              ))}
-            </ComboboxField>
+        <DeliveryCompanySelector selectedCompany={selectedCompany} onSelect={selectCompany} />
 
-            <ComboboxField
-              disabled={!selectedCity || arePickupPointsPending}
-              emptyText={
-                selectedCity
-                  ? pickupPointQuery
-                    ? "ПВЗ не найден"
-                    : "Пункты выдачи не найдены"
-                  : "Сначала выберите город"
-              }
-              inputValue={pickupPointQuery}
-              isOpen={isPickupPointOpen}
-              isPending={arePickupPointsPending}
-              label="Пункт выдачи"
-              onInputChange={setPickupPointQuery}
-              onOpenChange={setIsPickupPointOpen}
-              placeholder="Адрес или название ПВЗ"
-              selectedLabel={selectedPickupPoint?.address}
-              triggerLabel={
-                selectedPickupPoint
-                  ? selectedPickupPoint.address
-                  : selectedCity
-                    ? "Выберите пункт выдачи"
+        {selectedCompany === "cdek" ? (
+          <div className="grid gap-5 md:grid-cols-[minmax(0,0.95fr)_minmax(18rem,1.05fr)]">
+            <div className="space-y-4">
+              <ComboboxField
+                emptyText={
+                  cityQuery.trim().length < 2 ? "Введите минимум 2 символа" : "Город не найден"
+                }
+                inputValue={cityQuery}
+                isOpen={isCityOpen}
+                isPending={areCitiesPending}
+                label="Город"
+                onInputChange={(value) => {
+                  setCityQuery(value);
+                  setSelectedCity(undefined);
+                  resetDelivery();
+                }}
+                onOpenChange={setIsCityOpen}
+                placeholder="Москва"
+                selectedLabel={selectedCity?.name}
+                triggerLabel={selectedCity?.name ?? "Выберите город"}
+              >
+                {cities.map((city) => (
+                  <ComboboxOption
+                    key={city.code}
+                    icon={<MapPin className="size-4 text-muted-foreground" />}
+                    isSelected={selectedCity?.code === city.code}
+                    label={city.name}
+                    onSelect={() => selectCity(city)}
+                  />
+                ))}
+              </ComboboxField>
+
+              <ComboboxField
+                disabled={!selectedCity || arePickupPointsPending}
+                emptyText={
+                  selectedCity
+                    ? pickupPointQuery
+                      ? "ПВЗ не найден"
+                      : "Пункты выдачи не найдены"
                     : "Сначала выберите город"
-              }
-            >
-              {filteredPickupPoints.slice(0, 80).map((point) => (
-                <ComboboxOption
-                  key={point.id}
-                  description={point.workHours}
-                  icon={<MapPin className="size-4 text-muted-foreground" />}
-                  isSelected={selectedPickupPoint?.id === point.id}
-                  label={point.address}
-                  meta={point.title}
-                  onSelect={() => selectPickupPoint(point)}
-                />
-              ))}
-            </ComboboxField>
+                }
+                inputValue={pickupPointQuery}
+                isOpen={isPickupPointOpen}
+                isPending={arePickupPointsPending}
+                label="Пункт выдачи"
+                onInputChange={setPickupPointQuery}
+                onOpenChange={setIsPickupPointOpen}
+                placeholder="Адрес или название ПВЗ"
+                selectedLabel={selectedPickupPoint?.address}
+                triggerLabel={
+                  selectedPickupPoint
+                    ? selectedPickupPoint.address
+                    : selectedCity
+                      ? "Выберите пункт выдачи"
+                      : "Сначала выберите город"
+                }
+              >
+                {filteredPickupPoints.slice(0, 80).map((point) => (
+                  <ComboboxOption
+                    key={point.id}
+                    description={point.workHours}
+                    icon={<MapPin className="size-4 text-muted-foreground" />}
+                    isSelected={selectedPickupPoint?.id === point.id}
+                    label={point.address}
+                    meta={point.title}
+                    onSelect={() => selectPickupPoint(point)}
+                  />
+                ))}
+              </ComboboxField>
 
-            {selectedPickupPoint ? (
-              <div className="rounded-lg border bg-muted/30 p-3 text-sm">
-                <div className="flex items-start gap-2">
-                  <CheckCircle2 className="mt-0.5 size-4 shrink-0 text-rose-500" />
-                  <div className="min-w-0 space-y-1">
-                    <p className="font-medium">Выбран пункт выдачи</p>
-                    <p className="text-muted-foreground">{selectedPickupPoint.address}</p>
-                    <p className="text-xs text-muted-foreground">{selectedPickupPoint.workHours}</p>
+              {selectedPickupPoint ? (
+                <div className="rounded-lg border bg-muted/30 p-3 text-sm">
+                  <div className="flex items-start gap-2">
+                    <CheckCircle2 className="mt-0.5 size-4 shrink-0 text-rose-500" />
+                    <div className="min-w-0 space-y-1">
+                      <p className="font-medium">Выбран пункт выдачи</p>
+                      <p className="text-muted-foreground">{selectedPickupPoint.address}</p>
+                      <p className="text-xs text-muted-foreground">
+                        {selectedPickupPoint.workHours}
+                      </p>
+                    </div>
                   </div>
                 </div>
-              </div>
-            ) : null}
-          </div>
+              ) : null}
+            </div>
 
-          {selectedCity ? (
-            arePickupPointsPending ? (
-              <MapPlaceholder icon={<LoaderCircle className="size-4 animate-spin" />}>
-                Загружаем пункты выдачи
-              </MapPlaceholder>
+            {selectedCity ? (
+              arePickupPointsPending ? (
+                <MapPlaceholder icon={<LoaderCircle className="size-4 animate-spin" />}>
+                  Загружаем пункты выдачи
+                </MapPlaceholder>
+              ) : (
+                <PickupPointsMap
+                  onSelect={selectPickupPoint}
+                  pickupPoints={pickupPoints}
+                  selectedPickupPointId={selectedPickupPoint?.id}
+                />
+              )
             ) : (
-              <PickupPointsMap
-                onSelect={selectPickupPoint}
-                pickupPoints={pickupPoints}
-                selectedPickupPointId={selectedPickupPoint?.id}
-              />
-            )
-          ) : (
-            <MapPlaceholder icon={<MapPin className="size-4" />}>
-              Выберите город, чтобы увидеть пункты выдачи на карте
-            </MapPlaceholder>
-          )}
-        </div>
+              <MapPlaceholder icon={<MapPin className="size-4" />}>
+                Выберите город, чтобы увидеть пункты выдачи на карте
+              </MapPlaceholder>
+            )}
+          </div>
+        ) : (
+          <MapPlaceholder icon={<Truck className="size-4" />}>
+            Выберите службу доставки, чтобы перейти к выбору пункта выдачи
+          </MapPlaceholder>
+        )}
       </CardContent>
     </Card>
+  );
+}
+
+type DeliveryCompanySelectorProps = {
+  onSelect: (_company: DeliveryCompanyCode) => void;
+  selectedCompany?: DeliveryCompanyCode;
+};
+
+function DeliveryCompanySelector({
+  onSelect,
+  selectedCompany,
+}: DeliveryCompanySelectorProps) {
+  return (
+    <div className="space-y-2">
+      <Label>Служба доставки</Label>
+      <div className="grid gap-2 sm:grid-cols-3">
+        {deliveryCompanies.map((company) => {
+          const isSelected = selectedCompany === company.code;
+          const Icon = company.icon;
+
+          return (
+            <button
+              key={company.code}
+              type="button"
+              disabled={!company.isEnabled}
+              className={cn(
+                "flex min-h-16 items-center gap-3 rounded-lg border bg-background p-3 text-left transition-colors outline-none",
+                "hover:border-rose-200 hover:bg-rose-50/40 focus-visible:ring-2 focus-visible:ring-ring focus-visible:ring-offset-2",
+                isSelected && "border-rose-500 bg-rose-50 text-rose-950 shadow-sm",
+                !company.isEnabled &&
+                  "cursor-not-allowed border-dashed bg-muted/20 text-muted-foreground hover:border-border hover:bg-muted/20",
+              )}
+              onClick={() => onSelect(company.code)}
+            >
+              <span
+                className={cn(
+                  "flex size-10 shrink-0 items-center justify-center rounded-lg ring-1",
+                  company.accentClassName,
+                  !company.isEnabled && "opacity-80",
+                )}
+              >
+                <Icon className="size-5" />
+              </span>
+              <span className="min-w-0 flex-1">
+                <span className="flex min-w-0 items-center gap-2">
+                  <span className="truncate font-medium">{company.label}</span>
+                  {!company.isEnabled ? (
+                    <Badge variant="outline" className="shrink-0 rounded-md px-1.5 py-0 text-[11px]">
+                      Подключаем
+                    </Badge>
+                  ) : null}
+                </span>
+              </span>
+              {isSelected ? (
+                <CheckCircle2 className="mt-0.5 size-4 shrink-0 text-rose-500" />
+              ) : null}
+            </button>
+          );
+        })}
+      </div>
+    </div>
   );
 }
 
