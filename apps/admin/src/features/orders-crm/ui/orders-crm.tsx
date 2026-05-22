@@ -4,6 +4,7 @@ import type { DragEvent } from "react";
 import { useMemo, useState } from "react";
 import { zodResolver } from "@hookform/resolvers/zod";
 import {
+  Ban,
   CalendarDays,
   ChevronLeft,
   ChevronRight,
@@ -456,40 +457,55 @@ function MoveControls({
   );
   const previousColumn = orderCrmColumns[columnIndex - 1];
   const nextColumn = orderCrmColumns[columnIndex + 1];
+  const canCloseAsIrrelevant = order.status !== "cancelled";
 
   return (
-    <div className="grid grid-cols-[auto_minmax(0,1fr)_auto] items-center gap-2">
-      <Button
-        aria-label={
-          previousColumn
-            ? `Переместить в ${previousColumn.title}`
-            : "Предыдущей колонки нет"
-        }
-        disabled={disabled || !previousColumn}
-        onClick={() => previousColumn && onMove(previousColumn.status)}
-        size="icon-sm"
-        type="button"
-        variant="outline"
-      >
-        <ChevronLeft aria-hidden="true" />
-      </Button>
-      <div className="min-w-0 rounded-lg bg-muted px-2 py-1 text-center text-xs font-medium">
-        <span className="truncate">
-          {orderCrmStatusLabels[order.status]}
-        </span>
+    <div className="space-y-2">
+      <div className="grid grid-cols-[auto_minmax(0,1fr)_auto] items-center gap-2">
+        <Button
+          aria-label={
+            previousColumn
+              ? `Переместить в ${previousColumn.title}`
+              : "Предыдущей колонки нет"
+          }
+          disabled={disabled || !previousColumn}
+          onClick={() => previousColumn && onMove(previousColumn.status)}
+          size="icon-sm"
+          type="button"
+          variant="outline"
+        >
+          <ChevronLeft aria-hidden="true" />
+        </Button>
+        <div className="min-w-0 rounded-lg bg-muted px-2 py-1 text-center text-xs font-medium">
+          <span className="truncate">{orderCrmStatusLabels[order.status]}</span>
+        </div>
+        <Button
+          aria-label={
+            nextColumn ? `Переместить в ${nextColumn.title}` : "Следующей колонки нет"
+          }
+          disabled={disabled || !nextColumn}
+          onClick={() => nextColumn && onMove(nextColumn.status)}
+          size="icon-sm"
+          type="button"
+          variant="outline"
+        >
+          <ChevronRight aria-hidden="true" />
+        </Button>
       </div>
-      <Button
-        aria-label={
-          nextColumn ? `Переместить в ${nextColumn.title}` : "Следующей колонки нет"
-        }
-        disabled={disabled || !nextColumn}
-        onClick={() => nextColumn && onMove(nextColumn.status)}
-        size="icon-sm"
-        type="button"
-        variant="outline"
-      >
-        <ChevronRight aria-hidden="true" />
-      </Button>
+
+      {canCloseAsIrrelevant ? (
+        <Button
+          className="w-full"
+          disabled={disabled}
+          onClick={() => onMove("cancelled")}
+          size="sm"
+          type="button"
+          variant="destructive"
+        >
+          <Ban data-icon="inline-start" aria-hidden="true" />
+          Закрыть как неактуальный
+        </Button>
+      ) : null}
     </div>
   );
 }
