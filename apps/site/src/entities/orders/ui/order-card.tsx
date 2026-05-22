@@ -108,6 +108,9 @@ export function OrderCard({ order }: OrderCardProps) {
             <p className="text-muted-foreground">
               {order.delivery.provider === "cdek" ? "СДЭК" : "Ozon"}
             </p>
+            <p className="text-muted-foreground">
+              Стоимость: {formatMoney(order.deliveryPrice)}
+            </p>
             <p className="text-muted-foreground">{order.delivery.pickupPoint.address}</p>
             <p className="text-muted-foreground">{order.delivery.pickupPoint.workHours}</p>
           </div>

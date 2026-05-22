@@ -209,6 +209,8 @@ export class OrdersTelegramService {
       "<b>Заказ принят</b>",
       "",
       `<b>Заказ:</b> <code>${this.formatText(order.id)}</code>`,
+      `<b>Товары:</b> ${this.formatMoney(order.subtotal)}`,
+      `<b>Доставка:</b> ${this.formatMoney(order.deliveryPrice)}`,
       `<b>Итого:</b> ${this.formatMoney(order.total)}`,
       `<b>Статус:</b> ${this.formatText(customerOrderStatusLabels[order.status])}`,
       "",

@@ -450,7 +450,11 @@ export class OrdersService {
       "Товары:",
       ...this.renderOrderItemsTextEmail(order),
       "",
+      "Стоимость заказа:",
+      `Товары: ${this.formatMoney(order.subtotal)}`,
+      `Доставка: ${this.formatMoney(order.deliveryPrice)}`,
       `Итого: ${this.formatMoney(order.total)}`,
+      "",
       `Телефон: ${order.customer.phone}`,
       "",
       renderSupportEmailFooterText(),
@@ -470,6 +474,8 @@ export class OrdersService {
         )}
         ${this.renderOrderItemsHtmlEmail(order)}
         ${renderEmailDetails([
+          { label: "Товары", value: this.formatMoney(order.subtotal) },
+          { label: "Доставка", value: this.formatMoney(order.deliveryPrice) },
           { label: "Итого", value: this.formatMoney(order.total) },
           { label: "Телефон", value: order.customer.phone },
         ])}
