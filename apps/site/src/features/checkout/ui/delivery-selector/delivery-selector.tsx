@@ -4,6 +4,7 @@ import {
   Check,
   CheckCircle2,
   ChevronsUpDown,
+  CircleAlert,
   LoaderCircle,
   MapPin,
   Package,
@@ -74,19 +75,23 @@ const deliveryCompanies: Array<{
   },
 ];
 
+const defaultDeliveryCompany = deliveryCompanies.find((company) => company.isEnabled)?.code;
+
 export function DeliverySelector({ onChange, selectedDelivery }: DeliverySelectorProps) {
   const [selectedCompany, setSelectedCompany] = useState<DeliveryCompanyCode | undefined>(
-    selectedDelivery?.provider === "cdek" ? "cdek" : undefined,
+    selectedDelivery?.provider === "cdek" ? "cdek" : defaultDeliveryCompany,
   );
   const [cityQuery, setCityQuery] = useState("");
   const [pickupPointQuery, setPickupPointQuery] = useState("");
   const [isCityOpen, setIsCityOpen] = useState(false);
   const [isPickupPointOpen, setIsPickupPointOpen] = useState(false);
   const [selectedCity, setSelectedCity] = useState<DeliveryCityDTO>();
-  const { cities, isPending: areCitiesPending } = useCdekCities(cityQuery);
-  const { isPending: arePickupPointsPending, pickupPoints } = useCdekPickupPoints(
-    selectedCity?.code,
-  );
+  const { cities, isError: areCitiesError, isPending: areCitiesPending } = useCdekCities(cityQuery);
+  const {
+    isError: arePickupPointsError,
+    isPending: arePickupPointsPending,
+    pickupPoints,
+  } = useCdekPickupPoints(selectedCity?.code);
   const selectedPickupPoint = pickupPoints.find(
     (point) => point.id === selectedDelivery?.pickupPointId,
   );
@@ -140,18 +145,29 @@ export function DeliverySelector({ onChange, selectedDelivery }: DeliverySelecto
       <CardHeader>
         <CardTitle>Доставка</CardTitle>
         <CardDescription>
-          Сначала выберите службу доставки, затем пункт выдачи для расчета стоимости.
+          Выберите город и пункт выдачи, чтобы мы рассчитали стоимость в итогах заказа.
         </CardDescription>
       </CardHeader>
       <CardContent className="space-y-5">
         <DeliveryCompanySelector selectedCompany={selectedCompany} onSelect={selectCompany} />
 
         {selectedCompany === "cdek" ? (
-          <div className="grid gap-5 md:grid-cols-[minmax(0,0.95fr)_minmax(18rem,1.05fr)]">
+          <div
+            className={cn(
+              "grid gap-5",
+              selectedCity
+                ? "md:grid-cols-[minmax(0,0.95fr)_minmax(18rem,1.05fr)]"
+                : "md:grid-cols-[minmax(0,30rem)_minmax(0,1fr)]",
+            )}
+          >
             <div className="space-y-4">
               <ComboboxField
                 emptyText={
-                  cityQuery.trim().length < 2 ? "Введите минимум 2 символа" : "Город не найден"
+                  areCitiesError
+                    ? "Не удалось загрузить города"
+                    : cityQuery.trim().length < 2
+                      ? "Введите минимум 2 символа"
+                      : "Город не найден"
                 }
                 inputValue={cityQuery}
                 isOpen={isCityOpen}
@@ -163,7 +179,7 @@ export function DeliverySelector({ onChange, selectedDelivery }: DeliverySelecto
                   resetDelivery();
                 }}
                 onOpenChange={setIsCityOpen}
-                placeholder="Москва"
+                placeholder="Начните вводить город"
                 selectedLabel={selectedCity?.name}
                 triggerLabel={selectedCity?.name ?? "Выберите город"}
               >
@@ -179,13 +195,15 @@ export function DeliverySelector({ onChange, selectedDelivery }: DeliverySelecto
               </ComboboxField>
 
               <ComboboxField
-                disabled={!selectedCity || arePickupPointsPending}
+                disabled={!selectedCity || arePickupPointsPending || arePickupPointsError}
                 emptyText={
-                  selectedCity
-                    ? pickupPointQuery
-                      ? "ПВЗ не найден"
-                      : "Пункты выдачи не найдены"
-                    : "Сначала выберите город"
+                  arePickupPointsError
+                    ? "Не удалось загрузить ПВЗ"
+                    : selectedCity
+                      ? pickupPointQuery
+                        ? "ПВЗ не найден"
+                        : "Пункты выдачи не найдены"
+                      : "Сначала выберите город"
                 }
                 inputValue={pickupPointQuery}
                 isOpen={isPickupPointOpen}
@@ -216,10 +234,18 @@ export function DeliverySelector({ onChange, selectedDelivery }: DeliverySelecto
                 ))}
               </ComboboxField>
 
+              {selectedCity && !arePickupPointsPending && !arePickupPointsError ? (
+                <p className="text-sm text-muted-foreground">
+                  {pickupPoints.length > 0
+                    ? `Нашли ${formatPickupPointCount(pickupPoints.length)}. Выберите адрес в списке или на карте.`
+                    : "Для этого города пункты выдачи пока не найдены."}
+                </p>
+              ) : null}
+
               {selectedPickupPoint ? (
-                <div className="rounded-lg border bg-muted/30 p-3 text-sm">
+                <div className="rounded-lg border border-emerald-200 bg-emerald-50/60 p-3 text-sm">
                   <div className="flex items-start gap-2">
-                    <CheckCircle2 className="mt-0.5 size-4 shrink-0 text-rose-500" />
+                    <CheckCircle2 className="mt-0.5 size-4 shrink-0 text-emerald-600" />
                     <div className="min-w-0 space-y-1">
                       <p className="font-medium">Выбран пункт выдачи</p>
                       <p className="text-muted-foreground">{selectedPickupPoint.address}</p>
@@ -233,9 +259,20 @@ export function DeliverySelector({ onChange, selectedDelivery }: DeliverySelecto
             </div>
 
             {selectedCity ? (
-              arePickupPointsPending ? (
-                <MapPlaceholder icon={<LoaderCircle className="size-4 animate-spin" />}>
-                  Загружаем пункты выдачи
+              arePickupPointsError ? (
+                <MapPlaceholder
+                  compact
+                  icon={<CircleAlert className="size-4" />}
+                  title="Пункты выдачи не загрузились"
+                >
+                  Попробуйте выбрать город заново или обновить страницу.
+                </MapPlaceholder>
+              ) : arePickupPointsPending ? (
+                <MapPlaceholder
+                  icon={<LoaderCircle className="size-4 animate-spin" />}
+                  title="Загружаем пункты выдачи"
+                >
+                  Карта появится сразу после загрузки адресов СДЭК.
                 </MapPlaceholder>
               ) : (
                 <PickupPointsMap
@@ -245,13 +282,13 @@ export function DeliverySelector({ onChange, selectedDelivery }: DeliverySelecto
                 />
               )
             ) : (
-              <MapPlaceholder icon={<MapPin className="size-4" />}>
-                Выберите город, чтобы увидеть пункты выдачи на карте
+              <MapPlaceholder compact icon={<MapPin className="size-4" />} title="Начните с города">
+                После выбора города покажем доступные ПВЗ и карту рядом со списком.
               </MapPlaceholder>
             )}
           </div>
         ) : (
-          <MapPlaceholder icon={<Truck className="size-4" />}>
+          <MapPlaceholder compact icon={<Truck className="size-4" />}>
             Выберите службу доставки, чтобы перейти к выбору пункта выдачи
           </MapPlaceholder>
         )}
@@ -265,69 +302,103 @@ type DeliveryCompanySelectorProps = {
   selectedCompany?: DeliveryCompanyCode;
 };
 
-function DeliveryCompanySelector({
-  onSelect,
-  selectedCompany,
-}: DeliveryCompanySelectorProps) {
+function DeliveryCompanySelector({ onSelect, selectedCompany }: DeliveryCompanySelectorProps) {
+  const enabledCompanies = deliveryCompanies.filter((company) => company.isEnabled);
+  const upcomingCompanies = deliveryCompanies.filter((company) => !company.isEnabled);
+
   return (
     <div className="space-y-2">
       <Label>Служба доставки</Label>
-      <div className="grid gap-2 sm:grid-cols-3">
-        {deliveryCompanies.map((company) => {
-          const isSelected = selectedCompany === company.code;
-          const Icon = company.icon;
+      <div className="grid gap-2 md:grid-cols-[minmax(0,1fr)_minmax(16rem,0.85fr)]">
+        <div className={cn("grid gap-2", enabledCompanies.length > 1 && "sm:grid-cols-2")}>
+          {enabledCompanies.map((company) => {
+            const isSelected = selectedCompany === company.code;
+            const Icon = company.icon;
 
-          return (
-            <button
-              key={company.code}
-              type="button"
-              disabled={!company.isEnabled}
-              className={cn(
-                "flex min-h-16 items-center gap-3 rounded-lg border bg-background p-3 text-left transition-colors outline-none",
-                "hover:border-rose-200 hover:bg-rose-50/40 focus-visible:ring-2 focus-visible:ring-ring focus-visible:ring-offset-2",
-                isSelected && "border-rose-500 bg-rose-50 text-rose-950 shadow-sm",
-                !company.isEnabled &&
-                  "cursor-not-allowed border-dashed bg-muted/20 text-muted-foreground hover:border-border hover:bg-muted/20",
-              )}
-              onClick={() => onSelect(company.code)}
-            >
-              <span
+            return (
+              <button
+                key={company.code}
+                type="button"
                 className={cn(
-                  "flex size-10 shrink-0 items-center justify-center rounded-lg ring-1",
-                  company.accentClassName,
-                  !company.isEnabled && "opacity-80",
+                  "flex min-h-16 items-center gap-3 rounded-lg border bg-background p-3 text-left transition-colors outline-none",
+                  "hover:border-rose-200 hover:bg-rose-50/40 focus-visible:ring-2 focus-visible:ring-ring focus-visible:ring-offset-2",
+                  isSelected && "border-rose-500 bg-rose-50 text-rose-950 shadow-sm",
                 )}
+                onClick={() => onSelect(company.code)}
               >
-                <Icon className="size-5" />
-              </span>
-              <span className="min-w-0 flex-1">
-                <span className="flex min-w-0 items-center gap-2">
-                  <span className="truncate font-medium">{company.label}</span>
-                  {!company.isEnabled ? (
-                    <Badge variant="outline" className="shrink-0 rounded-md px-1.5 py-0 text-[11px]">
-                      Подключаем
-                    </Badge>
-                  ) : null}
+                <span
+                  className={cn(
+                    "flex size-10 shrink-0 items-center justify-center rounded-lg ring-1",
+                    company.accentClassName,
+                  )}
+                >
+                  <Icon className="size-5" />
                 </span>
-              </span>
-              {isSelected ? (
-                <CheckCircle2 className="mt-0.5 size-4 shrink-0 text-rose-500" />
-              ) : null}
-            </button>
-          );
-        })}
+                <span className="min-w-0 flex-1">
+                  <span className="block truncate font-medium">{company.label}</span>
+                  <span className="block text-xs text-muted-foreground">Пункты выдачи по РФ</span>
+                </span>
+                {isSelected ? (
+                  <CheckCircle2 className="mt-0.5 size-4 shrink-0 text-rose-500" />
+                ) : null}
+              </button>
+            );
+          })}
+        </div>
+
+        {upcomingCompanies.length > 0 ? (
+          <div className="rounded-lg border border-dashed bg-muted/20 p-3">
+            <div className="flex items-center justify-between gap-3">
+              <p className="text-sm font-medium">Скоро подключим</p>
+              <Badge variant="outline" className="rounded-md px-1.5 py-0 text-[11px]">
+                Неактивно
+              </Badge>
+            </div>
+            <div className="mt-3 flex flex-wrap gap-2">
+              {upcomingCompanies.map((company) => {
+                const Icon = company.icon;
+
+                return (
+                  <span
+                    key={company.code}
+                    className="inline-flex items-center gap-2 rounded-md bg-background px-2.5 py-1.5 text-sm text-muted-foreground ring-1 ring-border"
+                  >
+                    <Icon className="size-4" />
+                    {company.label}
+                  </span>
+                );
+              })}
+            </div>
+          </div>
+        ) : null}
       </div>
     </div>
   );
 }
 
-function MapPlaceholder({ children, icon }: { children: ReactNode; icon: ReactNode }) {
+function MapPlaceholder({
+  children,
+  compact = false,
+  icon,
+  title,
+}: {
+  children: ReactNode;
+  compact?: boolean;
+  icon: ReactNode;
+  title?: string;
+}) {
   return (
-    <div className="flex min-h-72 items-center justify-center rounded-lg border bg-muted/30 px-4 text-center text-sm text-muted-foreground md:min-h-96">
-      <div className="flex max-w-72 flex-col items-center justify-center gap-2">
+    <div
+      className={cn(
+        "flex min-h-52 items-center justify-center rounded-lg border bg-muted/30 px-4 text-center text-sm text-muted-foreground",
+        !compact && "min-h-72 md:min-h-96",
+      )}
+    >
+      <div className="flex max-w-80 flex-col items-center justify-center gap-2">
         <span className="flex size-8 items-center justify-center rounded-full bg-background text-muted-foreground ring-1 ring-border">
           {icon}
         </span>
+        {title ? <span className="font-medium text-foreground">{title}</span> : null}
         <span>{children}</span>
       </div>
     </div>
@@ -451,7 +522,7 @@ function ComboboxOption({
     <button
       type="button"
       className={cn(
-        "flex w-full items-start gap-3 rounded-md px-3 py-2 text-left text-sm outline-none transition-colors hover:bg-muted focus-visible:bg-muted",
+        "flex w-full items-start gap-3 rounded-md px-3 py-2 text-left text-sm transition-colors outline-none hover:bg-muted focus-visible:bg-muted",
         isSelected && "bg-rose-50 text-rose-950",
       )}
       onClick={onSelect}
@@ -482,4 +553,19 @@ function filterPickupPoints(points: DeliveryPickupPointDTO[], query: string) {
       .toLocaleLowerCase("ru-RU")
       .includes(normalizedQuery),
   );
+}
+
+function formatPickupPointCount(count: number) {
+  const mod10 = count % 10;
+  const mod100 = count % 100;
+
+  if (mod10 === 1 && mod100 !== 11) {
+    return `${count} пункт`;
+  }
+
+  if (mod10 >= 2 && mod10 <= 4 && (mod100 < 12 || mod100 > 14)) {
+    return `${count} пункта`;
+  }
+
+  return `${count} пунктов`;
 }

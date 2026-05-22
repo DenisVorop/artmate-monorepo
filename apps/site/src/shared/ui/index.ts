@@ -19,6 +19,7 @@ export {
   BreadcrumbSeparator,
 } from "./breadcrumb";
 export { Button, buttonVariants } from "./button";
+export { CtaGradientButton } from "./cta-gradient-button";
 export {
   Card,
   CardAction,

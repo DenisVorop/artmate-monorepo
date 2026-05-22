@@ -4,6 +4,7 @@ import type { CreateOrderInputDTO } from "@/shared/actions/orders";
 
 export const checkoutPhonePlaceholder = "+7 (999) 999-99-99";
 export const checkoutPhonePattern = /^\+7 \(\d{3}\) \d{3}-\d{2}-\d{2}$/;
+export const checkoutOrderFormId = "checkout-order-form";
 const checkoutRussianNamePattern = /^[А-ЯЁа-яё]+(?:[ -][А-ЯЁа-яё]+)*$/;
 
 export const checkoutFormValidationSchema = z.object({
@@ -24,8 +25,16 @@ export const checkoutFormValidationSchema = z.object({
 
 export type CheckoutFormValues = z.infer<typeof checkoutFormValidationSchema>;
 
-export type CheckoutCustomerDefaults = Partial<Pick<CheckoutFormValues, "email" | "name" | "phone">>;
+export type CheckoutCustomerDefaults = Partial<
+  Pick<CheckoutFormValues, "email" | "name" | "phone">
+>;
 export type CheckoutDeliverySelection = CreateOrderInputDTO["delivery"];
+export type CheckoutSubmitLabelInput = {
+  hasDelivery: boolean;
+  isDeliveryPending: boolean;
+  isSubmitting: boolean;
+  requiresAuth: boolean;
+};
 
 export function getDefaultCheckoutFormValues(
   customerDefaults: CheckoutCustomerDefaults = {},
@@ -96,4 +105,25 @@ export function toCreateOrderInput(
     comment: comment || undefined,
     acceptedLegal: values.acceptedLegal,
   };
+}
+
+export function getCheckoutSubmitLabel({
+  hasDelivery,
+  isDeliveryPending,
+  isSubmitting,
+  requiresAuth,
+}: CheckoutSubmitLabelInput) {
+  if (isSubmitting) {
+    return "Отправляем заказ";
+  }
+
+  if (!hasDelivery) {
+    return "Выберите ПВЗ";
+  }
+
+  if (isDeliveryPending) {
+    return "Считаем доставку";
+  }
+
+  return requiresAuth ? "Войти и оформить" : "Оформить заказ";
 }

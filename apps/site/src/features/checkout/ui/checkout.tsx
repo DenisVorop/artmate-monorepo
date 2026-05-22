@@ -1,10 +1,10 @@
 "use client";
 
-import { ArrowLeft, ShoppingBag } from "lucide-react";
+import { ArrowLeft, ArrowRight, ShoppingBag } from "lucide-react";
 import { useCallback, useMemo, useState } from "react";
 import { useRouter } from "next/navigation";
 
-import { useCartData } from "@/entities/cart";
+import { type Cart, useCartData } from "@/entities/cart";
 import { getPreferredCustomerPhone, useOrdersData } from "@/entities/orders";
 import { useUser } from "@/entities/session";
 import { AuthForm } from "@/features/auth";
@@ -21,16 +21,19 @@ import {
 import { Link } from "@/shared/ui/link";
 import { PageTitle } from "@/shared/ui/typography";
 
-import { useCheckoutCalculation, useCreateOrderMutation } from "../model";
+import { useCreateOrderMutation } from "../model";
 import {
   type CheckoutCreateOrderInput,
   type CheckoutCustomerDefaults,
   type CheckoutOrder,
+  useCheckout,
+  withCheckout,
 } from "../lib";
 
 import { DeliverySelector } from "./delivery-selector";
-import { CheckoutForm } from "./form";
+import { CheckoutConfirmationStep, CheckoutContactsStep } from "./form";
 import { OrderSummary } from "./order-summary";
+import { CheckoutStepProgress } from "./step-progress";
 
 export function Checkout() {
   const router = useRouter();
@@ -38,11 +41,7 @@ export function Checkout() {
   const cart = useCartData();
   const orders = useOrdersData({ enabled: Boolean(user) });
   const [pendingOrderInput, setPendingOrderInput] = useState<CheckoutCreateOrderInput>();
-  const [selectedDelivery, setSelectedDelivery] = useState<
-    CheckoutCreateOrderInput["delivery"] | undefined
-  >();
   const [isAuthDialogOpen, setIsAuthDialogOpen] = useState(false);
-  const checkoutCalculation = useCheckoutCalculation(selectedDelivery);
   const handleOrderCreated = useCallback(
     (order: CheckoutOrder | undefined) => {
       setPendingOrderInput(undefined);
@@ -61,6 +60,7 @@ export function Checkout() {
   const pendingCustomerName = pendingOrderInput?.customer.name;
   const customerOrders = orders.isError ? [] : orders.data;
   const customerPhone = user?.phone ?? getPreferredCustomerPhone(customerOrders);
+  const requiresAuth = !user;
   const customerDefaults = useMemo<CheckoutCustomerDefaults>(
     () => ({
       ...(user?.email ? { email: user.email } : {}),
@@ -152,43 +152,15 @@ export function Checkout() {
         </Button>
       </div>
 
-      <div className="grid gap-6 lg:grid-cols-[minmax(0,1fr)_22rem] lg:items-start">
-        <div className="space-y-4">
-          <DeliverySelector selectedDelivery={selectedDelivery} onChange={setSelectedDelivery} />
-
-          {checkoutCalculation.isError ? (
-            <DataState
-              variant="error"
-              title="Не удалось рассчитать доставку"
-              description="Попробуйте выбрать другой пункт выдачи или обновить страницу."
-              className="max-w-none"
-            />
-          ) : null}
-
-          <CheckoutForm
-            customerDefaults={customerDefaults}
-            delivery={selectedDelivery}
-            isEmailLocked={Boolean(user?.email)}
-            isSubmitting={isPending}
-            onSubmit={handleSubmit}
-          />
-
-          {error && (
-            <DataState
-              variant="error"
-              title="Не удалось создать заказ"
-              description={getMutationErrorMessage(error)}
-              className="max-w-none"
-            />
-          )}
-        </div>
-
-        <OrderSummary
-          cart={cart.data}
-          calculation={checkoutCalculation.calculation}
-          isDeliveryPending={checkoutCalculation.isPending}
-        />
-      </div>
+      <CheckoutFlow
+        cart={cart.data}
+        createOrderError={error}
+        customerDefaults={customerDefaults}
+        isEmailLocked={Boolean(user?.email)}
+        isSubmitting={isPending}
+        onSubmit={handleSubmit}
+        requiresAuth={requiresAuth}
+      />
 
       <Dialog open={isAuthDialogOpen} onOpenChange={setIsAuthDialogOpen}>
         <DialogContent className="sm:max-w-md">
@@ -211,6 +183,90 @@ export function Checkout() {
         </DialogContent>
       </Dialog>
     </section>
+  );
+}
+
+type CheckoutFlowProps = {
+  cart: Cart;
+  createOrderError: Error | null;
+};
+
+function BaseCheckoutFlow({ cart, createOrderError }: CheckoutFlowProps) {
+  const { step } = useCheckout();
+
+  return (
+    <>
+      <CheckoutStepProgress />
+
+      <div className="grid gap-6 lg:grid-cols-[minmax(0,1fr)_22rem] lg:items-start">
+        <div className="space-y-4">
+          <div hidden={step !== "delivery"}>
+            <CheckoutDeliveryStep />
+          </div>
+          <div hidden={step !== "contacts"}>
+            <CheckoutContactsStep />
+          </div>
+          <div hidden={step !== "confirmation"}>
+            <CheckoutConfirmationStep />
+          </div>
+
+          {createOrderError ? (
+            <DataState
+              variant="error"
+              title="Не удалось создать заказ"
+              description={getMutationErrorMessage(createOrderError)}
+              className="max-w-none"
+            />
+          ) : null}
+        </div>
+
+        <OrderSummary cart={cart} compact={step !== "confirmation"} />
+      </div>
+    </>
+  );
+}
+
+const CheckoutFlow = withCheckout(BaseCheckoutFlow);
+
+function CheckoutDeliveryStep() {
+  const {
+    canContinueDelivery,
+    checkoutCalculation,
+    continueFromDelivery,
+    selectedDelivery,
+    setSelectedDelivery,
+  } = useCheckout();
+
+  return (
+    <div className="space-y-4">
+      <DeliverySelector selectedDelivery={selectedDelivery} onChange={setSelectedDelivery} />
+
+      {checkoutCalculation.isError ? (
+        <DataState
+          variant="error"
+          title="Не удалось рассчитать доставку"
+          description="Попробуйте выбрать другой пункт выдачи или обновить страницу."
+          className="max-w-none"
+        />
+      ) : null}
+
+      <div className="flex flex-col items-stretch gap-2 sm:flex-row sm:items-center sm:justify-end">
+        {!selectedDelivery ? (
+          <p className="text-sm text-muted-foreground">Выберите город и пункт выдачи.</p>
+        ) : checkoutCalculation.isPending ? (
+          <p className="text-sm text-muted-foreground">Дождитесь расчета стоимости доставки.</p>
+        ) : null}
+        <Button
+          type="button"
+          disabled={!canContinueDelivery}
+          className="bg-rose-500 text-white hover:bg-rose-600"
+          onClick={continueFromDelivery}
+        >
+          Продолжить
+          <ArrowRight data-icon="inline-end" />
+        </Button>
+      </div>
+    </div>
   );
 }
 
