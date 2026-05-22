@@ -1,12 +1,23 @@
-import Image from "next/image";
 import { ArrowLeft, Quote, Share2, Tag } from "lucide-react";
 
 import type { BlogArticleContent, BlogPost, BlogPostBlock } from "@/entities/blog";
 import { ShareActions } from "@/features/blog-post";
-import { AspectRatio, Avatar, AvatarFallback, Badge, Button, Card, CardContent, CardDescription, CardHeader, CardTitle, Separator } from "@/shared/ui";
+import {
+  Avatar,
+  AvatarFallback,
+  Badge,
+  Button,
+  Card,
+  CardContent,
+  CardDescription,
+  CardHeader,
+  CardTitle,
+  Separator,
+} from "@/shared/ui";
 import { getAbsoluteUrl, routes } from "@/shared/constants";
 import { Link } from "@/shared/ui/link";
 import { SectionTitle } from "@/shared/ui/typography";
+import { ArticleImage } from "./article-image";
 
 type ArticleProps = {
   articleId: string;
@@ -97,11 +108,7 @@ function BlockRenderer({ block, showSeparator }: { block: BlogPostBlock; showSep
   }
 
   if (block.type === "paragraph") {
-    return (
-      <p className="text-base leading-7 text-muted-foreground">
-        {block.text}
-      </p>
-    );
+    return <p className="text-base leading-7 text-muted-foreground">{block.text}</p>;
   }
 
   if (block.type === "image") {
@@ -111,26 +118,7 @@ function BlockRenderer({ block, showSeparator }: { block: BlogPostBlock; showSep
       return null;
     }
 
-    return (
-      <Card className="overflow-hidden py-0">
-        <figure>
-          <AspectRatio ratio={16 / 9} className="relative bg-muted">
-            <Image
-              fill
-              src={src}
-              alt={block.alt}
-              sizes="(min-width: 1280px) 720px, (min-width: 768px) 80vw, 100vw"
-              className="object-cover"
-            />
-          </AspectRatio>
-          {block.caption ? (
-            <figcaption className="border-t px-4 py-3 text-sm leading-relaxed text-muted-foreground">
-              {block.caption}
-            </figcaption>
-          ) : null}
-        </figure>
-      </Card>
-    );
+    return <ArticleImage src={src} alt={block.alt} caption={block.caption} />;
   }
 
   if (block.type === "quote") {
@@ -156,9 +144,7 @@ function BlockRenderer({ block, showSeparator }: { block: BlogPostBlock; showSep
           <Card key={item.title} size="sm">
             <CardContent className="pt-4">
               <div className="flex gap-3">
-                {item.emoji ? (
-                  <span className="text-2xl leading-none">{item.emoji}</span>
-                ) : null}
+                {item.emoji ? <span className="text-2xl leading-none">{item.emoji}</span> : null}
                 <div className="space-y-1.5">
                   <p className="font-medium text-foreground">{item.title}</p>
                   <p className="text-sm leading-6 text-muted-foreground">{item.description}</p>
