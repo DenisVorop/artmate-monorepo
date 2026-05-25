@@ -1,6 +1,6 @@
 # syntax=docker/dockerfile:1
 
-FROM node:22.13-bookworm-slim AS deps
+FROM node:26.2-bookworm-slim AS deps
 
 WORKDIR /app
 
@@ -22,7 +22,7 @@ COPY . .
 
 RUN yarn workspace api build
 
-FROM node:22.13-bookworm-slim AS runner
+FROM node:26.2-bookworm-slim AS runner
 
 WORKDIR /app
 
