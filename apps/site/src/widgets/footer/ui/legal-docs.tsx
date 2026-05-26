@@ -55,9 +55,14 @@ export function LegalDocs() {
       <div className="container flex flex-col items-center justify-between gap-4 border-t border-stone-800 py-6 md:flex-row md:py-8">
         <p className="text-sm text-stone-500">© {currentYear} ARTMATE. Все права защищены.</p>
         <div className="flex flex-col items-center gap-3 text-center sm:flex-row sm:gap-6 sm:text-left">
-          <p className="text-xs leading-5 text-stone-600">
-            ИНН: {companyDetails.inn} · {companyDetails.registrationNumberLabel}:{" "}
-            {companyDetails.registrationNumber}
+          <p className="flex flex-wrap justify-center gap-x-2 gap-y-1 text-xs leading-5 text-stone-600 sm:justify-end">
+            <span className="font-medium">{companyDetails.shortName}</span>
+            <span aria-hidden="true">·</span>
+            <span>ИНН {companyDetails.inn}</span>
+            <span aria-hidden="true">·</span>
+            <span>
+              {companyDetails.registrationNumberLabel} {companyDetails.registrationNumber}
+            </span>
           </p>
           <div className="flex items-center gap-3">
             <a
