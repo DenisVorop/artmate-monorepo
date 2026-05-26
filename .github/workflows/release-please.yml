@@ -19,12 +19,7 @@ jobs:
     runs-on: ubuntu-latest
     steps:
       - name: Release Please
-        env:
-          RELEASE_PLEASE_TOKEN: ${{ secrets.RELEASE_PLEASE_TOKEN || github.token }}
-        run: >
-          npx -y release-please@17.3.0 release-pr
-          --repo-url=${{ github.repository }}
-          --target-branch=${{ github.ref_name }}
-          --config-file=release-please-config.json
-          --manifest-file=.release-please-manifest.json
-          --token="$RELEASE_PLEASE_TOKEN"
+        uses: googleapis/release-please-action@v4
+        with:
+          config-file: release-please-config.json
+          manifest-file: .release-please-manifest.json
