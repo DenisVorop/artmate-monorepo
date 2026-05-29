@@ -41,6 +41,12 @@ type CheckoutProviderProps = {
 
 const contactsFields = ["name", "phone", "email", "comment"] as const;
 
+function scrollViewportToTop() {
+  window.requestAnimationFrame(() => {
+    window.scrollTo({ top: 0, behavior: "smooth" });
+  });
+}
+
 export function CheckoutProvider({
   children,
   customerDefaults,
@@ -92,6 +98,7 @@ export function CheckoutProvider({
   const continueFromDelivery = useCallback(() => {
     if (canContinueDelivery) {
       setStep("contacts");
+      scrollViewportToTop();
     }
   }, [canContinueDelivery]);
 
@@ -100,6 +107,7 @@ export function CheckoutProvider({
 
     if (isValid) {
       setStep("confirmation");
+      scrollViewportToTop();
     }
   }, [form]);
 
