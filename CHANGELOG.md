@@ -1,5 +1,17 @@
 # Changelog
 
+## [0.22.0](https://github.com/DenisVorop/artmate-monorepo/compare/v0.21.1...v0.22.0) (2026-05-29)
+
+
+### Features
+
+* update order payment notifications ([54d13d7](https://github.com/DenisVorop/artmate-monorepo/commit/54d13d7000368a6f2ecc255274cbd3de55575ef4))
+
+
+### Bug Fixes
+
+* scroll checkout to top between steps ([d07b5f2](https://github.com/DenisVorop/artmate-monorepo/commit/d07b5f2361adcf88363951f22b978bd9d20ae558))
+
 ## [0.21.1](https://github.com/DenisVorop/artmate-monorepo/compare/v0.21.0...v0.21.1) (2026-05-29)
 
 
