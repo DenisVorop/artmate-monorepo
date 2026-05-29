@@ -1,13 +1,16 @@
 import {
   createServer,
   type IncomingMessage,
+  type IncomingHttpHeaders,
   type ServerResponse,
 } from "node:http";
 
 const defaultPort = 3005;
 const defaultOpenAiBaseUrl = "https://api.openai.com/v1";
+const defaultTelegramApiBaseUrl = "https://api.telegram.org";
 const maxBodySizeBytes = 2 * 1024 * 1024;
 const requestTimeoutMs = 180_000;
+const telegramApiRelayPath = "/telegram-api";
 
 const server = createServer((request, response) => {
   void handleRequest(request, response);
@@ -48,7 +51,9 @@ async function handleRequest(
     }
 
     const body = await readRequestBody(request);
-    const upstreamResponse = await forwardToOpenAi(pathname, body);
+    const upstreamResponse = isAllowedTelegramApiPath(pathname)
+      ? await forwardToTelegramApi(pathname, body, request.headers)
+      : await forwardToOpenAi(pathname, body);
     const upstreamBody = Buffer.from(await upstreamResponse.arrayBuffer());
 
     response.writeHead(
@@ -121,7 +126,17 @@ function getPathname(request: IncomingMessage) {
 }
 
 function isAllowedPath(pathname: string) {
+  return isAllowedOpenAiPath(pathname) || isAllowedTelegramApiPath(pathname);
+}
+
+function isAllowedOpenAiPath(pathname: string) {
   return pathname === "/responses" || pathname === "/v1/responses";
+}
+
+function isAllowedTelegramApiPath(pathname: string) {
+  return new RegExp(
+    `^${telegramApiRelayPath}/[A-Za-z][A-Za-z0-9_]*$`,
+  ).test(pathname);
 }
 
 function normalizeOpenAiPath(pathname: string) {
@@ -133,6 +148,48 @@ function getOpenAiBaseUrl() {
     /\/$/,
     "",
   );
+}
+
+async function forwardToTelegramApi(
+  pathname: string,
+  body: Buffer,
+  headers: IncomingHttpHeaders,
+) {
+  const controller = new AbortController();
+  const timeout = setTimeout(() => controller.abort(), requestTimeoutMs);
+  const botToken = getRequiredHeader(headers, "x-telegram-bot-token");
+
+  try {
+    return await fetch(
+      `${getTelegramApiBaseUrl()}/bot${botToken}${pathname.slice(telegramApiRelayPath.length)}`,
+      {
+        body: toArrayBuffer(body),
+        headers: {
+          "content-type": "application/json",
+        },
+        method: "POST",
+        signal: controller.signal,
+      },
+    );
+  } finally {
+    clearTimeout(timeout);
+  }
+}
+
+function getRequiredHeader(headers: IncomingHttpHeaders, name: string) {
+  const value = headers[name];
+
+  if (typeof value !== "string" || !value.trim()) {
+    throw new Error(`${name} header is not configured`);
+  }
+
+  return value.trim();
+}
+
+function getTelegramApiBaseUrl() {
+  return (
+    process.env.TELEGRAM_API_UPSTREAM_BASE_URL ?? defaultTelegramApiBaseUrl
+  ).replace(/\/$/, "");
 }
 
 function getOptionalOpenAiHeaders() {

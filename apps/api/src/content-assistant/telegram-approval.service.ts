@@ -1,5 +1,10 @@
 import { BadRequestException, Injectable } from "@nestjs/common";
 
+import {
+  getTelegramBotMethodUrl,
+  getTelegramRequestHeaders,
+} from "../telegram/telegram-api";
+
 import type {
   AiBlogDraftOutline,
   AiGeneratedBlogDraft,
@@ -123,12 +128,10 @@ export class TelegramApprovalService {
     }
 
     const response = await fetch(
-      `https://api.telegram.org/bot${token}/${method}`,
+      getTelegramBotMethodUrl(token, method),
       {
         body: JSON.stringify(body),
-        headers: {
-          "content-type": "application/json",
-        },
+        headers: getTelegramRequestHeaders(token),
         method: "POST",
         signal: AbortSignal.timeout(telegramRequestTimeoutMs),
       },

@@ -75,12 +75,13 @@ jobs:
           OPENAI_BASE_URL: ${{ secrets.EDGE_PROXY_OPENAI_BASE_URL || secrets.AI_RELAY_OPENAI_BASE_URL }}
           OPENAI_ORGANIZATION: ${{ secrets.OPENAI_ORGANIZATION }}
           OPENAI_PROJECT: ${{ secrets.OPENAI_PROJECT }}
+          TELEGRAM_API_UPSTREAM_BASE_URL: ${{ secrets.TELEGRAM_API_UPSTREAM_BASE_URL || vars.TELEGRAM_API_UPSTREAM_BASE_URL }}
         shell: bash
         run: |
           proxy_env="$(mktemp)"
           clean_env="$(mktemp)"
           printf '%s\n' "$EDGE_PROXY_ENV_FILE" > "$proxy_env"
-          grep -Ev '^(PORT|EDGE_PROXY_DOMAIN|EDGE_PROXY_TOKEN|AI_RELAY_DOMAIN|AI_RELAY_TOKEN|OPENAI_API_KEY|OPENAI_BASE_URL|OPENAI_ORGANIZATION|OPENAI_PROJECT)=' "$proxy_env" > "$clean_env" || true
+          grep -Ev '^(PORT|EDGE_PROXY_DOMAIN|EDGE_PROXY_TOKEN|AI_RELAY_DOMAIN|AI_RELAY_TOKEN|OPENAI_API_KEY|OPENAI_BASE_URL|OPENAI_ORGANIZATION|OPENAI_PROJECT|TELEGRAM_API_UPSTREAM_BASE_URL)=' "$proxy_env" > "$clean_env" || true
           mv "$clean_env" "$proxy_env"
 
           append_secret() {
@@ -99,6 +100,7 @@ jobs:
           append_secret OPENAI_BASE_URL "${OPENAI_BASE_URL:-https://api.openai.com/v1}"
           append_secret OPENAI_ORGANIZATION "$OPENAI_ORGANIZATION"
           append_secret OPENAI_PROJECT "$OPENAI_PROJECT"
+          append_secret TELEGRAM_API_UPSTREAM_BASE_URL "$TELEGRAM_API_UPSTREAM_BASE_URL"
 
           require_secret() {
             local name="$1"

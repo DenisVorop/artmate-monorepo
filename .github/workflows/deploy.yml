@@ -112,6 +112,8 @@ jobs:
           TELEGRAM_ORDERS_CHAT_ID: ${{ secrets.TELEGRAM_ORDERS_CHAT_ID }}
           TELEGRAM_WEBHOOK_SECRET: ${{ secrets.TELEGRAM_WEBHOOK_SECRET }}
           TELEGRAM_WEB_APP_URL: ${{ secrets.TELEGRAM_WEB_APP_URL || vars.TELEGRAM_WEB_APP_URL }}
+          TELEGRAM_API_BASE_URL: ${{ secrets.TELEGRAM_API_BASE_URL || vars.TELEGRAM_API_BASE_URL }}
+          TELEGRAM_API_RELAY_TOKEN: ${{ secrets.TELEGRAM_API_RELAY_TOKEN || secrets.OPENAI_RELAY_TOKEN || secrets.EDGE_PROXY_TOKEN || secrets.AI_RELAY_TOKEN }}
           AUTH_JWT_SECRET: ${{ secrets.AUTH_JWT_SECRET }}
           AUTH_PASSWORD_EMAIL: ${{ secrets.AUTH_PASSWORD_EMAIL || vars.AUTH_PASSWORD_EMAIL }}
           AUTH_PASSWORD_NAME: ${{ secrets.AUTH_PASSWORD_NAME || vars.AUTH_PASSWORD_NAME }}
@@ -195,6 +197,12 @@ jobs:
             OPENAI_BASE_URL="https://${AI_RELAY_DOMAIN}/v1"
           fi
 
+          if [ -z "$TELEGRAM_API_BASE_URL" ] && [ -n "$EDGE_PROXY_DOMAIN" ]; then
+            TELEGRAM_API_BASE_URL="https://${EDGE_PROXY_DOMAIN}/telegram-api"
+          elif [ -z "$TELEGRAM_API_BASE_URL" ] && [ -n "$AI_RELAY_DOMAIN" ]; then
+            TELEGRAM_API_BASE_URL="https://${AI_RELAY_DOMAIN}/telegram-api"
+          fi
+
           append_secret ACME_EMAIL "$ACME_EMAIL"
           append_secret POSTGRES_DB "$POSTGRES_DB"
           append_secret POSTGRES_USER "$POSTGRES_USER"
@@ -238,6 +246,8 @@ jobs:
           append_secret TELEGRAM_ORDERS_CHAT_ID "$TELEGRAM_ORDERS_CHAT_ID"
           append_secret TELEGRAM_WEBHOOK_SECRET "$TELEGRAM_WEBHOOK_SECRET"
           append_secret TELEGRAM_WEB_APP_URL "$TELEGRAM_WEB_APP_URL"
+          append_secret TELEGRAM_API_BASE_URL "$TELEGRAM_API_BASE_URL"
+          append_secret TELEGRAM_API_RELAY_TOKEN "$TELEGRAM_API_RELAY_TOKEN"
           append_secret AUTH_JWT_SECRET "$AUTH_JWT_SECRET"
           append_secret AUTH_PASSWORD_EMAIL "$AUTH_PASSWORD_EMAIL"
           append_secret AUTH_PASSWORD_NAME "$AUTH_PASSWORD_NAME"

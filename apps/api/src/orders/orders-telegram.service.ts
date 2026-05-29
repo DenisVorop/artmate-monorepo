@@ -4,6 +4,11 @@ import {
   InternalServerErrorException,
 } from "@nestjs/common";
 
+import {
+  getTelegramBotMethodUrl,
+  getTelegramRequestHeaders,
+} from "../telegram/telegram-api";
+
 import type { OrderDTO } from "./dto";
 import type { OrderStatus } from "./orders.constants";
 
@@ -109,11 +114,11 @@ export class OrdersTelegramService {
 
   private async requestTelegram(text: string) {
     try {
-      return await fetch(this.getTelegramSendMessageUrl(), {
+      const botToken = this.getTelegramBotToken();
+
+      return await fetch(getTelegramBotMethodUrl(botToken, "sendMessage"), {
         method: "POST",
-        headers: {
-          "content-type": "application/json",
-        },
+        headers: getTelegramRequestHeaders(botToken),
         body: JSON.stringify({
           chat_id: this.getTelegramOrdersChatId(),
           disable_web_page_preview: true,
@@ -136,11 +141,11 @@ export class OrdersTelegramService {
     action?: { buttonText: string; buttonUrl: string },
   ) {
     try {
-      return await fetch(this.getTelegramMiniAppSendMessageUrl(), {
+      const botToken = this.getTelegramMiniAppBotToken();
+
+      return await fetch(getTelegramBotMethodUrl(botToken, "sendMessage"), {
         method: "POST",
-        headers: {
-          "content-type": "application/json",
-        },
+        headers: getTelegramRequestHeaders(botToken),
         body: JSON.stringify({
           chat_id: chatId,
           disable_web_page_preview: true,
@@ -365,14 +370,6 @@ export class OrdersTelegramService {
     }
 
     return `${text.slice(0, maxTelegramMessageLength - 20)}\n\n...`;
-  }
-
-  private getTelegramSendMessageUrl() {
-    return `https://api.telegram.org/bot${this.getTelegramBotToken()}/sendMessage`;
-  }
-
-  private getTelegramMiniAppSendMessageUrl() {
-    return `https://api.telegram.org/bot${this.getTelegramMiniAppBotToken()}/sendMessage`;
   }
 
   private getTelegramBotToken() {

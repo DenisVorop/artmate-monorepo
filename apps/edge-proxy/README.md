@@ -6,6 +6,9 @@ It currently handles:
 
 - `POST /v1/responses`: forwards server-side OpenAI API calls using
   `OPENAI_API_KEY` stored on the proxy host.
+- `POST /telegram-api/<method>`: forwards Telegram Bot API calls from the main
+  VPS through the proxy region. The bot token is passed in
+  `x-telegram-bot-token`.
 - `/content-assistant/telegram/*`: proxies content assistant Telegram webhooks
   to `https://api.art-mate.ru`.
 - `/telegram/*`: proxies Mini App bot webhooks to `https://tg.art-mate.ru`.
@@ -25,6 +28,7 @@ EDGE_PROXY_DOMAIN=77-221-158-124.sslip.io
 EDGE_PROXY_TOKEN=change-me
 OPENAI_API_KEY=sk-...
 OPENAI_BASE_URL=https://api.openai.com/v1
+TELEGRAM_API_UPSTREAM_BASE_URL=https://api.telegram.org
 ```
 
 ## GitHub deploy
@@ -46,6 +50,7 @@ Optional secrets:
 - `EDGE_PROXY_OPENAI_BASE_URL` - defaults to `https://api.openai.com/v1`.
 - `OPENAI_ORGANIZATION`
 - `OPENAI_PROJECT`
+- `TELEGRAM_API_UPSTREAM_BASE_URL` - defaults to `https://api.telegram.org`.
 
 The deploy workflow still accepts the old `AI_RELAY_*` secret names as a
 fallback during migration.
@@ -82,4 +87,6 @@ Expose it through HTTPS on the Finnish VPS, then configure production API:
 ```bash
 OPENAI_BASE_URL=https://proxy.example.com/v1
 OPENAI_RELAY_TOKEN=<same-as-EDGE_PROXY_TOKEN>
+TELEGRAM_API_BASE_URL=https://proxy.example.com/telegram-api
+TELEGRAM_API_RELAY_TOKEN=<same-as-EDGE_PROXY_TOKEN>
 ```

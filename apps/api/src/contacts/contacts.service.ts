@@ -4,6 +4,11 @@ import {
   InternalServerErrorException,
 } from "@nestjs/common";
 
+import {
+  getTelegramBotMethodUrl,
+  getTelegramRequestHeaders,
+} from "../telegram/telegram-api";
+
 import type { CreateContactMessageRequestDTO } from "./dto";
 
 type TelegramSendMessageResponse = {
@@ -38,11 +43,11 @@ export class ContactsService {
 
   private async requestTelegram(text: string) {
     try {
-      return await fetch(this.getTelegramSendMessageUrl(), {
+      const botToken = this.getTelegramBotToken();
+
+      return await fetch(getTelegramBotMethodUrl(botToken, "sendMessage"), {
         method: "POST",
-        headers: {
-          "content-type": "application/json",
-        },
+        headers: getTelegramRequestHeaders(botToken),
         body: JSON.stringify({
           chat_id: this.getTelegramContactsChatId(),
           disable_web_page_preview: true,
@@ -89,10 +94,6 @@ export class ContactsService {
       .replaceAll("&", "&amp;")
       .replaceAll("<", "&lt;")
       .replaceAll(">", "&gt;");
-  }
-
-  private getTelegramSendMessageUrl() {
-    return `https://api.telegram.org/bot${this.getTelegramBotToken()}/sendMessage`;
   }
 
   private getTelegramBotToken() {

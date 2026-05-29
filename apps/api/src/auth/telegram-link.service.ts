@@ -11,6 +11,10 @@ import crypto from "node:crypto";
 
 import { Prisma } from "../generated/prisma/client";
 import { PrismaService } from "../prisma/prisma.service";
+import {
+  getTelegramBotMethodUrl,
+  getTelegramRequestHeaders,
+} from "../telegram/telegram-api";
 
 import type {
   AuthTelegramAccountDTO,
@@ -311,7 +315,7 @@ export class TelegramLinkService {
 
     try {
       const response = await fetch(
-        `https://api.telegram.org/bot${token}/sendMessage`,
+        getTelegramBotMethodUrl(token, "sendMessage"),
         {
           body: JSON.stringify({
             chat_id: chatId,
@@ -329,9 +333,7 @@ export class TelegramLinkService {
             },
             text,
           }),
-          headers: {
-            "content-type": "application/json",
-          },
+          headers: getTelegramRequestHeaders(token),
           method: "POST",
           signal: controller.signal,
         },
