@@ -42,6 +42,11 @@ export function Checkout() {
       setPendingOrderInput(undefined);
       setIsAuthDialogOpen(false);
 
+      if (order?.payment.redirectUrl) {
+        window.location.assign(order.payment.redirectUrl);
+        return;
+      }
+
       if (order?.id) {
         router.push(`${routes.checkoutSuccess}?orderId=${encodeURIComponent(order.id)}`);
       }
@@ -135,7 +140,7 @@ export function Checkout() {
           <PageTitle className="text-foreground">Оформление заказа</PageTitle>
           <p className="max-w-2xl text-muted-foreground">
             Проверьте товары, оставьте контакты и войдите в аккаунт, если еще не авторизованы. После
-            этого мы автоматически отправим заказ.
+            этого мы отправим вас на страницу оплаты.
           </p>
         </div>
 

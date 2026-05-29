@@ -97,4 +97,14 @@ export const seoPages = {
     description: "Подтверждение оплаты заказа Artmate.",
     noindex: true,
   },
+  checkoutFailure: {
+    title: "Оплата не прошла - Artmate",
+    description: "Страница неуспешной оплаты заказа Artmate.",
+    noindex: true,
+  },
+  checkoutPayment: {
+    title: "Переход к оплате - Artmate",
+    description: "Проверка статуса заказа перед переходом к оплате Artmate.",
+    noindex: true,
+  },
 } satisfies Record<SeoPageKey, SeoPageConfig>;

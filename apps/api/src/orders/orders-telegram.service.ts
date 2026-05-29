@@ -44,6 +44,24 @@ export class OrdersTelegramService {
     }
   }
 
+  async sendOrderPaid(order: OrderDTO) {
+    const response = await this.requestTelegram(
+      this.formatOrderPaidMessage(order),
+    );
+    const responseBody = (await this.parseTelegramResponseBody(
+      response,
+    )) as TelegramSendMessageResponse;
+
+    if (!response.ok || responseBody.ok === false) {
+      throw new BadGatewayException({
+        message: "Telegram order paid message request failed",
+        status: response.status,
+        errorCode: responseBody.error_code,
+        description: responseBody.description,
+      });
+    }
+  }
+
   async sendOrderStatusChangedToCustomer(input: {
     chatId: string;
     order: OrderDTO;
@@ -69,9 +87,11 @@ export class OrdersTelegramService {
   }
 
   async sendOrderCreatedToCustomer(input: { chatId: string; order: OrderDTO }) {
+    const action = this.getCustomerOrderAction(input.order);
     const response = await this.requestTelegramToCustomer(
       input.chatId,
       this.formatCustomerOrderCreatedMessage(input.order),
+      action,
     );
     const responseBody = (await this.parseTelegramResponseBody(
       response,
@@ -110,7 +130,11 @@ export class OrdersTelegramService {
     }
   }
 
-  private async requestTelegramToCustomer(chatId: string, text: string) {
+  private async requestTelegramToCustomer(
+    chatId: string,
+    text: string,
+    action?: { buttonText: string; buttonUrl: string },
+  ) {
     try {
       return await fetch(this.getTelegramMiniAppSendMessageUrl(), {
         method: "POST",
@@ -125,9 +149,9 @@ export class OrdersTelegramService {
             inline_keyboard: [
               [
                 {
-                  text: "Открыть Artmate",
+                  text: action?.buttonText ?? "Открыть Artmate",
                   web_app: {
-                    url: this.getTelegramWebAppUrl(),
+                    url: action?.buttonUrl ?? this.getTelegramWebAppUrl(),
                   },
                 },
               ],
@@ -204,6 +228,23 @@ export class OrdersTelegramService {
     return this.trimTelegramMessage(lines.join("\n"));
   }
 
+  private formatOrderPaidMessage(order: OrderDTO) {
+    const lines = [
+      "<b>Заказ оплачен</b>",
+      "",
+      `<b>Номер:</b> <code>${this.formatText(order.id)}</code>`,
+      `<b>Клиент:</b> ${this.formatText(order.customer.name)}`,
+      `<b>Телефон:</b> <code>${this.formatText(order.customer.phone)}</code>`,
+      `<b>Email:</b> <code>${this.formatText(order.customer.email)}</code>`,
+      `<b>Способ оплаты:</b> ${this.formatText(
+        this.getPaymentMethodLabel(order.payment.method),
+      )}`,
+      `<b>Итого:</b> ${this.formatMoney(order.total)}`,
+    ];
+
+    return this.trimTelegramMessage(lines.join("\n"));
+  }
+
   private formatCustomerOrderCreatedMessage(order: OrderDTO) {
     const lines = [
       "<b>Заказ принят</b>",
@@ -214,10 +255,44 @@ export class OrdersTelegramService {
       `<b>Итого:</b> ${this.formatMoney(order.total)}`,
       `<b>Статус:</b> ${this.formatText(customerOrderStatusLabels[order.status])}`,
       "",
-      "Спасибо! Мы получили ваш заказ. Менеджер проверит детали и отправит ссылку на оплату.",
+      ...this.getCustomerOrderCreatedHint(order),
     ];
 
     return this.trimTelegramMessage(lines.join("\n"));
+  }
+
+  private getCustomerOrderCreatedHint(order: OrderDTO) {
+    if (order.payment.method === "ozon_acquiring") {
+      const paymentUrl = this.createCustomerOrderPaymentUrl(order);
+
+      return [
+        "Заказ оформлен, ожидается оплата.",
+        `<a href="${this.formatUrl(paymentUrl)}">Перейти к оплате</a>`,
+      ];
+    }
+
+    return [
+      "Спасибо! Мы получили ваш заказ. Менеджер проверит детали и отправит ссылку на оплату.",
+    ];
+  }
+
+  private getCustomerOrderAction(order: OrderDTO) {
+    if (order.payment.method !== "ozon_acquiring") {
+      return undefined;
+    }
+
+    return {
+      buttonText: order.payment.status === "paid" ? "Открыть заказ" : "Оплатить заказ",
+      buttonUrl: this.createCustomerOrderPaymentUrl(order),
+    };
+  }
+
+  private createCustomerOrderPaymentUrl(order: OrderDTO) {
+    const url = new URL("/checkout/payment", `${this.getTelegramWebAppUrl()}/`);
+
+    url.searchParams.set("orderId", order.id);
+
+    return url.toString();
   }
 
   private getStatusHint(status: OrderStatus) {
@@ -240,6 +315,10 @@ export class OrdersTelegramService {
 
   private getDeliveryProviderLabel(provider: OrderDTO["delivery"]["provider"]) {
     return provider === "cdek" ? "СДЭК" : "Ozon";
+  }
+
+  private getPaymentMethodLabel(method: OrderDTO["payment"]["method"]) {
+    return method === "ozon_acquiring" ? "Ozon Acquiring" : "Банковская карта";
   }
 
   private formatDate(value: string) {
@@ -266,9 +345,14 @@ export class OrdersTelegramService {
     return this.escapeHtml(value.trim());
   }
 
+  private formatUrl(value: string) {
+    return this.escapeHtml(value.trim());
+  }
+
   private escapeHtml(value: string) {
     return value
       .replaceAll("&", "&amp;")
+      .replaceAll('"', "&quot;")
       .replaceAll("<", "&lt;")
       .replaceAll(">", "&gt;");
   }

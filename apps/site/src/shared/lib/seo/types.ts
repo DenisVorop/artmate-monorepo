@@ -25,6 +25,8 @@ export type SeoPageKey =
   | "cart"
   | "catalog"
   | "checkout"
+  | "checkoutFailure"
+  | "checkoutPayment"
   | "checkoutSuccess"
   | "contacts"
   | "faq"

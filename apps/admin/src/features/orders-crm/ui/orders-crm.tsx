@@ -62,7 +62,9 @@ export function OrdersCrm() {
       <Card>
         <CardHeader>
           <CardTitle>Не удалось загрузить заявки</CardTitle>
-          <CardDescription>Перезагрузите страницу и повторите действие.</CardDescription>
+          <CardDescription>
+            Перезагрузите страницу и повторите действие.
+          </CardDescription>
         </CardHeader>
       </Card>
     );
@@ -117,8 +119,14 @@ export function OrdersCrm() {
 function CrmSummary({ orders }: { readonly orders: readonly AdminOrder[] }) {
   return (
     <div className="grid gap-3 sm:grid-cols-2 xl:grid-cols-4">
-      <SummaryItem label="Заявок" value={orders.length.toLocaleString("ru-RU")} />
-      <SummaryItem label="В работе" value={getColumnCount(orders, "in_progress")} />
+      <SummaryItem
+        label="Заявок"
+        value={orders.length.toLocaleString("ru-RU")}
+      />
+      <SummaryItem
+        label="В работе"
+        value={getColumnCount(orders, "in_progress")}
+      />
       <SummaryItem label="Завершены" value={getCompletedOrdersCount(orders)} />
       <SummaryItem label="Сумма" value={formatMoney(getOrdersTotal(orders))} />
     </div>
@@ -366,7 +374,8 @@ function OrderCard({
                 >
                   <div className="flex items-center justify-between gap-2 text-muted-foreground">
                     <span className="truncate">
-                      {event.authorName ?? getHistoryAuthorLabel(event.eventType)}
+                      {event.authorName ??
+                        getHistoryAuthorLabel(event.eventType)}
                     </span>
                     <span className="shrink-0">
                       {formatDateTime(event.createdAt)}
@@ -426,6 +435,7 @@ function Metric({
 
 function PaymentBadge({ order }: { readonly order: AdminOrder }) {
   const isPaid = order.payment.status === "paid";
+  const isFailed = order.payment.status === "failed";
 
   return (
     <Badge
@@ -433,12 +443,14 @@ function PaymentBadge({ order }: { readonly order: AdminOrder }) {
         "rounded-lg",
         isPaid
           ? "border-emerald-200 bg-emerald-50 text-emerald-700"
-          : "border-amber-200 bg-amber-50 text-amber-700",
+          : isFailed
+            ? "border-rose-200 bg-rose-50 text-rose-700"
+            : "border-amber-200 bg-amber-50 text-amber-700",
       )}
       variant="outline"
     >
       <PackageCheck data-icon="inline-start" aria-hidden="true" />
-      {isPaid ? "Оплачен" : "Оплата"}
+      {isPaid ? "Оплачен" : isFailed ? "Не оплачено" : "Оплата"}
     </Badge>
   );
 }
@@ -481,7 +493,9 @@ function MoveControls({
         </div>
         <Button
           aria-label={
-            nextColumn ? `Переместить в ${nextColumn.title}` : "Следующей колонки нет"
+            nextColumn
+              ? `Переместить в ${nextColumn.title}`
+              : "Следующей колонки нет"
           }
           disabled={disabled || !nextColumn}
           onClick={() => nextColumn && onMove(nextColumn.status)}
@@ -520,10 +534,7 @@ function handleDragStart(
   onDragStart(order.id);
 }
 
-function getColumnCount(
-  orders: readonly AdminOrder[],
-  status: OrderStatus,
-) {
+function getColumnCount(orders: readonly AdminOrder[], status: OrderStatus) {
   return getOrdersByStatus(orders, status).length;
 }
 

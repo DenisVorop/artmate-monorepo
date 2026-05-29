@@ -22,7 +22,7 @@ import type {
   OrderDeliveryDTO,
   OrderPaymentDTO,
 } from "./dto";
-import type { OrderStatus } from "./orders.constants";
+import type { OrderStatus, PaymentMethod } from "./orders.constants";
 
 const CHECKOUT_SUCCESS_PATH = "/checkout/success";
 
@@ -73,8 +73,43 @@ type CreateStoredOrderInput = {
   delivery: OrderDeliveryDTO;
   items: CartItemDTO[];
   itemsCount: number;
+  paymentMethod: PaymentMethod;
   subtotal: number;
   comment?: string;
+};
+
+type AttachOzonAcquiringPaymentInput = {
+  acquiringOrderId?: string;
+  isTestMode?: boolean;
+  paymentId?: string;
+  redirectUrl: string;
+};
+
+type MarkOzonAcquiringPaymentFailedInput = {
+  errorCode?: string;
+  errorMessage: string;
+};
+
+type ApplyOzonAcquiringNotificationInput = {
+  acquiringOrderId?: string;
+  amount?: string;
+  currencyCode?: string;
+  errorCode?: string;
+  errorMessage?: string;
+  extOrderId?: string;
+  extTransactionId?: string;
+  paymentMethod?: string;
+  raw: Record<string, unknown>;
+  status?: string;
+  transactionId?: string;
+  transactionUid?: string;
+};
+
+type ApplyOzonAcquiringNotificationResult = {
+  order: OrderDTO;
+  paymentStatusChangedToPaid: boolean;
+  previousStatus: OrderStatus;
+  userId?: string;
 };
 
 type StoredOrder = Prisma.OrderGetPayload<{
@@ -125,7 +160,7 @@ export class OrdersStorage {
             pickupPointAddress: input.delivery.pickupPoint.address,
             pickupPointWorkHours: input.delivery.pickupPoint.workHours,
             deliveryPrice,
-            paymentMethod: PrismaOrderPaymentMethod.BANK_CARD_MOCK,
+            paymentMethod: this.toPrismaPaymentMethod(input.paymentMethod),
             paymentStatus: PrismaOrderPaymentStatus.PENDING,
             paymentRedirectUrl: `${CHECKOUT_SUCCESS_PATH}?orderId=${encodeURIComponent(id)}`,
             itemsCount: input.itemsCount,
@@ -293,6 +328,179 @@ export class OrdersStorage {
     });
 
     return account?.telegramChatId;
+  }
+
+  async attachOzonAcquiringPayment(
+    orderId: string,
+    input: AttachOzonAcquiringPaymentInput,
+  ): Promise<OrderDTO> {
+    const order = await this.prisma.order.update({
+      where: { id: orderId },
+      data: {
+        ozonAcquiringOrderId: input.acquiringOrderId,
+        ozonAcquiringPaymentId: input.paymentId,
+        paymentErrorCode: null,
+        paymentErrorMessage: null,
+        paymentMethod: PrismaOrderPaymentMethod.OZON_ACQUIRING,
+        paymentRedirectUrl: input.redirectUrl,
+        paymentStatus: PrismaOrderPaymentStatus.PENDING,
+        history: {
+          create: {
+            eventType: "payment_created",
+            payload: this.toPrismaJson({
+              acquiringOrderId: input.acquiringOrderId,
+              isTestMode: input.isTestMode,
+              paymentId: input.paymentId,
+              provider: "ozon_acquiring",
+            }),
+          },
+        },
+      },
+      include: orderInclude,
+    });
+
+    return this.mapOrder(order);
+  }
+
+  async markOzonAcquiringPaymentFailed(
+    orderId: string,
+    input: MarkOzonAcquiringPaymentFailedInput,
+  ): Promise<OrderDTO> {
+    const order = await this.prisma.order.update({
+      where: { id: orderId },
+      data: {
+        paymentErrorCode: input.errorCode,
+        paymentErrorMessage: input.errorMessage,
+        paymentStatus: PrismaOrderPaymentStatus.FAILED,
+        history: {
+          create: {
+            eventType: "payment_failed",
+            payload: this.toPrismaJson({
+              errorCode: input.errorCode,
+              errorMessage: input.errorMessage,
+              provider: "ozon_acquiring",
+            }),
+          },
+        },
+      },
+      include: orderInclude,
+    });
+
+    return this.mapOrder(order);
+  }
+
+  async applyOzonAcquiringNotification(
+    input: ApplyOzonAcquiringNotificationInput,
+  ): Promise<ApplyOzonAcquiringNotificationResult | undefined> {
+    if (
+      !input.extOrderId &&
+      !input.extTransactionId &&
+      !input.acquiringOrderId
+    ) {
+      return undefined;
+    }
+
+    const order = await this.prisma.order.findFirst({
+      where: {
+        OR: [
+          ...(input.extOrderId ? [{ id: input.extOrderId }] : []),
+          ...(input.extTransactionId ? [{ id: input.extTransactionId }] : []),
+          ...(input.acquiringOrderId
+            ? [{ ozonAcquiringOrderId: input.acquiringOrderId }]
+            : []),
+        ],
+      },
+      include: orderInclude,
+    });
+
+    if (!order) {
+      return undefined;
+    }
+
+    const previousStatus = this.mapOrderCrmStatus(order.crmStatus);
+    const isPaymentCompleted = input.status === "Completed";
+    const isPaymentRejected = input.status === "Rejected";
+    const shouldMarkPaid =
+      isPaymentCompleted &&
+      order.paymentStatus !== PrismaOrderPaymentStatus.PAID;
+    const shouldMarkFailed =
+      isPaymentRejected &&
+      order.paymentStatus === PrismaOrderPaymentStatus.PENDING;
+
+    const updatedOrder = await this.prisma.$transaction(async (tx) => {
+      const nextOrder = await tx.order.update({
+        where: { id: order.id },
+        data: {
+          lastPaymentNotification: this.toPrismaJson(input.raw),
+          ozonAcquiringOrderId:
+            input.acquiringOrderId ?? order.ozonAcquiringOrderId,
+          ozonAcquiringTransactionId:
+            input.transactionId ?? order.ozonAcquiringTransactionId,
+          ozonAcquiringTransactionUid:
+            input.transactionUid ?? order.ozonAcquiringTransactionUid,
+          paymentErrorCode: isPaymentRejected
+            ? input.errorCode
+            : order.paymentErrorCode,
+          paymentErrorMessage: isPaymentRejected
+            ? input.errorMessage
+            : order.paymentErrorMessage,
+          ...(shouldMarkPaid
+            ? {
+                crmStatus: PrismaOrderCrmStatus.PAID,
+                paidAt: order.paidAt ?? new Date(),
+                paymentErrorCode: null,
+                paymentErrorMessage: null,
+                paymentStatus: PrismaOrderPaymentStatus.PAID,
+                status: PrismaOrderStatus.PAID,
+              }
+            : {}),
+          ...(shouldMarkFailed
+            ? {
+                paymentStatus: PrismaOrderPaymentStatus.FAILED,
+              }
+            : {}),
+        },
+        include: orderInclude,
+      });
+
+      if (shouldMarkPaid && order.crmStatus !== PrismaOrderCrmStatus.PAID) {
+        await tx.orderHistory.create({
+          data: {
+            orderId: order.id,
+            eventType: "status_changed",
+            payload: this.toPrismaJson({
+              fromStatus: this.mapOrderCrmStatus(order.crmStatus),
+              source: "ozon_acquiring_notification",
+              toStatus: "paid",
+            }),
+          },
+        });
+      }
+
+      if (shouldMarkFailed) {
+        await tx.orderHistory.create({
+          data: {
+            orderId: order.id,
+            eventType: "payment_failed",
+            payload: this.toPrismaJson({
+              errorCode: input.errorCode,
+              errorMessage: input.errorMessage,
+              provider: "ozon_acquiring",
+              status: input.status,
+            }),
+          },
+        });
+      }
+
+      return nextOrder;
+    });
+
+    return {
+      order: this.mapOrder(updatedOrder),
+      paymentStatusChangedToPaid: shouldMarkPaid,
+      previousStatus,
+      userId: order.userId ?? undefined,
+    };
   }
 
   async createAdminOrderComment(
@@ -528,13 +736,22 @@ export class OrdersStorage {
     switch (method) {
       case PrismaOrderPaymentMethod.BANK_CARD_MOCK:
         return "bank_card_mock";
+      case PrismaOrderPaymentMethod.OZON_ACQUIRING:
+        return "ozon_acquiring";
     }
   }
 
   private mapPaymentStatus(
     status: PrismaOrderPaymentStatus,
   ): OrderPaymentDTO["status"] {
-    return status === PrismaOrderPaymentStatus.PAID ? "paid" : "pending";
+    switch (status) {
+      case PrismaOrderPaymentStatus.FAILED:
+        return "failed";
+      case PrismaOrderPaymentStatus.PAID:
+        return "paid";
+      case PrismaOrderPaymentStatus.PENDING:
+        return "pending";
+    }
   }
 
   private mapDeliveryProvider(
@@ -556,6 +773,17 @@ export class OrdersStorage {
         return PrismaOrderDeliveryProvider.CDEK;
       case "ozon":
         return PrismaOrderDeliveryProvider.OZON;
+    }
+  }
+
+  private toPrismaPaymentMethod(
+    method: PaymentMethod,
+  ): PrismaOrderPaymentMethod {
+    switch (method) {
+      case "bank_card_mock":
+        return PrismaOrderPaymentMethod.BANK_CARD_MOCK;
+      case "ozon_acquiring":
+        return PrismaOrderPaymentMethod.OZON_ACQUIRING;
     }
   }
 

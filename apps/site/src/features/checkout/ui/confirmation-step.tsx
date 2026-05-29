@@ -44,7 +44,7 @@ export function CheckoutConfirmationStep() {
       <Card>
         <CardHeader>
           <CardTitle>Подтверждение</CardTitle>
-          <CardDescription>Проверьте контакты и условия перед созданием заказа.</CardDescription>
+          <CardDescription>Проверьте контакты и условия перед переходом к оплате.</CardDescription>
         </CardHeader>
         <CardContent className="space-y-5">
           <div className="grid gap-3 sm:grid-cols-2">
@@ -59,7 +59,9 @@ export function CheckoutConfirmationStep() {
           <Separator />
 
           <div className="rounded-lg border border-emerald-200 bg-emerald-50/60 p-3 text-sm">
-            <p className="font-medium">СДЭК, пункт выдачи</p>
+            <p className="font-medium">
+              {selectedDelivery?.provider === "cdek" ? "СДЭК" : "Ozon"}, пункт выдачи
+            </p>
             {pickupPoint ? (
               <div className="mt-1 space-y-0.5 text-muted-foreground">
                 <p>{pickupPoint.address}</p>
@@ -75,7 +77,7 @@ export function CheckoutConfirmationStep() {
 
           {requiresAuth ? (
             <p className="rounded-lg border bg-muted/30 px-3 py-2 text-sm text-muted-foreground">
-              После нажатия откроется вход по email, затем заказ отправится автоматически.
+              После нажатия откроется вход по email, затем мы отправим вас на оплату.
             </p>
           ) : null}
         </CardContent>

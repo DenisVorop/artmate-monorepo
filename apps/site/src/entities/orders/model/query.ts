@@ -1,9 +1,9 @@
 import { queryOptions } from "@tanstack/react-query";
 
-import { getMyOrders, getOrder } from "@/shared/actions/orders";
+import { getMyOrders, getOrder, getOrderStatus } from "@/shared/actions/orders";
 import { ApiResult } from "@/shared/lib/api-result";
 
-import type { Order } from "./types";
+import type { Order, OrderState } from "./types";
 
 export type OrdersResult = Order[];
 
@@ -24,5 +24,12 @@ export const ordersQuery = {
       queryFn: async () => ApiResult.fromDTO(await getOrder(orderId)).unwrap(),
       staleTime: 1000 * 30,
       retryOnMount: false,
+    }),
+  getOrderStatus: (orderId: string) =>
+    queryOptions({
+      queryKey: [baseKey, "status", orderId] as const,
+      queryFn: async () => ApiResult.fromDTO(await getOrderStatus(orderId)).unwrap() as OrderState,
+      staleTime: 0,
+      retryOnMount: true,
     }),
 };

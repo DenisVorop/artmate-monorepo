@@ -8,8 +8,8 @@ export type OrderStatusDTO =
   | "delivering"
   | "completed"
   | "cancelled";
-export type OrderPaymentMethodDTO = "bank_card_mock";
-export type OrderPaymentStatusDTO = "pending" | "paid";
+export type OrderPaymentMethodDTO = "bank_card_mock" | "ozon_acquiring";
+export type OrderPaymentStatusDTO = "pending" | "paid" | "failed";
 export type OrderDeliveryProviderDTO = "ozon" | "cdek";
 
 export type PickupPointDTO = {
@@ -80,6 +80,9 @@ export type CheckoutCalculationDTO = {
 export type CreateOrderInputDTO = {
   customer: OrderCustomerDTO;
   delivery: CreateOrderDeliveryInputDTO;
+  payment?: {
+    method: OrderPaymentMethodDTO;
+  };
   comment?: string;
   acceptedLegal: boolean;
 };

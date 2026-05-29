@@ -4,6 +4,8 @@ import {
   Controller,
   Get,
   Headers,
+  HttpCode,
+  HttpStatus,
   Param,
   Patch,
   Post,
@@ -179,6 +181,13 @@ export class OrdersController {
       request,
       authRequest.user,
     );
+  }
+
+  @Post("payments/ozon/notifications")
+  @HttpCode(HttpStatus.OK)
+  @ApiOperation({ summary: "Handle Ozon Acquiring payment notification" })
+  handleOzonPaymentNotification(@Body() notification: unknown) {
+    return this.ordersService.handleOzonPaymentNotification(notification);
   }
 
   @UseGuards(AuthGuard)

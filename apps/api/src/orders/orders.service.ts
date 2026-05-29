@@ -1,4 +1,9 @@
-import { BadRequestException, Injectable, Logger } from "@nestjs/common";
+import {
+  BadRequestException,
+  HttpException,
+  Injectable,
+  Logger,
+} from "@nestjs/common";
 
 import type { AuthUser } from "../auth/auth.types";
 import { CartService } from "../cart/cart.service";
@@ -14,6 +19,7 @@ import {
   renderSupportEmailFooterText,
 } from "../mailer/branded-email";
 import { MailerService } from "../mailer/mailer.service";
+import { OzonAcquiringService } from "../ozon/ozon-acquiring.service";
 import { OzonLogisticsService } from "../ozon/ozon-logistics.service";
 
 import { ORDER_COMMENT_MAX_LENGTH } from "./orders.constants";
@@ -46,6 +52,7 @@ export class OrdersService {
     private readonly cartService: CartService,
     private readonly deliveryService: DeliveryService,
     private readonly mailerService: MailerService,
+    private readonly ozonAcquiringService: OzonAcquiringService,
     private readonly ozonLogisticsService: OzonLogisticsService,
     private readonly ordersStorage: OrdersStorage,
     private readonly ordersTelegramService: OrdersTelegramService,
@@ -159,11 +166,16 @@ export class OrdersService {
       this.parseDeliverySelection(request.delivery),
       cartDTO.items,
     );
-    const paymentMethod = request.payment?.method ?? "bank_card_mock";
+    const paymentMethod = request.payment?.method ?? "ozon_acquiring";
     const comment = this.parseComment(request.comment);
 
-    if (paymentMethod !== "bank_card_mock") {
-      throw new BadRequestException("payment.method must be bank_card_mock");
+    if (
+      paymentMethod !== "bank_card_mock" &&
+      paymentMethod !== "ozon_acquiring"
+    ) {
+      throw new BadRequestException(
+        "payment.method must be bank_card_mock or ozon_acquiring",
+      );
     }
 
     if (request.acceptedLegal !== true) {
@@ -180,13 +192,52 @@ export class OrdersService {
       },
       items: cartDTO.items,
       itemsCount: cartDTO.itemsCount,
+      paymentMethod,
       subtotal: cartDTO.subtotal,
       comment,
     });
+
+    if (paymentMethod === "ozon_acquiring") {
+      return this.createOzonPaymentForOrder(order, user.id);
+    }
+
     await this.cartService.clearCart(order.cartId);
     this.queueOrderCreatedNotifications(order, user.id);
 
     return order;
+  }
+
+  async handleOzonPaymentNotification(body: unknown) {
+    const notification = this.parseOzonNotificationBody(body);
+
+    this.ozonAcquiringService.assertValidNotification(notification);
+
+    const parsedNotification =
+      this.ozonAcquiringService.parseNotification(notification);
+    const result = await this.ordersStorage.applyOzonAcquiringNotification({
+      ...parsedNotification,
+      raw: notification,
+    });
+
+    if (!result) {
+      this.logger.warn(
+        `Ozon Acquiring notification ignored: order not found for extOrderId=${
+          parsedNotification.extOrderId ?? "unknown"
+        }, extTransactionId=${
+          parsedNotification.extTransactionId ?? "unknown"
+        }, acquiringOrderId=${parsedNotification.acquiringOrderId ?? "unknown"}`,
+      );
+    }
+
+    if (result?.paymentStatusChangedToPaid) {
+      this.queueOrderPaidNotifications(
+        result.order,
+        result.userId,
+        result.previousStatus,
+      );
+    }
+
+    return { ok: true };
   }
 
   async confirmPayment(orderId: string, user: AuthUser): Promise<OrderDTO> {
@@ -197,6 +248,126 @@ export class OrdersService {
     await this.cartService.clearCart(order.cartId);
 
     return order;
+  }
+
+  private async createOzonPaymentForOrder(
+    order: OrderDTO,
+    userId: string,
+  ): Promise<OrderDTO> {
+    try {
+      const payment = await this.ozonAcquiringService.createCheckoutPayment({
+        amount: order.total,
+        customer: order.customer,
+        deliveryPrice: order.deliveryPrice,
+        deliveryProvider: order.delivery.provider,
+        failUrl: this.createSiteUrl("/checkout/failure", order.id),
+        items: order.items,
+        notificationUrl: this.createApiUrl(
+          "/orders/payments/ozon/notifications",
+        ),
+        orderId: order.id,
+        successUrl: this.createSiteUrl("/checkout/success", order.id),
+      });
+      const orderWithPayment =
+        await this.ordersStorage.attachOzonAcquiringPayment(order.id, {
+          acquiringOrderId: payment.acquiringOrderId,
+          isTestMode: payment.isTestMode,
+          paymentId: payment.paymentId,
+          redirectUrl: payment.redirectUrl,
+        });
+
+      await this.cartService.clearCart(order.cartId);
+      this.queueOrderCreatedNotifications(orderWithPayment, userId);
+
+      return orderWithPayment;
+    } catch (error) {
+      await this.ordersStorage
+        .markOzonAcquiringPaymentFailed(order.id, {
+          errorMessage: this.getErrorMessage(error),
+        })
+        .catch((storageError) => {
+          this.logger.warn(
+            `Failed to mark Ozon Acquiring payment as failed for order ${order.id}: ${
+              storageError instanceof Error
+                ? storageError.message
+                : String(storageError)
+            }`,
+          );
+        });
+
+      throw error;
+    }
+  }
+
+  private parseOzonNotificationBody(value: unknown): Record<string, unknown> {
+    if (!value || typeof value !== "object" || Array.isArray(value)) {
+      throw new BadRequestException(
+        "Ozon Acquiring notification body is invalid",
+      );
+    }
+
+    return value as Record<string, unknown>;
+  }
+
+  private createSiteUrl(path: string, orderId: string) {
+    const url = new URL(path, `${this.getSiteUrl()}/`);
+
+    url.searchParams.set("orderId", orderId);
+
+    return url.toString();
+  }
+
+  private createApiUrl(path: string) {
+    return new URL(path, `${this.getApiPublicUrl()}/`).toString();
+  }
+
+  private getSiteUrl() {
+    return (process.env.SITE_URL ?? "http://localhost:3000").replace(
+      /\/+$/,
+      "",
+    );
+  }
+
+  private getApiPublicUrl() {
+    return (process.env.API_PUBLIC_URL ?? "http://localhost:3002").replace(
+      /\/+$/,
+      "",
+    );
+  }
+
+  private getErrorMessage(error: unknown) {
+    if (error instanceof HttpException) {
+      return this.getHttpExceptionMessage(error.getResponse()) ?? error.message;
+    }
+
+    return error instanceof Error ? error.message : String(error);
+  }
+
+  private getHttpExceptionMessage(response: string | object) {
+    if (typeof response === "string" && response.trim()) {
+      return response.trim();
+    }
+
+    if (!response || typeof response !== "object") {
+      return undefined;
+    }
+
+    const message = (response as Record<string, unknown>).message;
+
+    if (typeof message === "string" && message.trim()) {
+      return message.trim();
+    }
+
+    if (Array.isArray(message)) {
+      const messages = message.filter(
+        (item): item is string =>
+          typeof item === "string" && item.trim().length > 0,
+      );
+
+      return messages.length > 0 ? messages.join(", ") : undefined;
+    }
+
+    return undefined;
   }
 
   private parseCustomer(value: unknown) {
@@ -327,7 +498,7 @@ export class OrdersService {
   }
 
   private async notifyCustomerAboutStatusChange(result: {
-    order: AdminOrderDTO;
+    order: OrderDTO;
     previousStatus: OrderStatus;
     nextStatus: OrderStatus;
     userId?: string;
@@ -370,6 +541,52 @@ export class OrdersService {
         }`,
       );
     }
+  }
+
+  private async notifyAdminAboutOrderPaid(order: OrderDTO) {
+    try {
+      await this.ordersTelegramService.sendOrderPaid(order);
+    } catch (error) {
+      this.logger.warn(
+        `Failed to send Telegram paid notification for order ${order.id}: ${
+          error instanceof Error ? error.message : String(error)
+        }`,
+      );
+    }
+  }
+
+  private queueOrderPaidNotifications(
+    order: OrderDTO,
+    userId: string | undefined,
+    previousStatus: OrderStatus,
+  ) {
+    setImmediate(() => {
+      void this.notifyOrderPaid(order, userId, previousStatus).catch(
+        (error) => {
+          this.logger.warn(
+            `Failed to process queued paid notifications for order ${order.id}: ${
+              error instanceof Error ? error.message : String(error)
+            }`,
+          );
+        },
+      );
+    });
+  }
+
+  private async notifyOrderPaid(
+    order: OrderDTO,
+    userId: string | undefined,
+    previousStatus: OrderStatus,
+  ) {
+    await Promise.all([
+      this.notifyAdminAboutOrderPaid(order),
+      this.notifyCustomerAboutStatusChange({
+        order,
+        previousStatus,
+        nextStatus: "paid",
+        userId,
+      }),
+    ]);
   }
 
   private queueOrderCreatedNotifications(order: OrderDTO, userId: string) {

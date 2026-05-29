@@ -10,6 +10,8 @@ export const routes = {
   blog: "/blog",
   blogPost: (id: string) => `/blog/${id}`,
   checkout: "/checkout",
+  checkoutFailure: "/checkout/failure",
+  checkoutPayment: "/checkout/payment",
   checkoutSuccess: "/checkout/success",
   paymentAndDelivery: "/payment-and-delivery",
   contacts: "/contacts",

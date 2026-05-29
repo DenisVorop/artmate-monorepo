@@ -1,6 +1,6 @@
 "use client";
 
-import { CheckCircle2, ShoppingBag } from "lucide-react";
+import { AlertCircle, CheckCircle2, Clock3, ShoppingBag, type LucideIcon } from "lucide-react";
 
 import { routes } from "@/shared/constants";
 import {
@@ -19,21 +19,71 @@ import { formatMoney, type CheckoutOrder } from "../lib";
 import { InfoBlock } from "./info-block";
 
 type CheckoutSuccessDetailsProps = {
+  isCheckingPayment?: boolean;
   order: CheckoutOrder;
+  paymentStatus: CheckoutOrder["payment"]["status"];
 };
 
-export function CheckoutSuccessDetails({ order }: CheckoutSuccessDetailsProps) {
+const paymentStatusMeta = {
+  failed: {
+    Icon: AlertCircle,
+    iconClassName: "bg-rose-50 text-rose-600 ring-rose-200",
+    title: "Оплата не прошла",
+    description:
+      "Заказ создан, но Ozon сообщил об ошибке оплаты. Попробуйте оформить заказ заново или свяжитесь с нами.",
+    statusTitle: "Оплата не прошла",
+    statusDescription: "Если деньги списались, напишите нам - проверим платеж вручную.",
+  },
+  paid: {
+    Icon: CheckCircle2,
+    iconClassName: "bg-emerald-50 text-emerald-600 ring-emerald-200",
+    title: "Оплата получена",
+    description: "Заказ оплачен. Мы подготовим его к передаче в доставку.",
+    statusTitle: "Заказ оплачен",
+    statusDescription: "Статус доставки появится после обработки заказа.",
+  },
+  pending: {
+    Icon: Clock3,
+    iconClassName: "bg-amber-50 text-amber-600 ring-amber-200",
+    title: "Проверяем оплату",
+    description:
+      "Заказ создан. Если вы уже оплатили его в Ozon, статус обновится после уведомления платежной системы.",
+    statusTitle: "Ожидаем подтверждение оплаты",
+    statusDescription: "Страница обновляет статус автоматически.",
+  },
+} satisfies Record<
+  CheckoutOrder["payment"]["status"],
+  {
+    Icon: LucideIcon;
+    description: string;
+    iconClassName: string;
+    statusDescription: string;
+    statusTitle: string;
+    title: string;
+  }
+>;
+
+export function CheckoutSuccessDetails({
+  isCheckingPayment = false,
+  order,
+  paymentStatus,
+}: CheckoutSuccessDetailsProps) {
+  const status = paymentStatusMeta[paymentStatus];
+  const StatusIcon = status.Icon;
+
   return (
     <section className="container py-10 md:py-14">
       <Card className="mx-auto max-w-3xl">
         <CardHeader className="items-start gap-4 border-b">
-          <span className="flex size-12 items-center justify-center rounded-lg bg-emerald-50 text-emerald-600 ring-1 ring-emerald-200">
-            <CheckCircle2 className="size-6" />
+          <span
+            className={`flex size-12 items-center justify-center rounded-lg ring-1 ${status.iconClassName}`}
+          >
+            <StatusIcon className="size-6" />
           </span>
           <div className="space-y-2">
-            <CardTitle className="text-2xl">Заказ принят</CardTitle>
+            <CardTitle className="text-2xl">{status.title}</CardTitle>
             <CardDescription>
-              Заказ {order.id} принят. Мы свяжемся с вами для подтверждения деталей.
+              Заказ {order.id}. {status.description}
             </CardDescription>
           </div>
         </CardHeader>
@@ -47,8 +97,8 @@ export function CheckoutSuccessDetails({ order }: CheckoutSuccessDetailsProps) {
             </InfoBlock>
 
             <InfoBlock title="Статус">
-              <p>Заказ ожидает оплаты</p>
-              <p>Менеджер отправит ссылку на оплату после проверки заказа.</p>
+              <p>{status.statusTitle}</p>
+              <p>{isCheckingPayment ? "Проверяем статус оплаты..." : status.statusDescription}</p>
             </InfoBlock>
 
             <InfoBlock title="Доставка">

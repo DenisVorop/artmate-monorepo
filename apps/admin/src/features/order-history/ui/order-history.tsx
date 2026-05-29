@@ -11,11 +11,7 @@ import {
   Truck,
 } from "lucide-react";
 
-import {
-  useOrder,
-  type AdminOrder,
-  type OrderStatus,
-} from "@/entities/orders";
+import { useOrder, type AdminOrder, type OrderStatus } from "@/entities/orders";
 import {
   Badge,
   Card,
@@ -46,7 +42,9 @@ export function OrderHistory({ orderId }: OrderHistoryProps) {
       <Card>
         <CardHeader>
           <CardTitle>Не удалось загрузить заказ</CardTitle>
-          <CardDescription>Перезагрузите страницу и повторите действие.</CardDescription>
+          <CardDescription>
+            Перезагрузите страницу и повторите действие.
+          </CardDescription>
         </CardHeader>
       </Card>
     );
@@ -57,7 +55,9 @@ export function OrderHistory({ orderId }: OrderHistoryProps) {
       <Card>
         <CardHeader>
           <CardTitle>Загрузка заказа</CardTitle>
-          <CardDescription>Получаем историю, комментарии и состав заказа.</CardDescription>
+          <CardDescription>
+            Получаем историю, комментарии и состав заказа.
+          </CardDescription>
         </CardHeader>
       </Card>
     );
@@ -88,10 +88,12 @@ function OrderSummary({ order }: { readonly order: AdminOrder }) {
       <div className="flex flex-col gap-3 sm:flex-row sm:items-start sm:justify-between">
         <div className="min-w-0">
           <div className="flex flex-wrap items-center gap-2">
-            <Badge variant="secondary">{adminOrderStatusLabels[order.status]}</Badge>
+            <Badge variant="secondary">
+              {adminOrderStatusLabels[order.status]}
+            </Badge>
             <Badge variant="outline">
               <CreditCard data-icon="inline-start" aria-hidden="true" />
-              {order.payment.status === "paid" ? "Оплачен" : "Ожидает оплаты"}
+              {getPaymentStatusLabel(order.payment.status)}
             </Badge>
           </div>
           <h2 className="mt-3 text-2xl font-semibold tracking-normal">
@@ -119,6 +121,17 @@ function OrderSummary({ order }: { readonly order: AdminOrder }) {
       ) : null}
     </section>
   );
+}
+
+function getPaymentStatusLabel(status: AdminOrder["payment"]["status"]) {
+  switch (status) {
+    case "failed":
+      return "Оплата не прошла";
+    case "paid":
+      return "Оплачен";
+    case "pending":
+      return "Ожидает оплаты";
+  }
 }
 
 function HistoryTimeline({
@@ -154,7 +167,9 @@ function HistoryTimeline({
                 </div>
                 <div className="shrink-0 text-sm text-muted-foreground sm:text-right">
                   <p>{formatDateTime(event.createdAt)}</p>
-                  <p>{event.authorName ?? getHistoryAuthorLabel(event.eventType)}</p>
+                  <p>
+                    {event.authorName ?? getHistoryAuthorLabel(event.eventType)}
+                  </p>
                 </div>
               </div>
 
@@ -249,7 +264,9 @@ function CommentsPanel({
                 <span className="truncate">
                   {comment.authorName ?? "Администратор"}
                 </span>
-                <span className="shrink-0">{formatDateTime(comment.createdAt)}</span>
+                <span className="shrink-0">
+                  {formatDateTime(comment.createdAt)}
+                </span>
               </div>
               <p className="mt-2 whitespace-pre-wrap">{comment.body}</p>
             </div>

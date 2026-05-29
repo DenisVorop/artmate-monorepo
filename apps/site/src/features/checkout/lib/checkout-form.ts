@@ -102,6 +102,9 @@ export function toCreateOrderInput(
       email: values.email.trim(),
     },
     delivery,
+    payment: {
+      method: "ozon_acquiring",
+    },
     comment: comment || undefined,
     acceptedLegal: values.acceptedLegal,
   };
@@ -125,5 +128,5 @@ export function getCheckoutSubmitLabel({
     return "Считаем доставку";
   }
 
-  return requiresAuth ? "Войти и оформить" : "Оформить заказ";
+  return requiresAuth ? "Войти и оплатить" : "Перейти к оплате";
 }

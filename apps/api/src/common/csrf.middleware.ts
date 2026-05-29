@@ -30,7 +30,9 @@ export class CsrfMiddleware implements NestMiddleware {
       return;
     }
 
-    if (this.getHeaderValue(request.headers[csrfHeaderName]) !== csrfHeaderValue) {
+    if (
+      this.getHeaderValue(request.headers[csrfHeaderName]) !== csrfHeaderValue
+    ) {
       throw new ForbiddenException("CSRF token is missing or invalid");
     }
 
@@ -47,8 +49,10 @@ export class CsrfMiddleware implements NestMiddleware {
       request.url,
     ].filter((path): path is string => Boolean(path));
 
-    return paths.some((path) =>
-      path.startsWith("/content-assistant/telegram/webhook/"),
+    return paths.some(
+      (path) =>
+        path.startsWith("/content-assistant/telegram/webhook/") ||
+        path.startsWith("/orders/payments/ozon/notifications"),
     );
   }
 
