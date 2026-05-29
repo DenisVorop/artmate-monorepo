@@ -1,5 +1,12 @@
 # Changelog
 
+## [0.22.1](https://github.com/DenisVorop/artmate-monorepo/compare/v0.22.0...v0.22.1) (2026-05-29)
+
+
+### Bug Fixes
+
+* scroll checkout to top on back ([d5dd794](https://github.com/DenisVorop/artmate-monorepo/commit/d5dd794ef5d2237fbcf3782a532c68de113ed880))
+
 ## [0.22.0](https://github.com/DenisVorop/artmate-monorepo/compare/v0.21.1...v0.22.0) (2026-05-29)
 
 
