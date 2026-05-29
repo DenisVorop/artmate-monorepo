@@ -118,6 +118,7 @@ export function CheckoutProvider({
 
       return previousStep ?? currentStep;
     });
+    scrollViewportToTop();
   }, []);
 
   const goToStep = useCallback(
