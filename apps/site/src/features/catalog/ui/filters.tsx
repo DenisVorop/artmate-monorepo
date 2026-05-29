@@ -1,6 +1,7 @@
 "use client";
 
 import { Blocks, ChevronDown, Search, SlidersHorizontal, Sparkles, Tags, X } from "lucide-react";
+import { useDevelopmentBanner } from "@/entities/feature-banners";
 import {
   Button,
   DropdownMenu,
@@ -16,6 +17,7 @@ import { useCatalog } from "../lib/catalog-provider";
 import { sortOptions, type SortValue } from "../lib/catalog-state";
 
 export function Filters() {
+  const { hasDevelopmentBanner } = useDevelopmentBanner();
   const {
     categories,
     categoryId,
@@ -32,7 +34,14 @@ export function Filters() {
   const sortLabel = sortOptions.find((option) => option.value === sortBy)?.label ?? "Сортировка";
 
   return (
-    <div className="sticky top-[var(--site-header-height)] z-30 border-b bg-background/95 backdrop-blur supports-[backdrop-filter]:bg-background/80">
+    <div
+      className={cn(
+        "sticky z-30 border-b bg-background/95 backdrop-blur supports-[backdrop-filter]:bg-background/80",
+        hasDevelopmentBanner
+          ? "top-[calc(var(--site-header-banner-height)+var(--site-header-nav-height)+1px)]"
+          : "top-[var(--site-header-nav-height)]",
+      )}
+    >
       <div className="container grid grid-cols-[minmax(0,1fr)_auto] items-center gap-x-2 gap-y-2 py-2 sm:gap-x-3 sm:gap-y-3 sm:py-3 lg:flex lg:flex-row lg:items-center">
         <div className="relative min-w-0 lg:w-64">
           <Search className="pointer-events-none absolute top-1/2 left-2.5 size-4 -translate-y-1/2 text-muted-foreground" />

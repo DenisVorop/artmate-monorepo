@@ -1,10 +1,6 @@
 "use client";
 
-import {
-  featureBannerSlugs,
-  getFeatureBannersBySlug,
-  useFeatureBanners,
-} from "@/entities/feature-banners";
+import { useDevelopmentBanner } from "@/entities/feature-banners";
 import { SessionMenu } from "@/features/auth";
 import { cn } from "@/shared/lib/utils";
 
@@ -14,16 +10,14 @@ import { DevelopmentBanner } from "./ui/development-banner";
 import { Menu, MobileMenu } from "./ui/menu";
 
 export function Header() {
-  const { banners } = useFeatureBanners();
-  const bannersBySlug = getFeatureBannersBySlug(banners);
-  const hasDevelopmentBanner = Boolean(bannersBySlug[featureBannerSlugs.siteDevelopment]);
+  const { hasDevelopmentBanner } = useDevelopmentBanner();
 
   return (
     <header
       className={cn(
         "sticky top-0 z-11 border-b-[1px] border-stone-200 bg-white backdrop-blur-md",
         hasDevelopmentBanner
-          ? "h-[var(--site-header-height)]"
+          ? "h-[calc(var(--site-header-banner-height)+var(--site-header-nav-height)+1px)]"
           : "h-[var(--site-header-nav-height)]",
       )}
     >

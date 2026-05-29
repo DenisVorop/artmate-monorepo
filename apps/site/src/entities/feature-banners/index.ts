@@ -6,6 +6,7 @@ export {
 export {
   featureBannersQuery,
   featureBannersQueryKeys,
+  useDevelopmentBanner,
   useFeatureBanners,
 } from "./model";
 export type { FeatureBanner, FeatureBannersDataResult } from "./model";

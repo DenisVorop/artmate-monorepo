@@ -100,7 +100,6 @@
 :root {
   --site-header-banner-height: 128px;
   --site-header-nav-height: 56px;
-  --site-header-height: calc(var(--site-header-banner-height) + var(--site-header-nav-height) + 1px);
   --background: oklch(1 0 0);
   --foreground: oklch(0.145 0 0);
   --card: oklch(1 0 0);
