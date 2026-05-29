@@ -161,9 +161,9 @@ Settings -> Environments -> production -> Environment secrets
 
 | Secret | Where to get it |
 | --- | --- |
-| `PRODUCTION_HOST` | VPS IP address, for example `193.233.244.12`. |
-| `PRODUCTION_USER` | SSH user on the VPS, currently `codex`. |
-| `PRODUCTION_SSH_KEY` | Private deploy SSH key. Generate it locally, add the public key to `/home/codex/.ssh/authorized_keys` on the VPS, and paste the private key into this secret. |
+| `PRODUCTION_HOST` | VPS IP address, for example `186.246.8.79`. |
+| `PRODUCTION_USER` | SSH user on the VPS, currently `root`. |
+| `PRODUCTION_SSH_KEY` | Private deploy SSH key. Generate it locally, add the public key to `/root/.ssh/authorized_keys` on the VPS, and paste the private key into this secret. |
 | `PRODUCTION_ENV_FILE` | Full production `.env` content. Use `.env.example` as the base and replace placeholders with real values. |
 
 ### Optional GitHub Secrets
@@ -194,7 +194,7 @@ cat ~/.ssh/artmate-github-actions-deploy.pub
 Paste the output into:
 
 ```text
-/home/codex/.ssh/authorized_keys
+/root/.ssh/authorized_keys
 ```
 
 Add the private key to GitHub as `PRODUCTION_SSH_KEY`:

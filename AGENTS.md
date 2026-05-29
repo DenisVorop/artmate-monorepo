@@ -63,8 +63,8 @@ lsof -iTCP:<port> -sTCP:LISTEN -n -P
 
 Контекст production-сервера Artmate для будущих задач:
 
-- Host: `193.233.244.12`.
-- SSH user: `codex`.
+- Host: `186.246.8.79`.
+- SSH user: `root`.
 - SSH key: `/Users/denis.voropayev/.ssh/artmate-github-actions-deploy`.
 - Project directory: `/opt/artmate`.
 - Compose command:
@@ -76,7 +76,7 @@ docker compose --env-file .env --env-file .image.env -f docker-compose.prod.yml
 Подключение с локальной машины:
 
 ```bash
-ssh -i /Users/denis.voropayev/.ssh/artmate-github-actions-deploy -o IdentitiesOnly=yes codex@193.233.244.12
+ssh -i /Users/denis.voropayev/.ssh/artmate-github-actions-deploy -o IdentitiesOnly=yes root@186.246.8.79
 ```
 
 Для SSH-команд на VPS всегда запрашивай разрешение пользователя. Не записывай в `AGENTS.md` значения production-секретов, токены, пароли или содержимое `.env`.
