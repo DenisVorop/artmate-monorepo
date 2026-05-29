@@ -1,5 +1,12 @@
 # Changelog
 
+## [0.21.1](https://github.com/DenisVorop/artmate-monorepo/compare/v0.21.0...v0.21.1) (2026-05-29)
+
+
+### Bug Fixes
+
+* align catalog filters with development banner ([525e1c1](https://github.com/DenisVorop/artmate-monorepo/commit/525e1c1223fc2516b962b8bb2b2e8abcb5dac142))
+
 ## [0.21.0](https://github.com/DenisVorop/artmate-monorepo/compare/v0.20.0...v0.21.0) (2026-05-29)
 
 
