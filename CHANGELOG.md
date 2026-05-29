@@ -1,5 +1,12 @@
 # Changelog
 
+## [0.21.0](https://github.com/DenisVorop/artmate-monorepo/compare/v0.20.0...v0.21.0) (2026-05-29)
+
+
+### Features
+
+* route Telegram API through edge proxy ([cb8beab](https://github.com/DenisVorop/artmate-monorepo/commit/cb8beab98d15597a98cb1db599ceae2eebe541fd))
+
 ## [0.20.0](https://github.com/DenisVorop/artmate-monorepo/compare/v0.19.0...v0.20.0) (2026-05-29)
 
 
