@@ -13,6 +13,7 @@ import type { DeliverySelection } from "../delivery/providers/delivery-provider.
 import {
   escapeEmailHtml,
   renderBrandedEmail,
+  renderEmailButton,
   renderEmailDetails,
   renderEmailParagraph,
   renderSupportEmailFooter,
@@ -580,6 +581,7 @@ export class OrdersService {
   ) {
     await Promise.all([
       this.notifyAdminAboutOrderPaid(order),
+      this.sendOrderPaidEmail(order),
       this.notifyCustomerAboutStatusChange({
         order,
         previousStatus,
@@ -622,13 +624,30 @@ export class OrdersService {
     try {
       await this.mailerService.sendMail({
         to: order.customer.email,
-        subject: `Заказ ${order.id} принят - Artmate`,
+        subject: this.getOrderCreatedEmailSubject(order),
         text: this.renderOrderCreatedTextEmail(order),
         html: this.renderOrderCreatedHtmlEmail(order),
       });
     } catch (error) {
       this.logger.warn(
         `Failed to send customer order email for order ${order.id}: ${
+          error instanceof Error ? error.message : String(error)
+        }`,
+      );
+    }
+  }
+
+  private async sendOrderPaidEmail(order: OrderDTO) {
+    try {
+      await this.mailerService.sendMail({
+        to: order.customer.email,
+        subject: `Заказ ${order.id} оплачен - Artmate`,
+        text: this.renderOrderPaidTextEmail(order),
+        html: this.renderOrderPaidHtmlEmail(order),
+      });
+    } catch (error) {
+      this.logger.warn(
+        `Failed to send customer paid email for order ${order.id}: ${
           error instanceof Error ? error.message : String(error)
         }`,
       );
@@ -660,9 +679,9 @@ export class OrdersService {
     return [
       "ARTMATE",
       "",
-      `Заказ ${order.id} принят.`,
+      this.getOrderCreatedTextTitle(order),
       "",
-      `${order.customer.name}, спасибо за заказ. Мы получили заявку и скоро свяжемся с вами для подтверждения деталей.`,
+      ...this.getOrderCreatedTextIntro(order),
       "",
       "Товары:",
       ...this.renderOrderItemsTextEmail(order),
@@ -683,11 +702,13 @@ export class OrdersService {
     const escapedName = escapeEmailHtml(order.customer.name);
 
     return renderBrandedEmail({
-      title: "Заказ принят",
-      previewText: `Заказ ${order.id} принят Artmate.`,
+      title: this.getOrderCreatedHtmlTitle(order),
+      previewText: this.getOrderCreatedPreviewText(order),
       contentHtml: `
-        ${renderEmailParagraph(
-          `${escapedName}, спасибо за заказ ${escapedOrderId}. Мы получили заявку и скоро свяжемся с вами для подтверждения деталей.`,
+        ${this.renderOrderCreatedIntroHtmlEmail(
+          order,
+          escapedName,
+          escapedOrderId,
         )}
         ${this.renderOrderItemsHtmlEmail(order)}
         ${renderEmailDetails([
@@ -699,6 +720,129 @@ export class OrdersService {
       `,
       footerHtml: renderSupportEmailFooter(),
     });
+  }
+
+  private renderOrderPaidTextEmail(order: OrderDTO) {
+    return [
+      "ARTMATE",
+      "",
+      `Заказ ${order.id} оплачен.`,
+      "",
+      `${order.customer.name}, спасибо за оплату. Скоро передадим заказ в доставку.`,
+      "",
+      "Товары:",
+      ...this.renderOrderItemsTextEmail(order),
+      "",
+      "Стоимость заказа:",
+      `Товары: ${this.formatMoney(order.subtotal)}`,
+      `Доставка: ${this.formatMoney(order.deliveryPrice)}`,
+      `Итого: ${this.formatMoney(order.total)}`,
+      "",
+      renderSupportEmailFooterText(),
+    ].join("\n");
+  }
+
+  private renderOrderPaidHtmlEmail(order: OrderDTO) {
+    const escapedOrderId = escapeEmailHtml(order.id);
+    const escapedName = escapeEmailHtml(order.customer.name);
+
+    return renderBrandedEmail({
+      title: "Заказ оплачен",
+      previewText: `Оплата заказа ${order.id} получена.`,
+      contentHtml: `
+        ${renderEmailParagraph(
+          `${escapedName}, спасибо за оплату заказа ${escapedOrderId}. Скоро передадим заказ в доставку.`,
+        )}
+        ${this.renderOrderItemsHtmlEmail(order)}
+        ${renderEmailDetails([
+          { label: "Товары", value: this.formatMoney(order.subtotal) },
+          { label: "Доставка", value: this.formatMoney(order.deliveryPrice) },
+          { label: "Итого", value: this.formatMoney(order.total) },
+        ])}
+      `,
+      footerHtml: renderSupportEmailFooter(),
+    });
+  }
+
+  private getOrderCreatedEmailSubject(order: OrderDTO) {
+    if (this.isOzonAcquiringOrder(order)) {
+      return `Заказ ${order.id} ожидает оплаты - Artmate`;
+    }
+
+    return `Заказ ${order.id} принят - Artmate`;
+  }
+
+  private getOrderCreatedTextTitle(order: OrderDTO) {
+    if (this.isOzonAcquiringOrder(order)) {
+      return `Заказ ${order.id} ожидает оплаты.`;
+    }
+
+    return `Заказ ${order.id} принят.`;
+  }
+
+  private getOrderCreatedHtmlTitle(order: OrderDTO) {
+    return this.isOzonAcquiringOrder(order)
+      ? "Заказ ожидает оплаты"
+      : "Заказ принят";
+  }
+
+  private getOrderCreatedPreviewText(order: OrderDTO) {
+    if (this.isOzonAcquiringOrder(order)) {
+      return `Заказ ${order.id} оформлен, ожидается оплата.`;
+    }
+
+    return `Заказ ${order.id} принят Artmate.`;
+  }
+
+  private getOrderCreatedTextIntro(order: OrderDTO) {
+    if (this.isOzonAcquiringOrder(order)) {
+      return [
+        `${order.customer.name}, заказ оформлен, ожидается оплата.`,
+        `Ссылка на оплату: ${this.createCustomerOrderPaymentUrl(order)}`,
+        "Если оплата уже прошла, по этой ссылке откроется страница заказа.",
+      ];
+    }
+
+    return [
+      `${order.customer.name}, спасибо за заказ. Мы получили заявку и скоро передадим заказ в доставку.`,
+    ];
+  }
+
+  private renderOrderCreatedIntroHtmlEmail(
+    order: OrderDTO,
+    escapedName: string,
+    escapedOrderId: string,
+  ) {
+    if (this.isOzonAcquiringOrder(order)) {
+      return `
+        ${renderEmailParagraph(
+          `${escapedName}, заказ ${escapedOrderId} оформлен, ожидается оплата.`,
+        )}
+        ${renderEmailButton({
+          href: this.createCustomerOrderPaymentUrl(order),
+          label: this.getCustomerOrderPaymentButtonLabel(order),
+        })}
+        ${renderEmailParagraph(
+          "Если оплата уже прошла, по этой ссылке откроется страница заказа.",
+        )}
+      `;
+    }
+
+    return renderEmailParagraph(
+      `${escapedName}, спасибо за заказ ${escapedOrderId}. Мы получили заявку и скоро передадим заказ в доставку.`,
+    );
+  }
+
+  private getCustomerOrderPaymentButtonLabel(order: OrderDTO) {
+    return order.payment.status === "paid" ? "Открыть заказ" : "Оплатить заказ";
+  }
+
+  private createCustomerOrderPaymentUrl(order: OrderDTO) {
+    return this.createSiteUrl("/checkout/payment", order.id);
+  }
+
+  private isOzonAcquiringOrder(order: OrderDTO) {
+    return order.payment.method === "ozon_acquiring";
   }
 
   private renderOrderItemsTextEmail(order: OrderDTO) {

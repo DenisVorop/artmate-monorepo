@@ -252,7 +252,7 @@ export class OrdersTelegramService {
 
   private formatCustomerOrderCreatedMessage(order: OrderDTO) {
     const lines = [
-      "<b>Заказ принят</b>",
+      this.getCustomerOrderCreatedTitle(order),
       "",
       `<b>Заказ:</b> <code>${this.formatText(order.id)}</code>`,
       `<b>Товары:</b> ${this.formatMoney(order.subtotal)}`,
@@ -266,6 +266,12 @@ export class OrdersTelegramService {
     return this.trimTelegramMessage(lines.join("\n"));
   }
 
+  private getCustomerOrderCreatedTitle(order: OrderDTO) {
+    return order.payment.method === "ozon_acquiring"
+      ? "<b>Заказ ожидает оплаты</b>"
+      : "<b>Заказ принят</b>";
+  }
+
   private getCustomerOrderCreatedHint(order: OrderDTO) {
     if (order.payment.method === "ozon_acquiring") {
       const paymentUrl = this.createCustomerOrderPaymentUrl(order);
@@ -277,7 +283,7 @@ export class OrdersTelegramService {
     }
 
     return [
-      "Спасибо! Мы получили ваш заказ. Менеджер проверит детали и отправит ссылку на оплату.",
+      "Спасибо! Мы получили ваш заказ и скоро передадим его в доставку.",
     ];
   }
 
