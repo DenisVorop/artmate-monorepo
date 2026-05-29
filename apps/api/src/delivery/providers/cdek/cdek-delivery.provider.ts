@@ -91,7 +91,7 @@ export class CdekDeliveryProvider implements DeliveryProviderAdapter {
           from_location: {
             code: this.getFromCityCode(),
           },
-          packages: [this.buildPackage(input.items)],
+          packages: this.buildPackages(input.items),
           tariff_code: this.getTariffCode(),
           to_location: {
             code: cityCode,
@@ -125,12 +125,16 @@ export class CdekDeliveryProvider implements DeliveryProviderAdapter {
     return pickupPoint;
   }
 
-  private buildPackage(items: DeliveryCartItem[]) {
-    const totalQuantity = Math.max(
-      items.reduce((sum, item) => sum + item.quantity, 0),
+  private buildPackages(items: DeliveryCartItem[]) {
+    const packageCount = Math.max(
+      items.reduce((sum, item) => sum + Math.max(item.quantity, 0), 0),
       1,
     );
 
+    return Array.from({ length: packageCount }, () => this.buildPackage());
+  }
+
+  private buildPackage() {
     return {
       height: this.getPositiveIntegerConfig(
         "CDEK_DEFAULT_PACKAGE_HEIGHT_CM",
@@ -141,13 +145,11 @@ export class CdekDeliveryProvider implements DeliveryProviderAdapter {
         defaultPackageLengthCm,
       ),
       // CDEK calculator takes package weight in grams and dimensions in centimeters.
-      // Product catalog does not store physical dimensions yet, so MVP uses env-tuned defaults.
-      weight:
-        totalQuantity *
-        this.getPositiveIntegerConfig(
-          "CDEK_DEFAULT_ITEM_WEIGHT_GRAMS",
-          defaultItemWeightGrams,
-        ),
+      // Each coloring book is shipped as a separate package with env-tuned defaults.
+      weight: this.getPositiveIntegerConfig(
+        "CDEK_DEFAULT_ITEM_WEIGHT_GRAMS",
+        defaultItemWeightGrams,
+      ),
       width: this.getPositiveIntegerConfig(
         "CDEK_DEFAULT_PACKAGE_WIDTH_CM",
         defaultPackageWidthCm,
