@@ -1,5 +1,20 @@
 # Changelog
 
+## [0.20.0](https://github.com/DenisVorop/artmate-monorepo/compare/v0.19.0...v0.20.0) (2026-05-29)
+
+
+### Features
+
+* add Ozon Acquiring checkout flow ([b683f15](https://github.com/DenisVorop/artmate-monorepo/commit/b683f157e6d53c30543ac4279a5d651ae5adf5ee))
+* **admin:** add quick order cancellation ([4583c55](https://github.com/DenisVorop/artmate-monorepo/commit/4583c559afb5c8980101060869d46441a854fba5))
+
+
+### Bug Fixes
+
+* send separate CDEK packages per item ([930fe92](https://github.com/DenisVorop/artmate-monorepo/commit/930fe924cce09e93f27cb290d3ab7116a5b01ff8))
+* **site:** add seller name to footer legal details ([3d3a434](https://github.com/DenisVorop/artmate-monorepo/commit/3d3a434072a64ccba156f34a5f958feb759ab25f))
+* trigger release please ([9a4ccc2](https://github.com/DenisVorop/artmate-monorepo/commit/9a4ccc2ea69e3c464b0efef256f57aa389228ef1))
+
 ## [0.19.0](https://github.com/DenisVorop/artmate-monorepo/compare/v0.18.0...v0.19.0) (2026-05-22)
 
 
