@@ -8,6 +8,7 @@ export type {
   OrderCustomer,
   OrderDelivery,
   OrderPayment,
+  OrderShipment,
   OrderState,
   OrderStatus,
 } from "./types";

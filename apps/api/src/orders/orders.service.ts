@@ -43,6 +43,12 @@ import { OrdersStorage } from "./orders.storage";
 
 const MAX_COMMENT_LENGTH = ORDER_COMMENT_MAX_LENGTH;
 const MAX_ADMIN_COMMENT_LENGTH = ORDER_ADMIN_COMMENT_MAX_LENGTH;
+const CDEK_SHIPMENT_STATUS_SYNC_INTERVAL_MS = 1000 * 60 * 15;
+const finalCdekShipmentStatusCodes = new Set([
+  "DELIVERED",
+  "INVALID",
+  "NOT_DELIVERED",
+]);
 
 @Injectable()
 export class OrdersService {
@@ -63,8 +69,14 @@ export class OrdersService {
     return this.ozonLogisticsService.getPickupPoints();
   }
 
-  getOrder(orderId: string, user: AuthUser): Promise<OrderDTO> {
-    return this.ordersStorage.getOrder(this.parseOrderId(orderId), user.id);
+  async getOrder(orderId: string, user: AuthUser): Promise<OrderDTO> {
+    const parsedOrderId = this.parseOrderId(orderId);
+    const order = await this.ordersStorage.getOrder(parsedOrderId, user.id);
+    const didSyncShipments = await this.syncStaleCdekShipments([order]);
+
+    return didSyncShipments
+      ? this.ordersStorage.getOrder(parsedOrderId, user.id)
+      : order;
   }
 
   async getOrderState(orderId: string, user: AuthUser): Promise<OrderStateDTO> {
@@ -77,8 +89,13 @@ export class OrdersService {
     };
   }
 
-  getMyOrders(user: AuthUser): Promise<OrderDTO[]> {
-    return this.ordersStorage.getOrdersByUserId(user.id);
+  async getMyOrders(user: AuthUser): Promise<OrderDTO[]> {
+    const orders = await this.ordersStorage.getOrdersByUserId(user.id);
+    const didSyncShipments = await this.syncStaleCdekShipments(orders);
+
+    return didSyncShipments
+      ? this.ordersStorage.getOrdersByUserId(user.id)
+      : orders;
   }
 
   getAdminOrders(): Promise<AdminOrderDTO[]> {
@@ -667,6 +684,61 @@ export class OrdersService {
       ...shipment,
       syncedAt: new Date(),
     });
+  }
+
+  private async syncStaleCdekShipments(orders: OrderDTO[]) {
+    const candidates = orders.flatMap((order) =>
+      order.shipments
+        .filter((shipment) => this.shouldSyncCdekShipment(shipment))
+        .map((shipment) => ({
+          externalUuid: shipment.externalUuid as string,
+          orderId: order.id,
+        })),
+    );
+
+    if (candidates.length === 0) {
+      return false;
+    }
+
+    let didSync = false;
+
+    await Promise.all(
+      candidates.map(async ({ externalUuid, orderId }) => {
+        try {
+          await this.syncCdekShipment(orderId, externalUuid);
+          didSync = true;
+        } catch (error) {
+          this.logger.warn(
+            `Failed to sync CDEK shipment status for order ${orderId}: ${this.getErrorMessage(error)}`,
+          );
+        }
+      }),
+    );
+
+    return didSync;
+  }
+
+  private shouldSyncCdekShipment(shipment: OrderDTO["shipments"][number]) {
+    if (shipment.provider !== "cdek" || !shipment.externalUuid) {
+      return false;
+    }
+
+    const statusCode = shipment.statusCode?.toUpperCase();
+
+    if (statusCode && finalCdekShipmentStatusCodes.has(statusCode)) {
+      return false;
+    }
+
+    if (!shipment.syncedAt) {
+      return true;
+    }
+
+    const syncedAt = Date.parse(shipment.syncedAt);
+
+    return (
+      !Number.isFinite(syncedAt) ||
+      Date.now() - syncedAt >= CDEK_SHIPMENT_STATUS_SYNC_INTERVAL_MS
+    );
   }
 
   private isCdekOrderCreationEnabled() {

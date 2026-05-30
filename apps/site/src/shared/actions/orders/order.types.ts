@@ -49,6 +49,20 @@ export type OrderPaymentDTO = {
   redirectUrl: string;
 };
 
+export type OrderShipmentDTO = {
+  provider: OrderDeliveryProviderDTO;
+  externalUuid?: string;
+  externalNumber?: string;
+  requestUuid?: string;
+  requestState?: string;
+  statusCode?: string;
+  statusName?: string;
+  errorMessage?: string;
+  createdAt: string;
+  updatedAt: string;
+  syncedAt?: string;
+};
+
 export type OrderDTO = {
   id: string;
   cartId: string;
@@ -57,6 +71,7 @@ export type OrderDTO = {
   delivery: OrderDeliveryDTO;
   payment: OrderPaymentDTO;
   items: CartItemDTO[];
+  shipments: OrderShipmentDTO[];
   itemsCount: number;
   subtotal: number;
   deliveryPrice: number;

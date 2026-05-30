@@ -1,6 +1,9 @@
 "use client";
 
-import { useOrderData, useOrderStatusData } from "@/entities/orders";
+import { useEffect } from "react";
+import { useQueryClient } from "@tanstack/react-query";
+
+import { ordersQuery, useOrderData, useOrderStatusData } from "@/entities/orders";
 
 import { getOrderLoadErrorMessage } from "../lib/checkout-success";
 
@@ -12,6 +15,7 @@ type CheckoutSuccessProps = {
 };
 
 export function CheckoutSuccess({ orderId }: CheckoutSuccessProps) {
+  const queryClient = useQueryClient();
   const { data: order, error, isError, isPending } = useOrderData({ orderId });
   const paymentStatus = order?.payment.status;
   const shouldPollPaymentStatus = Boolean(orderId) && paymentStatus === "pending";
@@ -20,6 +24,14 @@ export function CheckoutSuccess({ orderId }: CheckoutSuccessProps) {
     orderId,
     pollWhilePending: true,
   });
+
+  useEffect(() => {
+    if (orderId && orderStatus.data?.paymentStatus === "paid") {
+      void queryClient.invalidateQueries({
+        queryKey: ordersQuery.getOrder(orderId).queryKey,
+      });
+    }
+  }, [orderId, orderStatus.data?.paymentStatus, queryClient]);
 
   if (!orderId) {
     return (

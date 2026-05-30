@@ -1,5 +1,8 @@
 export {
+  getCdekShipment,
   getLatestOrder,
+  getOrderShipmentNumberLabel,
+  getOrderShipmentStatusLabel,
   getOrdersTotal,
   getPaidOrdersCount,
   getPreferredCustomerEmail,
@@ -11,6 +14,7 @@ export type {
   OrderCustomer,
   OrderDelivery,
   OrderPayment,
+  OrderShipment,
   OrderState,
   OrderStatus,
 } from "./model";

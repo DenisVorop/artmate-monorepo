@@ -1,7 +1,14 @@
 "use client";
 
 import Image from "next/image";
-import { CalendarDays, ChevronDown, ChevronUp, MapPin, PackageCheck } from "lucide-react";
+import {
+  CalendarDays,
+  ChevronDown,
+  ChevronUp,
+  MapPin,
+  PackageCheck,
+  Truck,
+} from "lucide-react";
 import { useId, useState } from "react";
 
 import { routes } from "@/shared/constants";
@@ -18,6 +25,11 @@ import {
 } from "@/shared/ui";
 import { Link } from "@/shared/ui/link";
 
+import {
+  getCdekShipment,
+  getOrderShipmentNumberLabel,
+  getOrderShipmentStatusLabel,
+} from "../lib";
 import type { Order } from "../model";
 
 type OrderCardProps = {
@@ -62,6 +74,9 @@ export function OrderCard({ order }: OrderCardProps) {
   const hiddenItemsCount = Math.max(order.items.length - 3, 0);
   const visibleItems = areItemsExpanded ? order.items : order.items.slice(0, 3);
   const hasHiddenItems = hiddenItemsCount > 0;
+  const cdekShipment = getCdekShipment(order);
+  const cdekShipmentStatus = getOrderShipmentStatusLabel(cdekShipment);
+  const cdekShipmentNumber = getOrderShipmentNumberLabel(cdekShipment);
 
   return (
     <Card className="overflow-hidden">
@@ -113,6 +128,20 @@ export function OrderCard({ order }: OrderCardProps) {
             </p>
             <p className="text-muted-foreground">{order.delivery.pickupPoint.address}</p>
             <p className="text-muted-foreground">{order.delivery.pickupPoint.workHours}</p>
+            {order.delivery.provider === "cdek" && (
+              <div className="mt-3 space-y-1 rounded-lg border bg-background/70 p-3">
+                <p className="flex items-center gap-2 font-medium">
+                  <Truck className="size-4 text-cyan-600" />
+                  Статус СДЭК
+                </p>
+                <p className="text-muted-foreground">
+                  {cdekShipmentStatus ?? getPendingCdekShipmentStatus(order)}
+                </p>
+                {cdekShipmentNumber && (
+                  <p className="text-muted-foreground">{cdekShipmentNumber}</p>
+                )}
+              </div>
+            )}
           </div>
         </div>
 
@@ -193,6 +222,12 @@ function formatDate(value: string) {
     month: "long",
     year: "numeric",
   }).format(new Date(value));
+}
+
+function getPendingCdekShipmentStatus(order: Order) {
+  return order.payment.status === "paid"
+    ? "Скоро передадим в СДЭК"
+    : "Появится после оплаты";
 }
 
 function getItemsWord(count: number) {

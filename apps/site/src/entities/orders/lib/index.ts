@@ -1,5 +1,8 @@
 export {
+  getCdekShipment,
   getLatestOrder,
+  getOrderShipmentNumberLabel,
+  getOrderShipmentStatusLabel,
   getOrdersTotal,
   getPaidOrdersCount,
   getPreferredCustomerEmail,

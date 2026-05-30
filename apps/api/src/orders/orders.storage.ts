@@ -37,6 +37,11 @@ const orderInclude = {
       createdAt: "asc",
     },
   },
+  shipments: {
+    orderBy: {
+      createdAt: "asc",
+    },
+  },
 } as const;
 
 const adminOrderInclude = {
@@ -67,11 +72,6 @@ const adminOrderInclude = {
           name: true,
         },
       },
-    },
-  },
-  shipments: {
-    orderBy: {
-      createdAt: "asc",
     },
   },
 } as const;
@@ -806,6 +806,9 @@ export class OrdersStorage {
         quantity: item.quantity,
         lineTotal: this.toNumber(item.lineTotal),
       })),
+      shipments: order.shipments.map((shipment) =>
+        this.mapOrderShipment(shipment, { includeErrorMessage: false }),
+      ),
       itemsCount: order.itemsCount,
       subtotal: this.toNumber(order.subtotal),
       deliveryPrice: this.toNumber(order.deliveryPrice),
@@ -827,12 +830,15 @@ export class OrdersStorage {
         this.mapAdminOrderHistoryEvent(event),
       ),
       shipments: order.shipments.map((shipment) =>
-        this.mapOrderShipment(shipment),
+        this.mapOrderShipment(shipment, { includeErrorMessage: true }),
       ),
     };
   }
 
-  private mapOrderShipment(shipment: StoredOrderShipment): OrderShipmentDTO {
+  private mapOrderShipment(
+    shipment: StoredOrderShipment,
+    options: { includeErrorMessage?: boolean } = {},
+  ): OrderShipmentDTO {
     return {
       provider: this.mapDeliveryProvider(shipment.provider),
       externalUuid: shipment.externalUuid ?? undefined,
@@ -841,7 +847,9 @@ export class OrdersStorage {
       requestState: shipment.requestState ?? undefined,
       statusCode: shipment.statusCode ?? undefined,
       statusName: shipment.statusName ?? undefined,
-      errorMessage: shipment.errorMessage ?? undefined,
+      ...(options.includeErrorMessage ?? true
+        ? { errorMessage: shipment.errorMessage ?? undefined }
+        : {}),
       createdAt: shipment.createdAt.toISOString(),
       updatedAt: shipment.updatedAt.toISOString(),
       syncedAt: shipment.syncedAt?.toISOString(),

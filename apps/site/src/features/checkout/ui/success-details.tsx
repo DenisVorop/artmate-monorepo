@@ -2,6 +2,11 @@
 
 import { AlertCircle, CheckCircle2, Clock3, ShoppingBag, type LucideIcon } from "lucide-react";
 
+import {
+  getCdekShipment,
+  getOrderShipmentNumberLabel,
+  getOrderShipmentStatusLabel,
+} from "@/entities/orders";
 import { routes } from "@/shared/constants";
 import {
   Button,
@@ -70,6 +75,9 @@ export function CheckoutSuccessDetails({
 }: CheckoutSuccessDetailsProps) {
   const status = paymentStatusMeta[paymentStatus];
   const StatusIcon = status.Icon;
+  const cdekShipment = getCdekShipment(order);
+  const cdekShipmentStatus = getOrderShipmentStatusLabel(cdekShipment);
+  const cdekShipmentNumber = getOrderShipmentNumberLabel(cdekShipment);
 
   return (
     <section className="container py-10 md:py-14">
@@ -103,6 +111,10 @@ export function CheckoutSuccessDetails({
 
             <InfoBlock title="Доставка">
               <p>{order.delivery.provider === "cdek" ? "СДЭК" : "Ozon"}</p>
+              {order.delivery.provider === "cdek" && (
+                <p>{cdekShipmentStatus ?? getPendingCdekShipmentStatus(order)}</p>
+              )}
+              {cdekShipmentNumber && <p>{cdekShipmentNumber}</p>}
               <p>{order.delivery.pickupPoint.address}</p>
               <p>{order.delivery.pickupPoint.workHours}</p>
             </InfoBlock>
@@ -140,4 +152,10 @@ export function CheckoutSuccessDetails({
       </Card>
     </section>
   );
+}
+
+function getPendingCdekShipmentStatus(order: CheckoutOrder) {
+  return order.payment.status === "paid"
+    ? "Скоро передадим в СДЭК"
+    : "Появится после оплаты";
 }

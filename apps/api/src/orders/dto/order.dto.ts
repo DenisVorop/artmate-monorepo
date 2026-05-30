@@ -24,6 +24,7 @@ import {
 import { OrderCustomerDTO } from "./order-customer.dto";
 import { OrderDeliveryDTO } from "./order-delivery.dto";
 import { OrderPaymentDTO } from "./order-payment.dto";
+import { OrderShipmentDTO } from "./order-shipment.dto";
 
 export class OrderDTO {
   @IsString()
@@ -56,6 +57,11 @@ export class OrderDTO {
   @ValidateNested({ each: true })
   @Type(() => CartItemDTO)
   items!: CartItemDTO[];
+
+  @IsArray()
+  @ValidateNested({ each: true })
+  @Type(() => OrderShipmentDTO)
+  shipments!: OrderShipmentDTO[];
 
   @IsInt()
   @Min(0)

@@ -20,6 +20,7 @@ export type {
   OrderPaymentDTO,
   OrderPaymentMethodDTO,
   OrderPaymentStatusDTO,
+  OrderShipmentDTO,
   OrderStateDTO,
   OrderStatusDTO,
   OzonPickupPointDTO,
