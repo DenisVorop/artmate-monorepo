@@ -1,5 +1,12 @@
 # Changelog
 
+## [0.24.0](https://github.com/DenisVorop/artmate-monorepo/compare/v0.23.0...v0.24.0) (2026-05-30)
+
+
+### Features
+
+* include cdek track in paid notifications ([783eb97](https://github.com/DenisVorop/artmate-monorepo/commit/783eb9788ec9bfabe7c70f8bebe113131372d53c))
+
 ## [0.23.0](https://github.com/DenisVorop/artmate-monorepo/compare/v0.22.1...v0.23.0) (2026-05-30)
 
 
