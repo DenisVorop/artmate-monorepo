@@ -35,6 +35,7 @@ import type {
   CreateOrderRequestDTO,
   AdminOrderDTO,
   OrderDTO,
+  OrderShipmentDTO,
   OrderStateDTO,
   PickupPointDTO,
 } from "./dto";
@@ -44,6 +45,8 @@ import { OrdersStorage } from "./orders.storage";
 const MAX_COMMENT_LENGTH = ORDER_COMMENT_MAX_LENGTH;
 const MAX_ADMIN_COMMENT_LENGTH = ORDER_ADMIN_COMMENT_MAX_LENGTH;
 const CDEK_SHIPMENT_STATUS_SYNC_INTERVAL_MS = 1000 * 60 * 15;
+const CDEK_SHIPMENT_TRACK_NUMBER_ATTEMPTS = 3;
+const CDEK_SHIPMENT_TRACK_NUMBER_RETRY_DELAY_MS = 1000;
 const finalCdekShipmentStatusCodes = new Set([
   "DELIVERED",
   "INVALID",
@@ -596,12 +599,16 @@ export class OrdersService {
     userId: string | undefined,
     previousStatus: OrderStatus,
   ) {
+    const cdekShipment = await this.ensureCdekShipmentForPaidOrder(order);
+    const notificationOrder = cdekShipment
+      ? this.withOrderShipment(order, cdekShipment)
+      : order;
+
     await Promise.all([
-      this.ensureCdekShipmentForPaidOrder(order),
-      this.notifyAdminAboutOrderPaid(order),
-      this.sendOrderPaidEmail(order),
+      this.notifyAdminAboutOrderPaid(notificationOrder),
+      this.sendOrderPaidEmail(notificationOrder),
       this.notifyCustomerAboutStatusChange({
-        order,
+        order: notificationOrder,
         previousStatus,
         nextStatus: "paid",
         userId,
@@ -609,7 +616,9 @@ export class OrdersService {
     ]);
   }
 
-  private async ensureCdekShipmentForPaidOrder(order: OrderDTO) {
+  private async ensureCdekShipmentForPaidOrder(
+    order: OrderDTO,
+  ): Promise<OrderShipmentDTO | undefined> {
     if (
       order.delivery.provider !== "cdek" ||
       !this.isCdekOrderCreationEnabled()
@@ -625,10 +634,13 @@ export class OrdersService {
 
       if (!claim.shouldCreate) {
         if (claim.shipment.externalUuid) {
-          await this.syncCdekShipment(order.id, claim.shipment.externalUuid);
+          return this.syncCdekShipmentWithTrackNumber(
+            order.id,
+            claim.shipment.externalUuid,
+          );
         }
 
-        return;
+        return claim.shipment;
       }
 
       const shipment = await this.deliveryService.createCdekOrder({
@@ -647,43 +659,95 @@ export class OrdersService {
       });
 
       if (savedShipment.externalUuid) {
-        await this.syncCdekShipment(order.id, savedShipment.externalUuid);
+        return this.syncCdekShipmentWithTrackNumber(
+          order.id,
+          savedShipment.externalUuid,
+        );
       }
+
+      return savedShipment;
     } catch (error) {
       const errorMessage = this.getErrorMessage(error);
+      let shipment: OrderShipmentDTO | undefined;
 
-      await this.ordersStorage
-        .upsertOrderShipment({
+      try {
+        shipment = await this.ordersStorage.upsertOrderShipment({
           orderId: order.id,
           provider: "cdek",
           errorMessage,
           requestState: "ERROR",
           syncedAt: new Date(),
-        })
-        .catch((storageError) => {
-          this.logger.warn(
-            `Failed to save CDEK shipment error for order ${order.id}: ${
-              storageError instanceof Error
-                ? storageError.message
-                : String(storageError)
-            }`,
-          );
         });
+      } catch (storageError) {
+        this.logger.warn(
+          `Failed to save CDEK shipment error for order ${order.id}: ${
+            storageError instanceof Error
+              ? storageError.message
+              : String(storageError)
+          }`,
+        );
+      }
+
       this.logger.warn(
         `Failed to create CDEK shipment for order ${order.id}: ${errorMessage}`,
       );
+
+      return shipment;
     }
   }
 
-  private async syncCdekShipment(orderId: string, externalUuid: string) {
+  private async syncCdekShipment(
+    orderId: string,
+    externalUuid: string,
+  ): Promise<OrderShipmentDTO> {
     const shipment = await this.deliveryService.getCdekOrder(externalUuid);
 
-    await this.ordersStorage.upsertOrderShipment({
+    return this.ordersStorage.upsertOrderShipment({
       orderId,
       provider: "cdek",
       ...shipment,
       syncedAt: new Date(),
     });
+  }
+
+  private async syncCdekShipmentWithTrackNumber(
+    orderId: string,
+    externalUuid: string,
+  ) {
+    let shipment: OrderShipmentDTO | undefined;
+
+    for (
+      let attempt = 1;
+      attempt <= CDEK_SHIPMENT_TRACK_NUMBER_ATTEMPTS;
+      attempt += 1
+    ) {
+      shipment = await this.syncCdekShipment(orderId, externalUuid);
+
+      if (
+        shipment.externalNumber ||
+        attempt === CDEK_SHIPMENT_TRACK_NUMBER_ATTEMPTS
+      ) {
+        return shipment;
+      }
+
+      await this.delay(CDEK_SHIPMENT_TRACK_NUMBER_RETRY_DELAY_MS);
+    }
+
+    return shipment;
+  }
+
+  private withOrderShipment(order: OrderDTO, shipment: OrderShipmentDTO) {
+    return {
+      ...order,
+      shipments: [
+        ...order.shipments.filter((item) => item.provider !== shipment.provider),
+        shipment,
+      ],
+    };
+  }
+
+  private delay(ms: number) {
+    return new Promise((resolve) => setTimeout(resolve, ms));
   }
 
   private async syncStaleCdekShipments(orders: OrderDTO[]) {
@@ -883,6 +947,7 @@ export class OrdersService {
       `Заказ ${order.id} оплачен.`,
       "",
       `${order.customer.name}, спасибо за оплату. Скоро передадим заказ в доставку.`,
+      ...this.renderCdekTrackingTextEmail(order),
       "",
       "Товары:",
       ...this.renderOrderItemsTextEmail(order),
@@ -908,14 +973,32 @@ export class OrdersService {
           `${escapedName}, спасибо за оплату заказа ${escapedOrderId}. Скоро передадим заказ в доставку.`,
         )}
         ${this.renderOrderItemsHtmlEmail(order)}
-        ${renderEmailDetails([
-          { label: "Товары", value: this.formatMoney(order.subtotal) },
-          { label: "Доставка", value: this.formatMoney(order.deliveryPrice) },
-          { label: "Итого", value: this.formatMoney(order.total) },
-        ])}
+        ${renderEmailDetails(this.getOrderPaidDetails(order))}
       `,
       footerHtml: renderSupportEmailFooter(),
     });
+  }
+
+  private renderCdekTrackingTextEmail(order: OrderDTO) {
+    const trackNumber = this.getCdekTrackNumber(order);
+
+    return trackNumber ? [`Трек-номер СДЭК: ${trackNumber}`] : [];
+  }
+
+  private getOrderPaidDetails(order: OrderDTO) {
+    const details = [
+      { label: "Товары", value: this.formatMoney(order.subtotal) },
+      { label: "Доставка", value: this.formatMoney(order.deliveryPrice) },
+    ];
+    const cdekTrackNumber = this.getCdekTrackNumber(order);
+
+    if (cdekTrackNumber) {
+      details.push({ label: "Трек-номер СДЭК", value: cdekTrackNumber });
+    }
+
+    details.push({ label: "Итого", value: this.formatMoney(order.total) });
+
+    return details;
   }
 
   private getOrderCreatedEmailSubject(order: OrderDTO) {
@@ -997,6 +1080,15 @@ export class OrdersService {
 
   private isOzonAcquiringOrder(order: OrderDTO) {
     return order.payment.method === "ozon_acquiring";
+  }
+
+  private getCdekTrackNumber(order: OrderDTO) {
+    if (order.delivery.provider !== "cdek") {
+      return undefined;
+    }
+
+    return order.shipments.find((shipment) => shipment.provider === "cdek")
+      ?.externalNumber;
   }
 
   private renderOrderItemsTextEmail(order: OrderDTO) {

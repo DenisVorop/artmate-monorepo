@@ -216,8 +216,14 @@ export class OrdersTelegramService {
     previousStatus: OrderStatus;
     nextStatus: OrderStatus;
   }) {
+    const cdekTrackNumber =
+      input.nextStatus === "paid"
+        ? this.getCdekTrackNumber(input.order)
+        : undefined;
     const lines = [
-      "<b>Статус заказа изменен</b>",
+      input.nextStatus === "paid"
+        ? "<b>Оплата прошла успешно</b>"
+        : "<b>Статус заказа изменен</b>",
       "",
       `<b>Заказ:</b> <code>${this.formatText(input.order.id)}</code>`,
       `<b>Было:</b> ${this.formatText(
@@ -228,12 +234,17 @@ export class OrdersTelegramService {
       )}`,
       "",
       this.getStatusHint(input.nextStatus),
-    ];
+      cdekTrackNumber ? "" : undefined,
+      cdekTrackNumber
+        ? `<b>Трек-номер СДЭК:</b> <code>${this.formatText(cdekTrackNumber)}</code>`
+        : undefined,
+    ].filter((line): line is string => typeof line === "string");
 
     return this.trimTelegramMessage(lines.join("\n"));
   }
 
   private formatOrderPaidMessage(order: OrderDTO) {
+    const cdekTrackNumber = this.getCdekTrackNumber(order);
     const lines = [
       "<b>Заказ оплачен</b>",
       "",
@@ -245,7 +256,10 @@ export class OrdersTelegramService {
         this.getPaymentMethodLabel(order.payment.method),
       )}`,
       `<b>Итого:</b> ${this.formatMoney(order.total)}`,
-    ];
+      cdekTrackNumber
+        ? `<b>Трек-номер СДЭК:</b> <code>${this.formatText(cdekTrackNumber)}</code>`
+        : undefined,
+    ].filter((line): line is string => typeof line === "string");
 
     return this.trimTelegramMessage(lines.join("\n"));
   }
@@ -314,7 +328,7 @@ export class OrdersTelegramService {
       case "waiting_payment":
         return "Заказ ожидает оплаты. Откройте Artmate, чтобы посмотреть детали.";
       case "paid":
-        return "Оплата получена. Мы продолжим работу с заказом.";
+        return "Заказ оплачен. Скоро передадим его в доставку.";
       case "delivering":
         return "Заказ передан в доставку.";
       case "completed":
@@ -330,6 +344,15 @@ export class OrdersTelegramService {
 
   private getPaymentMethodLabel(method: OrderDTO["payment"]["method"]) {
     return method === "ozon_acquiring" ? "Ozon Acquiring" : "Банковская карта";
+  }
+
+  private getCdekTrackNumber(order: OrderDTO) {
+    if (order.delivery.provider !== "cdek") {
+      return undefined;
+    }
+
+    return order.shipments.find((shipment) => shipment.provider === "cdek")
+      ?.externalNumber;
   }
 
   private formatDate(value: string) {
