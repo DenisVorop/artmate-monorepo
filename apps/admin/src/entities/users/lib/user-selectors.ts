@@ -51,6 +51,34 @@ export function getAdminUserProviderLabels(user: AdminUser) {
   return user.authAccounts.map((account) => providerLabels[account.provider]);
 }
 
+export function getAdminUserTelegramLabel(user: AdminUser) {
+  const account = user.telegramAccount;
+
+  if (!account) {
+    return "Не подключен";
+  }
+
+  if (account.username) {
+    return `@${account.username}`;
+  }
+
+  const fullName = [account.firstName, account.lastName]
+    .filter((value): value is string => Boolean(value))
+    .join(" ");
+
+  return fullName || account.phone || `ID ${account.telegramUserId}`;
+}
+
+export function getAdminUserTelegramTitle(user: AdminUser) {
+  const account = user.telegramAccount;
+
+  if (!account) {
+    return "Telegram не подключен";
+  }
+
+  return `Telegram подключен: ${getAdminUserTelegramLabel(user)}`;
+}
+
 function getPrimaryProviderUserId(user: AdminUser) {
   return user.authAccounts[0]?.providerUserId;
 }

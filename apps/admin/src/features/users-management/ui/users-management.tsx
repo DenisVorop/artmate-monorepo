@@ -3,7 +3,15 @@
 import type { ComponentProps } from "react";
 import { zodResolver } from "@hookform/resolvers/zod";
 import { useForm } from "react-hook-form";
-import { Ban, Save, ShieldCheck, Unlock, UserRound } from "lucide-react";
+import {
+  Ban,
+  MessageCircle,
+  MessageCircleOff,
+  Save,
+  ShieldCheck,
+  Unlock,
+  UserRound,
+} from "lucide-react";
 
 import {
   getAdminUserContact,
@@ -11,6 +19,8 @@ import {
   getAdminUserProviderLabels,
   getAdminUserRoleLabel,
   getAdminUserStatusLabel,
+  getAdminUserTelegramLabel,
+  getAdminUserTelegramTitle,
   useUsers,
 } from "@/entities/users";
 import type { AdminUser } from "@/entities/users";
@@ -89,6 +99,7 @@ export function UsersManagement({ currentUserId }: UsersManagementProps) {
               <TableRow>
                 <TableHead>Пользователь</TableHead>
                 <TableHead>Провайдер</TableHead>
+                <TableHead>Telegram</TableHead>
                 <TableHead>Статус</TableHead>
                 <TableHead>Роли</TableHead>
                 <TableHead>Создан</TableHead>
@@ -148,6 +159,9 @@ function UsersTableRow({
           ))}
         </div>
       </TableCell>
+      <TableCell className="min-w-48">
+        <UserTelegramBadge user={user} />
+      </TableCell>
       <TableCell>
         <Badge variant={getStatusBadgeVariant(user.status)}>
           {getAdminUserStatusLabel(user.status)}
@@ -170,6 +184,40 @@ function UsersTableRow({
         />
       </TableCell>
     </TableRow>
+  );
+}
+
+function UserTelegramBadge({ user }: { readonly user: AdminUser }) {
+  const label = getAdminUserTelegramLabel(user);
+  const title = getAdminUserTelegramTitle(user);
+
+  if (!user.telegramAccount) {
+    return (
+      <Badge
+        className="text-muted-foreground"
+        title={title}
+        variant="outline"
+      >
+        <MessageCircleOff data-icon="inline-start" aria-hidden="true" />
+        {label}
+      </Badge>
+    );
+  }
+
+  return (
+    <div className="grid gap-1">
+      <Badge
+        className="max-w-48 justify-start"
+        title={title}
+        variant="secondary"
+      >
+        <MessageCircle data-icon="inline-start" aria-hidden="true" />
+        <span className="min-w-0 truncate">{label}</span>
+      </Badge>
+      <span className="text-xs text-muted-foreground">
+        с {formatDate(user.telegramAccount.linkedAt)}
+      </span>
+    </div>
   );
 }
 

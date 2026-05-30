@@ -12,6 +12,15 @@ export type AdminUserAuthAccountDTO = {
   lastLoginAt?: string;
 };
 
+export type AdminUserTelegramAccountDTO = {
+  telegramUserId: string;
+  phone: string;
+  username?: string;
+  firstName?: string;
+  lastName?: string;
+  linkedAt: string;
+};
+
 export type AdminUserDTO = {
   id: string;
   email?: string;
@@ -20,6 +29,7 @@ export type AdminUserDTO = {
   roles: UserRole[];
   status: AdminUserStatus;
   authAccounts: AdminUserAuthAccountDTO[];
+  telegramAccount?: AdminUserTelegramAccountDTO;
   createdAt: string;
   updatedAt: string;
 };

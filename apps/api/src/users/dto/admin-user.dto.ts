@@ -16,6 +16,7 @@ import {
 } from "../users.types";
 
 import { AdminUserAuthAccountDTO } from "./admin-user-auth-account.dto";
+import { AdminUserTelegramAccountDTO } from "./admin-user-telegram-account.dto";
 
 export class AdminUserDTO {
   @IsString()
@@ -44,6 +45,11 @@ export class AdminUserDTO {
   @ValidateNested({ each: true })
   @Type(() => AdminUserAuthAccountDTO)
   authAccounts!: AdminUserAuthAccountDTO[];
+
+  @IsOptional()
+  @ValidateNested()
+  @Type(() => AdminUserTelegramAccountDTO)
+  telegramAccount?: AdminUserTelegramAccountDTO;
 
   @IsISO8601()
   createdAt!: string;

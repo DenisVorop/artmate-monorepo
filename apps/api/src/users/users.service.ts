@@ -33,6 +33,7 @@ const adminUserInclude = {
       connectedAt: "asc",
     },
   },
+  telegramAccount: true,
 } as const;
 
 type StoredAdminUser = Prisma.UserGetPayload<{
@@ -221,6 +222,16 @@ export class UsersService {
         connectedAt: account.connectedAt.toISOString(),
         lastLoginAt: account.lastLoginAt?.toISOString(),
       })),
+      telegramAccount: user.telegramAccount
+        ? {
+            telegramUserId: user.telegramAccount.telegramUserId,
+            phone: user.telegramAccount.phone,
+            username: user.telegramAccount.username ?? undefined,
+            firstName: user.telegramAccount.firstName ?? undefined,
+            lastName: user.telegramAccount.lastName ?? undefined,
+            linkedAt: user.telegramAccount.linkedAt.toISOString(),
+          }
+        : undefined,
       createdAt: user.createdAt.toISOString(),
       updatedAt: user.updatedAt.toISOString(),
     };
