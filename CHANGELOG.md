@@ -1,5 +1,14 @@
 # Changelog
 
+## [0.23.0](https://github.com/DenisVorop/artmate-monorepo/compare/v0.22.1...v0.23.0) (2026-05-30)
+
+
+### Features
+
+* create cdek shipments after payment ([2ac0851](https://github.com/DenisVorop/artmate-monorepo/commit/2ac0851f7dbeb858277e42b63d5615ce5f3c5c47))
+* show cdek shipment status to customers ([a230567](https://github.com/DenisVorop/artmate-monorepo/commit/a2305673b82170c97d5ff2f58f7b48c69f4b5fc0))
+* show telegram status in users list ([194c6a5](https://github.com/DenisVorop/artmate-monorepo/commit/194c6a55ce0e3c9c9b2822c03654f4678ea5739b))
+
 ## [0.22.1](https://github.com/DenisVorop/artmate-monorepo/compare/v0.22.0...v0.22.1) (2026-05-29)
 
 
