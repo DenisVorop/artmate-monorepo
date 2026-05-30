@@ -211,7 +211,40 @@ function CustomerPanel({ order }: { readonly order: AdminOrder }) {
           {order.delivery.pickupPoint.address}
         </p>
       </div>
+
+      {order.delivery.provider === "cdek" ? (
+        <CdekShipmentPanel order={order} />
+      ) : null}
     </section>
+  );
+}
+
+function CdekShipmentPanel({ order }: { readonly order: AdminOrder }) {
+  const shipment = order.shipments.find((item) => item.provider === "cdek");
+
+  return (
+    <div className="mt-3 rounded-lg border bg-muted/35 p-3 text-sm">
+      <p className="flex items-center gap-2 font-medium">
+        <Truck className="size-4" aria-hidden="true" />
+        Накладная CDEK
+      </p>
+      {shipment ? (
+        <div className="mt-2 space-y-1 text-muted-foreground">
+          <p>{getShipmentStatusLabel(shipment)}</p>
+          {shipment.externalNumber ? (
+            <p>Номер: {shipment.externalNumber}</p>
+          ) : null}
+          {shipment.externalUuid ? (
+            <p className="break-all">UUID: {shipment.externalUuid}</p>
+          ) : null}
+          {shipment.errorMessage ? (
+            <p className="text-destructive">{shipment.errorMessage}</p>
+          ) : null}
+        </div>
+      ) : (
+        <p className="mt-2 text-muted-foreground">Еще не создавалась.</p>
+      )}
+    </div>
   );
 }
 
@@ -337,6 +370,34 @@ function getStatusLabel(value: unknown) {
   }
 
   return adminOrderStatusLabels[value as OrderStatus];
+}
+
+function getShipmentStatusLabel(shipment: AdminOrder["shipments"][number]) {
+  if (shipment.errorMessage) {
+    return "Ошибка создания";
+  }
+
+  if (shipment.statusName) {
+    return shipment.statusName;
+  }
+
+  if (shipment.statusCode) {
+    return shipment.statusCode;
+  }
+
+  if (shipment.requestState === "SUCCESSFUL") {
+    return "Создана";
+  }
+
+  if (shipment.requestState === "INVALID") {
+    return "Отклонена CDEK";
+  }
+
+  if (shipment.requestState === "CREATING") {
+    return "Создается";
+  }
+
+  return shipment.requestState ?? "Принята CDEK";
 }
 
 function formatJson(value: Record<string, unknown>) {

@@ -2,6 +2,7 @@ export type DeliveryProviderCode = "cdek" | "ozon";
 
 export type DeliveryCartItem = {
   id: string;
+  slug?: string;
   title: string;
   price: number;
   quantity: number;
@@ -30,6 +31,34 @@ export type DeliveryQuote = {
   provider: DeliveryProviderCode;
   pickupPoint: DeliveryPickupPoint;
   deliveryPrice: number;
+};
+
+export type DeliveryShipmentCustomer = {
+  name: string;
+  phone: string;
+  email: string;
+};
+
+export type DeliveryShipmentOrder = {
+  id: string;
+  customer: DeliveryShipmentCustomer;
+  delivery: {
+    provider: DeliveryProviderCode;
+    pickupPoint: DeliveryPickupPoint;
+  };
+  items: DeliveryCartItem[];
+  comment?: string;
+};
+
+export type DeliveryShipmentCreateResult = {
+  externalNumber?: string;
+  externalUuid?: string;
+  requestPayload?: Record<string, unknown>;
+  requestState?: string;
+  requestUuid?: string;
+  responsePayload: unknown;
+  statusCode?: string;
+  statusName?: string;
 };
 
 export interface DeliveryProviderAdapter {

@@ -21,8 +21,13 @@ import type {
   OrderDTO,
   OrderDeliveryDTO,
   OrderPaymentDTO,
+  OrderShipmentDTO,
 } from "./dto";
-import type { OrderStatus, PaymentMethod } from "./orders.constants";
+import type {
+  DeliveryProvider,
+  OrderStatus,
+  PaymentMethod,
+} from "./orders.constants";
 
 const CHECKOUT_SUCCESS_PATH = "/checkout/success";
 
@@ -62,6 +67,11 @@ const adminOrderInclude = {
           name: true,
         },
       },
+    },
+  },
+  shipments: {
+    orderBy: {
+      createdAt: "asc",
     },
   },
 } as const;
@@ -112,6 +122,26 @@ type ApplyOzonAcquiringNotificationResult = {
   userId?: string;
 };
 
+type UpsertOrderShipmentInput = {
+  errorMessage?: string;
+  externalNumber?: string;
+  externalUuid?: string;
+  orderId: string;
+  provider: DeliveryProvider;
+  requestPayload?: unknown;
+  requestState?: string;
+  requestUuid?: string;
+  responsePayload?: unknown;
+  statusCode?: string;
+  statusName?: string;
+  syncedAt?: Date;
+};
+
+type ClaimOrderShipmentCreationResult = {
+  shipment: OrderShipmentDTO;
+  shouldCreate: boolean;
+};
+
 type StoredOrder = Prisma.OrderGetPayload<{
   include: typeof orderInclude;
 }>;
@@ -119,6 +149,8 @@ type StoredOrder = Prisma.OrderGetPayload<{
 type StoredAdminOrder = Prisma.OrderGetPayload<{
   include: typeof adminOrderInclude;
 }>;
+
+type StoredOrderShipment = Prisma.OrderShipmentGetPayload<object>;
 
 export type UpdateAdminOrderStatusResult = {
   order: AdminOrderDTO;
@@ -252,6 +284,128 @@ export class OrdersStorage {
     });
 
     return orders.map((order) => this.mapAdminOrder(order));
+  }
+
+  async getOrderShipment(
+    orderId: string,
+    provider: DeliveryProvider,
+  ): Promise<OrderShipmentDTO | undefined> {
+    const shipment = await this.prisma.orderShipment.findUnique({
+      where: {
+        orderId_provider: {
+          orderId,
+          provider: this.toPrismaDeliveryProvider(provider),
+        },
+      },
+    });
+
+    return shipment ? this.mapOrderShipment(shipment) : undefined;
+  }
+
+  async claimOrderShipmentCreation(
+    orderId: string,
+    provider: DeliveryProvider,
+  ): Promise<ClaimOrderShipmentCreationResult> {
+    const prismaProvider = this.toPrismaDeliveryProvider(provider);
+
+    try {
+      const shipment = await this.prisma.orderShipment.create({
+        data: {
+          orderId,
+          provider: prismaProvider,
+          requestState: "CREATING",
+          syncedAt: new Date(),
+        },
+      });
+
+      return {
+        shipment: this.mapOrderShipment(shipment),
+        shouldCreate: true,
+      };
+    } catch (error) {
+      if (!this.isUniqueConstraintError(error)) {
+        throw error;
+      }
+
+      const existingShipment = await this.prisma.orderShipment.findUnique({
+        where: {
+          orderId_provider: {
+            orderId,
+            provider: prismaProvider,
+          },
+        },
+      });
+
+      if (!existingShipment) {
+        throw error;
+      }
+
+      if (
+        existingShipment.externalUuid ||
+        this.isFreshShipmentCreation(existingShipment)
+      ) {
+        return {
+          shipment: this.mapOrderShipment(existingShipment),
+          shouldCreate: false,
+        };
+      }
+
+      const shipment = await this.prisma.orderShipment.update({
+        where: {
+          id: existingShipment.id,
+        },
+        data: {
+          errorMessage: null,
+          requestState: "CREATING",
+          syncedAt: new Date(),
+        },
+      });
+
+      return {
+        shipment: this.mapOrderShipment(shipment),
+        shouldCreate: true,
+      };
+    }
+  }
+
+  async upsertOrderShipment(
+    input: UpsertOrderShipmentInput,
+  ): Promise<OrderShipmentDTO> {
+    const provider = this.toPrismaDeliveryProvider(input.provider);
+    const data = {
+      errorMessage: input.errorMessage ?? null,
+      externalNumber: input.externalNumber,
+      externalUuid: input.externalUuid,
+      requestPayload:
+        input.requestPayload === undefined
+          ? undefined
+          : this.toPrismaJson(input.requestPayload),
+      requestState: input.requestState,
+      requestUuid: input.requestUuid,
+      responsePayload:
+        input.responsePayload === undefined
+          ? undefined
+          : this.toPrismaJson(input.responsePayload),
+      statusCode: input.statusCode,
+      statusName: input.statusName,
+      syncedAt: input.syncedAt,
+    };
+    const shipment = await this.prisma.orderShipment.upsert({
+      where: {
+        orderId_provider: {
+          orderId: input.orderId,
+          provider,
+        },
+      },
+      create: {
+        ...data,
+        orderId: input.orderId,
+        provider,
+      },
+      update: data,
+    });
+
+    return this.mapOrderShipment(shipment);
   }
 
   async updateAdminOrderStatus(
@@ -672,6 +826,25 @@ export class OrdersStorage {
       history: order.history.map((event) =>
         this.mapAdminOrderHistoryEvent(event),
       ),
+      shipments: order.shipments.map((shipment) =>
+        this.mapOrderShipment(shipment),
+      ),
+    };
+  }
+
+  private mapOrderShipment(shipment: StoredOrderShipment): OrderShipmentDTO {
+    return {
+      provider: this.mapDeliveryProvider(shipment.provider),
+      externalUuid: shipment.externalUuid ?? undefined,
+      externalNumber: shipment.externalNumber ?? undefined,
+      requestUuid: shipment.requestUuid ?? undefined,
+      requestState: shipment.requestState ?? undefined,
+      statusCode: shipment.statusCode ?? undefined,
+      statusName: shipment.statusName ?? undefined,
+      errorMessage: shipment.errorMessage ?? undefined,
+      createdAt: shipment.createdAt.toISOString(),
+      updatedAt: shipment.updatedAt.toISOString(),
+      syncedAt: shipment.syncedAt?.toISOString(),
     };
   }
 
@@ -794,6 +967,15 @@ export class OrdersStorage {
     );
   }
 
+  private isFreshShipmentCreation(shipment: StoredOrderShipment) {
+    const freshWindowMs = 10 * 60 * 1000;
+
+    return (
+      shipment.requestState === "CREATING" &&
+      shipment.updatedAt.getTime() > Date.now() - freshWindowMs
+    );
+  }
+
   private toNumber(value: unknown) {
     return Number(value);
   }
@@ -832,7 +1014,7 @@ export class OrdersStorage {
     return { value };
   }
 
-  private toPrismaJson(value: Record<string, unknown>): Prisma.InputJsonValue {
+  private toPrismaJson(value: unknown): Prisma.InputJsonValue {
     return value as Prisma.InputJsonValue;
   }
 }

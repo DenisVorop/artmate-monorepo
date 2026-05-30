@@ -580,6 +580,7 @@ export class OrdersService {
     previousStatus: OrderStatus,
   ) {
     await Promise.all([
+      this.ensureCdekShipmentForPaidOrder(order),
       this.notifyAdminAboutOrderPaid(order),
       this.sendOrderPaidEmail(order),
       this.notifyCustomerAboutStatusChange({
@@ -589,6 +590,87 @@ export class OrdersService {
         userId,
       }),
     ]);
+  }
+
+  private async ensureCdekShipmentForPaidOrder(order: OrderDTO) {
+    if (
+      order.delivery.provider !== "cdek" ||
+      !this.isCdekOrderCreationEnabled()
+    ) {
+      return;
+    }
+
+    try {
+      const claim = await this.ordersStorage.claimOrderShipmentCreation(
+        order.id,
+        "cdek",
+      );
+
+      if (!claim.shouldCreate) {
+        if (claim.shipment.externalUuid) {
+          await this.syncCdekShipment(order.id, claim.shipment.externalUuid);
+        }
+
+        return;
+      }
+
+      const shipment = await this.deliveryService.createCdekOrder({
+        id: order.id,
+        customer: order.customer,
+        delivery: order.delivery,
+        items: order.items,
+        comment: order.comment,
+      });
+
+      const savedShipment = await this.ordersStorage.upsertOrderShipment({
+        orderId: order.id,
+        provider: "cdek",
+        ...shipment,
+        syncedAt: new Date(),
+      });
+
+      if (savedShipment.externalUuid) {
+        await this.syncCdekShipment(order.id, savedShipment.externalUuid);
+      }
+    } catch (error) {
+      const errorMessage = this.getErrorMessage(error);
+
+      await this.ordersStorage
+        .upsertOrderShipment({
+          orderId: order.id,
+          provider: "cdek",
+          errorMessage,
+          requestState: "ERROR",
+          syncedAt: new Date(),
+        })
+        .catch((storageError) => {
+          this.logger.warn(
+            `Failed to save CDEK shipment error for order ${order.id}: ${
+              storageError instanceof Error
+                ? storageError.message
+                : String(storageError)
+            }`,
+          );
+        });
+      this.logger.warn(
+        `Failed to create CDEK shipment for order ${order.id}: ${errorMessage}`,
+      );
+    }
+  }
+
+  private async syncCdekShipment(orderId: string, externalUuid: string) {
+    const shipment = await this.deliveryService.getCdekOrder(externalUuid);
+
+    await this.ordersStorage.upsertOrderShipment({
+      orderId,
+      provider: "cdek",
+      ...shipment,
+      syncedAt: new Date(),
+    });
+  }
+
+  private isCdekOrderCreationEnabled() {
+    return process.env.CDEK_ORDER_CREATION_ENABLED === "true";
   }
 
   private queueOrderCreatedNotifications(order: OrderDTO, userId: string) {

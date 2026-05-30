@@ -75,6 +75,7 @@ model Order {
 
   adminComments OrderAdminComment[]
   items         OrderItem[]
+  shipments     OrderShipment[]
   history       OrderHistory[]
   user          User?               @relation(fields: [userId], references: [id], onDelete: SetNull)
 
@@ -86,6 +87,31 @@ model Order {
   @@index([ozonAcquiringOrderId])
   @@index([ozonAcquiringPaymentId])
   @@map("orders")
+}
+
+model OrderShipment {
+  id             String                @id @default(cuid())
+  orderId        String                @map("order_id") @db.VarChar(32)
+  provider       OrderDeliveryProvider
+  externalUuid   String?               @map("external_uuid") @db.VarChar(120)
+  externalNumber String?               @map("external_number") @db.VarChar(120)
+  requestUuid    String?               @map("request_uuid") @db.VarChar(120)
+  requestState   String?               @map("request_state") @db.VarChar(40)
+  statusCode     String?               @map("status_code") @db.VarChar(80)
+  statusName     String?               @map("status_name") @db.VarChar(160)
+  errorMessage   String?               @map("error_message") @db.Text
+  requestPayload Json?                 @map("request_payload") @db.JsonB
+  responsePayload Json?                @map("response_payload") @db.JsonB
+  syncedAt       DateTime?             @map("synced_at")
+  createdAt      DateTime              @default(now()) @map("created_at")
+  updatedAt      DateTime              @default(now()) @updatedAt @map("updated_at")
+
+  order Order @relation(fields: [orderId], references: [id], onDelete: Cascade)
+
+  @@unique([orderId, provider])
+  @@index([provider, requestState])
+  @@index([externalUuid])
+  @@map("order_shipments")
 }
 
 model OrderItem {

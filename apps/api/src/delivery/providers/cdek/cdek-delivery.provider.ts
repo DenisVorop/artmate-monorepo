@@ -10,22 +10,30 @@ import type {
   DeliveryProviderAdapter,
   DeliveryQuote,
   DeliverySelection,
+  DeliveryShipmentCreateResult,
+  DeliveryShipmentOrder,
 } from "../delivery-provider.interface";
 
 import { CdekClientService } from "./cdek-client.service";
 import type {
   CdekCalculatorResponse,
   CdekDeliveryPointResponseItem,
+  CdekOrderCreateResponse,
+  CdekOrderInfoResponse,
+  CdekOrderRequestInfo,
+  CdekOrderStatus,
   CdekSuggestCityResponseItem,
 } from "./cdek.types";
 
 const defaultCountryCode = "RU";
 const defaultFromCityCode = 44;
 const defaultTariffCode = 136;
-const defaultItemWeightGrams = 500;
-const defaultPackageLengthCm = 30;
-const defaultPackageWidthCm = 21;
-const defaultPackageHeightCm = 3;
+const defaultItemWeightGrams = 400;
+const defaultPackageLengthCm = 40;
+const defaultPackageWidthCm = 30;
+const defaultPackageHeightCm = 1;
+const defaultOrderType = 1;
+const maxOrderPackageCount = 255;
 
 @Injectable()
 export class CdekDeliveryProvider implements DeliveryProviderAdapter {
@@ -87,16 +95,19 @@ export class CdekDeliveryProvider implements DeliveryProviderAdapter {
       {
         method: "POST",
         body: {
+          ...(this.getShipmentPointCode()
+            ? { shipment_point: this.getShipmentPointCode() }
+            : {}),
           delivery_point: pickupPoint.id,
           from_location: {
             code: this.getFromCityCode(),
           },
-          packages: this.buildPackages(input.items),
+          packages: this.buildCalculationPackages(input.items),
           tariff_code: this.getTariffCode(),
           to_location: {
             code: cityCode,
           },
-          type: 1,
+          type: this.getOrderType(),
         },
       },
     );
@@ -109,6 +120,50 @@ export class CdekDeliveryProvider implements DeliveryProviderAdapter {
         deliveryPrice,
       },
       provider: this.provider,
+    };
+  }
+
+  async createOrder(
+    order: DeliveryShipmentOrder,
+  ): Promise<DeliveryShipmentCreateResult> {
+    if (order.delivery.provider !== this.provider) {
+      throw new BadRequestException("Order delivery provider must be cdek");
+    }
+
+    const requestPayload = this.buildCreateOrderPayload(order);
+    const response = await this.cdekClient.request<CdekOrderCreateResponse>(
+      "/v2/orders",
+      {
+        method: "POST",
+        body: requestPayload,
+      },
+    );
+    const request = this.getLastRequest(response.requests);
+
+    return {
+      externalUuid: this.getString(response.entity?.uuid),
+      requestPayload,
+      requestState: this.getString(request?.state),
+      requestUuid: this.getString(request?.request_uuid),
+      responsePayload: response,
+    };
+  }
+
+  async getOrder(uuid: string): Promise<DeliveryShipmentCreateResult> {
+    const response = await this.cdekClient.request<CdekOrderInfoResponse>(
+      `/v2/orders/${encodeURIComponent(uuid)}`,
+    );
+    const request = this.getLastRequest(response.requests);
+    const status = this.getLatestStatus(response.entity?.statuses);
+
+    return {
+      externalNumber: this.getString(response.entity?.cdek_number),
+      externalUuid: this.getString(response.entity?.uuid) ?? uuid,
+      requestState: this.getString(request?.state),
+      requestUuid: this.getString(request?.request_uuid),
+      responsePayload: response,
+      statusCode: this.getString(status?.code),
+      statusName: this.getString(status?.name),
     };
   }
 
@@ -125,16 +180,18 @@ export class CdekDeliveryProvider implements DeliveryProviderAdapter {
     return pickupPoint;
   }
 
-  private buildPackages(items: DeliveryCartItem[]) {
+  private buildCalculationPackages(items: DeliveryCartItem[]) {
     const packageCount = Math.max(
       items.reduce((sum, item) => sum + Math.max(item.quantity, 0), 0),
       1,
     );
 
-    return Array.from({ length: packageCount }, () => this.buildPackage());
+    return Array.from({ length: packageCount }, () =>
+      this.buildBasePackage(),
+    );
   }
 
-  private buildPackage() {
+  private buildBasePackage() {
     return {
       height: this.getPositiveIntegerConfig(
         "CDEK_DEFAULT_PACKAGE_HEIGHT_CM",
@@ -155,6 +212,106 @@ export class CdekDeliveryProvider implements DeliveryProviderAdapter {
         defaultPackageWidthCm,
       ),
     };
+  }
+
+  private buildCreateOrderPayload(order: DeliveryShipmentOrder) {
+    return this.omitUndefined({
+      comment: this.truncateOptionalString(order.comment, 255),
+      delivery_point: this.parsePickupPointId(order.delivery.pickupPoint.id),
+      number: this.truncateRequiredString(order.id, 40),
+      packages: this.buildOrderPackages(order),
+      recipient: {
+        email: this.truncateRequiredString(order.customer.email, 255),
+        name: this.truncateRequiredString(order.customer.name, 255),
+        phones: [
+          {
+            number: this.truncateRequiredString(
+              this.normalizePhone(order.customer.phone),
+              24,
+            ),
+          },
+        ],
+      },
+      shipment_point: this.getRequiredShipmentPointCode(),
+      tariff_code: this.getTariffCode(),
+      type: this.getOrderType(),
+    });
+  }
+
+  private buildOrderPackages(order: DeliveryShipmentOrder) {
+    const packages: Record<string, unknown>[] = [];
+
+    for (const item of order.items) {
+      const quantity = Math.max(item.quantity, 0);
+
+      for (let index = 0; index < quantity; index += 1) {
+        packages.push({
+          ...this.buildBasePackage(),
+          items: [this.buildOrderPackageItem(item)],
+          number: this.createPackageNumber(order.id, packages.length + 1),
+        });
+      }
+    }
+
+    if (packages.length === 0) {
+      throw new BadRequestException("CDEK order packages are empty");
+    }
+
+    if (packages.length > maxOrderPackageCount) {
+      throw new BadRequestException(
+        `CDEK order packages count must be ${maxOrderPackageCount} or less`,
+      );
+    }
+
+    return packages;
+  }
+
+  private buildOrderPackageItem(item: DeliveryCartItem) {
+    const weight = this.getPositiveIntegerConfig(
+      "CDEK_DEFAULT_ITEM_WEIGHT_GRAMS",
+      defaultItemWeightGrams,
+    );
+
+    return {
+      amount: 1,
+      cost: 0,
+      name: this.truncateRequiredString(item.title, 255),
+      payment: {
+        value: 0,
+        vat_rate: null,
+      },
+      ware_key: this.truncateRequiredString(this.getWareKey(item), 50),
+      weight,
+    };
+  }
+
+  private createPackageNumber(orderId: string, packageIndex: number) {
+    return this.truncateRequiredString(`${orderId}-${packageIndex}`, 30);
+  }
+
+  private getWareKey(item: DeliveryCartItem) {
+    const key = item.slug?.trim() || item.id.trim() || item.title.trim();
+
+    return key.replace(/[^\p{L}\p{N}!@"#№$;%^:&?*()_\-+=<>,.{}[\]/ ]/gu, "-");
+  }
+
+  private normalizePhone(phone: string) {
+    const trimmedPhone = phone.trim();
+    const digits = trimmedPhone.replace(/\D/g, "");
+
+    if (trimmedPhone.startsWith("+") && digits) {
+      return `+${digits}`;
+    }
+
+    return digits || trimmedPhone;
+  }
+
+  private getLastRequest(requests: CdekOrderRequestInfo[] | undefined) {
+    return requests?.at(-1);
+  }
+
+  private getLatestStatus(statuses: CdekOrderStatus[] | undefined) {
+    return statuses?.filter((status) => !this.getBoolean(status.deleted)).at(-1);
   }
 
   private mapPickupPoint(
@@ -232,6 +389,26 @@ export class CdekDeliveryProvider implements DeliveryProviderAdapter {
     );
   }
 
+  private getOrderType() {
+    return this.getPositiveIntegerConfig("CDEK_ORDER_TYPE", defaultOrderType);
+  }
+
+  private getShipmentPointCode() {
+    const value = process.env.CDEK_SHIPMENT_POINT_CODE;
+
+    return value?.trim() || undefined;
+  }
+
+  private getRequiredShipmentPointCode() {
+    const value = this.getShipmentPointCode();
+
+    if (!value) {
+      throw new BadRequestException("CDEK_SHIPMENT_POINT_CODE is required");
+    }
+
+    return value;
+  }
+
   private getPositiveIntegerConfig(name: string, fallback: number) {
     const parsedValue = Number(process.env[name] ?? fallback);
 
@@ -276,6 +453,33 @@ export class CdekDeliveryProvider implements DeliveryProviderAdapter {
     }
 
     return undefined;
+  }
+
+  private getBoolean(value: unknown) {
+    return typeof value === "boolean" ? value : undefined;
+  }
+
+  private truncateRequiredString(value: string, maxLength: number) {
+    const trimmedValue = value.trim();
+
+    if (!trimmedValue) {
+      throw new BadRequestException("CDEK order field must be non-empty");
+    }
+
+    return trimmedValue.slice(0, maxLength);
+  }
+
+  private truncateOptionalString(
+    value: string | undefined,
+    maxLength: number,
+  ) {
+    const trimmedValue = value?.trim();
+
+    return trimmedValue ? trimmedValue.slice(0, maxLength) : undefined;
+  }
+
+  private roundMoney(value: number) {
+    return Math.round(value * 100) / 100;
   }
 
   private toRecord(value: unknown): Record<string, unknown> {

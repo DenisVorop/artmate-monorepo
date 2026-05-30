@@ -69,6 +69,20 @@ export type AdminOrderHistoryEventDTO = {
   createdAt: string;
 };
 
+export type OrderShipmentDTO = {
+  provider: OrderDeliveryProviderDTO;
+  externalUuid?: string;
+  externalNumber?: string;
+  requestUuid?: string;
+  requestState?: string;
+  statusCode?: string;
+  statusName?: string;
+  errorMessage?: string;
+  createdAt: string;
+  updatedAt: string;
+  syncedAt?: string;
+};
+
 export type AdminOrderDTO = {
   id: string;
   cartId: string;
@@ -85,6 +99,7 @@ export type AdminOrderDTO = {
   comment?: string;
   adminComments: AdminOrderCommentDTO[];
   history: AdminOrderHistoryEventDTO[];
+  shipments: OrderShipmentDTO[];
   createdAt: string;
   paidAt?: string;
 };

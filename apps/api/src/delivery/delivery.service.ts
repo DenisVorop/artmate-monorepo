@@ -5,6 +5,7 @@ import type {
   DeliveryCartItem,
   DeliveryQuote,
   DeliverySelection,
+  DeliveryShipmentOrder,
 } from "./providers/delivery-provider.interface";
 
 @Injectable()
@@ -32,6 +33,14 @@ export class DeliveryService {
       case "ozon":
         return this.calculateManualOzonDelivery(selection);
     }
+  }
+
+  createCdekOrder(order: DeliveryShipmentOrder) {
+    return this.cdekDeliveryProvider.createOrder(order);
+  }
+
+  getCdekOrder(uuid: string) {
+    return this.cdekDeliveryProvider.getOrder(uuid);
   }
 
   private async calculateManualOzonDelivery(

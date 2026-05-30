@@ -11,6 +11,7 @@ export { OrderDTO } from "./order.dto";
 export { OrderCustomerDTO } from "./order-customer.dto";
 export { OrderDeliveryDTO } from "./order-delivery.dto";
 export { OrderPaymentDTO } from "./order-payment.dto";
+export { OrderShipmentDTO } from "./order-shipment.dto";
 export { OrderStateDTO } from "./order-state.dto";
 export { PickupPointDTO } from "./pickup-point.dto";
 export { UpdateOrderStatusRequestDTO } from "./update-order-crm-status-request.dto";

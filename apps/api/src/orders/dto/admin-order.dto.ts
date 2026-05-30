@@ -4,6 +4,7 @@ import { IsArray, ValidateNested } from "class-validator";
 import { AdminOrderCommentDTO } from "./admin-order-comment.dto";
 import { AdminOrderHistoryEventDTO } from "./admin-order-history-event.dto";
 import { OrderDTO } from "./order.dto";
+import { OrderShipmentDTO } from "./order-shipment.dto";
 
 export class AdminOrderDTO extends OrderDTO {
   @IsArray()
@@ -15,4 +16,9 @@ export class AdminOrderDTO extends OrderDTO {
   @ValidateNested({ each: true })
   @Type(() => AdminOrderHistoryEventDTO)
   history!: AdminOrderHistoryEventDTO[];
+
+  @IsArray()
+  @ValidateNested({ each: true })
+  @Type(() => OrderShipmentDTO)
+  shipments!: OrderShipmentDTO[];
 }

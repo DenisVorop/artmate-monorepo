@@ -16,6 +16,7 @@ import {
   PackageCheck,
   Phone,
   SendHorizontal,
+  Truck,
 } from "lucide-react";
 import { useForm } from "react-hook-form";
 
@@ -293,6 +294,10 @@ function OrderCard({
           <Metric label="Итого" value={formatMoney(order.total)} />
         </div>
 
+        {order.delivery.provider === "cdek" ? (
+          <ShipmentBadge order={order} />
+        ) : null}
+
         {order.comment ? (
           <div className="rounded-lg border bg-muted/40 p-2 text-xs">
             <p className="font-medium">Комментарий клиента</p>
@@ -455,6 +460,29 @@ function PaymentBadge({ order }: { readonly order: AdminOrder }) {
   );
 }
 
+function ShipmentBadge({ order }: { readonly order: AdminOrder }) {
+  const shipment = order.shipments.find((item) => item.provider === "cdek");
+  const hasError = Boolean(shipment?.errorMessage);
+  const isCreated = Boolean(shipment?.externalUuid);
+
+  return (
+    <Badge
+      className={cn(
+        "w-fit rounded-lg",
+        hasError
+          ? "border-rose-200 bg-rose-50 text-rose-700"
+          : isCreated
+            ? "border-emerald-200 bg-emerald-50 text-emerald-700"
+            : "border-slate-200 bg-slate-50 text-slate-700",
+      )}
+      variant="outline"
+    >
+      <Truck data-icon="inline-start" aria-hidden="true" />
+      {getShipmentStatusLabel(shipment)}
+    </Badge>
+  );
+}
+
 function MoveControls({
   disabled,
   onMove,
@@ -571,6 +599,32 @@ function getStatusLabel(value: unknown) {
   }
 
   return orderCrmStatusLabels[value as AdminOrder["status"]];
+}
+
+function getShipmentStatusLabel(
+  shipment: AdminOrder["shipments"][number] | undefined,
+) {
+  if (!shipment) {
+    return "CDEK не создан";
+  }
+
+  if (shipment.errorMessage) {
+    return "CDEK ошибка";
+  }
+
+  if (shipment.externalNumber) {
+    return `CDEK ${shipment.externalNumber}`;
+  }
+
+  if (shipment.externalUuid) {
+    return "CDEK создан";
+  }
+
+  if (shipment.requestState === "CREATING") {
+    return "CDEK создается";
+  }
+
+  return "CDEK принят";
 }
 
 function formatMoney(value: number) {
