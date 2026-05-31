@@ -19,7 +19,6 @@ import { useForm } from "react-hook-form";
 import {
   getLatestOrder,
   getPreferredCustomerEmail,
-  getPreferredCustomerPhone,
   OrderCard,
   useOrdersData,
 } from "@/entities/orders";
@@ -96,7 +95,6 @@ export function Account() {
   const accountOrders = orders.isError ? [] : orders.data;
   const latestOrder = getLatestOrder(accountOrders);
   const email = user.email ?? getPreferredCustomerEmail(accountOrders);
-  const phone = user.phone ?? getPreferredCustomerPhone(accountOrders);
   const userTitle = getSessionUserDisplayName(user);
 
   return (
@@ -129,7 +127,7 @@ export function Account() {
             </CardHeader>
             <CardContent className="space-y-4">
               <ContactLine icon={Mail} label="Почта" value={email ?? "Не указана"} />
-              <ContactLine icon={Phone} label="Телефон" value={phone ?? "Не указан"} />
+              <ContactLine icon={Phone} label="Телефон" value={user.phone ?? "Не указан"} />
             </CardContent>
           </Card>
 
