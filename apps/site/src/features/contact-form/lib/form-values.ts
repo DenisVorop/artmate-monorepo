@@ -7,6 +7,9 @@ const orderMaxLength = 80;
 const messageMaxLength = 2000;
 
 export const contactFormSchema = z.object({
+  acceptedPersonalDataConsent: z
+    .boolean()
+    .refine((value) => value, "Подтвердите согласие на обработку персональных данных"),
   email: z
     .string()
     .trim()
@@ -30,6 +33,7 @@ export const contactFormSchema = z.object({
 export type ContactFormValues = z.infer<typeof contactFormSchema>;
 
 export const contactFormDefaultValues = {
+  acceptedPersonalDataConsent: false,
   email: "",
   message: "",
   name: "",

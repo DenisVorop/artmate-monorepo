@@ -6,6 +6,7 @@ export function buildContactMessagePayload(
   values: ContactFormValues,
 ): SubmitContactMessageInputDTO {
   return {
+    acceptedPersonalDataConsent: values.acceptedPersonalDataConsent,
     email: values.email.trim(),
     message: values.message.trim(),
     name: values.name.trim(),

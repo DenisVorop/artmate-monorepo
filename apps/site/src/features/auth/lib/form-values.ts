@@ -8,6 +8,10 @@ import type {
   RequestPasswordResetInputDTO,
 } from "@/shared/actions/auth";
 
+const personalDataConsentSchema = z
+  .boolean()
+  .refine((value) => value, "Подтвердите согласие на обработку персональных данных");
+
 export const loginFormSchema = z.object({
   email: z
     .string()
@@ -31,6 +35,7 @@ export const registerFormSchema = z
     name: z.string().trim(),
     password: z.string().min(8, "Пароль должен быть не короче 8 символов"),
     passwordConfirm: z.string().min(1, "Повторите пароль"),
+    acceptedPersonalDataConsent: personalDataConsentSchema,
   })
   .refine((values) => values.password === values.passwordConfirm, {
     path: ["passwordConfirm"],
@@ -45,6 +50,7 @@ export const emailVerificationFormSchema = z.object({
 });
 
 export const passwordResetRequestFormSchema = z.object({
+  acceptedPersonalDataConsent: personalDataConsentSchema,
   email: z
     .string()
     .trim()
@@ -89,6 +95,7 @@ export function toLoginInput(values: LoginFormValues): LoginInputDTO {
 
 export function toRegisterInput(values: RegisterFormValues): RegisterInputDTO {
   return {
+    acceptedPersonalDataConsent: values.acceptedPersonalDataConsent,
     password: values.password,
     email: values.email.trim(),
     name: getOptionalAuthField(values.name),
@@ -109,6 +116,7 @@ export function toPasswordResetRequestInput(
   values: PasswordResetRequestFormValues,
 ): RequestPasswordResetInputDTO {
   return {
+    acceptedPersonalDataConsent: values.acceptedPersonalDataConsent,
     email: values.email.trim(),
   };
 }

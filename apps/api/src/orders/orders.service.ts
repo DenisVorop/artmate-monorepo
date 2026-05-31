@@ -203,6 +203,10 @@ export class OrdersService {
       throw new BadRequestException("Legal terms must be accepted");
     }
 
+    if (request.acceptedPersonalDataConsent !== true) {
+      throw new BadRequestException("Personal data consent must be accepted");
+    }
+
     const order = await this.ordersStorage.createOrder({
       userId: user.id,
       cartId: cartDTO.id,

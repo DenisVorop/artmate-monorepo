@@ -39,6 +39,7 @@ export type LoginInputDTO = {
 };
 
 export type RegisterInputDTO = {
+  acceptedPersonalDataConsent: boolean;
   password: string;
   name?: string;
   email: string;
@@ -54,6 +55,7 @@ export type ResendEmailVerificationInputDTO = {
 };
 
 export type RequestPasswordResetInputDTO = {
+  acceptedPersonalDataConsent: boolean;
   email: string;
 };
 
@@ -85,6 +87,7 @@ export type AuthTelegramLinkStatusDTO = {
 };
 
 export type ConfirmTelegramLinkInputDTO = {
+  acceptedPersonalDataConsent: boolean;
   code: string;
 };
 

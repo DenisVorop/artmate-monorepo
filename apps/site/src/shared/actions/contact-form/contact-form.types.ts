@@ -1,4 +1,5 @@
 export type SubmitContactMessageInputDTO = {
+  acceptedPersonalDataConsent: boolean;
   email: string;
   message: string;
   name: string;

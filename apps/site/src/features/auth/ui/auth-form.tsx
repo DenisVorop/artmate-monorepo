@@ -28,6 +28,7 @@ import {
   CardTitle,
   Input,
   Label,
+  PersonalDataConsentCheckbox,
   Tabs,
   TabsContent,
   TabsList,
@@ -327,6 +328,7 @@ function PasswordResetRequestForm({
     formState: { errors },
   } = useForm<PasswordResetRequestFormValues>({
     defaultValues: {
+      acceptedPersonalDataConsent: false,
       email: lockedEmail ?? initialEmail ?? "",
     },
     mode: "onSubmit",
@@ -378,6 +380,15 @@ function PasswordResetRequestForm({
       </div>
 
       <FormError message={submitError} />
+
+      <div className="space-y-2">
+        <PersonalDataConsentCheckbox
+          id="password-reset-personal-data-consent"
+          hasError={Boolean(errors.acceptedPersonalDataConsent)}
+          {...register("acceptedPersonalDataConsent")}
+        />
+        <FieldError message={errors.acceptedPersonalDataConsent?.message} />
+      </div>
 
       <Button type="submit" disabled={isPending} className="h-10 w-full">
         {isPending ? (
@@ -524,6 +535,7 @@ function RegisterForm({
     formState: { errors },
   } = useForm<RegisterFormValues>({
     defaultValues: {
+      acceptedPersonalDataConsent: false,
       email: lockedEmail ?? initialEmail ?? "",
       name: initialName?.trim() ?? "",
       password: "",
@@ -599,6 +611,15 @@ function RegisterForm({
       </div>
 
       <FormError message={submitError} />
+
+      <div className="space-y-2">
+        <PersonalDataConsentCheckbox
+          id="register-personal-data-consent"
+          hasError={Boolean(errors.acceptedPersonalDataConsent)}
+          {...register("acceptedPersonalDataConsent")}
+        />
+        <FieldError message={errors.acceptedPersonalDataConsent?.message} />
+      </div>
 
       <Button type="submit" disabled={isSubmitting} className="h-10 w-full">
         {isSubmitting ? (

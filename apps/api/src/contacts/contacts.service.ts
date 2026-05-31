@@ -73,6 +73,7 @@ export class ContactsService {
       request.order
         ? `<b>Номер заказа:</b> <code>${this.formatText(request.order)}</code>`
         : undefined,
+      "<b>Согласие на обработку ПДн:</b> получено",
       "",
       "<b>Сообщение:</b>",
       this.formatMessage(request.message),

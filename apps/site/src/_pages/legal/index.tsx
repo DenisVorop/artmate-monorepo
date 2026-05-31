@@ -27,6 +27,7 @@ type LegalDocument = {
 
 const sellerName = `${companyDetails.legalName}, ИНН ${companyDetails.inn}, ${companyDetails.registrationNumberLabel} ${companyDetails.registrationNumber}`;
 const legalDocumentsUpdatedAt = "04.05.2026";
+const personalDataConsentUpdatedAt = "31.05.2026";
 
 export const legalDocuments = {
   publicOffer: {
@@ -181,14 +182,15 @@ export const legalDocuments = {
   personalDataConsent: {
     title: "Согласие на обработку персональных данных",
     description:
-      "Согласие покупателя на обработку персональных данных при оформлении заказа Artmate.",
+      "Согласие пользователя на обработку персональных данных при использовании форм Artmate.",
     href: routes.legal.personalDataConsent,
-    updatedAt: legalDocumentsUpdatedAt,
+    updatedAt: personalDataConsentUpdatedAt,
     sections: [
       {
         title: "1. Согласие пользователя",
         paragraphs: [
-          `Оставляя данные на сайте, пользователь дает ${sellerName} согласие на обработку персональных данных на условиях настоящего согласия и политики конфиденциальности.`,
+          `Пользователь дает ${sellerName} согласие на обработку персональных данных путем проставления отдельной отметки в форме сайта перед отправкой данных.`,
+          "Согласие предоставляется на условиях настоящего документа и политики конфиденциальности.",
         ],
       },
       {

@@ -100,6 +100,7 @@ export type CreateOrderInputDTO = {
   };
   comment?: string;
   acceptedLegal: boolean;
+  acceptedPersonalDataConsent: boolean;
 };
 
 export type CalculateCheckoutInputDTO = {

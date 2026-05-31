@@ -1,5 +1,13 @@
 import { Transform } from "class-transformer";
-import { IsEmail, IsOptional, IsString, MaxLength, MinLength } from "class-validator";
+import {
+  Equals,
+  IsBoolean,
+  IsEmail,
+  IsOptional,
+  IsString,
+  MaxLength,
+  MinLength,
+} from "class-validator";
 
 import {
   CONTACT_MESSAGE_EMAIL_MAX_LENGTH,
@@ -13,6 +21,10 @@ const Trim = () =>
   Transform(({ value }) => (typeof value === "string" ? value.trim() : value));
 
 export class CreateContactMessageRequestDTO {
+  @IsBoolean()
+  @Equals(true)
+  acceptedPersonalDataConsent!: boolean;
+
   @Trim()
   @IsString()
   @MinLength(1)

@@ -20,7 +20,10 @@ export const checkoutFormValidationSchema = z.object({
     .regex(checkoutPhonePattern, `Введите телефон в формате ${checkoutPhonePlaceholder}`),
   email: z.string().trim().min(1, "Укажите email").email("Введите корректный email"),
   comment: z.string().max(1000, "Комментарий должен быть короче 1000 символов"),
-  acceptedLegal: z.boolean().refine((value) => value, "Подтвердите согласие с условиями"),
+  acceptedLegal: z.boolean().refine((value) => value, "Примите условия публичной оферты"),
+  acceptedPersonalDataConsent: z
+    .boolean()
+    .refine((value) => value, "Подтвердите согласие на обработку персональных данных"),
 });
 
 export type CheckoutFormValues = z.infer<typeof checkoutFormValidationSchema>;
@@ -45,6 +48,7 @@ export function getDefaultCheckoutFormValues(
     email: customerDefaults.email ?? "",
     comment: "",
     acceptedLegal: false,
+    acceptedPersonalDataConsent: false,
   };
 }
 
@@ -107,6 +111,7 @@ export function toCreateOrderInput(
     },
     comment: comment || undefined,
     acceptedLegal: values.acceptedLegal,
+    acceptedPersonalDataConsent: values.acceptedPersonalDataConsent,
   };
 }
 

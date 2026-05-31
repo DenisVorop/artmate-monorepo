@@ -39,4 +39,8 @@ export class CreateOrderRequestDTO {
   @IsBoolean()
   @Equals(true)
   acceptedLegal!: boolean;
+
+  @IsBoolean()
+  @Equals(true)
+  acceptedPersonalDataConsent!: boolean;
 }

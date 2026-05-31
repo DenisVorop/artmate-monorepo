@@ -15,6 +15,7 @@ import {
   CardTitle,
   Input,
   Label,
+  PersonalDataConsentCheckbox,
   Textarea,
 } from "@/shared/ui";
 
@@ -193,6 +194,15 @@ export function ContactForm() {
               {...register("message")}
             />
             <FieldError message={errors.message?.message} />
+          </div>
+
+          <div className="space-y-2">
+            <PersonalDataConsentCheckbox
+              id={`${formId}-personal-data-consent`}
+              hasError={Boolean(errors.acceptedPersonalDataConsent)}
+              {...register("acceptedPersonalDataConsent")}
+            />
+            <FieldError message={errors.acceptedPersonalDataConsent?.message} />
           </div>
 
           <Button
