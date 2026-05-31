@@ -1,5 +1,17 @@
 # Changelog
 
+## [0.25.0](https://github.com/DenisVorop/artmate-monorepo/compare/v0.24.0...v0.25.0) (2026-05-31)
+
+
+### Features
+
+* **site:** add account order payment action ([ee9342e](https://github.com/DenisVorop/artmate-monorepo/commit/ee9342e5034cf5c1c7ba56edab6915fc20257cb2))
+
+
+### Bug Fixes
+
+* **site:** show saved account phone only ([25c01cd](https://github.com/DenisVorop/artmate-monorepo/commit/25c01cd552b87f3c98f4e910d1f2ef3b451e2c5c))
+
 ## [0.24.0](https://github.com/DenisVorop/artmate-monorepo/compare/v0.23.0...v0.24.0) (2026-05-30)
 
 
