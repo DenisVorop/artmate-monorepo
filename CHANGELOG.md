@@ -1,5 +1,17 @@
 # Changelog
 
+## [0.26.0](https://github.com/DenisVorop/artmate-monorepo/compare/v0.25.0...v0.26.0) (2026-05-31)
+
+
+### Features
+
+* add product out-of-stock flag ([41ac625](https://github.com/DenisVorop/artmate-monorepo/commit/41ac625d278ab6208e0b8f3a32717509dce67ef1))
+
+
+### Bug Fixes
+
+* require explicit personal data consent ([0204539](https://github.com/DenisVorop/artmate-monorepo/commit/02045399f056d6a8157f0d6becfa2167c1d9cb47))
+
 ## [0.25.0](https://github.com/DenisVorop/artmate-monorepo/compare/v0.24.0...v0.25.0) (2026-05-31)
 
 
