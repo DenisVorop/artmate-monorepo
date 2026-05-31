@@ -5,6 +5,7 @@ import {
   CalendarDays,
   ChevronDown,
   ChevronUp,
+  CreditCard,
   MapPin,
   PackageCheck,
   Truck,
@@ -21,6 +22,7 @@ import {
   CardDescription,
   CardHeader,
   CardTitle,
+  CtaGradientLink,
   Separator,
 } from "@/shared/ui";
 import { Link } from "@/shared/ui/link";
@@ -77,10 +79,11 @@ export function OrderCard({ order }: OrderCardProps) {
   const cdekShipment = getCdekShipment(order);
   const cdekShipmentStatus = getOrderShipmentStatusLabel(cdekShipment);
   const cdekShipmentNumber = getOrderShipmentNumberLabel(cdekShipment);
+  const paymentUrl = getOrderPaymentUrl(order);
 
   return (
     <Card className="overflow-hidden">
-      <CardHeader className="gap-4 sm:flex-row sm:items-start sm:justify-between">
+      <CardHeader className="gap-5 sm:grid-cols-[minmax(0,1fr)_11rem] sm:items-start">
         <div className="space-y-2">
           <div className="flex flex-wrap items-center gap-2">
             <CardTitle className="text-xl">Заказ {order.id}</CardTitle>
@@ -100,9 +103,23 @@ export function OrderCard({ order }: OrderCardProps) {
           </CardDescription>
         </div>
 
-        <div>
-          <p className="text-sm text-muted-foreground">Итого</p>
-          <p className="text-2xl font-semibold">{formatMoney(order.total)}</p>
+        <div className="grid gap-3 sm:justify-self-end">
+          <div className="space-y-1 sm:text-right">
+            <p className="text-sm text-muted-foreground">Итого</p>
+            <p className="text-2xl font-semibold">{formatMoney(order.total)}</p>
+          </div>
+          {paymentUrl && (
+            <Button
+              asChild
+              size="lg"
+              className="w-full border-0 bg-gradient-to-r from-rose-500 via-rose-400 to-orange-400 font-semibold text-white shadow-sm shadow-rose-500/20 hover:from-rose-500/95 hover:via-rose-400/95 hover:to-orange-400/95 focus-visible:ring-rose-400/30"
+            >
+              <CtaGradientLink href={paymentUrl}>
+                <CreditCard data-icon="inline-start" />
+                Оплатить заказ
+              </CtaGradientLink>
+            </Button>
+          )}
         </div>
       </CardHeader>
 
@@ -228,6 +245,17 @@ function getPendingCdekShipmentStatus(order: Order) {
   return order.payment.status === "paid"
     ? "Скоро передадим в СДЭК"
     : "Появится после оплаты";
+}
+
+function getOrderPaymentUrl(order: Order) {
+  if (
+    order.payment.method !== "ozon_acquiring" ||
+    order.payment.status !== "pending"
+  ) {
+    return undefined;
+  }
+
+  return `${routes.checkoutPayment}?orderId=${encodeURIComponent(order.id)}`;
 }
 
 function getItemsWord(count: number) {
