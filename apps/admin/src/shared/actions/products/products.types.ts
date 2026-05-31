@@ -28,6 +28,7 @@ export type ProductDTO = {
   description?: string;
   status: ProductStatusDTO;
   isHit: boolean;
+  isOutOfStock: boolean;
   categoryId?: string;
   category?: ProductCategoryDTO;
   price: number;
@@ -44,6 +45,7 @@ export type CreateProductInputDTO = {
   description?: string;
   status?: ProductStatusDTO;
   isHit?: boolean;
+  isOutOfStock?: boolean;
   categoryId?: string;
   priceRub: number;
   currency?: ProductCurrencyDTO;

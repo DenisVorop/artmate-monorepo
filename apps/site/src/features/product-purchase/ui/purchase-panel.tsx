@@ -18,7 +18,9 @@ export function ProductPurchase({ product, onAddToCart }: PurchasePanelProps) {
   const [quantity, setQuantity] = useState(1);
   const [added, setAdded] = useState(false);
   const [isAdding, setIsAdding] = useState(false);
+  const [submitError, setSubmitError] = useState<string>();
   const resetTimer = useRef<ReturnType<typeof setTimeout> | null>(null);
+  const isOutOfStock = product.isOutOfStock;
 
   useEffect(() => {
     return () => {
@@ -28,31 +30,37 @@ export function ProductPurchase({ product, onAddToCart }: PurchasePanelProps) {
     };
   }, []);
 
+  useEffect(() => {
+    setSubmitError(undefined);
+  }, [product.id]);
+
   const total = useMemo(
     () => (product.price * quantity).toLocaleString("ru-RU"),
     [product.price, quantity],
   );
 
   const handleAdd = async () => {
-    if (!onAddToCart || isAdding) {
+    if (!onAddToCart || isAdding || isOutOfStock) {
       return;
     }
 
     setIsAdding(true);
+    setSubmitError(undefined);
 
     try {
       await onAddToCart(product, quantity);
+      setAdded(true);
+
+      if (resetTimer.current) {
+        clearTimeout(resetTimer.current);
+      }
+
+      resetTimer.current = setTimeout(() => setAdded(false), 1800);
+    } catch {
+      setSubmitError("Не удалось добавить товар в корзину. Попробуйте еще раз.");
     } finally {
       setIsAdding(false);
     }
-
-    setAdded(true);
-
-    if (resetTimer.current) {
-      clearTimeout(resetTimer.current);
-    }
-
-    resetTimer.current = setTimeout(() => setAdded(false), 1800);
   };
 
   const ActionIcon = isAdding ? LoaderCircle : added ? Check : ShoppingBag;
@@ -63,7 +71,9 @@ export function ProductPurchase({ product, onAddToCart }: PurchasePanelProps) {
         <div className="flex flex-wrap items-center justify-between gap-3">
           <div className="space-y-1">
             <p className="text-sm font-medium text-foreground">Количество</p>
-            <p className="text-sm text-muted-foreground">Итого: {total} ₽</p>
+            <p className="text-sm text-muted-foreground">
+              {isOutOfStock ? "Сейчас товар нельзя добавить в корзину" : `Итого: ${total} ₽`}
+            </p>
           </div>
 
           <div className="flex items-center rounded-lg border bg-background p-1">
@@ -72,6 +82,7 @@ export function ProductPurchase({ product, onAddToCart }: PurchasePanelProps) {
               variant="ghost"
               size="icon"
               aria-label="Уменьшить количество"
+              disabled={isOutOfStock}
               onClick={() => setQuantity((value) => Math.max(1, value - 1))}
             >
               <Minus />
@@ -84,6 +95,7 @@ export function ProductPurchase({ product, onAddToCart }: PurchasePanelProps) {
               variant="ghost"
               size="icon"
               aria-label="Увеличить количество"
+              disabled={isOutOfStock}
               onClick={() => setQuantity((value) => value + 1)}
             >
               <Plus />
@@ -93,12 +105,18 @@ export function ProductPurchase({ product, onAddToCart }: PurchasePanelProps) {
 
         <Separator />
 
+        {submitError ? (
+          <p className="text-sm text-destructive" role="alert">
+            {submitError}
+          </p>
+        ) : null}
+
         <div className="grid gap-2 sm:grid-cols-[1fr_auto]">
           <Button
             type="button"
             size="lg"
             onClick={handleAdd}
-            disabled={!onAddToCart || isAdding}
+            disabled={!onAddToCart || isAdding || isOutOfStock}
             className={cn(
               "h-11",
               added
@@ -107,7 +125,13 @@ export function ProductPurchase({ product, onAddToCart }: PurchasePanelProps) {
             )}
           >
             <ActionIcon data-icon="inline-start" className={cn(isAdding && "animate-spin")} />
-            {isAdding ? "Добавляем" : added ? "Добавлено" : "В корзину"}
+            {isOutOfStock
+              ? "Нет в наличии"
+              : isAdding
+                ? "Добавляем"
+                : added
+                  ? "Добавлено"
+                  : "В корзину"}
           </Button>
 
           <Button asChild variant="outline" size="lg" className="h-11">

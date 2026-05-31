@@ -10,6 +10,7 @@ import { ProductsService } from "../products/products.service";
 import type {
   AddCartItemRequestDTO,
   CartDTO,
+  CartItemDTO,
   CartProductDTO,
   UpdateCartItemRequestDTO,
 } from "./dto";
@@ -75,6 +76,10 @@ export class CartService {
     const cart = await this.cartStorage.clearCart(cartId);
 
     return this.cartStorage.getDTO(cart);
+  }
+
+  async assertItemsInStock(items: readonly CartItemDTO[]) {
+    await this.productsService.assertProductsInStock(items.map((item) => item.id));
   }
 
   private parseProduct(product: CartProductDTO): CartProductDTO {

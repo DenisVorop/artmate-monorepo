@@ -193,6 +193,10 @@ export class ProductsService {
       throw new NotFoundException("Product not found");
     }
 
+    if (product.isOutOfStock) {
+      throw new BadRequestException("Product is out of stock");
+    }
+
     const primaryImage = product.images[0];
 
     if (!primaryImage) {
@@ -208,6 +212,54 @@ export class ProductsService {
       categorySlug: product.category?.slug,
       image: primaryImage.url,
     };
+  }
+
+  async assertProductsInStock(productIds: readonly string[]) {
+    const uniqueProductIds = [...new Set(productIds.filter(Boolean))];
+
+    if (uniqueProductIds.length === 0) {
+      return;
+    }
+
+    const products = await this.prisma.product.findMany({
+      where: {
+        id: {
+          in: uniqueProductIds,
+        },
+      },
+      select: {
+        id: true,
+        title: true,
+        status: true,
+        isOutOfStock: true,
+        _count: {
+          select: {
+            images: true,
+          },
+        },
+      },
+    });
+    const productsById = new Map(products.map((product) => [product.id, product]));
+    const unavailableProducts = uniqueProductIds.flatMap((productId) => {
+      const product = productsById.get(productId);
+
+      if (
+        !product ||
+        product.status !== PrismaProductStatus.PUBLISHED ||
+        product.isOutOfStock ||
+        product._count.images === 0
+      ) {
+        return [product?.title ?? productId];
+      }
+
+      return [];
+    });
+
+    if (unavailableProducts.length > 0) {
+      throw new BadRequestException(
+        `Some products are out of stock: ${unavailableProducts.join(", ")}`,
+      );
+    }
   }
 
   async createCategory(input: CreateProductCategoryRequestDTO) {
@@ -311,6 +363,7 @@ export class ProductsService {
           description: this.parseProductDescription(input.description),
           status,
           isHit: input.isHit ?? false,
+          isOutOfStock: input.isOutOfStock ?? false,
           ...this.getCategoryCreateData(input.categoryId),
           price: this.parsePriceRub(input.priceRub) * 100,
           currency: this.parseCurrency(input.currency),
@@ -354,6 +407,10 @@ export class ProductsService {
 
     if (input.isHit !== undefined) {
       data.isHit = input.isHit;
+    }
+
+    if (input.isOutOfStock !== undefined) {
+      data.isOutOfStock = input.isOutOfStock;
     }
 
     if (input.categoryId !== undefined) {
@@ -684,6 +741,7 @@ export class ProductsService {
       description: this.sanitizeProductDescription(product.description ?? undefined),
       status: this.mapPrismaProductStatus(product.status),
       isHit: product.isHit,
+      isOutOfStock: product.isOutOfStock,
       categoryId: product.categoryId ?? undefined,
       category: product.category
         ? this.mapProductCategory(product.category)

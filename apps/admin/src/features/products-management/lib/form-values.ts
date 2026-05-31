@@ -16,6 +16,7 @@ export const productFormSchema = z.object({
   categoryId: optionalTextSchema,
   description: optionalTextSchema,
   isHit: z.boolean(),
+  isOutOfStock: z.boolean(),
   priceRub: z.number().finite("Укажите цену").min(0, "Цена не может быть отрицательной"),
   slug: requiredTextSchema("Укажите slug"),
   status: z.enum(productStatuses),
@@ -76,6 +77,7 @@ export const createProductDefaultValues = {
   categoryId: "",
   description: "",
   isHit: false,
+  isOutOfStock: false,
   priceRub: 0,
   slug: "",
   status: "draft",
@@ -96,6 +98,7 @@ export function getProductDefaultValues({
   categoryId,
   description,
   isHit,
+  isOutOfStock,
   priceRub,
   slug,
   status,
@@ -104,6 +107,7 @@ export function getProductDefaultValues({
   readonly categoryId?: string;
   readonly description?: string;
   readonly isHit: boolean;
+  readonly isOutOfStock: boolean;
   readonly priceRub: number;
   readonly slug: string;
   readonly status: ProductStatusDTO;
@@ -113,6 +117,7 @@ export function getProductDefaultValues({
     categoryId: categoryId ?? "",
     description: description ?? "",
     isHit,
+    isOutOfStock,
     priceRub,
     slug,
     status,
@@ -126,6 +131,7 @@ export function getCreateProductInput(values: ProductFormValues): CreateProductI
     currency: "RUB",
     description: getOptionalText(values.description),
     isHit: values.isHit,
+    isOutOfStock: values.isOutOfStock,
     priceRub: values.priceRub,
     slug: values.slug.trim(),
     status: values.status,
@@ -139,6 +145,7 @@ export function getUpdateProductInput(values: ProductFormValues): UpdateProductI
     currency: "RUB",
     description: values.description.trim(),
     isHit: values.isHit,
+    isOutOfStock: values.isOutOfStock,
     priceRub: values.priceRub,
     slug: values.slug.trim(),
     status: values.status,

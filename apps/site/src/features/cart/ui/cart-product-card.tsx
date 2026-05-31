@@ -2,6 +2,7 @@
 
 import { LoaderCircle, Minus, Plus, ShoppingBag } from "lucide-react";
 import type { MouseEvent, MouseEventHandler } from "react";
+import { useState } from "react";
 
 import { useCartData } from "@/entities/cart";
 import { ProductCard, type Product } from "@/entities/products";
@@ -31,6 +32,7 @@ type CartQuantityControlsProps = {
 };
 
 export function CartProductCard({ eagerImage = false, product }: CartProductCardProps) {
+  const [addErrorLabel, setAddErrorLabel] = useState<string>();
   const cart = useCartData();
   const { mutate: addCartItem, isPending: isAdding } = useAddCartItemMutation();
   const { mutate: updateCartItemQuantity, isPending: isUpdatingQuantity } =
@@ -40,16 +42,22 @@ export function CartProductCard({ eagerImage = false, product }: CartProductCard
   const quantity = cartItem?.quantity ?? 0;
   const isInCart = quantity > 0;
   const isMutating = isAdding || isUpdatingQuantity || isRemovingItem;
+  const isOutOfStock = product.isOutOfStock;
 
   const handleAdd = async (event: MouseEvent<HTMLButtonElement>) => {
     event.preventDefault();
     event.stopPropagation();
 
-    if (isMutating) {
+    if (isMutating || isOutOfStock) {
       return;
     }
 
-    await addCartItem({ productId: product.id, quantity: 1 });
+    try {
+      await addCartItem({ productId: product.id, quantity: 1 });
+      setAddErrorLabel(undefined);
+    } catch {
+      setAddErrorLabel("Не удалось добавить");
+    }
   };
 
   const handleDecrease = (event: MouseEvent<HTMLButtonElement>) => {
@@ -79,12 +87,26 @@ export function CartProductCard({ eagerImage = false, product }: CartProductCard
     updateCartItemQuantity({ productId: product.id, quantity: quantity + 1 });
   };
 
-  const addButtonLabel = isAdding ? "Добавляем" : "В корзину";
+  const addButtonLabel = addErrorLabel ?? (isAdding ? "Добавляем" : "В корзину");
   const AddIcon = isAdding ? LoaderCircle : ShoppingBag;
   const addButtonClassName =
     "bg-gradient-to-r from-rose-500 to-orange-400 text-white shadow-lg shadow-rose-500/20 hover:from-rose-600 hover:to-orange-500 hover:shadow-rose-500/30 focus-visible:border-rose-300 focus-visible:ring-rose-400/30";
-  const renderCartAction = () =>
-    isInCart ? (
+  const renderCartAction = () => {
+    if (isOutOfStock) {
+      return (
+        <Button
+          className="pointer-events-auto w-full"
+          disabled
+          size="lg"
+          type="button"
+          variant="secondary"
+        >
+          Нет в наличии
+        </Button>
+      );
+    }
+
+    return isInCart ? (
       <CartQuantityControls
         disabled={isMutating}
         onDecrease={handleDecrease}
@@ -104,6 +126,7 @@ export function CartProductCard({ eagerImage = false, product }: CartProductCard
         {addButtonLabel}
       </Button>
     );
+  };
 
   return (
     <ProductCard

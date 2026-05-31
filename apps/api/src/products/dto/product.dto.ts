@@ -41,6 +41,9 @@ export class ProductDTO {
   @IsBoolean()
   isHit!: boolean;
 
+  @IsBoolean()
+  isOutOfStock!: boolean;
+
   @IsOptional()
   @IsString()
   categoryId?: string;

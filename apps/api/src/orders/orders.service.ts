@@ -150,6 +150,8 @@ export class OrdersService {
       throw new BadRequestException("Cart is empty");
     }
 
+    await this.cartService.assertItemsInStock(cartDTO.items);
+
     const delivery = await this.deliveryService.calculatePickupPointDelivery(
       this.parseDeliverySelection(request.delivery),
       cartDTO.items,
@@ -181,6 +183,8 @@ export class OrdersService {
     if (cartDTO.items.length === 0) {
       throw new BadRequestException("Cart is empty");
     }
+
+    await this.cartService.assertItemsInStock(cartDTO.items);
 
     const customer = this.parseCustomer(request.customer);
     const delivery = await this.deliveryService.calculatePickupPointDelivery(

@@ -40,6 +40,10 @@ export class UpdateProductRequestDTO {
   isHit?: boolean;
 
   @IsOptional()
+  @IsBoolean()
+  isOutOfStock?: boolean;
+
+  @IsOptional()
   @IsString()
   @MaxLength(32)
   categoryId?: string | null;

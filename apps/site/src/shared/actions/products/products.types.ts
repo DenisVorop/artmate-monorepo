@@ -17,6 +17,7 @@ export type Product = {
   images: string[];
   description: string;
   isHit: boolean;
+  isOutOfStock: boolean;
 };
 
 export type ProductHighlight = {
@@ -55,6 +56,7 @@ export type ApiProductDTO = {
   description?: string;
   status: "draft" | "published" | "archived";
   isHit: boolean;
+  isOutOfStock: boolean;
   categoryId?: string;
   category?: ApiProductCategoryDTO;
   price: number;

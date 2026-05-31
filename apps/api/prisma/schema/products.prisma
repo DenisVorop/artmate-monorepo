@@ -13,6 +13,7 @@ model Product {
   description String?       @db.Text
   status      ProductStatus @default(DRAFT)
   isHit       Boolean       @default(false) @map("is_hit")
+  isOutOfStock Boolean      @default(false) @map("is_out_of_stock")
   categoryId  String?       @map("category_id") @db.VarChar(32)
   /// Price is stored in minor currency units.
   /// For RUB this means kopecks: 129000 = 1290 ₽.

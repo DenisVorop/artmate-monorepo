@@ -51,7 +51,7 @@ export function ProductEditForm({
 
   return (
     <form
-      className="grid gap-3 lg:grid-cols-[minmax(12rem,1.4fr)_minmax(10rem,1fr)_8rem_11rem_minmax(10rem,1fr)_6rem_auto]"
+      className="grid gap-3 lg:grid-cols-[minmax(12rem,1.4fr)_minmax(10rem,1fr)_8rem_11rem_minmax(10rem,1fr)_6rem_8rem_auto]"
       onSubmit={submitForm}
     >
       <LabeledField label="Название">
@@ -87,6 +87,9 @@ export function ProductEditForm({
       <LabeledCheckbox label="Хит">
         <input type="checkbox" {...register("isHit")} />
       </LabeledCheckbox>
+      <LabeledCheckbox label="Нет в наличии">
+        <input type="checkbox" {...register("isOutOfStock")} />
+      </LabeledCheckbox>
       <div className="flex items-end">
         <Button
           className="w-full"
@@ -98,7 +101,7 @@ export function ProductEditForm({
           Сохранить
         </Button>
       </div>
-      <LabeledField className="lg:col-span-7" label="Описание">
+      <LabeledField className="lg:col-span-8" label="Описание">
         <Controller
           control={control}
           name="description"

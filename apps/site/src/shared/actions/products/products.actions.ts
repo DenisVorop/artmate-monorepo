@@ -73,6 +73,7 @@ function mapProducts(products: readonly ApiProductDTO[]): Product[] {
         images: images.length > 0 ? images : [primaryImage],
         description: product.description ?? "",
         isHit: product.isHit,
+        isOutOfStock: product.isOutOfStock,
       },
     ];
   });
