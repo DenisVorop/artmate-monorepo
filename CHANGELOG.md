@@ -1,5 +1,12 @@
 # Changelog
 
+## [0.27.0](https://github.com/DenisVorop/artmate-monorepo/compare/v0.26.0...v0.27.0) (2026-06-02)
+
+
+### Features
+
+* add upload.wikimedia.org to next config ([3406119](https://github.com/DenisVorop/artmate-monorepo/commit/3406119fe65cfb75dc25d79d01db0ea722a1d1d0))
+
 ## [0.26.0](https://github.com/DenisVorop/artmate-monorepo/compare/v0.25.0...v0.26.0) (2026-05-31)
 
 
