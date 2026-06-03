@@ -29,10 +29,11 @@ type OzonAcquiringCreateOrderItem = {
 type OzonAcquiringCreateOrderRequest = {
   accessKey: string;
   amount: OzonAcquiringMoney;
-  enableFiscalization: false;
+  enableFiscalization: true;
   extId: string;
   failUrl: string;
-  fiscalizationType?: OzonAcquiringFiscalizationType;
+  fiscalizationPhone: string;
+  fiscalizationType: OzonAcquiringFiscalizationType;
   items: OzonAcquiringCreateOrderItem[];
   mode: "MODE_FULL";
   notificationUrl: string;
@@ -48,6 +49,8 @@ type OzonAcquiringFiscalizationType =
   | "FISCAL_TYPE_SINGLE"
   | "FISCAL_TYPE_DOUBLE"
   | "FISCAL_TYPE_UNSPECIFIED";
+
+const fiscalizationType: OzonAcquiringFiscalizationType = "FISCAL_TYPE_SINGLE";
 
 export type OzonAcquiringCreateCheckoutPaymentInput = {
   amount: number;
@@ -95,14 +98,14 @@ export class OzonAcquiringService {
   ): Promise<OzonAcquiringCreateCheckoutPaymentResult> {
     const accessKey = this.getAccessKey();
     const amount = this.createMoney(input.amount);
-    const fiscalizationType = this.getFiscalizationType();
     const paymentAlgorithm = this.getPaymentAlgorithm();
     const requestBody: OzonAcquiringCreateOrderRequest = {
       accessKey,
       amount,
-      enableFiscalization: false,
+      enableFiscalization: true,
       extId: input.orderId,
       failUrl: input.failUrl,
+      fiscalizationPhone: input.customer.phone,
       fiscalizationType,
       items: this.createOrderItems(input),
       mode: "MODE_FULL",
@@ -242,7 +245,7 @@ export class OzonAcquiringService {
     accessKey: string;
     amount: OzonAcquiringMoney;
     extId: string;
-    fiscalizationType?: OzonAcquiringFiscalizationType;
+    fiscalizationType: OzonAcquiringFiscalizationType;
     paymentAlgorithm: OzonAcquiringPaymentAlgorithm;
   }) {
     return this.sha256Hex(
@@ -250,7 +253,7 @@ export class OzonAcquiringService {
         input.accessKey,
         "",
         input.extId,
-        input.fiscalizationType ?? "",
+        input.fiscalizationType,
         input.paymentAlgorithm,
         input.amount.currencyCode,
         input.amount.value,
@@ -554,28 +557,6 @@ export class OzonAcquiringService {
 
     throw new InternalServerErrorException(
       "OZON_ACQUIRING_PAYMENT_ALGORITHM must be PAY_ALGO_SMS or PAY_ALGO_DMS",
-    );
-  }
-
-  private getFiscalizationType(): OzonAcquiringFiscalizationType | undefined {
-    const value = this.getOptionalString(
-      process.env.OZON_ACQUIRING_FISCALIZATION_TYPE,
-    );
-
-    if (!value) {
-      return undefined;
-    }
-
-    if (
-      value === "FISCAL_TYPE_SINGLE" ||
-      value === "FISCAL_TYPE_DOUBLE" ||
-      value === "FISCAL_TYPE_UNSPECIFIED"
-    ) {
-      return value;
-    }
-
-    throw new InternalServerErrorException(
-      "OZON_ACQUIRING_FISCALIZATION_TYPE is invalid",
     );
   }
 
