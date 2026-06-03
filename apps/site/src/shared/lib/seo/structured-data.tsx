@@ -17,20 +17,40 @@ import type {
   SeoProduct,
 } from "./types";
 
+const organizationId = `${siteConfig.url}#organization`;
+const websiteId = `${siteConfig.url}#website`;
+const structuredDataLogo = {
+  "@type": "ImageObject",
+  url: getAbsoluteUrl(siteConfig.logo),
+  width: 123,
+  height: 58,
+};
+const servedCountryStructuredData = {
+  "@type": "Country",
+  name: "Россия",
+};
+
 const rootStructuredData = [
   {
     "@context": "https://schema.org",
     "@type": "Organization",
+    "@id": organizationId,
     name: siteConfig.name,
     alternateName: ["ARTMATE", "Артмейт"],
     url: siteConfig.url,
-    logo: getAbsoluteUrl(siteConfig.logo),
-    sameAs: [externalLinks.social.telegramOfficial],
+    logo: structuredDataLogo,
+    areaServed: servedCountryStructuredData,
+    sameAs: [
+      externalLinks.social.telegramOfficial,
+      externalLinks.marketplaces.ozon,
+      externalLinks.marketplaces.wildberries,
+    ],
     contactPoint: [
       {
         "@type": "ContactPoint",
         contactType: "customer support",
         email: companyDetails.supportEmail,
+        areaServed: servedCountryStructuredData,
         availableLanguage: ["ru"],
       },
     ],
@@ -38,10 +58,14 @@ const rootStructuredData = [
   {
     "@context": "https://schema.org",
     "@type": "WebSite",
+    "@id": websiteId,
     name: siteConfig.name,
     url: siteConfig.url,
     inLanguage: "ru-RU",
     description: siteConfig.description,
+    publisher: {
+      "@id": organizationId,
+    },
   },
 ];
 
@@ -141,6 +165,8 @@ function escapeJsonLdHtml(value: string) {
 
 function getProductStructuredData(product: SeoProduct, url: string, category?: SeoCategory) {
   const productUrl = getAbsoluteUrl(url);
+  const productId = `${productUrl}#product`;
+  const breadcrumbId = `${productUrl}#breadcrumbs`;
   const productCategoryTitle = product.category ?? category?.title ?? "Раскраски по номерам";
   const productImages =
     product.images && product.images.length > 0 ? product.images : [product.image];
@@ -149,6 +175,7 @@ function getProductStructuredData(product: SeoProduct, url: string, category?: S
     {
       "@context": "https://schema.org",
       "@type": "Product",
+      "@id": productId,
       name: product.title,
       description: createProductDescription(product),
       image: productImages.map(getAbsoluteUrl),
@@ -157,17 +184,26 @@ function getProductStructuredData(product: SeoProduct, url: string, category?: S
         name: siteConfig.name,
       },
       category: productCategoryTitle,
-      itemCondition: "https://schema.org/NewCondition",
+      countryOfOrigin: {
+        "@type": "Country",
+        name: "Россия",
+      },
+      material: "Бумага 190 г/м²",
       sku: product.sku ?? product.id ?? product.slug,
       url: productUrl,
+      breadcrumb: {
+        "@id": breadcrumbId,
+      },
       offers: {
         "@type": "Offer",
-        availability: product.availability ?? "https://schema.org/InStock",
+        availability: getProductAvailability(product),
         hasMerchantReturnPolicy: getMerchantReturnPolicyStructuredData(),
+        itemCondition: "https://schema.org/NewCondition",
         price: product.price,
         priceCurrency: "RUB",
         seller: {
           "@type": "Organization",
+          "@id": organizationId,
           name: siteConfig.name,
           url: siteConfig.url,
         },
@@ -185,6 +221,7 @@ function getProductStructuredData(product: SeoProduct, url: string, category?: S
             : undefined,
         { name: product.title, url },
       ].filter(Boolean) as BreadcrumbItem[],
+      breadcrumbId,
     ),
   ];
 }
@@ -260,40 +297,65 @@ function getFaqStructuredData(sections: readonly SeoFaqSection[]) {
 
 function getBlogPostStructuredData(post: SeoBlogPost, content: SeoBlogArticleContent) {
   const postUrl = getAbsoluteUrl(routes.blogPost(post.slug));
+  const articleId = `${postUrl}#article`;
+  const breadcrumbId = `${postUrl}#breadcrumbs`;
 
   return [
     {
       "@context": "https://schema.org",
       "@type": "BlogPosting",
+      "@id": articleId,
       headline: post.title,
-      description: post.excerpt,
+      description: post.metaDescription ?? post.excerpt,
       image: [getAbsoluteUrl(post.image)],
       datePublished: post.publishedAt ?? post.createdAt,
       dateModified: post.updatedAt ?? post.publishedAt ?? post.createdAt,
-      author: {
-        "@type": "Person",
-        name: post.author?.name ?? siteConfig.name,
-      },
+      author: getBlogPostAuthorStructuredData(post),
       publisher: {
         "@type": "Organization",
+        "@id": organizationId,
         name: siteConfig.name,
-        logo: {
-          "@type": "ImageObject",
-          url: getAbsoluteUrl(siteConfig.logo),
-        },
+        url: siteConfig.url,
+        logo: structuredDataLogo,
       },
       articleSection: post.category,
       keywords: post.tags,
-      mainEntityOfPage: postUrl,
+      inLanguage: "ru-RU",
+      mainEntityOfPage: {
+        "@type": "WebPage",
+        "@id": postUrl,
+      },
       url: postUrl,
+      breadcrumb: {
+        "@id": breadcrumbId,
+      },
       articleBody: getArticleBody(content),
     },
-    getBreadcrumbStructuredData([
-      { name: "Главная", url: routes.home },
-      { name: "Блог", url: routes.blog },
-      { name: post.title, url: routes.blogPost(post.slug) },
-    ]),
+    getBreadcrumbStructuredData(
+      [
+        { name: "Главная", url: routes.home },
+        { name: "Блог", url: routes.blog },
+        { name: post.title, url: routes.blogPost(post.slug) },
+      ],
+      breadcrumbId,
+    ),
   ];
+}
+
+function getBlogPostAuthorStructuredData(post: SeoBlogPost) {
+  if (post.author?.name) {
+    return {
+      "@type": "Person",
+      name: post.author.name,
+    };
+  }
+
+  return {
+    "@type": "Organization",
+    "@id": organizationId,
+    name: siteConfig.name,
+    url: siteConfig.url,
+  };
 }
 
 type BreadcrumbItem = {
@@ -325,6 +387,14 @@ function getMerchantReturnPolicyStructuredData() {
     returnPolicyCategory: "https://schema.org/MerchantReturnFiniteReturnWindow",
     url: getAbsoluteUrl(routes.legal.returnPolicy),
   };
+}
+
+function getProductAvailability(product: SeoProduct) {
+  if (product.availability) {
+    return product.availability;
+  }
+
+  return product.isOutOfStock ? "https://schema.org/OutOfStock" : "https://schema.org/InStock";
 }
 
 function getArticleBody(content: SeoBlogArticleContent) {

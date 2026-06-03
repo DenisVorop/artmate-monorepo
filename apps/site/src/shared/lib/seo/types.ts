@@ -61,6 +61,7 @@ export type SeoProduct = {
   id?: string;
   image: string;
   images?: readonly string[];
+  isOutOfStock?: boolean;
   price: number;
   sku?: string;
   slug: string;
