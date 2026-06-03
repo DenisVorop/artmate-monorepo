@@ -1,5 +1,13 @@
 # Changelog
 
+## [0.27.1](https://github.com/DenisVorop/artmate-monorepo/compare/v0.27.0...v0.27.1) (2026-06-03)
+
+
+### Bug Fixes
+
+* **api:** enable ozon fiscalization ([0616b8b](https://github.com/DenisVorop/artmate-monorepo/commit/0616b8b0592737622c2b0c202717f2046d68a918))
+* **site:** improve seo structured data ([72990a8](https://github.com/DenisVorop/artmate-monorepo/commit/72990a80975cb560e12e719f2cd4c37d50ed2b92))
+
 ## [0.27.0](https://github.com/DenisVorop/artmate-monorepo/compare/v0.26.0...v0.27.0) (2026-06-02)
 
 
