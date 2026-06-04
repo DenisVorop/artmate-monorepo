@@ -374,7 +374,20 @@ function getStatusLabel(value: unknown) {
 
 function getShipmentStatusLabel(shipment: AdminOrder["shipments"][number]) {
   if (shipment.errorMessage) {
-    return "Ошибка создания";
+    return shipment.requestState === "DELETE_ERROR"
+      ? "Ошибка удаления"
+      : "Ошибка создания";
+  }
+
+  if (
+    shipment.statusCode === "REMOVED" ||
+    shipment.requestState === "DELETE_SUCCESSFUL"
+  ) {
+    return "Удалена";
+  }
+
+  if (shipment.requestState?.startsWith("DELETE_")) {
+    return "Удаляется";
   }
 
   if (shipment.statusName) {

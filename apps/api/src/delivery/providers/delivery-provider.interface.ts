@@ -50,7 +50,7 @@ export type DeliveryShipmentOrder = {
   comment?: string;
 };
 
-export type DeliveryShipmentCreateResult = {
+export type DeliveryShipmentMutationResult = {
   externalNumber?: string;
   externalUuid?: string;
   requestPayload?: Record<string, unknown>;
@@ -60,6 +60,10 @@ export type DeliveryShipmentCreateResult = {
   statusCode?: string;
   statusName?: string;
 };
+
+export type DeliveryShipmentCreateResult = DeliveryShipmentMutationResult;
+
+export type DeliveryShipmentDeleteResult = DeliveryShipmentMutationResult;
 
 export interface DeliveryProviderAdapter {
   readonly provider: DeliveryProviderCode;

@@ -51,6 +51,7 @@ const finalCdekShipmentStatusCodes = new Set([
   "DELIVERED",
   "INVALID",
   "NOT_DELIVERED",
+  "REMOVED",
 ]);
 
 @Injectable()
@@ -114,17 +115,24 @@ export class OrdersService {
     status: unknown,
     author: AuthUser,
   ): Promise<AdminOrderDTO> {
+    const parsedOrderId = this.parseOrderId(orderId);
+    const parsedStatus = this.parseStatus(status);
     const result = await this.ordersStorage.updateAdminOrderStatus(
-      this.parseOrderId(orderId),
-      this.parseStatus(status),
+      parsedOrderId,
+      parsedStatus,
       author.id,
     );
+    let order = result.order;
 
-    if (result.changed) {
-      await this.notifyCustomerAboutStatusChange(result);
+    if (result.changed && parsedStatus === "cancelled") {
+      order = await this.deleteCdekShipmentForCancelledOrder(order);
     }
 
-    return result.order;
+    if (result.changed) {
+      await this.notifyCustomerAboutStatusChange({ ...result, order });
+    }
+
+    return order;
   }
 
   createAdminOrderComment(
@@ -716,6 +724,112 @@ export class OrdersService {
       ...shipment,
       syncedAt: new Date(),
     });
+  }
+
+  private async deleteCdekShipmentForCancelledOrder(
+    order: AdminOrderDTO,
+  ): Promise<AdminOrderDTO> {
+    if (order.delivery.provider !== "cdek") {
+      return order;
+    }
+
+    const shipment = order.shipments.find((item) => item.provider === "cdek");
+
+    if (!shipment || shipment.statusCode?.toUpperCase() === "REMOVED") {
+      return order;
+    }
+
+    const externalUuid = await this.getCdekShipmentUuidForDelete(
+      order.id,
+      shipment,
+    );
+
+    if (!externalUuid) {
+      return this.ordersStorage.getAdminOrder(order.id);
+    }
+
+    try {
+      const deleteResult = await this.deliveryService.deleteCdekOrder(
+        externalUuid,
+      );
+
+      await this.ordersStorage.upsertOrderShipment({
+        orderId: order.id,
+        provider: "cdek",
+        ...deleteResult,
+        requestState: this.getCdekDeleteRequestState(
+          deleteResult.requestState,
+        ),
+        syncedAt: new Date(),
+      });
+    } catch (error) {
+      const errorMessage = this.getErrorMessage(error);
+
+      await this.ordersStorage.upsertOrderShipment({
+        orderId: order.id,
+        provider: "cdek",
+        errorMessage,
+        externalNumber: shipment.externalNumber,
+        externalUuid,
+        requestState: "DELETE_ERROR",
+        syncedAt: new Date(),
+      });
+
+      this.logger.warn(
+        `Failed to delete CDEK shipment for cancelled order ${order.id}: ${errorMessage}`,
+      );
+    }
+
+    return this.ordersStorage.getAdminOrder(order.id);
+  }
+
+  private async getCdekShipmentUuidForDelete(
+    orderId: string,
+    shipment: AdminOrderDTO["shipments"][number],
+  ) {
+    if (shipment.externalUuid) {
+      return shipment.externalUuid;
+    }
+
+    if (!shipment.externalNumber) {
+      return undefined;
+    }
+
+    try {
+      const syncedShipment = await this.deliveryService.getCdekOrderByNumber(
+        shipment.externalNumber,
+      );
+
+      await this.ordersStorage.upsertOrderShipment({
+        orderId,
+        provider: "cdek",
+        ...syncedShipment,
+        syncedAt: new Date(),
+      });
+
+      return syncedShipment.externalUuid;
+    } catch (error) {
+      const errorMessage = this.getErrorMessage(error);
+
+      await this.ordersStorage.upsertOrderShipment({
+        orderId,
+        provider: "cdek",
+        errorMessage,
+        externalNumber: shipment.externalNumber,
+        requestState: "DELETE_ERROR",
+        syncedAt: new Date(),
+      });
+
+      this.logger.warn(
+        `Failed to resolve CDEK shipment UUID for cancelled order ${orderId}: ${errorMessage}`,
+      );
+
+      return undefined;
+    }
+  }
+
+  private getCdekDeleteRequestState(state: string | undefined) {
+    return state ? `DELETE_${state}` : "DELETE_ACCEPTED";
   }
 
   private async syncCdekShipmentWithTrackNumber(

@@ -42,6 +42,8 @@ export type CdekOrderCreateResponse = {
   requests?: CdekOrderRequestInfo[];
 };
 
+export type CdekOrderDeleteResponse = CdekOrderCreateResponse;
+
 export type CdekOrderStatus = {
   code?: unknown;
   date_time?: unknown;

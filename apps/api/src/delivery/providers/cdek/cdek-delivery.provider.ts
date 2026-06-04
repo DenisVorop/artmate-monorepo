@@ -11,6 +11,7 @@ import type {
   DeliveryQuote,
   DeliverySelection,
   DeliveryShipmentCreateResult,
+  DeliveryShipmentDeleteResult,
   DeliveryShipmentOrder,
 } from "../delivery-provider.interface";
 
@@ -19,6 +20,7 @@ import type {
   CdekCalculatorResponse,
   CdekDeliveryPointResponseItem,
   CdekOrderCreateResponse,
+  CdekOrderDeleteResponse,
   CdekOrderInfoResponse,
   CdekOrderRequestInfo,
   CdekOrderStatus,
@@ -153,12 +155,61 @@ export class CdekDeliveryProvider implements DeliveryProviderAdapter {
     const response = await this.cdekClient.request<CdekOrderInfoResponse>(
       `/v2/orders/${encodeURIComponent(uuid)}`,
     );
+
+    return this.mapOrderInfoResponse(response, uuid);
+  }
+
+  async getOrderByCdekNumber(
+    cdekNumber: string,
+  ): Promise<DeliveryShipmentCreateResult> {
+    const response = await this.cdekClient.request<CdekOrderInfoResponse>(
+      "/v2/orders",
+      {
+        query: {
+          cdek_number: this.getRequiredString(
+            cdekNumber,
+            "CDEK order number",
+          ),
+        },
+      },
+    );
+    const shipment = this.mapOrderInfoResponse(response);
+
+    if (!shipment.externalUuid) {
+      throw new BadGatewayException("CDEK order uuid is missing");
+    }
+
+    return shipment;
+  }
+
+  async deleteOrder(uuid: string): Promise<DeliveryShipmentDeleteResult> {
+    const trimmedUuid = this.getRequiredString(uuid, "CDEK order uuid");
+    const response = await this.cdekClient.request<CdekOrderDeleteResponse>(
+      `/v2/orders/${encodeURIComponent(trimmedUuid)}`,
+      {
+        method: "DELETE",
+      },
+    );
+    const request = this.getLastRequest(response.requests);
+
+    return {
+      externalUuid: this.getString(response.entity?.uuid) ?? trimmedUuid,
+      requestState: this.getString(request?.state),
+      requestUuid: this.getString(request?.request_uuid),
+      responsePayload: response,
+    };
+  }
+
+  private mapOrderInfoResponse(
+    response: CdekOrderInfoResponse,
+    fallbackUuid?: string,
+  ): DeliveryShipmentCreateResult {
     const request = this.getLastRequest(response.requests);
     const status = this.getLatestStatus(response.entity?.statuses);
 
     return {
       externalNumber: this.getString(response.entity?.cdek_number),
-      externalUuid: this.getString(response.entity?.uuid) ?? uuid,
+      externalUuid: this.getString(response.entity?.uuid) ?? fallbackUuid,
       requestState: this.getString(request?.state),
       requestUuid: this.getString(request?.request_uuid),
       responsePayload: response,

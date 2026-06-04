@@ -43,6 +43,14 @@ export class DeliveryService {
     return this.cdekDeliveryProvider.getOrder(uuid);
   }
 
+  getCdekOrderByNumber(cdekNumber: string) {
+    return this.cdekDeliveryProvider.getOrderByCdekNumber(cdekNumber);
+  }
+
+  deleteCdekOrder(uuid: string) {
+    return this.cdekDeliveryProvider.deleteOrder(uuid);
+  }
+
   private async calculateManualOzonDelivery(
     selection: DeliverySelection,
   ): Promise<DeliveryQuote> {

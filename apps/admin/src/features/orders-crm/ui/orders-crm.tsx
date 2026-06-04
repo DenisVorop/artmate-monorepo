@@ -612,6 +612,17 @@ function getShipmentStatusLabel(
     return "CDEK ошибка";
   }
 
+  if (
+    shipment.statusCode === "REMOVED" ||
+    shipment.requestState === "DELETE_SUCCESSFUL"
+  ) {
+    return "CDEK удален";
+  }
+
+  if (shipment.requestState?.startsWith("DELETE_")) {
+    return "CDEK удаляется";
+  }
+
   if (shipment.externalNumber) {
     return `CDEK ${shipment.externalNumber}`;
   }
