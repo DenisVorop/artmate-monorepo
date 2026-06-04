@@ -1,5 +1,15 @@
 # Changelog
 
+## [0.28.0](https://github.com/DenisVorop/artmate-monorepo/compare/v0.27.1...v0.28.0) (2026-06-04)
+
+
+### Features
+
+* add cdek order notifications registry ([066f730](https://github.com/DenisVorop/artmate-monorepo/commit/066f7307f31b99b1bcfd11ab122c0308f00c7876))
+* add notification delivery queue ([2747ae3](https://github.com/DenisVorop/artmate-monorepo/commit/2747ae3cd26adb138b6381164ef58aa8417d47b7))
+* delete CDEK shipments on cancellation ([ad76a8a](https://github.com/DenisVorop/artmate-monorepo/commit/ad76a8a0b82388d8ff353e12679d9da189ac007a))
+* improve cdek shipment tracking display ([e470d6c](https://github.com/DenisVorop/artmate-monorepo/commit/e470d6c5edf08241dba80b4f48fe11d2b8668428))
+
 ## [0.27.1](https://github.com/DenisVorop/artmate-monorepo/compare/v0.27.0...v0.27.1) (2026-06-03)
 
 
