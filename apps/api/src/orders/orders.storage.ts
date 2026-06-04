@@ -122,6 +122,24 @@ type ApplyOzonAcquiringNotificationResult = {
   userId?: string;
 };
 
+type ApplyCdekOrderStatusWebhookInput = {
+  cdekNumber: string;
+  externalUuid: string;
+  orderNumber?: string;
+  raw: Record<string, unknown>;
+  statusCode: string;
+  statusDateTime?: string;
+  statusName?: string;
+};
+
+export type ApplyCdekOrderStatusWebhookResult = {
+  order: OrderDTO;
+  previousShipmentStatusCode?: string;
+  nextShipmentStatusCode: string;
+  shipmentStatusChanged: boolean;
+  userId?: string;
+};
+
 type UpsertOrderShipmentInput = {
   errorMessage?: string;
   externalNumber?: string;
@@ -657,6 +675,146 @@ export class OrdersStorage {
     };
   }
 
+  async applyCdekOrderStatusWebhook(
+    input: ApplyCdekOrderStatusWebhookInput,
+  ): Promise<ApplyCdekOrderStatusWebhookResult | undefined> {
+    const existingShipment = await this.prisma.orderShipment.findFirst({
+      where: {
+        provider: PrismaOrderDeliveryProvider.CDEK,
+        OR: [
+          { externalUuid: input.externalUuid },
+          { externalNumber: input.cdekNumber },
+          ...(input.orderNumber ? [{ orderId: input.orderNumber }] : []),
+        ],
+      },
+    });
+    const orderId = existingShipment?.orderId ?? input.orderNumber;
+
+    if (!orderId) {
+      return undefined;
+    }
+
+    const existingOrder = await this.prisma.order.findFirst({
+      where: {
+        id: orderId,
+        deliveryProvider: PrismaOrderDeliveryProvider.CDEK,
+      },
+      select: {
+        crmStatus: true,
+        id: true,
+        userId: true,
+      },
+    });
+
+    if (!existingOrder) {
+      return undefined;
+    }
+
+    const previousShipmentStatusCode =
+      existingShipment?.statusCode ?? undefined;
+    const shipmentStatusChanged =
+      previousShipmentStatusCode !== input.statusCode;
+    const nextOrderStatus = this.getOrderStatusForCdekShipmentStatus(
+      existingOrder.crmStatus,
+      input.statusCode,
+    );
+    const orderStatusChanged =
+      nextOrderStatus !== undefined &&
+      nextOrderStatus !== existingOrder.crmStatus;
+
+    const order = await this.prisma.$transaction(async (tx) => {
+      await tx.orderShipment.upsert({
+        where: {
+          orderId_provider: {
+            orderId: existingOrder.id,
+            provider: PrismaOrderDeliveryProvider.CDEK,
+          },
+        },
+        create: {
+          orderId: existingOrder.id,
+          provider: PrismaOrderDeliveryProvider.CDEK,
+          externalNumber: input.cdekNumber,
+          externalUuid: input.externalUuid,
+          responsePayload: this.toPrismaJson(input.raw),
+          statusCode: input.statusCode,
+          statusName: input.statusName,
+          syncedAt: new Date(),
+        },
+        update: {
+          externalNumber: input.cdekNumber,
+          externalUuid: input.externalUuid,
+          responsePayload: this.toPrismaJson(input.raw),
+          statusCode: input.statusCode,
+          statusName: input.statusName,
+          syncedAt: new Date(),
+        },
+      });
+
+      if (shipmentStatusChanged) {
+        await tx.orderHistory.create({
+          data: {
+            orderId: existingOrder.id,
+            eventType: "shipment_status_changed",
+            payload: this.toPrismaJson({
+              cdekNumber: input.cdekNumber,
+              externalUuid: input.externalUuid,
+              fromStatusCode: previousShipmentStatusCode ?? null,
+              provider: "cdek",
+              source: "cdek_webhook",
+              statusDateTime: input.statusDateTime ?? null,
+              toStatusCode: input.statusCode,
+              toStatusName: input.statusName,
+            }),
+          },
+        });
+      }
+
+      if (orderStatusChanged) {
+        await tx.order.update({
+          where: { id: existingOrder.id },
+          data: {
+            crmStatus: nextOrderStatus,
+            ...(nextOrderStatus === PrismaOrderCrmStatus.COMPLETED
+              ? {
+                  status: PrismaOrderStatus.PAID,
+                }
+              : {}),
+          },
+        });
+        await tx.orderHistory.create({
+          data: {
+            orderId: existingOrder.id,
+            eventType: "status_changed",
+            payload: this.toPrismaJson({
+              fromStatus: this.mapOrderCrmStatus(existingOrder.crmStatus),
+              source: "cdek_webhook",
+              toStatus: this.mapOrderCrmStatus(nextOrderStatus),
+            }),
+          },
+        });
+      }
+
+      const updatedOrder = await tx.order.findUnique({
+        where: { id: existingOrder.id },
+        include: orderInclude,
+      });
+
+      if (!updatedOrder) {
+        throw new NotFoundException("Order not found");
+      }
+
+      return updatedOrder;
+    });
+
+    return {
+      order: this.mapOrder(order),
+      previousShipmentStatusCode,
+      nextShipmentStatusCode: input.statusCode,
+      shipmentStatusChanged,
+      userId: existingOrder.userId ?? undefined,
+    };
+  }
+
   async createAdminOrderComment(
     orderId: string,
     body: string,
@@ -847,7 +1005,7 @@ export class OrdersStorage {
       requestState: shipment.requestState ?? undefined,
       statusCode: shipment.statusCode ?? undefined,
       statusName: shipment.statusName ?? undefined,
-      ...(options.includeErrorMessage ?? true
+      ...((options.includeErrorMessage ?? true)
         ? { errorMessage: shipment.errorMessage ?? undefined }
         : {}),
       createdAt: shipment.createdAt.toISOString(),
@@ -992,6 +1150,45 @@ export class OrdersStorage {
     return (
       status === "paid" || status === "delivering" || status === "completed"
     );
+  }
+
+  private getOrderStatusForCdekShipmentStatus(
+    currentStatus: PrismaOrderCrmStatus,
+    shipmentStatusCode: string,
+  ) {
+    if (
+      currentStatus === PrismaOrderCrmStatus.CANCELLED ||
+      currentStatus === PrismaOrderCrmStatus.COMPLETED
+    ) {
+      return undefined;
+    }
+
+    const normalizedStatusCode = shipmentStatusCode.toUpperCase();
+
+    if (
+      normalizedStatusCode === "DELIVERED" ||
+      normalizedStatusCode === "POSTOMAT_RECEIVED"
+    ) {
+      return PrismaOrderCrmStatus.COMPLETED;
+    }
+
+    if (
+      normalizedStatusCode === "INVALID" ||
+      normalizedStatusCode === "NOT_DELIVERED" ||
+      normalizedStatusCode === "REMOVED"
+    ) {
+      return PrismaOrderCrmStatus.CANCELLED;
+    }
+
+    if (
+      currentStatus === PrismaOrderCrmStatus.PAID ||
+      currentStatus === PrismaOrderCrmStatus.IN_PROGRESS ||
+      currentStatus === PrismaOrderCrmStatus.NEW
+    ) {
+      return PrismaOrderCrmStatus.DELIVERING;
+    }
+
+    return undefined;
   }
 
   private getCommentAuthorName(

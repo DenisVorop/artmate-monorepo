@@ -52,6 +52,7 @@ export class CsrfMiddleware implements NestMiddleware {
     return paths.some(
       (path) =>
         path.startsWith("/content-assistant/telegram/webhook/") ||
+        path.startsWith("/orders/delivery/cdek/webhook/") ||
         path.startsWith("/orders/payments/ozon/notifications"),
     );
   }

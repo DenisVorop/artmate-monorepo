@@ -8,6 +8,7 @@ export const routes = {
   featureBanners: "/feature-banners",
   home: "/",
   login: "/login",
+  mailings: "/mailings",
   order: (orderId: string) => `/orders/${orderId}`,
   orders: "/orders",
   product: (productId: string) => `/products/${productId}`,

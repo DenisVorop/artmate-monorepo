@@ -18,6 +18,14 @@ type TelegramSendMessageResponse = {
   error_code?: number;
 };
 
+type CdekShipmentStatusChangedInput = {
+  isReadyForPickup: boolean;
+  nextStatusCode: string;
+  nextStatusName: string;
+  order: OrderDTO;
+  previousStatusCode?: string;
+};
+
 const telegramRequestTimeoutMs = 10000;
 const defaultTelegramWebAppUrl = "https://www.art-mate.ru";
 
@@ -67,6 +75,24 @@ export class OrdersTelegramService {
     }
   }
 
+  async sendCdekShipmentStatusChanged(input: CdekShipmentStatusChangedInput) {
+    const response = await this.requestTelegram(
+      this.formatCdekShipmentStatusChangedMessage(input),
+    );
+    const responseBody = (await this.parseTelegramResponseBody(
+      response,
+    )) as TelegramSendMessageResponse;
+
+    if (!response.ok || responseBody.ok === false) {
+      throw new BadGatewayException({
+        message: "Telegram CDEK shipment status message request failed",
+        status: response.status,
+        errorCode: responseBody.error_code,
+        description: responseBody.description,
+      });
+    }
+  }
+
   async sendOrderStatusChangedToCustomer(input: {
     chatId: string;
     order: OrderDTO;
@@ -105,6 +131,32 @@ export class OrdersTelegramService {
     if (!response.ok || responseBody.ok === false) {
       throw new BadGatewayException({
         message: "Telegram customer order message request failed",
+        status: response.status,
+        errorCode: responseBody.error_code,
+        description: responseBody.description,
+      });
+    }
+  }
+
+  async sendCdekShipmentStatusChangedToCustomer(
+    input: CdekShipmentStatusChangedInput & { chatId: string },
+  ) {
+    const response = await this.requestTelegramToCustomer(
+      input.chatId,
+      this.formatCustomerCdekShipmentStatusChangedMessage(input),
+      {
+        buttonText: "Открыть Artmate",
+        buttonUrl: this.getTelegramWebAppUrl(),
+      },
+    );
+    const responseBody = (await this.parseTelegramResponseBody(
+      response,
+    )) as TelegramSendMessageResponse;
+
+    if (!response.ok || responseBody.ok === false) {
+      throw new BadGatewayException({
+        message:
+          "Telegram customer CDEK shipment status message request failed",
         status: response.status,
         errorCode: responseBody.error_code,
         description: responseBody.description,
@@ -264,6 +316,38 @@ export class OrdersTelegramService {
     return this.trimTelegramMessage(lines.join("\n"));
   }
 
+  private formatCdekShipmentStatusChangedMessage(
+    input: CdekShipmentStatusChangedInput,
+  ) {
+    const cdekTrackNumber = this.getCdekTrackNumber(input.order);
+    const lines = [
+      input.isReadyForPickup
+        ? "<b>Заказ ожидает выдачи в ПВЗ</b>"
+        : "<b>Статус доставки СДЭК изменен</b>",
+      "",
+      `<b>Заказ:</b> <code>${this.formatText(input.order.id)}</code>`,
+      `<b>Клиент:</b> ${this.formatText(input.order.customer.name)}`,
+      `<b>Телефон:</b> <code>${this.formatText(input.order.customer.phone)}</code>`,
+      `<b>Email:</b> <code>${this.formatText(input.order.customer.email)}</code>`,
+      input.previousStatusCode
+        ? `<b>Было:</b> ${this.formatText(
+            this.getCdekShipmentStatusLabel(input.previousStatusCode),
+          )}`
+        : undefined,
+      `<b>Стало:</b> ${this.formatText(input.nextStatusName)}`,
+      cdekTrackNumber
+        ? `<b>Трек-номер СДЭК:</b> <code>${this.formatText(cdekTrackNumber)}</code>`
+        : undefined,
+      "",
+      `<b>ПВЗ:</b> ${this.formatText(input.order.delivery.pickupPoint.address)}`,
+      input.isReadyForPickup
+        ? "Клиенту отправлено уведомление о возможности забрать заказ."
+        : undefined,
+    ].filter((line): line is string => typeof line === "string");
+
+    return this.trimTelegramMessage(lines.join("\n"));
+  }
+
   private formatCustomerOrderCreatedMessage(order: OrderDTO) {
     const lines = [
       this.getCustomerOrderCreatedTitle(order),
@@ -276,6 +360,27 @@ export class OrdersTelegramService {
       "",
       ...this.getCustomerOrderCreatedHint(order),
     ];
+
+    return this.trimTelegramMessage(lines.join("\n"));
+  }
+
+  private formatCustomerCdekShipmentStatusChangedMessage(
+    input: CdekShipmentStatusChangedInput,
+  ) {
+    const cdekTrackNumber = this.getCdekTrackNumber(input.order);
+    const lines = [
+      input.isReadyForPickup
+        ? "<b>Заказ можно забрать</b>"
+        : "<b>Статус доставки изменен</b>",
+      "",
+      `<b>Заказ:</b> <code>${this.formatText(input.order.id)}</code>`,
+      `<b>Статус:</b> ${this.formatText(input.nextStatusName)}`,
+      cdekTrackNumber
+        ? `<b>Трек-номер СДЭК:</b> <code>${this.formatText(cdekTrackNumber)}</code>`
+        : undefined,
+      "",
+      ...this.getCustomerCdekShipmentStatusHint(input),
+    ].filter((line): line is string => typeof line === "string");
 
     return this.trimTelegramMessage(lines.join("\n"));
   }
@@ -296,9 +401,7 @@ export class OrdersTelegramService {
       ];
     }
 
-    return [
-      "Спасибо! Мы получили ваш заказ и скоро передадим его в доставку.",
-    ];
+    return ["Спасибо! Мы получили ваш заказ и скоро передадим его в доставку."];
   }
 
   private getCustomerOrderAction(order: OrderDTO) {
@@ -307,7 +410,8 @@ export class OrdersTelegramService {
     }
 
     return {
-      buttonText: order.payment.status === "paid" ? "Открыть заказ" : "Оплатить заказ",
+      buttonText:
+        order.payment.status === "paid" ? "Открыть заказ" : "Оплатить заказ",
       buttonUrl: this.createCustomerOrderPaymentUrl(order),
     };
   }
@@ -338,6 +442,35 @@ export class OrdersTelegramService {
     }
   }
 
+  private getCustomerCdekShipmentStatusHint(
+    input: CdekShipmentStatusChangedInput,
+  ) {
+    if (input.isReadyForPickup) {
+      return [
+        "Заказ ожидает вас в выбранном ПВЗ.",
+        `<b>Адрес:</b> ${this.formatText(input.order.delivery.pickupPoint.address)}`,
+        `<b>График:</b> ${this.formatText(input.order.delivery.pickupPoint.workHours)}`,
+      ];
+    }
+
+    switch (input.nextStatusCode.toUpperCase()) {
+      case "DELIVERED":
+      case "POSTOMAT_RECEIVED":
+        return ["Заказ отмечен как полученный."];
+      case "NOT_DELIVERED":
+        return [
+          "СДЭК отметил заказ как неврученный.",
+          "Если нужна помощь, свяжитесь с нами.",
+        ];
+      case "REMOVED":
+        return ["Отправление удалено в СДЭК."];
+      case "INVALID":
+        return ["СДЭК сообщил о проблеме с отправлением. Мы проверим данные."];
+      default:
+        return ["Мы сообщим, когда заказ можно будет забрать."];
+    }
+  }
+
   private getDeliveryProviderLabel(provider: OrderDTO["delivery"]["provider"]) {
     return provider === "cdek" ? "СДЭК" : "Ozon";
   }
@@ -353,6 +486,39 @@ export class OrdersTelegramService {
 
     return order.shipments.find((shipment) => shipment.provider === "cdek")
       ?.externalNumber;
+  }
+
+  private getCdekShipmentStatusLabel(statusCode: string) {
+    switch (statusCode.trim().toUpperCase()) {
+      case "ACCEPTED":
+        return "Принят";
+      case "ACCEPTED_AT_PICK_UP_POINT":
+      case "ENTERED_TO_PICK_UP_POINT":
+        return "Ожидает в ПВЗ";
+      case "ACCEPTED_AT_RECIPIENT_CITY_WAREHOUSE":
+      case "ACCEPTED_IN_RECIPIENT_CITY":
+        return "В городе получателя";
+      case "CREATED":
+        return "Создан";
+      case "DELIVERED":
+        return "Получен";
+      case "INVALID":
+        return "Некорректный заказ";
+      case "NOT_DELIVERED":
+        return "Не вручен";
+      case "POSTOMAT_POSTED":
+        return "Ожидает в постамате";
+      case "POSTOMAT_RECEIVED":
+        return "Получен из постамата";
+      case "RECEIVED_AT_SHIPMENT_WAREHOUSE":
+        return "Принят на склад отправителя";
+      case "REMOVED":
+        return "Удален";
+      case "TAKEN_BY_COURIER":
+        return "У курьера";
+      default:
+        return statusCode.trim().toUpperCase();
+    }
   }
 
   private formatDate(value: string) {

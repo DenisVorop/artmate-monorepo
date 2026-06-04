@@ -3,6 +3,7 @@ import {
   HttpException,
   Injectable,
   Logger,
+  UnauthorizedException,
 } from "@nestjs/common";
 
 import type { AuthUser } from "../auth/auth.types";
@@ -15,6 +16,7 @@ import {
   renderBrandedEmail,
   renderEmailButton,
   renderEmailDetails,
+  renderEmailNotice,
   renderEmailParagraph,
   renderSupportEmailFooter,
   renderSupportEmailFooterText,
@@ -40,7 +42,10 @@ import type {
   PickupPointDTO,
 } from "./dto";
 import { OrdersTelegramService } from "./orders-telegram.service";
-import { OrdersStorage } from "./orders.storage";
+import {
+  type ApplyCdekOrderStatusWebhookResult,
+  OrdersStorage,
+} from "./orders.storage";
 
 const MAX_COMMENT_LENGTH = ORDER_COMMENT_MAX_LENGTH;
 const MAX_ADMIN_COMMENT_LENGTH = ORDER_ADMIN_COMMENT_MAX_LENGTH;
@@ -53,6 +58,46 @@ const finalCdekShipmentStatusCodes = new Set([
   "NOT_DELIVERED",
   "REMOVED",
 ]);
+const cdekReadyForPickupStatusCodes = new Set([
+  "ACCEPTED_AT_PICK_UP_POINT",
+  "POSTOMAT_POSTED",
+]);
+const cdekShipmentStatusLabels: Record<string, string> = {
+  ACCEPTED: "Принят",
+  ACCEPTED_AT_PICK_UP_POINT: "Ожидает в ПВЗ",
+  ACCEPTED_AT_RECIPIENT_CITY_WAREHOUSE: "В городе получателя",
+  ACCEPTED_IN_RECIPIENT_CITY: "В городе получателя",
+  CREATED: "Создан",
+  DELIVERED: "Получен",
+  ENTERED_TO_PICK_UP_POINT: "Ожидает в ПВЗ",
+  INVALID: "Некорректный заказ",
+  NOT_DELIVERED: "Не вручен",
+  POSTOMAT_POSTED: "Ожидает в постамате",
+  POSTOMAT_RECEIVED: "Получен из постамата",
+  RECEIVED_AT_SHIPMENT_WAREHOUSE: "Принят на склад отправителя",
+  REMOVED: "Удален",
+  TAKEN_BY_COURIER: "У курьера",
+};
+const orderStatusLabels: Record<OrderStatus, string> = {
+  new: "В обработке",
+  in_progress: "В работе",
+  waiting_payment: "Ожидает оплаты",
+  paid: "Оплачен",
+  delivering: "Доставляется",
+  completed: "Завершен",
+  cancelled: "Отменен",
+};
+
+type CdekOrderStatusWebhookEvent = {
+  cdekNumber: string;
+  deleted: boolean;
+  externalUuid: string;
+  orderNumber?: string;
+  raw: Record<string, unknown>;
+  statusCode: string;
+  statusDateTime?: string;
+  statusName: string;
+};
 
 @Injectable()
 export class OrdersService {
@@ -277,6 +322,24 @@ export class OrdersService {
     return { ok: true };
   }
 
+  async handleCdekOrderStatusWebhook(secret: string, body: unknown) {
+    this.assertCdekWebhookSecret(secret);
+
+    const event = this.parseCdekOrderStatusWebhook(body);
+
+    if (event.deleted) {
+      return { ok: true };
+    }
+
+    const result = await this.processCdekOrderStatusWebhook(event);
+
+    if (result?.shipmentStatusChanged) {
+      this.queueCdekShipmentStatusNotifications(result);
+    }
+
+    return { ok: true };
+  }
+
   async confirmPayment(orderId: string, user: AuthUser): Promise<OrderDTO> {
     const order = await this.ordersStorage.markOrderAsPaid(
       this.parseOrderId(orderId),
@@ -346,6 +409,74 @@ export class OrdersService {
     return value as Record<string, unknown>;
   }
 
+  private async processCdekOrderStatusWebhook(
+    event: CdekOrderStatusWebhookEvent,
+  ): Promise<ApplyCdekOrderStatusWebhookResult | undefined> {
+    const result = await this.ordersStorage.applyCdekOrderStatusWebhook({
+      cdekNumber: event.cdekNumber,
+      externalUuid: event.externalUuid,
+      orderNumber: event.orderNumber,
+      raw: event.raw,
+      statusCode: event.statusCode,
+      statusDateTime: event.statusDateTime,
+      statusName: event.statusName,
+    });
+
+    if (!result) {
+      this.logger.warn(
+        `CDEK webhook ignored: order not found for uuid=${event.externalUuid}, cdekNumber=${event.cdekNumber}, orderNumber=${event.orderNumber ?? "unknown"}`,
+      );
+      return;
+    }
+
+    return result;
+  }
+
+  private parseCdekOrderStatusWebhook(
+    value: unknown,
+  ): CdekOrderStatusWebhookEvent {
+    if (!value || typeof value !== "object" || Array.isArray(value)) {
+      throw new BadRequestException("CDEK webhook body is invalid");
+    }
+
+    const body = value as Record<string, unknown>;
+    const attributes = this.parseObject(body.attributes, "attributes");
+    const type = this.parseRequiredString(body.type, "type");
+
+    if (type !== "ORDER_STATUS") {
+      throw new BadRequestException("CDEK webhook type must be ORDER_STATUS");
+    }
+
+    const statusCode = this.parseRequiredString(
+      attributes.code,
+      "attributes.code",
+    ).toUpperCase();
+
+    return {
+      cdekNumber: this.parseRequiredString(
+        attributes.cdek_number,
+        "attributes.cdek_number",
+      ),
+      deleted: attributes.deleted === true,
+      externalUuid: this.parseRequiredString(body.uuid, "uuid"),
+      orderNumber: this.parseOptionalString(attributes.number),
+      raw: body,
+      statusCode,
+      statusDateTime:
+        this.parseOptionalString(attributes.status_date_time) ??
+        this.parseOptionalString(body.date_time),
+      statusName: this.getCdekShipmentStatusLabel(statusCode),
+    };
+  }
+
+  private parseObject(value: unknown, field: string): Record<string, unknown> {
+    if (!value || typeof value !== "object" || Array.isArray(value)) {
+      throw new BadRequestException(`${field} must be an object`);
+    }
+
+    return value as Record<string, unknown>;
+  }
+
   private createSiteUrl(path: string, orderId: string) {
     const url = new URL(path, `${this.getSiteUrl()}/`);
 
@@ -356,6 +487,14 @@ export class OrdersService {
 
   private createApiUrl(path: string) {
     return new URL(path, `${this.getApiPublicUrl()}/`).toString();
+  }
+
+  private assertCdekWebhookSecret(secret: string) {
+    const expectedSecret = process.env.CDEK_WEBHOOK_SECRET?.trim();
+
+    if (!expectedSecret || secret !== expectedSecret) {
+      throw new UnauthorizedException("Invalid CDEK webhook secret");
+    }
   }
 
   private getSiteUrl() {
@@ -534,20 +673,35 @@ export class OrdersService {
     return value as OrderStatus;
   }
 
-  private async notifyCustomerAboutStatusChange(result: {
-    order: OrderDTO;
-    previousStatus: OrderStatus;
-    nextStatus: OrderStatus;
-    userId?: string;
-  }) {
-    if (!result.userId) {
-      return;
-    }
+  private async notifyCustomerAboutStatusChange(
+    result: {
+      order: OrderDTO;
+      previousStatus: OrderStatus;
+      nextStatus: OrderStatus;
+      userId?: string;
+    },
+    options: { sendEmail?: boolean } = {},
+  ) {
+    await Promise.all([
+      options.sendEmail === false
+        ? undefined
+        : this.sendOrderStatusChangedEmail(result),
+      result.userId
+        ? this.sendOrderStatusChangedTelegram(result, result.userId)
+        : undefined,
+    ]);
+  }
 
+  private async sendOrderStatusChangedTelegram(
+    result: {
+      order: OrderDTO;
+      previousStatus: OrderStatus;
+      nextStatus: OrderStatus;
+    },
+    userId: string,
+  ) {
     try {
-      const chatId = await this.ordersStorage.getUserTelegramChatId(
-        result.userId,
-      );
+      const chatId = await this.ordersStorage.getUserTelegramChatId(userId);
 
       if (!chatId) {
         return;
@@ -592,6 +746,88 @@ export class OrdersService {
     }
   }
 
+  private async notifyAdminAboutCdekShipmentStatusChanged(
+    input: ApplyCdekOrderStatusWebhookResult,
+  ) {
+    try {
+      await this.ordersTelegramService.sendCdekShipmentStatusChanged({
+        isReadyForPickup: this.isCdekReadyForPickupStatus(
+          input.nextShipmentStatusCode,
+        ),
+        nextStatusCode: input.nextShipmentStatusCode,
+        nextStatusName: this.getCdekShipmentStatusLabel(
+          input.nextShipmentStatusCode,
+        ),
+        order: input.order,
+        previousStatusCode: input.previousShipmentStatusCode,
+      });
+    } catch (error) {
+      this.logger.warn(
+        `Failed to send Telegram CDEK shipment notification for order ${input.order.id}: ${
+          error instanceof Error ? error.message : String(error)
+        }`,
+      );
+    }
+  }
+
+  private async notifyCdekShipmentStatusChanged(
+    input: ApplyCdekOrderStatusWebhookResult,
+  ) {
+    await Promise.all([
+      this.notifyAdminAboutCdekShipmentStatusChanged(input),
+      this.sendCdekShipmentStatusChangedEmail(input),
+      input.userId
+        ? this.sendCdekShipmentStatusChangedTelegram(input, input.userId)
+        : undefined,
+    ]);
+  }
+
+  private async sendCdekShipmentStatusChangedTelegram(
+    input: ApplyCdekOrderStatusWebhookResult,
+    userId: string,
+  ) {
+    try {
+      const chatId = await this.ordersStorage.getUserTelegramChatId(userId);
+
+      if (!chatId) {
+        return;
+      }
+
+      await this.ordersTelegramService.sendCdekShipmentStatusChangedToCustomer({
+        chatId,
+        isReadyForPickup: this.isCdekReadyForPickupStatus(
+          input.nextShipmentStatusCode,
+        ),
+        nextStatusCode: input.nextShipmentStatusCode,
+        nextStatusName: this.getCdekShipmentStatusLabel(
+          input.nextShipmentStatusCode,
+        ),
+        order: input.order,
+        previousStatusCode: input.previousShipmentStatusCode,
+      });
+    } catch (error) {
+      this.logger.warn(
+        `Failed to send customer Telegram CDEK shipment notification for order ${input.order.id}: ${
+          error instanceof Error ? error.message : String(error)
+        }`,
+      );
+    }
+  }
+
+  private queueCdekShipmentStatusNotifications(
+    input: ApplyCdekOrderStatusWebhookResult,
+  ) {
+    setImmediate(() => {
+      void this.notifyCdekShipmentStatusChanged(input).catch((error) => {
+        this.logger.warn(
+          `Failed to process queued CDEK notifications for order ${input.order.id}: ${
+            error instanceof Error ? error.message : String(error)
+          }`,
+        );
+      });
+    });
+  }
+
   private queueOrderPaidNotifications(
     order: OrderDTO,
     userId: string | undefined,
@@ -623,12 +859,15 @@ export class OrdersService {
     await Promise.all([
       this.notifyAdminAboutOrderPaid(notificationOrder),
       this.sendOrderPaidEmail(notificationOrder),
-      this.notifyCustomerAboutStatusChange({
-        order: notificationOrder,
-        previousStatus,
-        nextStatus: "paid",
-        userId,
-      }),
+      this.notifyCustomerAboutStatusChange(
+        {
+          order: notificationOrder,
+          previousStatus,
+          nextStatus: "paid",
+          userId,
+        },
+        { sendEmail: false },
+      ),
     ]);
   }
 
@@ -749,17 +988,14 @@ export class OrdersService {
     }
 
     try {
-      const deleteResult = await this.deliveryService.deleteCdekOrder(
-        externalUuid,
-      );
+      const deleteResult =
+        await this.deliveryService.deleteCdekOrder(externalUuid);
 
       await this.ordersStorage.upsertOrderShipment({
         orderId: order.id,
         provider: "cdek",
         ...deleteResult,
-        requestState: this.getCdekDeleteRequestState(
-          deleteResult.requestState,
-        ),
+        requestState: this.getCdekDeleteRequestState(deleteResult.requestState),
         syncedAt: new Date(),
       });
     } catch (error) {
@@ -862,7 +1098,9 @@ export class OrdersService {
     return {
       ...order,
       shipments: [
-        ...order.shipments.filter((item) => item.provider !== shipment.provider),
+        ...order.shipments.filter(
+          (item) => item.provider !== shipment.provider,
+        ),
         shipment,
       ],
     };
@@ -994,6 +1232,46 @@ export class OrdersService {
     }
   }
 
+  private async sendOrderStatusChangedEmail(input: {
+    order: OrderDTO;
+    previousStatus: OrderStatus;
+    nextStatus: OrderStatus;
+  }) {
+    try {
+      await this.mailerService.sendMail({
+        to: input.order.customer.email,
+        subject: `Статус заказа ${input.order.id} изменен - Artmate`,
+        text: this.renderOrderStatusChangedTextEmail(input),
+        html: this.renderOrderStatusChangedHtmlEmail(input),
+      });
+    } catch (error) {
+      this.logger.warn(
+        `Failed to send customer status email for order ${input.order.id}: ${
+          error instanceof Error ? error.message : String(error)
+        }`,
+      );
+    }
+  }
+
+  private async sendCdekShipmentStatusChangedEmail(
+    input: ApplyCdekOrderStatusWebhookResult,
+  ) {
+    try {
+      await this.mailerService.sendMail({
+        to: input.order.customer.email,
+        subject: this.getCdekShipmentStatusEmailSubject(input),
+        text: this.renderCdekShipmentStatusChangedTextEmail(input),
+        html: this.renderCdekShipmentStatusChangedHtmlEmail(input),
+      });
+    } catch (error) {
+      this.logger.warn(
+        `Failed to send customer CDEK shipment status email for order ${input.order.id}: ${
+          error instanceof Error ? error.message : String(error)
+        }`,
+      );
+    }
+  }
+
   private async sendOrderCreatedTelegram(order: OrderDTO, userId: string) {
     try {
       const chatId = await this.ordersStorage.getUserTelegramChatId(userId);
@@ -1101,6 +1379,143 @@ export class OrdersService {
     });
   }
 
+  private renderOrderStatusChangedTextEmail(input: {
+    order: OrderDTO;
+    previousStatus: OrderStatus;
+    nextStatus: OrderStatus;
+  }) {
+    return [
+      "ARTMATE",
+      "",
+      `Статус заказа ${input.order.id} изменен.`,
+      "",
+      `${input.order.customer.name}, мы обновили информацию по вашему заказу.`,
+      `Было: ${orderStatusLabels[input.previousStatus]}`,
+      `Стало: ${orderStatusLabels[input.nextStatus]}`,
+      "",
+      ...this.getOrderStatusChangedTextHint(input.nextStatus),
+      "",
+      renderSupportEmailFooterText(),
+    ].join("\n");
+  }
+
+  private renderOrderStatusChangedHtmlEmail(input: {
+    order: OrderDTO;
+    previousStatus: OrderStatus;
+    nextStatus: OrderStatus;
+  }) {
+    const escapedOrderId = escapeEmailHtml(input.order.id);
+    const escapedName = escapeEmailHtml(input.order.customer.name);
+
+    return renderBrandedEmail({
+      title: "Статус заказа изменен",
+      previewText: `Статус заказа ${input.order.id}: ${orderStatusLabels[input.nextStatus]}.`,
+      contentHtml: `
+        ${renderEmailParagraph(
+          `${escapedName}, мы обновили информацию по заказу ${escapedOrderId}.`,
+        )}
+        ${renderEmailDetails([
+          { label: "Было", value: orderStatusLabels[input.previousStatus] },
+          { label: "Стало", value: orderStatusLabels[input.nextStatus] },
+        ])}
+        ${renderEmailNotice(
+          escapeEmailHtml(
+            this.getOrderStatusChangedTextHint(input.nextStatus).join(" "),
+          ),
+        )}
+      `,
+      footerHtml: renderSupportEmailFooter(),
+    });
+  }
+
+  private renderCdekShipmentStatusChangedTextEmail(
+    input: ApplyCdekOrderStatusWebhookResult,
+  ) {
+    const statusLabel = this.getCdekShipmentStatusLabel(
+      input.nextShipmentStatusCode,
+    );
+    const previousStatusLabel = input.previousShipmentStatusCode
+      ? this.getCdekShipmentStatusLabel(input.previousShipmentStatusCode)
+      : undefined;
+    const trackNumber = this.getCdekTrackNumber(input.order);
+    const isReadyForPickup = this.isCdekReadyForPickupStatus(
+      input.nextShipmentStatusCode,
+    );
+
+    return [
+      "ARTMATE",
+      "",
+      isReadyForPickup
+        ? `Заказ ${input.order.id} можно забрать в ПВЗ.`
+        : `Статус доставки заказа ${input.order.id} изменен.`,
+      "",
+      `${input.order.customer.name}, доставка СДЭК обновила статус заказа.`,
+      previousStatusLabel ? `Было: ${previousStatusLabel}` : undefined,
+      `Стало: ${statusLabel}`,
+      trackNumber ? `Трек-номер СДЭК: ${trackNumber}` : undefined,
+      "",
+      ...this.getCdekShipmentStatusTextHint(input),
+      "",
+      `ПВЗ: ${input.order.delivery.pickupPoint.address}`,
+      `График: ${input.order.delivery.pickupPoint.workHours}`,
+      "",
+      renderSupportEmailFooterText(),
+    ]
+      .filter((line): line is string => typeof line === "string")
+      .join("\n");
+  }
+
+  private renderCdekShipmentStatusChangedHtmlEmail(
+    input: ApplyCdekOrderStatusWebhookResult,
+  ) {
+    const escapedOrderId = escapeEmailHtml(input.order.id);
+    const escapedName = escapeEmailHtml(input.order.customer.name);
+    const statusLabel = this.getCdekShipmentStatusLabel(
+      input.nextShipmentStatusCode,
+    );
+    const previousStatusLabel = input.previousShipmentStatusCode
+      ? this.getCdekShipmentStatusLabel(input.previousShipmentStatusCode)
+      : undefined;
+    const trackNumber = this.getCdekTrackNumber(input.order);
+
+    return renderBrandedEmail({
+      title: this.isCdekReadyForPickupStatus(input.nextShipmentStatusCode)
+        ? "Заказ можно забрать"
+        : "Статус доставки изменен",
+      previewText: `Статус доставки заказа ${input.order.id}: ${statusLabel}.`,
+      contentHtml: `
+        ${renderEmailParagraph(
+          `${escapedName}, доставка СДЭК обновила статус заказа ${escapedOrderId}.`,
+        )}
+        ${renderEmailDetails(
+          [
+            previousStatusLabel
+              ? { label: "Было", value: previousStatusLabel }
+              : undefined,
+            { label: "Стало", value: statusLabel },
+            trackNumber
+              ? { label: "Трек-номер СДЭК", value: trackNumber }
+              : undefined,
+            {
+              label: "ПВЗ",
+              value: input.order.delivery.pickupPoint.address,
+            },
+            {
+              label: "График",
+              value: input.order.delivery.pickupPoint.workHours,
+            },
+          ].filter((row): row is { label: string; value: string } =>
+            Boolean(row),
+          ),
+        )}
+        ${renderEmailNotice(
+          escapeEmailHtml(this.getCdekShipmentStatusTextHint(input).join(" ")),
+        )}
+      `,
+      footerHtml: renderSupportEmailFooter(),
+    });
+  }
+
   private renderCdekTrackingTextEmail(order: OrderDTO) {
     const trackNumber = this.getCdekTrackNumber(order);
 
@@ -1121,6 +1536,65 @@ export class OrdersService {
     details.push({ label: "Итого", value: this.formatMoney(order.total) });
 
     return details;
+  }
+
+  private getOrderStatusChangedTextHint(status: OrderStatus) {
+    switch (status) {
+      case "new":
+      case "in_progress":
+        return ["Мы работаем с заказом и сообщим, когда он перейдет дальше."];
+      case "waiting_payment":
+        return ["Заказ ожидает оплаты. Детали доступны в личном кабинете."];
+      case "paid":
+        return ["Оплата получена. Скоро передадим заказ в доставку."];
+      case "delivering":
+        return ["Заказ передан в доставку."];
+      case "completed":
+        return ["Заказ завершен. Спасибо, что выбрали Artmate."];
+      case "cancelled":
+        return ["Заказ отменен. Если это ошибка, свяжитесь с нами."];
+    }
+  }
+
+  private getCdekShipmentStatusTextHint(
+    input: ApplyCdekOrderStatusWebhookResult,
+  ) {
+    if (this.isCdekReadyForPickupStatus(input.nextShipmentStatusCode)) {
+      return [
+        "Заказ уже можно забрать в выбранном ПВЗ.",
+        "Возьмите с собой документ, если его попросят при выдаче.",
+      ];
+    }
+
+    switch (input.nextShipmentStatusCode.toUpperCase()) {
+      case "DELIVERED":
+      case "POSTOMAT_RECEIVED":
+        return ["Заказ отмечен как полученный."];
+      case "NOT_DELIVERED":
+        return [
+          "СДЭК отметил заказ как неврученный.",
+          "Если нужна помощь, напишите нам в поддержку.",
+        ];
+      case "REMOVED":
+        return ["Отправление удалено в СДЭК."];
+      case "INVALID":
+        return [
+          "СДЭК сообщил о проблеме с отправлением.",
+          "Мы проверим данные заказа.",
+        ];
+      default:
+        return ["Мы сообщим, когда заказ можно будет забрать."];
+    }
+  }
+
+  private getCdekShipmentStatusEmailSubject(
+    input: ApplyCdekOrderStatusWebhookResult,
+  ) {
+    if (this.isCdekReadyForPickupStatus(input.nextShipmentStatusCode)) {
+      return `Заказ ${input.order.id} можно забрать в ПВЗ - Artmate`;
+    }
+
+    return `Статус доставки заказа ${input.order.id} изменен - Artmate`;
   }
 
   private getOrderCreatedEmailSubject(order: OrderDTO) {
@@ -1211,6 +1685,31 @@ export class OrdersService {
 
     return order.shipments.find((shipment) => shipment.provider === "cdek")
       ?.externalNumber;
+  }
+
+  private getCdekShipmentStatusLabel(statusCode: string) {
+    const normalizedStatusCode = statusCode.trim().toUpperCase();
+    const exactLabel = cdekShipmentStatusLabels[normalizedStatusCode];
+
+    if (exactLabel) {
+      return exactLabel;
+    }
+
+    if (
+      normalizedStatusCode.includes("TRANSIT") ||
+      normalizedStatusCode.includes("TRANSPORT") ||
+      normalizedStatusCode.includes("SHIPMENT") ||
+      normalizedStatusCode.includes("SHIPPED") ||
+      normalizedStatusCode.includes("SENT")
+    ) {
+      return "В пути";
+    }
+
+    return normalizedStatusCode;
+  }
+
+  private isCdekReadyForPickupStatus(statusCode: string) {
+    return cdekReadyForPickupStatusCodes.has(statusCode.trim().toUpperCase());
   }
 
   private renderOrderItemsTextEmail(order: OrderDTO) {

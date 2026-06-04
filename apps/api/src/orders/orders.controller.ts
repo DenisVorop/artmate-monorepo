@@ -190,6 +190,16 @@ export class OrdersController {
     return this.ordersService.handleOzonPaymentNotification(notification);
   }
 
+  @Post("delivery/cdek/webhook/:secret")
+  @HttpCode(HttpStatus.OK)
+  @ApiOperation({ summary: "Handle CDEK order status webhook" })
+  handleCdekOrderStatusWebhook(
+    @Param("secret") secret: string,
+    @Body() webhook: unknown,
+  ) {
+    return this.ordersService.handleCdekOrderStatusWebhook(secret, webhook);
+  }
+
   @UseGuards(AuthGuard)
   @ValidateResponse(OrderStateDTO)
   @Get(":orderId/status")

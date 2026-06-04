@@ -4,6 +4,7 @@ import {
   FileText,
   Megaphone,
   LogOut,
+  MailCheck,
   PackageSearch,
   SearchCode,
   SquareKanban,
@@ -31,6 +32,7 @@ const navigation: readonly NavigationItem[] = [
   { label: "Блог", href: routes.blog, Icon: FileText },
   { label: "SEO", href: routes.seo, Icon: SearchCode },
   { label: "Баннеры", href: routes.featureBanners, Icon: Megaphone },
+  { label: "Рассылки", href: routes.mailings, Icon: MailCheck },
   { label: "Пользователи", href: routes.users, Icon: Users },
 ];
 
