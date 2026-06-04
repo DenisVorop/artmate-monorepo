@@ -1,4 +1,5 @@
 export {
+  cdekTrackingUrl,
   getCdekShipment,
   getLatestOrder,
   getOrderShipmentNumberLabel,
@@ -18,4 +19,4 @@ export type {
   OrderState,
   OrderStatus,
 } from "./model";
-export { OrderCard } from "./ui";
+export { OrderCard, ShipmentTrackingNumber } from "./ui";

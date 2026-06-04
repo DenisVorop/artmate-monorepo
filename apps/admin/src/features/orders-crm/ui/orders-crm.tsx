@@ -21,8 +21,12 @@ import {
 import { useForm } from "react-hook-form";
 
 import {
+  getCdekShipment,
   getOrdersByStatus,
   getOrdersTotal,
+  getOrderShipmentNumber,
+  getOrderShipmentStatusLabel,
+  ShipmentTrackingNumber,
   useOrders,
   type AdminOrder,
   type OrderStatus,
@@ -461,25 +465,34 @@ function PaymentBadge({ order }: { readonly order: AdminOrder }) {
 }
 
 function ShipmentBadge({ order }: { readonly order: AdminOrder }) {
-  const shipment = order.shipments.find((item) => item.provider === "cdek");
+  const shipment = getCdekShipment(order);
+  const shipmentNumber = getOrderShipmentNumber(shipment);
   const hasError = Boolean(shipment?.errorMessage);
   const isCreated = Boolean(shipment?.externalUuid);
 
   return (
-    <Badge
-      className={cn(
-        "w-fit rounded-lg",
-        hasError
-          ? "border-rose-200 bg-rose-50 text-rose-700"
-          : isCreated
-            ? "border-emerald-200 bg-emerald-50 text-emerald-700"
-            : "border-slate-200 bg-slate-50 text-slate-700",
-      )}
-      variant="outline"
-    >
-      <Truck data-icon="inline-start" aria-hidden="true" />
-      {getShipmentStatusLabel(shipment)}
-    </Badge>
+    <div className="space-y-1">
+      <Badge
+        className={cn(
+          "w-fit rounded-lg",
+          hasError
+            ? "border-rose-200 bg-rose-50 text-rose-700"
+            : isCreated
+              ? "border-emerald-200 bg-emerald-50 text-emerald-700"
+              : "border-slate-200 bg-slate-50 text-slate-700",
+        )}
+        variant="outline"
+      >
+        <Truck data-icon="inline-start" aria-hidden="true" />
+        {getOrderShipmentStatusLabel(shipment)}
+      </Badge>
+      {shipmentNumber ? (
+        <ShipmentTrackingNumber
+          className="text-xs text-muted-foreground"
+          number={shipmentNumber}
+        />
+      ) : null}
+    </div>
   );
 }
 
@@ -599,43 +612,6 @@ function getStatusLabel(value: unknown) {
   }
 
   return orderCrmStatusLabels[value as AdminOrder["status"]];
-}
-
-function getShipmentStatusLabel(
-  shipment: AdminOrder["shipments"][number] | undefined,
-) {
-  if (!shipment) {
-    return "CDEK не создан";
-  }
-
-  if (shipment.errorMessage) {
-    return "CDEK ошибка";
-  }
-
-  if (
-    shipment.statusCode === "REMOVED" ||
-    shipment.requestState === "DELETE_SUCCESSFUL"
-  ) {
-    return "CDEK удален";
-  }
-
-  if (shipment.requestState?.startsWith("DELETE_")) {
-    return "CDEK удаляется";
-  }
-
-  if (shipment.externalNumber) {
-    return `CDEK ${shipment.externalNumber}`;
-  }
-
-  if (shipment.externalUuid) {
-    return "CDEK создан";
-  }
-
-  if (shipment.requestState === "CREATING") {
-    return "CDEK создается";
-  }
-
-  return "CDEK принят";
 }
 
 function formatMoney(value: number) {

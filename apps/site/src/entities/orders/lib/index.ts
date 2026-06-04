@@ -1,4 +1,5 @@
 export {
+  cdekTrackingUrl,
   getCdekShipment,
   getLatestOrder,
   getOrderShipmentNumberLabel,

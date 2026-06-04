@@ -23,9 +23,27 @@ export {
   DropdownMenuTrigger,
 } from "./dropdown-menu";
 export { Input } from "./input";
+export {
+  Popover,
+  PopoverAnchor,
+  PopoverContent,
+  PopoverTrigger,
+} from "./popover";
 export { Progress } from "./progress";
 export { Separator } from "./separator";
-export { Table, TableBody, TableCell, TableHead, TableHeader, TableRow } from "./table";
+export {
+  Table,
+  TableBody,
+  TableCell,
+  TableHead,
+  TableHeader,
+  TableRow,
+} from "./table";
 export { Textarea } from "./textarea";
 export { Toaster } from "./toaster";
-export { Tooltip, TooltipContent, TooltipProvider, TooltipTrigger } from "./tooltip";
+export {
+  Tooltip,
+  TooltipContent,
+  TooltipProvider,
+  TooltipTrigger,
+} from "./tooltip";

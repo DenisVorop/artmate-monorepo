@@ -1,2 +1,1 @@
-export { OrderCard } from "./order-card";
 export { ShipmentTrackingNumber } from "./shipment-tracking-number";

@@ -11,7 +11,15 @@ import {
   Truck,
 } from "lucide-react";
 
-import { useOrder, type AdminOrder, type OrderStatus } from "@/entities/orders";
+import {
+  getCdekShipment,
+  getOrderShipmentNumber,
+  getOrderShipmentStatusLabel,
+  ShipmentTrackingNumber,
+  useOrder,
+  type AdminOrder,
+  type OrderStatus,
+} from "@/entities/orders";
 import {
   Badge,
   Card,
@@ -220,19 +228,20 @@ function CustomerPanel({ order }: { readonly order: AdminOrder }) {
 }
 
 function CdekShipmentPanel({ order }: { readonly order: AdminOrder }) {
-  const shipment = order.shipments.find((item) => item.provider === "cdek");
+  const shipment = getCdekShipment(order);
+  const shipmentNumber = getOrderShipmentNumber(shipment);
 
   return (
     <div className="mt-3 rounded-lg border bg-muted/35 p-3 text-sm">
       <p className="flex items-center gap-2 font-medium">
         <Truck className="size-4" aria-hidden="true" />
-        Накладная CDEK
+        Отправление CDEK
       </p>
       {shipment ? (
         <div className="mt-2 space-y-1 text-muted-foreground">
-          <p>{getShipmentStatusLabel(shipment)}</p>
-          {shipment.externalNumber ? (
-            <p>Номер: {shipment.externalNumber}</p>
+          <p>{getOrderShipmentStatusLabel(shipment)}</p>
+          {shipmentNumber ? (
+            <ShipmentTrackingNumber number={shipmentNumber} />
           ) : null}
           {shipment.externalUuid ? (
             <p className="break-all">UUID: {shipment.externalUuid}</p>
@@ -370,47 +379,6 @@ function getStatusLabel(value: unknown) {
   }
 
   return adminOrderStatusLabels[value as OrderStatus];
-}
-
-function getShipmentStatusLabel(shipment: AdminOrder["shipments"][number]) {
-  if (shipment.errorMessage) {
-    return shipment.requestState === "DELETE_ERROR"
-      ? "Ошибка удаления"
-      : "Ошибка создания";
-  }
-
-  if (
-    shipment.statusCode === "REMOVED" ||
-    shipment.requestState === "DELETE_SUCCESSFUL"
-  ) {
-    return "Удалена";
-  }
-
-  if (shipment.requestState?.startsWith("DELETE_")) {
-    return "Удаляется";
-  }
-
-  if (shipment.statusName) {
-    return shipment.statusName;
-  }
-
-  if (shipment.statusCode) {
-    return shipment.statusCode;
-  }
-
-  if (shipment.requestState === "SUCCESSFUL") {
-    return "Создана";
-  }
-
-  if (shipment.requestState === "INVALID") {
-    return "Отклонена CDEK";
-  }
-
-  if (shipment.requestState === "CREATING") {
-    return "Создается";
-  }
-
-  return shipment.requestState ?? "Принята CDEK";
 }
 
 function formatJson(value: Record<string, unknown>) {

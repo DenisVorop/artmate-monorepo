@@ -6,6 +6,7 @@ import {
   getCdekShipment,
   getOrderShipmentNumberLabel,
   getOrderShipmentStatusLabel,
+  ShipmentTrackingNumber,
 } from "@/entities/orders";
 import { routes } from "@/shared/constants";
 import {
@@ -114,7 +115,7 @@ export function CheckoutSuccessDetails({
               {order.delivery.provider === "cdek" && (
                 <p>{cdekShipmentStatus ?? getPendingCdekShipmentStatus(order)}</p>
               )}
-              {cdekShipmentNumber && <p>{cdekShipmentNumber}</p>}
+              {cdekShipmentNumber && <ShipmentTrackingNumber number={cdekShipmentNumber} />}
               <p>{order.delivery.pickupPoint.address}</p>
               <p>{order.delivery.pickupPoint.workHours}</p>
             </InfoBlock>
@@ -155,7 +156,5 @@ export function CheckoutSuccessDetails({
 }
 
 function getPendingCdekShipmentStatus(order: CheckoutOrder) {
-  return order.payment.status === "paid"
-    ? "Скоро передадим в СДЭК"
-    : "Появится после оплаты";
+  return order.payment.status === "paid" ? "Скоро передадим в СДЭК" : "Появится после оплаты";
 }

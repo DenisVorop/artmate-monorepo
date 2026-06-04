@@ -27,12 +27,9 @@ import {
 } from "@/shared/ui";
 import { Link } from "@/shared/ui/link";
 
-import {
-  getCdekShipment,
-  getOrderShipmentNumberLabel,
-  getOrderShipmentStatusLabel,
-} from "../lib";
+import { getCdekShipment, getOrderShipmentNumberLabel, getOrderShipmentStatusLabel } from "../lib";
 import type { Order } from "../model";
+import { ShipmentTrackingNumber } from "./shipment-tracking-number";
 
 type OrderCardProps = {
   order: Order;
@@ -140,22 +137,23 @@ export function OrderCard({ order }: OrderCardProps) {
             <p className="text-muted-foreground">
               {order.delivery.provider === "cdek" ? "СДЭК" : "Ozon"}
             </p>
-            <p className="text-muted-foreground">
-              Стоимость: {formatMoney(order.deliveryPrice)}
-            </p>
+            <p className="text-muted-foreground">Стоимость: {formatMoney(order.deliveryPrice)}</p>
             <p className="text-muted-foreground">{order.delivery.pickupPoint.address}</p>
             <p className="text-muted-foreground">{order.delivery.pickupPoint.workHours}</p>
             {order.delivery.provider === "cdek" && (
               <div className="mt-3 space-y-1 rounded-lg border bg-background/70 p-3">
                 <p className="flex items-center gap-2 font-medium">
                   <Truck className="size-4 text-cyan-600" />
-                  Статус СДЭК
+                  Статус
                 </p>
                 <p className="text-muted-foreground">
                   {cdekShipmentStatus ?? getPendingCdekShipmentStatus(order)}
                 </p>
                 {cdekShipmentNumber && (
-                  <p className="text-muted-foreground">{cdekShipmentNumber}</p>
+                  <ShipmentTrackingNumber
+                    className="text-muted-foreground"
+                    number={cdekShipmentNumber}
+                  />
                 )}
               </div>
             )}
@@ -242,16 +240,11 @@ function formatDate(value: string) {
 }
 
 function getPendingCdekShipmentStatus(order: Order) {
-  return order.payment.status === "paid"
-    ? "Скоро передадим в СДЭК"
-    : "Появится после оплаты";
+  return order.payment.status === "paid" ? "Скоро передадим в СДЭК" : "Появится после оплаты";
 }
 
 function getOrderPaymentUrl(order: Order) {
-  if (
-    order.payment.method !== "ozon_acquiring" ||
-    order.payment.status !== "pending"
-  ) {
+  if (order.payment.method !== "ozon_acquiring" || order.payment.status !== "pending") {
     return undefined;
   }
 
