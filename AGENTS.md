@@ -355,6 +355,7 @@ src/_pages/<page>/
 - Entry point: `src/main.ts`.
 - Root module/controller/service: `src/app.module.ts`, `src/app.controller.ts`, `src/app.service.ts`.
 - Default port: `3002`, `PORT` валидируется как integer в диапазоне `0..65535`.
+- Официальный OpenAPI JSON CDEK API v2: `https://gateway.cdek.ru/api-cdek-docs/web/docs/merged?sectionId=api_v2_integration`.
 - Используй стандартные NestJS modules/controllers/services/providers. Не тащи frontend/FSD-паттерны в backend.
 - Для backend изменений запускай минимум `yarn workspace api check-types` и `yarn workspace api lint`; если меняется runtime/build output - `yarn workspace api build`.
 
