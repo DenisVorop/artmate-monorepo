@@ -21,7 +21,7 @@ import {
   renderSupportEmailFooter,
   renderSupportEmailFooterText,
 } from "../mailer/branded-email";
-import { MailerService } from "../mailer/mailer.service";
+import { NotificationQueueService } from "../notifications/notification-queue.service";
 import { OzonAcquiringService } from "../ozon/ozon-acquiring.service";
 import { OzonLogisticsService } from "../ozon/ozon-logistics.service";
 
@@ -107,7 +107,7 @@ export class OrdersService {
     private readonly cartStorage: CartStorage,
     private readonly cartService: CartService,
     private readonly deliveryService: DeliveryService,
-    private readonly mailerService: MailerService,
+    private readonly notificationQueueService: NotificationQueueService,
     private readonly ozonAcquiringService: OzonAcquiringService,
     private readonly ozonLogisticsService: OzonLogisticsService,
     private readonly ordersStorage: OrdersStorage,
@@ -284,7 +284,7 @@ export class OrdersService {
     }
 
     await this.cartService.clearCart(order.cartId);
-    this.queueOrderCreatedNotifications(order, user.id);
+    await this.queueOrderCreatedNotifications(order, user.id);
 
     return order;
   }
@@ -312,7 +312,7 @@ export class OrdersService {
     }
 
     if (result?.paymentStatusChangedToPaid) {
-      this.queueOrderPaidNotifications(
+      await this.queueOrderPaidNotifications(
         result.order,
         result.userId,
         result.previousStatus,
@@ -334,7 +334,7 @@ export class OrdersService {
     const result = await this.processCdekOrderStatusWebhook(event);
 
     if (result?.shipmentStatusChanged) {
-      this.queueCdekShipmentStatusNotifications(result);
+      await this.queueCdekShipmentStatusNotifications(result);
     }
 
     return { ok: true };
@@ -377,7 +377,7 @@ export class OrdersService {
         });
 
       await this.cartService.clearCart(order.cartId);
-      this.queueOrderCreatedNotifications(orderWithPayment, userId);
+      await this.queueOrderCreatedNotifications(orderWithPayment, userId);
 
       return orderWithPayment;
     } catch (error) {
@@ -817,15 +817,7 @@ export class OrdersService {
   private queueCdekShipmentStatusNotifications(
     input: ApplyCdekOrderStatusWebhookResult,
   ) {
-    setImmediate(() => {
-      void this.notifyCdekShipmentStatusChanged(input).catch((error) => {
-        this.logger.warn(
-          `Failed to process queued CDEK notifications for order ${input.order.id}: ${
-            error instanceof Error ? error.message : String(error)
-          }`,
-        );
-      });
-    });
+    return this.notifyCdekShipmentStatusChanged(input);
   }
 
   private queueOrderPaidNotifications(
@@ -833,17 +825,7 @@ export class OrdersService {
     userId: string | undefined,
     previousStatus: OrderStatus,
   ) {
-    setImmediate(() => {
-      void this.notifyOrderPaid(order, userId, previousStatus).catch(
-        (error) => {
-          this.logger.warn(
-            `Failed to process queued paid notifications for order ${order.id}: ${
-              error instanceof Error ? error.message : String(error)
-            }`,
-          );
-        },
-      );
-    });
+    return this.notifyOrderPaid(order, userId, previousStatus);
   }
 
   private async notifyOrderPaid(
@@ -1170,15 +1152,7 @@ export class OrdersService {
   }
 
   private queueOrderCreatedNotifications(order: OrderDTO, userId: string) {
-    setImmediate(() => {
-      void this.notifyOrderCreated(order, userId).catch((error) => {
-        this.logger.warn(
-          `Failed to process queued notifications for order ${order.id}: ${
-            error instanceof Error ? error.message : String(error)
-          }`,
-        );
-      });
-    });
+    return this.notifyOrderCreated(order, userId);
   }
 
   private async notifyOrderCreated(order: OrderDTO, userId: string) {
@@ -1200,7 +1174,7 @@ export class OrdersService {
 
   private async sendOrderCreatedEmail(order: OrderDTO) {
     try {
-      await this.mailerService.sendMail({
+      await this.notificationQueueService.enqueueEmail({
         to: order.customer.email,
         subject: this.getOrderCreatedEmailSubject(order),
         text: this.renderOrderCreatedTextEmail(order),
@@ -1217,7 +1191,7 @@ export class OrdersService {
 
   private async sendOrderPaidEmail(order: OrderDTO) {
     try {
-      await this.mailerService.sendMail({
+      await this.notificationQueueService.enqueueEmail({
         to: order.customer.email,
         subject: `Заказ ${order.id} оплачен - Artmate`,
         text: this.renderOrderPaidTextEmail(order),
@@ -1238,7 +1212,7 @@ export class OrdersService {
     nextStatus: OrderStatus;
   }) {
     try {
-      await this.mailerService.sendMail({
+      await this.notificationQueueService.enqueueEmail({
         to: input.order.customer.email,
         subject: `Статус заказа ${input.order.id} изменен - Artmate`,
         text: this.renderOrderStatusChangedTextEmail(input),
@@ -1257,7 +1231,7 @@ export class OrdersService {
     input: ApplyCdekOrderStatusWebhookResult,
   ) {
     try {
-      await this.mailerService.sendMail({
+      await this.notificationQueueService.enqueueEmail({
         to: input.order.customer.email,
         subject: this.getCdekShipmentStatusEmailSubject(input),
         text: this.renderCdekShipmentStatusChangedTextEmail(input),

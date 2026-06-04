@@ -1,0 +1,34 @@
+enum NotificationJobChannel {
+  EMAIL    @map("email")
+  TELEGRAM @map("telegram")
+
+  @@map("notification_job_channel")
+}
+
+enum NotificationJobStatus {
+  PENDING    @map("pending")
+  PROCESSING @map("processing")
+  SENT       @map("sent")
+  FAILED     @map("failed")
+
+  @@map("notification_job_status")
+}
+
+model NotificationJob {
+  id            String                 @id @default(cuid())
+  channel       NotificationJobChannel
+  status        NotificationJobStatus  @default(PENDING)
+  payload       Json                   @db.JsonB
+  attempts      Int                    @default(0)
+  maxAttempts   Int                    @default(5) @map("max_attempts")
+  nextAttemptAt DateTime               @default(now()) @map("next_attempt_at")
+  lockedAt      DateTime?              @map("locked_at")
+  sentAt        DateTime?              @map("sent_at")
+  failedAt      DateTime?              @map("failed_at")
+  lastError     String?                @map("last_error") @db.Text
+  createdAt     DateTime               @default(now()) @map("created_at")
+  updatedAt     DateTime               @default(now()) @updatedAt @map("updated_at")
+
+  @@index([status, nextAttemptAt, createdAt])
+  @@map("notification_jobs")
+}

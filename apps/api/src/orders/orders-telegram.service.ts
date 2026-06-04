@@ -1,22 +1,9 @@
-import {
-  BadGatewayException,
-  Injectable,
-  InternalServerErrorException,
-} from "@nestjs/common";
+import { Injectable, InternalServerErrorException } from "@nestjs/common";
 
-import {
-  getTelegramBotMethodUrl,
-  getTelegramRequestHeaders,
-} from "../telegram/telegram-api";
+import { NotificationQueueService } from "../notifications/notification-queue.service";
 
 import type { OrderDTO } from "./dto";
 import type { OrderStatus } from "./orders.constants";
-
-type TelegramSendMessageResponse = {
-  ok?: boolean;
-  description?: string;
-  error_code?: number;
-};
 
 type CdekShipmentStatusChangedInput = {
   isReadyForPickup: boolean;
@@ -26,7 +13,6 @@ type CdekShipmentStatusChangedInput = {
   previousStatusCode?: string;
 };
 
-const telegramRequestTimeoutMs = 10000;
 const defaultTelegramWebAppUrl = "https://www.art-mate.ru";
 
 const customerOrderStatusLabels: Record<OrderStatus, string> = {
@@ -41,56 +27,22 @@ const customerOrderStatusLabels: Record<OrderStatus, string> = {
 
 @Injectable()
 export class OrdersTelegramService {
-  async sendOrderCreated(order: OrderDTO) {
-    const response = await this.requestTelegram(this.formatOrderMessage(order));
-    const responseBody = (await this.parseTelegramResponseBody(
-      response,
-    )) as TelegramSendMessageResponse;
+  constructor(
+    private readonly notificationQueueService: NotificationQueueService,
+  ) {}
 
-    if (!response.ok || responseBody.ok === false) {
-      throw new BadGatewayException({
-        message: "Telegram order message request failed",
-        status: response.status,
-        errorCode: responseBody.error_code,
-        description: responseBody.description,
-      });
-    }
+  async sendOrderCreated(order: OrderDTO) {
+    await this.enqueueOrderTelegram(this.formatOrderMessage(order));
   }
 
   async sendOrderPaid(order: OrderDTO) {
-    const response = await this.requestTelegram(
-      this.formatOrderPaidMessage(order),
-    );
-    const responseBody = (await this.parseTelegramResponseBody(
-      response,
-    )) as TelegramSendMessageResponse;
-
-    if (!response.ok || responseBody.ok === false) {
-      throw new BadGatewayException({
-        message: "Telegram order paid message request failed",
-        status: response.status,
-        errorCode: responseBody.error_code,
-        description: responseBody.description,
-      });
-    }
+    await this.enqueueOrderTelegram(this.formatOrderPaidMessage(order));
   }
 
   async sendCdekShipmentStatusChanged(input: CdekShipmentStatusChangedInput) {
-    const response = await this.requestTelegram(
+    await this.enqueueOrderTelegram(
       this.formatCdekShipmentStatusChangedMessage(input),
     );
-    const responseBody = (await this.parseTelegramResponseBody(
-      response,
-    )) as TelegramSendMessageResponse;
-
-    if (!response.ok || responseBody.ok === false) {
-      throw new BadGatewayException({
-        message: "Telegram CDEK shipment status message request failed",
-        status: response.status,
-        errorCode: responseBody.error_code,
-        description: responseBody.description,
-      });
-    }
   }
 
   async sendOrderStatusChangedToCustomer(input: {
@@ -99,49 +51,25 @@ export class OrdersTelegramService {
     previousStatus: OrderStatus;
     nextStatus: OrderStatus;
   }) {
-    const response = await this.requestTelegramToCustomer(
+    await this.enqueueCustomerTelegram(
       input.chatId,
       this.formatOrderStatusChangedMessage(input),
     );
-    const responseBody = (await this.parseTelegramResponseBody(
-      response,
-    )) as TelegramSendMessageResponse;
-
-    if (!response.ok || responseBody.ok === false) {
-      throw new BadGatewayException({
-        message: "Telegram order status message request failed",
-        status: response.status,
-        errorCode: responseBody.error_code,
-        description: responseBody.description,
-      });
-    }
   }
 
   async sendOrderCreatedToCustomer(input: { chatId: string; order: OrderDTO }) {
     const action = this.getCustomerOrderAction(input.order);
-    const response = await this.requestTelegramToCustomer(
+    await this.enqueueCustomerTelegram(
       input.chatId,
       this.formatCustomerOrderCreatedMessage(input.order),
       action,
     );
-    const responseBody = (await this.parseTelegramResponseBody(
-      response,
-    )) as TelegramSendMessageResponse;
-
-    if (!response.ok || responseBody.ok === false) {
-      throw new BadGatewayException({
-        message: "Telegram customer order message request failed",
-        status: response.status,
-        errorCode: responseBody.error_code,
-        description: responseBody.description,
-      });
-    }
   }
 
   async sendCdekShipmentStatusChangedToCustomer(
     input: CdekShipmentStatusChangedInput & { chatId: string },
   ) {
-    const response = await this.requestTelegramToCustomer(
+    await this.enqueueCustomerTelegram(
       input.chatId,
       this.formatCustomerCdekShipmentStatusChangedMessage(input),
       {
@@ -149,81 +77,42 @@ export class OrdersTelegramService {
         buttonUrl: this.getTelegramWebAppUrl(),
       },
     );
-    const responseBody = (await this.parseTelegramResponseBody(
-      response,
-    )) as TelegramSendMessageResponse;
-
-    if (!response.ok || responseBody.ok === false) {
-      throw new BadGatewayException({
-        message:
-          "Telegram customer CDEK shipment status message request failed",
-        status: response.status,
-        errorCode: responseBody.error_code,
-        description: responseBody.description,
-      });
-    }
   }
 
-  private async requestTelegram(text: string) {
-    try {
-      const botToken = this.getTelegramBotToken();
-
-      return await fetch(getTelegramBotMethodUrl(botToken, "sendMessage"), {
-        method: "POST",
-        headers: getTelegramRequestHeaders(botToken),
-        body: JSON.stringify({
-          chat_id: this.getTelegramOrdersChatId(),
-          disable_web_page_preview: true,
-          parse_mode: "HTML",
-          text,
-        }),
-        signal: AbortSignal.timeout(telegramRequestTimeoutMs),
-      });
-    } catch (error) {
-      throw new BadGatewayException({
-        message: "Telegram order message request failed",
-        cause: error instanceof Error ? error.message : String(error),
-      });
-    }
+  private async enqueueOrderTelegram(text: string) {
+    await this.notificationQueueService.enqueueTelegram({
+      bot: "orders",
+      chatId: this.getTelegramOrdersChatId(),
+      disableWebPagePreview: true,
+      parseMode: "HTML",
+      text,
+    });
   }
 
-  private async requestTelegramToCustomer(
+  private async enqueueCustomerTelegram(
     chatId: string,
     text: string,
     action?: { buttonText: string; buttonUrl: string },
   ) {
-    try {
-      const botToken = this.getTelegramMiniAppBotToken();
-
-      return await fetch(getTelegramBotMethodUrl(botToken, "sendMessage"), {
-        method: "POST",
-        headers: getTelegramRequestHeaders(botToken),
-        body: JSON.stringify({
-          chat_id: chatId,
-          disable_web_page_preview: true,
-          parse_mode: "HTML",
-          reply_markup: {
-            inline_keyboard: [
-              [
-                {
-                  text: action?.buttonText ?? "Открыть Artmate",
-                  web_app: {
-                    url: action?.buttonUrl ?? this.getTelegramWebAppUrl(),
-                  },
-                },
-              ],
-            ],
-          },
-          text,
-        }),
-        signal: AbortSignal.timeout(telegramRequestTimeoutMs),
-      });
-    } catch (error) {
-      throw new BadGatewayException({
-        message: "Telegram order status message request failed",
-        cause: error instanceof Error ? error.message : String(error),
-      });
-    }
+    await this.notificationQueueService.enqueueTelegram({
+      bot: "mini_app",
+      chatId,
+      disableWebPagePreview: true,
+      parseMode: "HTML",
+      replyMarkup: {
+        inline_keyboard: [
+          [
+            {
+              text: action?.buttonText ?? "Открыть Artmate",
+              web_app: {
+                url: action?.buttonUrl ?? this.getTelegramWebAppUrl(),
+              },
+            },
+          ],
+        ],
+      },
+      text,
+    });
   }
 
   private formatOrderMessage(order: OrderDTO) {
@@ -567,18 +456,6 @@ export class OrdersTelegramService {
     return `${text.slice(0, maxTelegramMessageLength - 20)}\n\n...`;
   }
 
-  private getTelegramBotToken() {
-    const token = process.env.TELEGRAM_BOT_TOKEN?.trim();
-
-    if (!token) {
-      throw new InternalServerErrorException(
-        "TELEGRAM_BOT_TOKEN is not configured",
-      );
-    }
-
-    return token;
-  }
-
   private getTelegramOrdersChatId() {
     const chatId =
       process.env.TELEGRAM_ORDERS_CHAT_ID?.trim() ||
@@ -593,18 +470,6 @@ export class OrdersTelegramService {
     return chatId;
   }
 
-  private getTelegramMiniAppBotToken() {
-    const token = process.env.TELEGRAM_MINI_APP_BOT_TOKEN?.trim();
-
-    if (!token) {
-      throw new InternalServerErrorException(
-        "TELEGRAM_MINI_APP_BOT_TOKEN is not configured",
-      );
-    }
-
-    return token;
-  }
-
   private getTelegramWebAppUrl() {
     const rawUrl =
       process.env.TELEGRAM_WEB_APP_URL?.trim() ??
@@ -616,15 +481,5 @@ export class OrdersTelegramService {
     } catch {
       return defaultTelegramWebAppUrl;
     }
-  }
-
-  private async parseTelegramResponseBody(response: Response) {
-    const contentType = response.headers.get("content-type") ?? "";
-
-    if (contentType.includes("application/json")) {
-      return (await response.json()) as unknown;
-    }
-
-    return { description: await response.text() };
   }
 }
