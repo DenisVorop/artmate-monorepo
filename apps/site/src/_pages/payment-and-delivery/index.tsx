@@ -16,7 +16,8 @@ const steps = [
   },
   {
     title: "Перейдите к оплате",
-    description: "После подтверждения заказа откроется защищенная страница Ozon Pay.",
+    description:
+      "После подтверждения заказа откроется выбранная защищенная платежная страница.",
   },
   {
     title: "Получите заказ",
@@ -29,7 +30,7 @@ const highlights = [
     icon: CreditCard,
     title: "Оплата",
     description:
-      "Доступна онлайн-оплата банковской картой и другими способами, которые поддерживает Ozon Pay на платежной странице.",
+      "Доступна онлайн-оплата банковской картой через Ozon Pay или T-Bank на выбранной платежной странице.",
   },
   {
     icon: ShieldCheck,
@@ -73,7 +74,7 @@ export function PaymentAndDeliveryPage() {
               Оплата и доставка
             </p>
             <PageTitle className="max-w-3xl text-foreground">
-              Заказ оплачивается через Ozon Pay и доставляется в ПВЗ Ozon
+              Заказ оплачивается онлайн и доставляется в ПВЗ Ozon
             </PageTitle>
             <div className="flex flex-col gap-3 sm:flex-row">
               <Button asChild size="lg">

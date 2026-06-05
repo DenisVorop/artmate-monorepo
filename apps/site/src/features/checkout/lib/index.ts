@@ -2,6 +2,7 @@ export {
   checkoutOrderFormId,
   checkoutFormValidationSchema,
   checkoutPhonePlaceholder,
+  checkoutPaymentMethods,
   formatCheckoutPhone,
   getCheckoutSubmitLabel,
   getDefaultCheckoutFormValues,
@@ -9,6 +10,7 @@ export {
   type CheckoutCustomerDefaults,
   type CheckoutDeliverySelection,
   type CheckoutFormValues,
+  type CheckoutPaymentMethod,
   type CheckoutSubmitLabelInput,
 } from "./checkout-form";
 export { filterPickupPoints, formatPickupPointCount } from "./delivery-selector";

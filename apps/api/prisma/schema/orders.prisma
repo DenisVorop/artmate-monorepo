@@ -8,6 +8,7 @@ enum OrderStatus {
 enum OrderPaymentMethod {
   BANK_CARD_MOCK @map("bank_card_mock")
   OZON_ACQUIRING @map("ozon_acquiring")
+  TBANK_ACQUIRING @map("tbank_acquiring")
 
   @@map("order_payment_method")
 }
@@ -61,6 +62,8 @@ model Order {
   ozonAcquiringPaymentId      String?               @map("ozon_acquiring_payment_id") @db.VarChar(120)
   ozonAcquiringTransactionId  String?               @map("ozon_acquiring_transaction_id") @db.VarChar(120)
   ozonAcquiringTransactionUid String?               @map("ozon_acquiring_transaction_uid") @db.VarChar(120)
+  tbankAcquiringOrderId       String?               @map("tbank_acquiring_order_id") @db.VarChar(36)
+  tbankAcquiringPaymentId     String?               @map("tbank_acquiring_payment_id") @db.VarChar(20)
   paymentErrorCode            String?               @map("payment_error_code") @db.VarChar(120)
   paymentErrorMessage         String?               @map("payment_error_message") @db.Text
   lastPaymentNotification     Json?                 @map("last_payment_notification") @db.JsonB
@@ -86,6 +89,8 @@ model Order {
   @@index([customerEmail])
   @@index([ozonAcquiringOrderId])
   @@index([ozonAcquiringPaymentId])
+  @@index([tbankAcquiringOrderId])
+  @@index([tbankAcquiringPaymentId])
   @@map("orders")
 }
 

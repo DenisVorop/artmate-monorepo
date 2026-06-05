@@ -275,13 +275,13 @@ export class OrdersTelegramService {
   }
 
   private getCustomerOrderCreatedTitle(order: OrderDTO) {
-    return order.payment.method === "ozon_acquiring"
+    return this.isOnlineAcquiringOrder(order)
       ? "<b>Заказ ожидает оплаты</b>"
       : "<b>Заказ принят</b>";
   }
 
   private getCustomerOrderCreatedHint(order: OrderDTO) {
-    if (order.payment.method === "ozon_acquiring") {
+    if (this.isOnlineAcquiringOrder(order)) {
       const paymentUrl = this.createCustomerOrderPaymentUrl(order);
 
       return [
@@ -294,7 +294,7 @@ export class OrdersTelegramService {
   }
 
   private getCustomerOrderAction(order: OrderDTO) {
-    if (order.payment.method !== "ozon_acquiring") {
+    if (!this.isOnlineAcquiringOrder(order)) {
       return undefined;
     }
 
@@ -365,7 +365,21 @@ export class OrdersTelegramService {
   }
 
   private getPaymentMethodLabel(method: OrderDTO["payment"]["method"]) {
-    return method === "ozon_acquiring" ? "Ozon Acquiring" : "Банковская карта";
+    switch (method) {
+      case "ozon_acquiring":
+        return "Ozon Acquiring";
+      case "tbank_acquiring":
+        return "T-Bank Acquiring";
+      case "bank_card_mock":
+        return "Банковская карта";
+    }
+  }
+
+  private isOnlineAcquiringOrder(order: OrderDTO) {
+    return (
+      order.payment.method === "ozon_acquiring" ||
+      order.payment.method === "tbank_acquiring"
+    );
   }
 
   private getCdekTrackNumber(order: OrderDTO) {

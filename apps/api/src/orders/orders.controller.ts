@@ -3,6 +3,7 @@ import {
   Body,
   Controller,
   Get,
+  Header,
   Headers,
   HttpCode,
   HttpStatus,
@@ -188,6 +189,14 @@ export class OrdersController {
   @ApiOperation({ summary: "Handle Ozon Acquiring payment notification" })
   handleOzonPaymentNotification(@Body() notification: unknown) {
     return this.ordersService.handleOzonPaymentNotification(notification);
+  }
+
+  @Post("payments/tbank/notifications")
+  @HttpCode(HttpStatus.OK)
+  @Header("content-type", "text/plain; charset=utf-8")
+  @ApiOperation({ summary: "Handle T-Bank Acquiring payment notification" })
+  handleTBankPaymentNotification(@Body() notification: unknown) {
+    return this.ordersService.handleTBankPaymentNotification(notification);
   }
 
   @Post("delivery/cdek/webhook/:secret")

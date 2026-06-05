@@ -8,7 +8,10 @@ export type OrderStatusDTO =
   | "delivering"
   | "completed"
   | "cancelled";
-export type OrderPaymentMethodDTO = "bank_card_mock" | "ozon_acquiring";
+export type OrderPaymentMethodDTO =
+  | "bank_card_mock"
+  | "ozon_acquiring"
+  | "tbank_acquiring";
 export type OrderPaymentStatusDTO = "pending" | "paid" | "failed";
 export type OrderDeliveryProviderDTO = "ozon" | "cdek";
 

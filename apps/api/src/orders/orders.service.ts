@@ -24,6 +24,7 @@ import {
 import { NotificationQueueService } from "../notifications/notification-queue.service";
 import { OzonAcquiringService } from "../ozon/ozon-acquiring.service";
 import { OzonLogisticsService } from "../ozon/ozon-logistics.service";
+import { TBankAcquiringService } from "../tbank/tbank-acquiring.service";
 
 import { ORDER_COMMENT_MAX_LENGTH } from "./orders.constants";
 import {
@@ -110,6 +111,7 @@ export class OrdersService {
     private readonly notificationQueueService: NotificationQueueService,
     private readonly ozonAcquiringService: OzonAcquiringService,
     private readonly ozonLogisticsService: OzonLogisticsService,
+    private readonly tbankAcquiringService: TBankAcquiringService,
     private readonly ordersStorage: OrdersStorage,
     private readonly ordersTelegramService: OrdersTelegramService,
   ) {}
@@ -249,10 +251,11 @@ export class OrdersService {
 
     if (
       paymentMethod !== "bank_card_mock" &&
-      paymentMethod !== "ozon_acquiring"
+      paymentMethod !== "ozon_acquiring" &&
+      paymentMethod !== "tbank_acquiring"
     ) {
       throw new BadRequestException(
-        "payment.method must be bank_card_mock or ozon_acquiring",
+        "payment.method must be bank_card_mock, ozon_acquiring, or tbank_acquiring",
       );
     }
 
@@ -281,6 +284,10 @@ export class OrdersService {
 
     if (paymentMethod === "ozon_acquiring") {
       return this.createOzonPaymentForOrder(order, user.id);
+    }
+
+    if (paymentMethod === "tbank_acquiring") {
+      return this.createTBankPaymentForOrder(order, user.id);
     }
 
     await this.cartService.clearCart(order.cartId);
@@ -320,6 +327,37 @@ export class OrdersService {
     }
 
     return { ok: true };
+  }
+
+  async handleTBankPaymentNotification(body: unknown) {
+    const notification = this.parseTBankNotificationBody(body);
+
+    this.tbankAcquiringService.assertValidNotification(notification);
+
+    const parsedNotification =
+      this.tbankAcquiringService.parseNotification(notification);
+    const result = await this.ordersStorage.applyTBankAcquiringNotification({
+      ...parsedNotification,
+      raw: notification,
+    });
+
+    if (!result) {
+      this.logger.warn(
+        `T-Bank Acquiring notification ignored: orderId=${
+          parsedNotification.orderId ?? "unknown"
+        }, paymentId=${parsedNotification.paymentId ?? "unknown"}`,
+      );
+    }
+
+    if (result?.paymentStatusChangedToPaid) {
+      await this.queueOrderPaidNotifications(
+        result.order,
+        result.userId,
+        result.previousStatus,
+      );
+    }
+
+    return "OK";
   }
 
   async handleCdekOrderStatusWebhook(secret: string, body: unknown) {
@@ -399,10 +437,68 @@ export class OrdersService {
     }
   }
 
+  private async createTBankPaymentForOrder(
+    order: OrderDTO,
+    userId: string,
+  ): Promise<OrderDTO> {
+    try {
+      const payment = await this.tbankAcquiringService.createCheckoutPayment({
+        amount: order.total,
+        customer: order.customer,
+        deliveryPrice: order.deliveryPrice,
+        deliveryProvider: order.delivery.provider,
+        failUrl: this.createSiteUrl("/checkout/failure", order.id),
+        items: order.items,
+        notificationUrl: this.createApiUrl(
+          "/orders/payments/tbank/notifications",
+        ),
+        orderId: order.id,
+        successUrl: this.createSiteUrl("/checkout/success", order.id),
+      });
+      const orderWithPayment =
+        await this.ordersStorage.attachTBankAcquiringPayment(order.id, {
+          acquiringOrderId: payment.acquiringOrderId,
+          paymentId: payment.paymentId,
+          redirectUrl: payment.redirectUrl,
+        });
+
+      await this.cartService.clearCart(order.cartId);
+      await this.queueOrderCreatedNotifications(orderWithPayment, userId);
+
+      return orderWithPayment;
+    } catch (error) {
+      await this.ordersStorage
+        .markTBankAcquiringPaymentFailed(order.id, {
+          errorMessage: this.getErrorMessage(error),
+        })
+        .catch((storageError) => {
+          this.logger.warn(
+            `Failed to mark T-Bank Acquiring payment as failed for order ${order.id}: ${
+              storageError instanceof Error
+                ? storageError.message
+                : String(storageError)
+            }`,
+          );
+        });
+
+      throw error;
+    }
+  }
+
   private parseOzonNotificationBody(value: unknown): Record<string, unknown> {
     if (!value || typeof value !== "object" || Array.isArray(value)) {
       throw new BadRequestException(
         "Ozon Acquiring notification body is invalid",
+      );
+    }
+
+    return value as Record<string, unknown>;
+  }
+
+  private parseTBankNotificationBody(value: unknown): Record<string, unknown> {
+    if (!value || typeof value !== "object" || Array.isArray(value)) {
+      throw new BadRequestException(
+        "T-Bank Acquiring notification body is invalid",
       );
     }
 
@@ -1572,7 +1668,7 @@ export class OrdersService {
   }
 
   private getOrderCreatedEmailSubject(order: OrderDTO) {
-    if (this.isOzonAcquiringOrder(order)) {
+    if (this.isOnlineAcquiringOrder(order)) {
       return `Заказ ${order.id} ожидает оплаты - Artmate`;
     }
 
@@ -1580,7 +1676,7 @@ export class OrdersService {
   }
 
   private getOrderCreatedTextTitle(order: OrderDTO) {
-    if (this.isOzonAcquiringOrder(order)) {
+    if (this.isOnlineAcquiringOrder(order)) {
       return `Заказ ${order.id} ожидает оплаты.`;
     }
 
@@ -1588,13 +1684,13 @@ export class OrdersService {
   }
 
   private getOrderCreatedHtmlTitle(order: OrderDTO) {
-    return this.isOzonAcquiringOrder(order)
+    return this.isOnlineAcquiringOrder(order)
       ? "Заказ ожидает оплаты"
       : "Заказ принят";
   }
 
   private getOrderCreatedPreviewText(order: OrderDTO) {
-    if (this.isOzonAcquiringOrder(order)) {
+    if (this.isOnlineAcquiringOrder(order)) {
       return `Заказ ${order.id} оформлен, ожидается оплата.`;
     }
 
@@ -1602,7 +1698,7 @@ export class OrdersService {
   }
 
   private getOrderCreatedTextIntro(order: OrderDTO) {
-    if (this.isOzonAcquiringOrder(order)) {
+    if (this.isOnlineAcquiringOrder(order)) {
       return [
         `${order.customer.name}, заказ оформлен, ожидается оплата.`,
         `Ссылка на оплату: ${this.createCustomerOrderPaymentUrl(order)}`,
@@ -1620,7 +1716,7 @@ export class OrdersService {
     escapedName: string,
     escapedOrderId: string,
   ) {
-    if (this.isOzonAcquiringOrder(order)) {
+    if (this.isOnlineAcquiringOrder(order)) {
       return `
         ${renderEmailParagraph(
           `${escapedName}, заказ ${escapedOrderId} оформлен, ожидается оплата.`,
@@ -1648,8 +1744,11 @@ export class OrdersService {
     return this.createSiteUrl("/checkout/payment", order.id);
   }
 
-  private isOzonAcquiringOrder(order: OrderDTO) {
-    return order.payment.method === "ozon_acquiring";
+  private isOnlineAcquiringOrder(order: OrderDTO) {
+    return (
+      order.payment.method === "ozon_acquiring" ||
+      order.payment.method === "tbank_acquiring"
+    );
   }
 
   private getCdekTrackNumber(order: OrderDTO) {

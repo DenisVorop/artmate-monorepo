@@ -100,6 +100,10 @@ docker compose --env-file infra/env.prod.example -f docker-compose.prod.yml conf
 
 Если `infra/env.prod.example` не содержит другие уже обязательные значения, допускается подставить для проверки временные значения через `env ...`, не записывая реальные секреты в репозиторий.
 
+## Payment Providers
+
+- T-Bank Internet Acquiring API: `https://developer.tbank.ru/eacq/api`
+
 ## Frontend
 
 Frontend workspaces: `apps/site`, `apps/admin`. Все frontend-приложения используют одинаковый базовый стек и FSD-подобную архитектуру.

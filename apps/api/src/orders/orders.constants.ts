@@ -10,7 +10,11 @@ export const orderStatuses = [
   "completed",
   "cancelled",
 ] as const;
-export const paymentMethods = ["bank_card_mock", "ozon_acquiring"] as const;
+export const paymentMethods = [
+  "bank_card_mock",
+  "ozon_acquiring",
+  "tbank_acquiring",
+] as const;
 export const paymentStatuses = ["pending", "paid", "failed"] as const;
 export const deliveryProviders = ["ozon", "cdek"] as const;
 

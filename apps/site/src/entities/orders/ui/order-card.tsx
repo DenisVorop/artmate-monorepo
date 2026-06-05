@@ -244,11 +244,21 @@ function getPendingCdekShipmentStatus(order: Order) {
 }
 
 function getOrderPaymentUrl(order: Order) {
-  if (order.payment.method !== "ozon_acquiring" || order.payment.status !== "pending") {
+  if (
+    !isOnlineAcquiringOrder(order) ||
+    order.payment.status !== "pending"
+  ) {
     return undefined;
   }
 
   return `${routes.checkoutPayment}?orderId=${encodeURIComponent(order.id)}`;
+}
+
+function isOnlineAcquiringOrder(order: Order) {
+  return (
+    order.payment.method === "ozon_acquiring" ||
+    order.payment.method === "tbank_acquiring"
+  );
 }
 
 function getItemsWord(count: number) {

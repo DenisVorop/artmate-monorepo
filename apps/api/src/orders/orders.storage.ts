@@ -115,12 +115,38 @@ type ApplyOzonAcquiringNotificationInput = {
   transactionUid?: string;
 };
 
+type AttachTBankAcquiringPaymentInput = {
+  acquiringOrderId?: string;
+  paymentId?: string;
+  redirectUrl: string;
+};
+
+type MarkTBankAcquiringPaymentFailedInput = {
+  errorCode?: string;
+  errorMessage: string;
+};
+
+type ApplyTBankAcquiringNotificationInput = {
+  amount?: string;
+  errorCode?: string;
+  errorMessage?: string;
+  orderId?: string;
+  paymentId?: string;
+  raw: Record<string, unknown>;
+  rawStatus?: string;
+  status?: string;
+  success?: boolean;
+  terminalKey?: string;
+};
+
 type ApplyOzonAcquiringNotificationResult = {
   order: OrderDTO;
   paymentStatusChangedToPaid: boolean;
   previousStatus: OrderStatus;
   userId?: string;
 };
+
+type ApplyTBankAcquiringNotificationResult = ApplyOzonAcquiringNotificationResult;
 
 type ApplyCdekOrderStatusWebhookInput = {
   cdekNumber: string;
@@ -561,6 +587,64 @@ export class OrdersStorage {
     return this.mapOrder(order);
   }
 
+  async attachTBankAcquiringPayment(
+    orderId: string,
+    input: AttachTBankAcquiringPaymentInput,
+  ): Promise<OrderDTO> {
+    const order = await this.prisma.order.update({
+      where: { id: orderId },
+      data: {
+        paymentErrorCode: null,
+        paymentErrorMessage: null,
+        paymentMethod: PrismaOrderPaymentMethod.TBANK_ACQUIRING,
+        paymentRedirectUrl: input.redirectUrl,
+        paymentStatus: PrismaOrderPaymentStatus.PENDING,
+        tbankAcquiringOrderId: input.acquiringOrderId,
+        tbankAcquiringPaymentId: input.paymentId,
+        history: {
+          create: {
+            eventType: "payment_created",
+            payload: this.toPrismaJson({
+              acquiringOrderId: input.acquiringOrderId,
+              paymentId: input.paymentId,
+              provider: "tbank_acquiring",
+            }),
+          },
+        },
+      },
+      include: orderInclude,
+    });
+
+    return this.mapOrder(order);
+  }
+
+  async markTBankAcquiringPaymentFailed(
+    orderId: string,
+    input: MarkTBankAcquiringPaymentFailedInput,
+  ): Promise<OrderDTO> {
+    const order = await this.prisma.order.update({
+      where: { id: orderId },
+      data: {
+        paymentErrorCode: input.errorCode,
+        paymentErrorMessage: input.errorMessage,
+        paymentStatus: PrismaOrderPaymentStatus.FAILED,
+        history: {
+          create: {
+            eventType: "payment_failed",
+            payload: this.toPrismaJson({
+              errorCode: input.errorCode,
+              errorMessage: input.errorMessage,
+              provider: "tbank_acquiring",
+            }),
+          },
+        },
+      },
+      include: orderInclude,
+    });
+
+    return this.mapOrder(order);
+  }
+
   async applyOzonAcquiringNotification(
     input: ApplyOzonAcquiringNotificationInput,
   ): Promise<ApplyOzonAcquiringNotificationResult | undefined> {
@@ -659,6 +743,114 @@ export class OrdersStorage {
               errorMessage: input.errorMessage,
               provider: "ozon_acquiring",
               status: input.status,
+            }),
+          },
+        });
+      }
+
+      return nextOrder;
+    });
+
+    return {
+      order: this.mapOrder(updatedOrder),
+      paymentStatusChangedToPaid: shouldMarkPaid,
+      previousStatus,
+      userId: order.userId ?? undefined,
+    };
+  }
+
+  async applyTBankAcquiringNotification(
+    input: ApplyTBankAcquiringNotificationInput,
+  ): Promise<ApplyTBankAcquiringNotificationResult | undefined> {
+    if (!input.orderId && !input.paymentId) {
+      return undefined;
+    }
+
+    const order = await this.prisma.order.findFirst({
+      where: {
+        OR: [
+          ...(input.orderId
+            ? [{ id: input.orderId }, { tbankAcquiringOrderId: input.orderId }]
+            : []),
+          ...(input.paymentId
+            ? [{ tbankAcquiringPaymentId: input.paymentId }]
+            : []),
+        ],
+      },
+      include: orderInclude,
+    });
+
+    if (!order) {
+      return undefined;
+    }
+
+    const previousStatus = this.mapOrderCrmStatus(order.crmStatus);
+    const isPaymentCompleted = input.status === "paid";
+    const isPaymentFailed = input.status === "failed";
+    const shouldMarkPaid =
+      isPaymentCompleted &&
+      order.paymentStatus !== PrismaOrderPaymentStatus.PAID;
+    const shouldMarkFailed =
+      isPaymentFailed &&
+      order.paymentStatus === PrismaOrderPaymentStatus.PENDING;
+
+    const updatedOrder = await this.prisma.$transaction(async (tx) => {
+      const nextOrder = await tx.order.update({
+        where: { id: order.id },
+        data: {
+          lastPaymentNotification: this.toPrismaJson(input.raw),
+          paymentErrorCode: shouldMarkFailed
+            ? input.errorCode
+            : order.paymentErrorCode,
+          paymentErrorMessage: shouldMarkFailed
+            ? input.errorMessage
+            : order.paymentErrorMessage,
+          tbankAcquiringOrderId: input.orderId ?? order.tbankAcquiringOrderId,
+          tbankAcquiringPaymentId:
+            input.paymentId ?? order.tbankAcquiringPaymentId,
+          ...(shouldMarkPaid
+            ? {
+                crmStatus: PrismaOrderCrmStatus.PAID,
+                paidAt: order.paidAt ?? new Date(),
+                paymentErrorCode: null,
+                paymentErrorMessage: null,
+                paymentStatus: PrismaOrderPaymentStatus.PAID,
+                status: PrismaOrderStatus.PAID,
+              }
+            : {}),
+          ...(shouldMarkFailed
+            ? {
+                paymentStatus: PrismaOrderPaymentStatus.FAILED,
+              }
+            : {}),
+        },
+        include: orderInclude,
+      });
+
+      if (shouldMarkPaid && order.crmStatus !== PrismaOrderCrmStatus.PAID) {
+        await tx.orderHistory.create({
+          data: {
+            orderId: order.id,
+            eventType: "status_changed",
+            payload: this.toPrismaJson({
+              fromStatus: this.mapOrderCrmStatus(order.crmStatus),
+              source: "tbank_acquiring_notification",
+              toStatus: "paid",
+            }),
+          },
+        });
+      }
+
+      if (shouldMarkFailed) {
+        await tx.orderHistory.create({
+          data: {
+            orderId: order.id,
+            eventType: "payment_failed",
+            payload: this.toPrismaJson({
+              errorCode: input.errorCode,
+              errorMessage: input.errorMessage,
+              provider: "tbank_acquiring",
+              status: input.rawStatus,
             }),
           },
         });
@@ -1077,6 +1269,8 @@ export class OrdersStorage {
         return "bank_card_mock";
       case PrismaOrderPaymentMethod.OZON_ACQUIRING:
         return "ozon_acquiring";
+      case PrismaOrderPaymentMethod.TBANK_ACQUIRING:
+        return "tbank_acquiring";
     }
   }
 
@@ -1123,6 +1317,8 @@ export class OrdersStorage {
         return PrismaOrderPaymentMethod.BANK_CARD_MOCK;
       case "ozon_acquiring":
         return PrismaOrderPaymentMethod.OZON_ACQUIRING;
+      case "tbank_acquiring":
+        return PrismaOrderPaymentMethod.TBANK_ACQUIRING;
     }
   }
 

@@ -128,7 +128,7 @@ export function Footer() {
                 </h4>
               </div>
               <ul className="space-y-3">
-                {[{ label: "Ozon Pay", to: routes.paymentAndDelivery }].map((l) => (
+                {[{ label: "Онлайн-оплата", to: routes.paymentAndDelivery }].map((l) => (
                   <li key={l.label}>
                     <Link
                       href={l.to}

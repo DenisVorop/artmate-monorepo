@@ -19,6 +19,7 @@ import { checkoutOrderFormId, type CheckoutFormValues, useCheckout } from "../li
 
 import { FieldError } from "./field-error";
 import { LegalField } from "./legal-field";
+import { PaymentMethodField } from "./payment-method-field";
 import { ReviewBlock } from "./review-block";
 
 export function CheckoutConfirmationStep() {
@@ -55,6 +56,11 @@ export function CheckoutConfirmationStep() {
               <ReviewBlock label="Комментарий" value={comment} className="sm:col-span-2" />
             ) : null}
           </div>
+
+          <Separator />
+
+          <PaymentMethodField />
+          <FieldError message={errors.paymentMethod?.message} />
 
           <Separator />
 
