@@ -1,5 +1,13 @@
 # Changelog
 
+## [0.29.0](https://github.com/DenisVorop/artmate-monorepo/compare/v0.28.0...v0.29.0) (2026-06-05)
+
+
+### Features
+
+* add t-bank acquiring checkout ([4f2ffdf](https://github.com/DenisVorop/artmate-monorepo/commit/4f2ffdfe3102304167c30a44d62221be3330b5e0))
+* show CDEK delivery estimate ([da296a5](https://github.com/DenisVorop/artmate-monorepo/commit/da296a582cfcd665a18ef7e42121b6f1b0d8db42))
+
 ## [0.28.0](https://github.com/DenisVorop/artmate-monorepo/compare/v0.27.1...v0.28.0) (2026-06-04)
 
 
