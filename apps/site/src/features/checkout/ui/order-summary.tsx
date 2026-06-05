@@ -12,7 +12,11 @@ import {
   Separator,
 } from "@/shared/ui";
 
-import { formatMoney, useCheckout } from "../lib";
+import {
+  formatEstimatedDeliveryDateRange,
+  formatMoney,
+  useCheckout,
+} from "../lib";
 
 type OrderSummaryProps = {
   cart: Cart;
@@ -23,6 +27,9 @@ export function OrderSummary({ cart, compact = false }: OrderSummaryProps) {
   const { checkoutCalculation, selectedDelivery } = useCheckout();
   const calculation = checkoutCalculation.calculation;
   const deliveryPrice = calculation?.deliveryPrice;
+  const estimatedDeliveryDate = formatEstimatedDeliveryDateRange(
+    calculation?.estimatedDeliveryDateRange,
+  );
   const total = calculation?.total ?? cart.subtotal;
   const hasDelivery = Boolean(selectedDelivery);
   const visibleItems = compact ? cart.items.slice(0, 2) : cart.items;
@@ -123,6 +130,12 @@ export function OrderSummary({ cart, compact = false }: OrderSummaryProps) {
                   : formatMoney(deliveryPrice)}
             </span>
           </div>
+          {estimatedDeliveryDate ? (
+            <div className="flex items-center justify-between gap-4">
+              <span className="text-muted-foreground">Дата доставки</span>
+              <span className="text-right font-medium">{estimatedDeliveryDate}</span>
+            </div>
+          ) : null}
         </div>
 
         <Separator />

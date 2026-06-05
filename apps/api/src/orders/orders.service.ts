@@ -224,6 +224,7 @@ export class OrdersService {
         provider: delivery.provider,
         pickupPoint: delivery.pickupPoint,
       },
+      estimatedDeliveryDateRange: delivery.estimatedDeliveryDateRange,
     };
   }
 

@@ -15,7 +15,12 @@ import {
   Separator,
 } from "@/shared/ui";
 
-import { checkoutOrderFormId, type CheckoutFormValues, useCheckout } from "../lib";
+import {
+  checkoutOrderFormId,
+  formatEstimatedDeliveryDateRange,
+  type CheckoutFormValues,
+  useCheckout,
+} from "../lib";
 
 import { FieldError } from "./field-error";
 import { LegalField } from "./legal-field";
@@ -38,6 +43,9 @@ export function CheckoutConfirmationStep() {
   } = useFormContext<CheckoutFormValues>();
   const [name, phone, email, comment] = watch(["name", "phone", "email", "comment"]);
   const pickupPoint = checkoutCalculation.calculation?.delivery.pickupPoint;
+  const estimatedDeliveryDate = formatEstimatedDeliveryDateRange(
+    checkoutCalculation.calculation?.estimatedDeliveryDateRange,
+  );
   const isSubmitDisabled = isSubmitting || checkoutCalculation.isPending || !selectedDelivery;
 
   return (
@@ -72,6 +80,9 @@ export function CheckoutConfirmationStep() {
               <div className="mt-1 space-y-0.5 text-muted-foreground">
                 <p>{pickupPoint.address}</p>
                 <p className="text-xs">{pickupPoint.workHours}</p>
+                {estimatedDeliveryDate ? (
+                  <p className="text-xs">Доставка ориентировочно {estimatedDeliveryDate}.</p>
+                ) : null}
               </div>
             ) : (
               <p className="mt-1 text-muted-foreground">Доставка выбрана, стоимость обновляется.</p>

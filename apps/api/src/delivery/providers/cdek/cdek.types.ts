@@ -18,7 +18,10 @@ export type CdekDeliveryPointResponseItem = {
 };
 
 export type CdekCalculatorResponse = {
+  delivery_date_range?: unknown;
   delivery_sum?: unknown;
+  calendar_max?: unknown;
+  calendar_min?: unknown;
   total_sum?: unknown;
   period_min?: unknown;
   period_max?: unknown;

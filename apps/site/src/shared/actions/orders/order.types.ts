@@ -46,6 +46,11 @@ export type OrderDeliveryDTO = {
   pickupPoint: PickupPointDTO;
 };
 
+export type DeliveryDateRangeDTO = {
+  min: string;
+  max: string;
+};
+
 export type OrderPaymentDTO = {
   method: OrderPaymentMethodDTO;
   status: OrderPaymentStatusDTO;
@@ -93,6 +98,7 @@ export type CheckoutCalculationDTO = {
   total: number;
   currency: "RUB";
   delivery: OrderDeliveryDTO;
+  estimatedDeliveryDateRange?: DeliveryDateRangeDTO;
 };
 
 export type CreateOrderInputDTO = {

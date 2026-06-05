@@ -36,6 +36,17 @@ const defaultPackageWidthCm = 30;
 const defaultPackageHeightCm = 1;
 const defaultOrderType = 1;
 const maxOrderPackageCount = 255;
+const cdekShipmentCutoffHourMsk = 18;
+const cdekNextDayShipmentHourMsk = 10;
+
+type MoscowDateTimeParts = {
+  year: number;
+  month: number;
+  day: number;
+  hour: number;
+  minute: number;
+  second: number;
+};
 
 @Injectable()
 export class CdekDeliveryProvider implements DeliveryProviderAdapter {
@@ -100,6 +111,7 @@ export class CdekDeliveryProvider implements DeliveryProviderAdapter {
           ...(this.getShipmentPointCode()
             ? { shipment_point: this.getShipmentPointCode() }
             : {}),
+          date: this.getPlannedShipmentDateTime(),
           delivery_point: pickupPoint.id,
           from_location: {
             code: this.getFromCityCode(),
@@ -117,6 +129,7 @@ export class CdekDeliveryProvider implements DeliveryProviderAdapter {
 
     return {
       deliveryPrice,
+      estimatedDeliveryDateRange: this.getDeliveryDateRange(response),
       pickupPoint: {
         ...pickupPoint,
         deliveryPrice,
@@ -268,6 +281,7 @@ export class CdekDeliveryProvider implements DeliveryProviderAdapter {
   private buildCreateOrderPayload(order: DeliveryShipmentOrder) {
     return this.omitUndefined({
       comment: this.truncateOptionalString(order.comment, 255),
+      date: this.getPlannedShipmentDateTime(),
       delivery_point: this.parsePickupPointId(order.delivery.pickupPoint.id),
       number: this.truncateRequiredString(order.id, 40),
       packages: this.buildOrderPackages(order),
@@ -404,6 +418,77 @@ export class CdekDeliveryProvider implements DeliveryProviderAdapter {
     return Math.ceil(value);
   }
 
+  private getDeliveryDateRange(response: CdekCalculatorResponse) {
+    const range = this.toRecord(response.delivery_date_range);
+    const min = this.getDateString(range.min);
+    const max = this.getDateString(range.max) ?? min;
+
+    if (!min || !max || min > max) {
+      return undefined;
+    }
+
+    return { min, max };
+  }
+
+  private getPlannedShipmentDateTime(now = new Date()) {
+    const moscowNow = this.getMoscowDateTimeParts(now);
+
+    if (moscowNow.hour < cdekShipmentCutoffHourMsk) {
+      return this.formatCdekDateTime(moscowNow);
+    }
+
+    const nextDayAtShipmentHour = new Date(
+      Date.UTC(
+        moscowNow.year,
+        moscowNow.month - 1,
+        moscowNow.day + 1,
+        cdekNextDayShipmentHourMsk - 3,
+        0,
+        0,
+      ),
+    );
+
+    return this.formatCdekDateTime(
+      this.getMoscowDateTimeParts(nextDayAtShipmentHour),
+    );
+  }
+
+  private getMoscowDateTimeParts(date: Date): MoscowDateTimeParts {
+    const formatter = new Intl.DateTimeFormat("en-US", {
+      day: "2-digit",
+      hour: "2-digit",
+      hourCycle: "h23",
+      minute: "2-digit",
+      month: "2-digit",
+      second: "2-digit",
+      timeZone: "Europe/Moscow",
+      year: "numeric",
+    });
+    const values = Object.fromEntries(
+      formatter
+        .formatToParts(date)
+        .filter((part) => part.type !== "literal")
+        .map((part) => [part.type, Number(part.value)]),
+    );
+
+    return {
+      day: this.getRequiredNumber(values.day, "Moscow day"),
+      hour: this.getRequiredNumber(values.hour, "Moscow hour"),
+      minute: this.getRequiredNumber(values.minute, "Moscow minute"),
+      month: this.getRequiredNumber(values.month, "Moscow month"),
+      second: this.getRequiredNumber(values.second, "Moscow second"),
+      year: this.getRequiredNumber(values.year, "Moscow year"),
+    };
+  }
+
+  private formatCdekDateTime(parts: MoscowDateTimeParts) {
+    return `${parts.year}-${this.padDatePart(parts.month)}-${this.padDatePart(parts.day)}T${this.padDatePart(parts.hour)}:${this.padDatePart(parts.minute)}:${this.padDatePart(parts.second)}+0300`;
+  }
+
+  private padDatePart(value: number) {
+    return String(value).padStart(2, "0");
+  }
+
   private parseCityCode(value: unknown) {
     const cityCode = this.getNumber(value);
 
@@ -490,6 +575,12 @@ export class CdekDeliveryProvider implements DeliveryProviderAdapter {
 
   private getString(value: unknown) {
     return typeof value === "string" && value.trim() ? value.trim() : undefined;
+  }
+
+  private getDateString(value: unknown) {
+    const date = this.getString(value);
+
+    return date && /^\d{4}-\d{2}-\d{2}$/.test(date) ? date : undefined;
   }
 
   private getNumber(value: unknown) {

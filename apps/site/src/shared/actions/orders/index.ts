@@ -13,6 +13,7 @@ export type {
   ConfirmOrderPaymentInputDTO,
   CreateOrderDeliveryInputDTO,
   CreateOrderInputDTO,
+  DeliveryDateRangeDTO,
   OrderCustomerDTO,
   OrderDeliveryDTO,
   OrderDeliveryProviderDTO,

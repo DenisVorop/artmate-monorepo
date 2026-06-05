@@ -27,10 +27,16 @@ export type DeliveryPickupPoint = {
   longitude?: number;
 };
 
+export type DeliveryDateRange = {
+  min: string;
+  max: string;
+};
+
 export type DeliveryQuote = {
   provider: DeliveryProviderCode;
   pickupPoint: DeliveryPickupPoint;
   deliveryPrice: number;
+  estimatedDeliveryDateRange?: DeliveryDateRange;
 };
 
 export type DeliveryShipmentCustomer = {

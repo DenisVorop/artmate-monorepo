@@ -1,8 +1,10 @@
 import { Type } from "class-transformer";
 import {
+  IsDateString,
   IsDefined,
   IsIn,
   IsInt,
+  IsOptional,
   IsNotEmpty,
   IsNumber,
   IsString,
@@ -11,6 +13,14 @@ import {
 } from "class-validator";
 
 import { OrderDeliveryDTO } from "./order-delivery.dto";
+
+export class CheckoutDeliveryDateRangeDTO {
+  @IsDateString()
+  min!: string;
+
+  @IsDateString()
+  max!: string;
+}
 
 export class CheckoutCalculationDTO {
   @IsString()
@@ -40,4 +50,9 @@ export class CheckoutCalculationDTO {
   @ValidateNested()
   @Type(() => OrderDeliveryDTO)
   delivery!: OrderDeliveryDTO;
+
+  @IsOptional()
+  @ValidateNested()
+  @Type(() => CheckoutDeliveryDateRangeDTO)
+  estimatedDeliveryDateRange?: CheckoutDeliveryDateRangeDTO;
 }
