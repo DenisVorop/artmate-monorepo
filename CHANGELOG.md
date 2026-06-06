@@ -1,5 +1,12 @@
 # Changelog
 
+## [0.30.0](https://github.com/DenisVorop/artmate-monorepo/compare/v0.29.2...v0.30.0) (2026-06-06)
+
+
+### Features
+
+* **site:** add Yandex products feed ([aae4a38](https://github.com/DenisVorop/artmate-monorepo/commit/aae4a3821bcf80de86280d94ead9d1c289511cc1))
+
 ## [0.29.2](https://github.com/DenisVorop/artmate-monorepo/compare/v0.29.1...v0.29.2) (2026-06-06)
 
 
