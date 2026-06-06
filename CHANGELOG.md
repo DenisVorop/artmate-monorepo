@@ -1,5 +1,12 @@
 # Changelog
 
+## [0.29.1](https://github.com/DenisVorop/artmate-monorepo/compare/v0.29.0...v0.29.1) (2026-06-06)
+
+
+### Bug Fixes
+
+* **infra:** migrate production domain to artmate.ru ([d22bf5d](https://github.com/DenisVorop/artmate-monorepo/commit/d22bf5da211a7b41a075202132e3d092d28dd393))
+
 ## [0.29.0](https://github.com/DenisVorop/artmate-monorepo/compare/v0.28.0...v0.29.0) (2026-06-05)
 
 
