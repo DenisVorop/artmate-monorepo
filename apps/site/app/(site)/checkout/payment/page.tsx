@@ -43,6 +43,10 @@ export default async function Page({ searchParams }: CheckoutPaymentRouteProps) 
     redirect(createOrderRoute(routes.checkoutFailure, order.id));
   }
 
+  if (order.status !== "waiting_payment") {
+    redirect(createOrderRoute(routes.checkoutFailure, order.id));
+  }
+
   if (order.payment.redirectUrl) {
     redirect(order.payment.redirectUrl);
   }

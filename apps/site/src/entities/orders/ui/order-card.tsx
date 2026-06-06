@@ -246,6 +246,7 @@ function getPendingCdekShipmentStatus(order: Order) {
 function getOrderPaymentUrl(order: Order) {
   if (
     !isOnlineAcquiringOrder(order) ||
+    order.status !== "waiting_payment" ||
     order.payment.status !== "pending"
   ) {
     return undefined;
