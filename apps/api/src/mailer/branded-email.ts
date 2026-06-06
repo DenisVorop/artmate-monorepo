@@ -27,7 +27,7 @@ const brand = {
   text: "#202530",
 } as const;
 
-const supportEmail = "support@art-mate.ru";
+const supportEmail = "support@artmate.ru";
 
 export function renderBrandedEmail(input: BrandedEmailInput) {
   const logoUrl = getAbsoluteSiteUrl(brand.logoPath);
@@ -169,7 +169,7 @@ function getAbsoluteSiteUrl(path: string) {
 }
 
 function getSiteUrl() {
-  return (process.env.SITE_URL?.trim() || "https://www.art-mate.ru").replace(
+  return (process.env.SITE_URL?.trim() || "https://artmate.ru").replace(
     /\/+$/,
     "",
   );

@@ -6,7 +6,7 @@ export const companyDetails = {
   registrationNumberLabel: "ОГРНИП",
   registrationNumber: "324774600166803",
   registrationDate: "13.03.2024",
-  supportEmail: "support@art-mate.ru",
+  supportEmail: "support@artmate.ru",
   businessHours: "Пн-пт, 10:00-18:00 по московскому времени",
   paymentProvider: "Ozon Pay или T-Bank",
   acquiringProvider: "Ozon Банк или T-Bank",

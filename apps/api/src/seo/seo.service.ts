@@ -667,7 +667,7 @@ export class SeoService {
   }
 
   private getSiteUrl() {
-    return (process.env.SITE_URL ?? "https://www.art-mate.ru").replace(/\/+$/, "");
+    return (process.env.SITE_URL ?? "https://artmate.ru").replace(/\/+$/, "");
   }
 
   private handlePrismaMutationError(

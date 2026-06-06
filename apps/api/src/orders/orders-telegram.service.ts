@@ -13,7 +13,7 @@ type CdekShipmentStatusChangedInput = {
   previousStatusCode?: string;
 };
 
-const defaultTelegramWebAppUrl = "https://www.art-mate.ru";
+const defaultTelegramWebAppUrl = "https://artmate.ru";
 
 const customerOrderStatusLabels: Record<OrderStatus, string> = {
   new: "В обработке",

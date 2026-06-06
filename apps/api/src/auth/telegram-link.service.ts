@@ -25,7 +25,7 @@ const codePurpose = "telegram-link";
 const defaultCodeTtlSeconds = 600;
 const defaultMaxAttempts = 5;
 const defaultResendCooldownSeconds = 60;
-const defaultTelegramWebAppUrl = "https://www.art-mate.ru";
+const defaultTelegramWebAppUrl = "https://artmate.ru";
 const telegramRequestTimeoutMs = 10000;
 
 @Injectable()

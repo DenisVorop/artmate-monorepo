@@ -7,7 +7,7 @@ import {
 const defaultPort = 3004;
 const defaultApiInternalUrl = "http://localhost:3002";
 const defaultTelegramApiBaseUrl = "https://api.telegram.org";
-const defaultWebAppUrl = "https://www.art-mate.ru";
+const defaultWebAppUrl = "https://artmate.ru";
 const maxBodySizeBytes = 512 * 1024;
 const telegramRequestTimeoutMs = 10000;
 const telegramApiRelayPath = "/telegram-api";

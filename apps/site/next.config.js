@@ -16,6 +16,11 @@ const nextConfig = {
       apiImageRemotePattern,
       {
         protocol: "https",
+        hostname: "api.artmate.ru",
+        pathname: "/uploads/**",
+      },
+      {
+        protocol: "https",
         hostname: "api.art-mate.ru",
         pathname: "/uploads/**",
       },

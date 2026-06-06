@@ -10,8 +10,8 @@ It currently handles:
   VPS through the proxy region. The bot token is passed in
   `x-telegram-bot-token`.
 - `/content-assistant/telegram/*`: proxies content assistant Telegram webhooks
-  to `https://api.art-mate.ru`.
-- `/telegram/*`: proxies Mini App bot webhooks to `https://tg.art-mate.ru`.
+  to `https://api.artmate.ru`.
+- `/telegram/*`: proxies Mini App bot webhooks to `https://tg.artmate.ru`.
 
 The main Artmate API should use
 `OPENAI_BASE_URL=https://<proxy-host>/v1` and
@@ -63,7 +63,7 @@ OPENAI_RELAY_TOKEN=<same-as-EDGE_PROXY_TOKEN>
 ```
 
 Telegram Mini App bot webhook should point at the edge proxy domain, not the
-regional `tg.art-mate.ru` host:
+regional `tg.artmate.ru` host:
 
 ```bash
 curl -sS -X POST "https://api.telegram.org/bot${TELEGRAM_MINI_APP_BOT_TOKEN}/setWebhook" \

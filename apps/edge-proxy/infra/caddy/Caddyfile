@@ -1,13 +1,13 @@
 {$EDGE_PROXY_DOMAIN} {
 	handle /content-assistant/telegram/* {
-		reverse_proxy https://api.art-mate.ru {
-			header_up Host api.art-mate.ru
+		reverse_proxy https://api.artmate.ru {
+			header_up Host api.artmate.ru
 		}
 	}
 
 	handle /telegram/* {
-		reverse_proxy https://tg.art-mate.ru {
-			header_up Host tg.art-mate.ru
+		reverse_proxy https://tg.artmate.ru {
+			header_up Host tg.artmate.ru
 		}
 	}
 

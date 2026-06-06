@@ -216,20 +216,20 @@ Paste the whole block, including:
 Use `.env.example` as the source of truth. For production deploy, the required values are:
 
 ```env
-ACME_EMAIL=admin@art-mate.ru
+ACME_EMAIL=admin@artmate.ru
 
 POSTGRES_DB=artmate
 POSTGRES_USER=artmate
 POSTGRES_PASSWORD=change-me
 DATABASE_URL=postgresql://artmate:change-me@postgres:5432/artmate
 
-SITE_URL=https://www.art-mate.ru
-ADMIN_URL=https://admin.art-mate.ru
-API_PUBLIC_URL=https://api.art-mate.ru
+SITE_URL=https://artmate.ru
+ADMIN_URL=https://admin.artmate.ru
+API_PUBLIC_URL=https://api.artmate.ru
 API_BASE_URL=http://api:3002
-NEXT_PUBLIC_SITE_URL=https://www.art-mate.ru
-AUTH_SUCCESS_REDIRECT_URL=https://www.art-mate.ru
-CORS_ORIGIN=https://www.art-mate.ru,https://admin.art-mate.ru
+NEXT_PUBLIC_SITE_URL=https://artmate.ru
+AUTH_SUCCESS_REDIRECT_URL=https://artmate.ru
+CORS_ORIGIN=https://artmate.ru,https://admin.artmate.ru
 SWAGGER_ENABLED=false
 
 AUTH_JWT_SECRET=change-me
@@ -266,7 +266,7 @@ The API supports a password login backed by env variables. In production, use a 
 
 ```env
 AUTH_PASSWORD_LOGIN=admin
-AUTH_PASSWORD_EMAIL=admin@art-mate.ru
+AUTH_PASSWORD_EMAIL=admin@artmate.ru
 AUTH_PASSWORD_NAME=Admin
 AUTH_PASSWORD_HASH=scrypt:...
 AUTH_PASSWORD_ROLES=admin,customer
@@ -287,7 +287,7 @@ These values can stay empty for a basic deploy, but related features will not wo
 ```env
 YANDEX_OAUTH_CLIENT_ID=
 YANDEX_OAUTH_CLIENT_SECRET=
-YANDEX_OAUTH_REDIRECT_URI=https://api.art-mate.ru/auth/oauth/yandex/callback
+YANDEX_OAUTH_REDIRECT_URI=https://api.artmate.ru/auth/oauth/yandex/callback
 
 OZON_API=
 OZON_API_KEY=
@@ -297,7 +297,7 @@ OZON_OAUTH_ACCESS_TYPE=offline
 OZON_OAUTH_CLIENT_ID=
 OZON_OAUTH_CLIENT_SECRET=
 OZON_OAUTH_PROMPT=consent
-OZON_OAUTH_REDIRECT_URI=https://api.art-mate.ru/ozon/oauth/callback
+OZON_OAUTH_REDIRECT_URI=https://api.artmate.ru/ozon/oauth/callback
 OZON_OAUTH_REFRESH_TOKEN=
 OZON_OAUTH_SCOPE=
 
@@ -306,7 +306,7 @@ TELEGRAM_CONTACTS_CHAT_ID=
 TELEGRAM_ORDERS_CHAT_ID=
 TELEGRAM_MINI_APP_BOT_TOKEN=
 TELEGRAM_WEBHOOK_SECRET=
-TELEGRAM_WEB_APP_URL=https://www.art-mate.ru
+TELEGRAM_WEB_APP_URL=https://artmate.ru
 ```
 
 Provider sources:
