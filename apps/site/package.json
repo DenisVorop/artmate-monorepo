@@ -14,7 +14,7 @@
     "check-types": "next typegen && tsc --noEmit"
   },
   "dependencies": {
-    "@hookform/resolvers": "^5.2.2",
+    "@hookform/resolvers": "^5.4.0",
     "@repo/ui": "*",
     "@tanstack/react-query": "^5.100.14",
     "@types/leaflet": "^1.9.21",
