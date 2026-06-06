@@ -1,5 +1,12 @@
 # Changelog
 
+## [0.29.2](https://github.com/DenisVorop/artmate-monorepo/compare/v0.29.1...v0.29.2) (2026-06-06)
+
+
+### Bug Fixes
+
+* **site:** hide payment link for cancelled orders ([ac54eac](https://github.com/DenisVorop/artmate-monorepo/commit/ac54eaca7698c4f920e7214391bfdfac60118b96))
+
 ## [0.29.1](https://github.com/DenisVorop/artmate-monorepo/compare/v0.29.0...v0.29.1) (2026-06-06)
 
 
