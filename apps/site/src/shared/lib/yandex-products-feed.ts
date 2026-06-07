@@ -30,11 +30,14 @@ const fallbackCategory = {
   id: "artmate-raskraski",
   title: "Раскраски по номерам",
 } satisfies YandexFeedCategory;
+const fallbackCategoryNumericId = "1";
+const maxCategoryNumericId = 2_147_483_647;
 const xmlEscapedCharsPattern = /[<>&"']/g;
 
 export function createYandexProductsFeed(input: YandexProductsFeedInput, generatedAt = new Date()) {
-  const categoriesXml = createCategoriesXml(input.categories);
-  const offersXml = input.products.flatMap(createOfferXml);
+  const categoryIds = createCategoryIdMap(input.categories);
+  const categoriesXml = createCategoriesXml(input.categories, categoryIds);
+  const offersXml = input.products.flatMap((product) => createOfferXml(product, categoryIds));
 
   return [
     '<?xml version="1.0" encoding="UTF-8"?>',
@@ -58,7 +61,10 @@ export function createYandexProductsFeed(input: YandexProductsFeedInput, generat
   ].join("\n");
 }
 
-function createCategoriesXml(categories: readonly YandexFeedCategory[]) {
+function createCategoriesXml(
+  categories: readonly YandexFeedCategory[],
+  categoryIds: ReadonlyMap<string, string>,
+) {
   const uniqueCategories = new Map<string, YandexFeedCategory>();
 
   for (const category of categories) {
@@ -70,19 +76,24 @@ function createCategoriesXml(categories: readonly YandexFeedCategory[]) {
   }
 
   return [
-    createElement("category", fallbackCategory.title, 6, { id: fallbackCategory.id }),
+    createElement("category", fallbackCategory.title, 6, {
+      id: fallbackCategoryNumericId,
+    }),
     ...[...uniqueCategories.values()]
       .sort((a, b) => a.title.localeCompare(b.title, "ru-RU"))
       .map((category) =>
         createElement("category", category.title, 6, {
-          id: category.id,
-          parentId: fallbackCategory.id,
+          id: categoryIds.get(category.id) ?? fallbackCategoryNumericId,
+          parentId: fallbackCategoryNumericId,
         }),
       ),
   ];
 }
 
-function createOfferXml(product: YandexFeedProduct) {
+function createOfferXml(
+  product: YandexFeedProduct,
+  categoryIds: ReadonlyMap<string, string>,
+) {
   if (!Number.isFinite(product.price) || product.price <= 0) {
     return [];
   }
@@ -97,7 +108,9 @@ function createOfferXml(product: YandexFeedProduct) {
     return [];
   }
 
-  const categoryId = product.categoryId || fallbackCategory.id;
+  const categoryId = product.categoryId
+    ? categoryIds.get(product.categoryId) ?? fallbackCategoryNumericId
+    : fallbackCategoryNumericId;
   const productUrl = getAbsoluteUrl(routes.product(product.categorySlug, product.slug));
   const description = createOfferDescription(product);
 
@@ -118,6 +131,46 @@ function createOfferXml(product: YandexFeedProduct) {
     createElement("param", "25", 8, { name: "Количество иллюстраций" }),
     "      </offer>",
   ];
+}
+
+function createCategoryIdMap(categories: readonly YandexFeedCategory[]) {
+  const ids = new Map<string, string>([
+    [fallbackCategory.id, fallbackCategoryNumericId],
+  ]);
+  const usedIds = new Set(ids.values());
+
+  for (const category of [...categories].sort((a, b) => a.id.localeCompare(b.id))) {
+    if (ids.has(category.id)) {
+      continue;
+    }
+
+    const numericId = createStableNumericCategoryId(category.id, usedIds);
+    ids.set(category.id, numericId);
+    usedIds.add(numericId);
+  }
+
+  return ids;
+}
+
+function createStableNumericCategoryId(value: string, usedIds: ReadonlySet<string>) {
+  let numericId = (hashString(value) % (maxCategoryNumericId - 1)) + 2;
+
+  while (usedIds.has(String(numericId))) {
+    numericId = numericId >= maxCategoryNumericId ? 2 : numericId + 1;
+  }
+
+  return String(numericId);
+}
+
+function hashString(value: string) {
+  let hash = 0x811c9dc5;
+
+  for (const char of value) {
+    hash ^= char.codePointAt(0) ?? 0;
+    hash = Math.imul(hash, 0x01000193) >>> 0;
+  }
+
+  return hash;
 }
 
 function createElement(
