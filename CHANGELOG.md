@@ -1,5 +1,12 @@
 # Changelog
 
+## [0.30.1](https://github.com/DenisVorop/artmate-monorepo/compare/v0.30.0...v0.30.1) (2026-06-07)
+
+
+### Bug Fixes
+
+* **site:** use numeric Yandex feed category ids ([d8a2cb5](https://github.com/DenisVorop/artmate-monorepo/commit/d8a2cb52ccc6d38ae7dcad97ddcd494eb3f9dcf4))
+
 ## [0.30.0](https://github.com/DenisVorop/artmate-monorepo/compare/v0.29.2...v0.30.0) (2026-06-06)
 
 
