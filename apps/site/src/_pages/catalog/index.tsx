@@ -1,4 +1,5 @@
 import { Catalog } from "@/features/catalog";
+import { CatalogLandingsLinks } from "@/features/catalog-landings-links";
 import type { ProductCategory } from "@/entities/products";
 import { Separator } from "@/shared/ui";
 import { Hero } from "./ui/hero";
@@ -18,6 +19,8 @@ export function CatalogPage({ category, initialCategoryId }: CatalogPageProps) {
       </div>
 
       <Catalog initialCategoryId={initialCategoryId} />
+
+      <CatalogLandingsLinks />
     </main>
   );
 }

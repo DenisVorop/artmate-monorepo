@@ -1,5 +1,6 @@
 export {
   createBlogPostMetadata,
+  createCatalogLandingMetadata,
   createCategoryMetadata,
   createLegalMetadata,
   createPageMetadata,
@@ -11,6 +12,7 @@ export { Seo } from "./service";
 export { createCategoryDescription, createProductDescription, normalizeSeoText } from "./text";
 export {
   BlogPostStructuredData,
+  CatalogLandingStructuredData,
   CatalogCategoryStructuredData,
   FaqStructuredData,
   ProductStructuredData,
@@ -20,6 +22,7 @@ export type {
   LegalSeoInput,
   SeoBlogArticleContent,
   SeoBlogPost,
+  SeoCatalogLanding,
   SeoCategory,
   SeoFaqSection,
   SeoPageKey,

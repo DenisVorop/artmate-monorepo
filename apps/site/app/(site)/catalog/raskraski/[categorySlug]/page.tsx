@@ -51,6 +51,7 @@ export default async function Page({ params }: CatalogCategoryRouteProps) {
   const { categorySlug } = await params;
   const { queryClient, productsData, category, product } = await new CatalogDataBuilder()
     .withProducts()
+    .withCatalogLandings()
     .withReviews()
     .withCategory(categorySlug)
     .withProduct(categorySlug)

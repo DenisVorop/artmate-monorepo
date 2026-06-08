@@ -13,7 +13,10 @@ export function generateMetadata() {
 }
 
 export default async function Page() {
-  const { queryClient } = await new CatalogDataBuilder().withProducts().build();
+  const { queryClient } = await new CatalogDataBuilder()
+    .withProducts()
+    .withCatalogLandings()
+    .build();
 
   return (
     <HydrationBoundary state={dehydrateQueryClient(queryClient)}>

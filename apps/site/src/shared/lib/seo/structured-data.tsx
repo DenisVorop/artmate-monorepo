@@ -81,6 +81,13 @@ type CatalogCategoryStructuredDataProps = {
   url: string;
 };
 
+type CatalogLandingStructuredDataProps = {
+  description: string;
+  products: readonly SeoProduct[];
+  title: string;
+  url: string;
+};
+
 type FaqStructuredDataProps = {
   sections: readonly SeoFaqSection[];
 };
@@ -104,6 +111,15 @@ export function CatalogCategoryStructuredData({
   url,
 }: CatalogCategoryStructuredDataProps) {
   return <StructuredData data={getCatalogCategoryStructuredData(category, products, url)} />;
+}
+
+export function CatalogLandingStructuredData({
+  description,
+  products,
+  title,
+  url,
+}: CatalogLandingStructuredDataProps) {
+  return <StructuredData data={getCatalogLandingStructuredData(title, description, products, url)} />;
 }
 
 export function FaqStructuredData({ sections }: FaqStructuredDataProps) {
@@ -272,6 +288,59 @@ function getCatalogCategoryStructuredData(
         { name: "Главная", url: routes.home },
         { name: "Каталог", url: routes.catalog },
         { name: category.title, url },
+      ],
+      breadcrumbId,
+    ),
+  ];
+}
+
+function getCatalogLandingStructuredData(
+  title: string,
+  description: string,
+  products: readonly SeoProduct[],
+  url: string,
+) {
+  const landingUrl = getAbsoluteUrl(url);
+  const itemListId = `${landingUrl}#item-list`;
+  const breadcrumbId = `${landingUrl}#breadcrumb`;
+
+  return [
+    {
+      "@context": "https://schema.org",
+      "@type": "CollectionPage",
+      name: title,
+      description,
+      url: landingUrl,
+      breadcrumb: {
+        "@id": breadcrumbId,
+      },
+      isPartOf: {
+        "@type": "WebSite",
+        name: siteConfig.name,
+        url: siteConfig.url,
+      },
+      mainEntity: {
+        "@id": itemListId,
+      },
+    },
+    {
+      "@context": "https://schema.org",
+      "@type": "ItemList",
+      "@id": itemListId,
+      itemListElement: products.map((product, index) => ({
+        "@type": "ListItem",
+        position: index + 1,
+        name: product.title,
+        url: getAbsoluteUrl(routes.product(product.categorySlug, product.slug)),
+        image: getAbsoluteUrl(product.image),
+      })),
+      numberOfItems: products.length,
+    },
+    getBreadcrumbStructuredData(
+      [
+        { name: "Главная", url: routes.home },
+        { name: "Каталог", url: routes.catalog },
+        { name: title, url },
       ],
       breadcrumbId,
     ),

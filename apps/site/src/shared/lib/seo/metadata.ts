@@ -8,6 +8,7 @@ import type {
   LegalSeoInput,
   MetadataInput,
   SeoBlogPost,
+  SeoCatalogLanding,
   SeoCategory,
   SeoPageKey,
   SeoProduct,
@@ -90,6 +91,24 @@ export function createCategoryMetadata(category: SeoCategory): Metadata {
       `раскраски по номерам ${category.title}`,
       `купить раскраски ${category.title}`,
     ],
+  });
+}
+
+export function createCatalogLandingMetadata(landing: SeoCatalogLanding): Metadata {
+  return createMetadata({
+    title: landing.metaTitle,
+    description: landing.metaDescription,
+    canonical: `/catalog/podborki/${landing.slug}`,
+    image: landing.image
+      ? {
+          url: landing.image,
+          width: 900,
+          height: 1200,
+          alt: landing.metaTitle,
+        }
+      : undefined,
+    keywords: ["common", "products", "catalog", landing.metaTitle],
+    noindex: !landing.isIndexable,
   });
 }
 

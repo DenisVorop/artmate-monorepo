@@ -7,6 +7,7 @@ export const routes = {
   cart: "/cart",
   catalog: "/catalog",
   catalogCategory: (categorySlug: string) => `/catalog/raskraski/${categorySlug}`,
+  catalogLanding: (slug: string) => `/catalog/podborki/${slug}`,
   blog: "/blog",
   blogPost: (id: string) => `/blog/${id}`,
   checkout: "/checkout",

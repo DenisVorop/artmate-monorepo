@@ -1,6 +1,7 @@
 import type { MetadataRoute } from "next";
 import { getProductCategory } from "@/entities/products";
 import { getBlogPosts } from "@/shared/actions/blog";
+import { getCatalogLandingPages } from "@/shared/actions/catalog-landings";
 import { getProductsData } from "@/shared/actions/products";
 import { getAbsoluteUrl, routes } from "@/shared/constants";
 
@@ -75,9 +76,14 @@ const staticRoutes = [
 
 export default async function sitemap(): Promise<MetadataRoute.Sitemap> {
   const lastModified = new Date();
-  const [blogData, productsResult] = await Promise.all([getBlogPosts(), getProductsData()]);
+  const [blogData, landingData, productsResult] = await Promise.all([
+    getBlogPosts(),
+    getCatalogLandingPages(),
+    getProductsData(),
+  ]);
   const productsData = productsResult.data;
   const blogPosts = blogData.data?.items ?? [];
+  const catalogLandings = landingData.data ?? [];
   const blogRoutes = blogPosts.map((post) => ({
     path: routes.blogPost(post.id),
     changeFrequency: "weekly",
@@ -87,6 +93,11 @@ export default async function sitemap(): Promise<MetadataRoute.Sitemap> {
     path: routes.catalogCategory(category.slug),
     changeFrequency: "weekly",
     priority: 0.8,
+  })) satisfies SitemapEntry[];
+  const catalogLandingRoutes = catalogLandings.map((landing) => ({
+    path: routes.catalogLanding(landing.slug),
+    changeFrequency: "weekly",
+    priority: 0.75,
   })) satisfies SitemapEntry[];
   const productRoutes = (productsData?.products ?? []).flatMap((product) => {
     const category = getProductCategory(productsData?.categories ?? [], product.categoryId);
@@ -104,7 +115,13 @@ export default async function sitemap(): Promise<MetadataRoute.Sitemap> {
     ];
   }) satisfies SitemapEntry[];
 
-  return [...staticRoutes, ...blogRoutes, ...categoryRoutes, ...productRoutes].map((route) => ({
+  return [
+    ...staticRoutes,
+    ...blogRoutes,
+    ...categoryRoutes,
+    ...catalogLandingRoutes,
+    ...productRoutes,
+  ].map((route) => ({
     url: getAbsoluteUrl(route.path),
     lastModified,
     changeFrequency: route.changeFrequency,

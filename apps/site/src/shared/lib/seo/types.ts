@@ -46,6 +46,14 @@ export type SeoCategory = {
   title: string;
 };
 
+export type SeoCatalogLanding = {
+  image?: string;
+  isIndexable: boolean;
+  metaDescription: string;
+  metaTitle: string;
+  slug: string;
+};
+
 export type SeoFaqSection = {
   items: readonly {
     answer: string;

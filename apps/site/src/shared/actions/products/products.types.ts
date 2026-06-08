@@ -5,6 +5,13 @@ export type ProductCategory = {
   image: string;
 };
 
+export type ProductTag = {
+  id: string;
+  slug: string;
+  title: string;
+  group: "format" | "theme" | "audience" | "mood" | "difficulty";
+};
+
 export type Product = {
   id: string;
   title: string;
@@ -18,6 +25,7 @@ export type Product = {
   description: string;
   isHit: boolean;
   isOutOfStock: boolean;
+  tags: ProductTag[];
 };
 
 export type ProductHighlight = {
@@ -39,6 +47,15 @@ export type ApiProductCategoryDTO = {
   slug: string;
   title: string;
   image?: string;
+};
+
+export type ApiProductTagDTO = {
+  id: string;
+  slug: string;
+  title: string;
+  group: "format" | "theme" | "audience" | "mood" | "difficulty";
+  createdAt: string;
+  updatedAt: string;
 };
 
 export type ApiProductImageDTO = {
@@ -63,6 +80,7 @@ export type ApiProductDTO = {
   priceRub: number;
   currency: "RUB";
   images: ApiProductImageDTO[];
+  tags: ApiProductTagDTO[];
   createdAt: string;
   updatedAt: string;
 };
