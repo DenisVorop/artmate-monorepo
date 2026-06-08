@@ -30,6 +30,7 @@ export {
   PopoverTrigger,
 } from "./popover";
 export { Progress } from "./progress";
+export { RichTextEditor, type RichTextEditorProps } from "./rich-text-editor";
 export { Separator } from "./separator";
 export {
   Table,

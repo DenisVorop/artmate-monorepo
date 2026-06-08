@@ -4,6 +4,7 @@ export {
   getProductPrimaryImage,
   getProductStatusBadgeVariant,
   getProductStatusLabel,
+  getProductTagGroupLabel,
 } from "./lib";
 export {
   productsQuery,
@@ -11,8 +12,10 @@ export {
   useCategories,
   useProduct,
   useProducts,
+  useTags,
   type Product,
   type ProductCategory,
   type ProductImage,
   type ProductStatus,
+  type ProductTag,
 } from "./model";

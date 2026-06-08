@@ -5,6 +5,7 @@ import { useCallback } from "react";
 import {
   useCategories,
   useProducts,
+  useTags,
 } from "@/entities/products";
 
 export function useProductsManagement() {
@@ -20,15 +21,22 @@ export function useProductsManagement() {
     isPending: isCategoriesPending,
     refetch: refetchCategories,
   } = useCategories();
+  const {
+    isError: isTagsError,
+    isPending: isTagsPending,
+    refetch: refetchTags,
+    tags,
+  } = useTags();
   const refreshProductsView = useCallback(async () => {
-    await Promise.all([refetchProducts(), refetchCategories()]);
-  }, [refetchCategories, refetchProducts]);
+    await Promise.all([refetchProducts(), refetchCategories(), refetchTags()]);
+  }, [refetchCategories, refetchProducts, refetchTags]);
 
   return {
     categories,
-    isError: isProductsError || isCategoriesError,
-    isPending: isProductsPending || isCategoriesPending,
+    isError: isProductsError || isCategoriesError || isTagsError,
+    isPending: isProductsPending || isCategoriesPending || isTagsPending,
     products,
     refreshProductsView,
+    tags,
   };
 }

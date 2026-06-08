@@ -2,6 +2,7 @@ export {
   createProductCategoryDefaultValues,
   createProductDefaultValues,
   createProductImageDefaultValues,
+  createProductTagDefaultValues,
   deleteCategoryFormSchema,
   deleteProductFormSchema,
   deleteProductImageFormSchema,
@@ -9,14 +10,18 @@ export {
   getCreateCategoryInput,
   getCreateProductImageFormData,
   getCreateProductInput,
+  getCreateTagInput,
   getProductDefaultValues,
+  getProductTagDefaultValues,
   getUpdateCategoryInput,
   getUpdateProductImageInput,
   getUpdateProductInput,
+  getUpdateTagInput,
   productCategoryFormSchema,
   productFormSchema,
   productImageCreateFormSchema,
   productImageUpdateFormSchema,
+  productTagFormSchema,
 } from "./form-values";
 export type {
   DeleteCategoryFormValues,
@@ -26,5 +31,6 @@ export type {
   ProductFormValues,
   ProductImageCreateFormValues,
   ProductImageUpdateFormValues,
+  ProductTagFormValues,
 } from "./form-values";
 export type { ProductsRefreshCallback } from "./types";

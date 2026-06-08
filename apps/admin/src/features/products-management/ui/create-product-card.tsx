@@ -4,7 +4,7 @@ import { zodResolver } from "@hookform/resolvers/zod";
 import { Controller, useForm } from "react-hook-form";
 import { Plus } from "lucide-react";
 
-import type { ProductCategory } from "@/entities/products";
+import type { ProductCategory, ProductTag } from "@/entities/products";
 import { Button, Card, CardContent, CardDescription, CardHeader, CardTitle, Input } from "@/shared/ui";
 
 import {
@@ -20,17 +20,20 @@ import {
   LabeledField,
   ProductCategorySelect,
   ProductStatusSelect,
+  ProductTagsField,
 } from "./form-controls";
 import { ProductDescriptionEditor } from "./product-description-editor";
 
 type CreateProductCardProps = {
   readonly categories: readonly ProductCategory[];
   readonly onProductsChange: ProductsRefreshCallback;
+  readonly tags: readonly ProductTag[];
 };
 
 export function CreateProductCard({
   categories,
   onProductsChange,
+  tags,
 }: CreateProductCardProps) {
   const { control, handleSubmit, register, reset } = useForm<ProductFormValues>({
     defaultValues: createProductDefaultValues,
@@ -109,6 +112,9 @@ export function CreateProductCard({
               Создать
             </Button>
           </div>
+          <LabeledField className="lg:col-span-8" label="Теги">
+            <ProductTagsField inputProps={register("tagIds")} tags={tags} />
+          </LabeledField>
           <LabeledField className="lg:col-span-8" label="Описание">
             <Controller
               control={control}

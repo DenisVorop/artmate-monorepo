@@ -17,6 +17,7 @@ export function ProductDetailsManagement({ productId }: ProductDetailsManagement
     isPending,
     product,
     refreshProductView,
+    tags,
   } = useProductDetailsManagement({
     productId,
   });
@@ -53,6 +54,7 @@ export function ProductDetailsManagement({ productId }: ProductDetailsManagement
       onProductDeleted={handleProductDeleted}
       onProductsChange={refreshProductView}
       product={product}
+      tags={tags}
     />
   );
 }

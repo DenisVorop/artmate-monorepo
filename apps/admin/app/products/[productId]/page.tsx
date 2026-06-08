@@ -32,7 +32,10 @@ export default async function Page({ params }: ProductRouteProps) {
   const queryClient = getQueryClient();
 
   await fetchAdminProductOrNotFound(queryClient, productId);
-  await queryClient.prefetchQuery(productsQuery.categories());
+  await Promise.all([
+    queryClient.prefetchQuery(productsQuery.categories()),
+    queryClient.prefetchQuery(productsQuery.tags()),
+  ]);
 
   return (
     <HydrationBoundary state={dehydrateQueryClient(queryClient)}>

@@ -8,6 +8,7 @@ import {
   productsQueryKeys,
   useCategories,
   useProduct,
+  useTags,
 } from "@/entities/products";
 import { routes } from "@/shared/constants";
 
@@ -34,16 +35,23 @@ export function useProductDetailsManagement({
     isPending: isCategoriesPending,
     refetch: refetchCategories,
   } = useCategories();
+  const {
+    isError: isTagsError,
+    isPending: isTagsPending,
+    refetch: refetchTags,
+    tags,
+  } = useTags();
 
   const refreshProductView = useCallback(async () => {
     await Promise.all([
       refetchProduct(),
       refetchCategories(),
+      refetchTags(),
       queryClient.invalidateQueries({
         queryKey: productsQueryKeys.list(),
       }),
     ]);
-  }, [queryClient, refetchCategories, refetchProduct]);
+  }, [queryClient, refetchCategories, refetchProduct, refetchTags]);
 
   const handleProductDeleted = useCallback(async () => {
     await queryClient.invalidateQueries({
@@ -58,9 +66,10 @@ export function useProductDetailsManagement({
   return {
     categories,
     handleProductDeleted,
-    isError: isProductError || isCategoriesError,
-    isPending: isProductPending || isCategoriesPending,
+    isError: isProductError || isCategoriesError || isTagsError,
+    isPending: isProductPending || isCategoriesPending || isTagsPending,
     product,
     refreshProductView,
+    tags,
   };
 }

@@ -1,6 +1,11 @@
 import type { ComponentProps, ReactNode } from "react";
 
-import { getProductStatusLabel, type ProductCategory, type ProductStatus } from "@/entities/products";
+import {
+  getProductStatusLabel,
+  type ProductCategory,
+  type ProductStatus,
+  type ProductTag,
+} from "@/entities/products";
 
 const productStatusOptions: readonly ProductStatus[] = [
   "draft",
@@ -89,5 +94,32 @@ export function ProductCategorySelect({
         </option>
       ))}
     </select>
+  );
+}
+
+export function ProductTagsField({
+  inputProps,
+  tags,
+}: {
+  readonly inputProps: ComponentProps<"input">;
+  readonly tags: readonly ProductTag[];
+}) {
+  if (tags.length === 0) {
+    return (
+      <div className="rounded-lg border border-dashed border-input px-3 py-2 text-sm text-muted-foreground">
+        Сначала добавьте теги товаров.
+      </div>
+    );
+  }
+
+  return (
+    <div className="grid gap-2 rounded-lg border border-input p-3 sm:grid-cols-2 lg:grid-cols-4">
+      {tags.map((tag) => (
+        <label key={tag.id} className="flex items-center gap-2 text-sm">
+          <input type="checkbox" value={tag.id} {...inputProps} />
+          <span className="min-w-0 truncate">{tag.title}</span>
+        </label>
+      ))}
+    </div>
   );
 }

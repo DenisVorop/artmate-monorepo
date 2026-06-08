@@ -1,12 +1,19 @@
 import { z } from "zod";
 
-import { productStatuses, type ProductStatusDTO } from "@/shared/actions/products";
+import {
+  productStatuses,
+  productTagGroups,
+  type ProductStatusDTO,
+  type ProductTagGroupDTO,
+} from "@/shared/actions/products";
 import type {
   CreateProductCategoryInputDTO,
   CreateProductInputDTO,
+  CreateProductTagInputDTO,
   UpdateProductCategoryInputDTO,
   UpdateProductImageInputDTO,
   UpdateProductInputDTO,
+  UpdateProductTagInputDTO,
 } from "@/shared/actions/products";
 
 const requiredTextSchema = (message: string) => z.string().trim().min(1, message);
@@ -20,11 +27,18 @@ export const productFormSchema = z.object({
   priceRub: z.number().finite("Укажите цену").min(0, "Цена не может быть отрицательной"),
   slug: requiredTextSchema("Укажите slug"),
   status: z.enum(productStatuses),
+  tagIds: z.array(z.string()),
   title: requiredTextSchema("Укажите название"),
 });
 
 export const productCategoryFormSchema = z.object({
   image: optionalTextSchema,
+  slug: requiredTextSchema("Укажите slug"),
+  title: requiredTextSchema("Укажите название"),
+});
+
+export const productTagFormSchema = z.object({
+  group: z.enum(productTagGroups),
   slug: requiredTextSchema("Укажите slug"),
   title: requiredTextSchema("Укажите название"),
 });
@@ -63,6 +77,8 @@ export type ProductFormValues = z.infer<typeof productFormSchema>;
 
 export type ProductCategoryFormValues = z.infer<typeof productCategoryFormSchema>;
 
+export type ProductTagFormValues = z.infer<typeof productTagFormSchema>;
+
 export type ProductImageCreateFormValues = z.infer<typeof productImageCreateFormSchema>;
 
 export type ProductImageUpdateFormValues = z.infer<typeof productImageUpdateFormSchema>;
@@ -81,6 +97,7 @@ export const createProductDefaultValues = {
   priceRub: 0,
   slug: "",
   status: "draft",
+  tagIds: [],
   title: "",
 } satisfies ProductFormValues;
 
@@ -89,6 +106,12 @@ export const createProductCategoryDefaultValues = {
   slug: "",
   title: "",
 } satisfies ProductCategoryFormValues;
+
+export const createProductTagDefaultValues = {
+  group: "theme",
+  slug: "",
+  title: "",
+} satisfies ProductTagFormValues;
 
 export const createProductImageDefaultValues = {
   alt: "",
@@ -102,6 +125,7 @@ export function getProductDefaultValues({
   priceRub,
   slug,
   status,
+  tags,
   title,
 }: {
   readonly categoryId?: string;
@@ -111,6 +135,9 @@ export function getProductDefaultValues({
   readonly priceRub: number;
   readonly slug: string;
   readonly status: ProductStatusDTO;
+  readonly tags?: readonly {
+    readonly id: string;
+  }[];
   readonly title: string;
 }): ProductFormValues {
   return {
@@ -121,6 +148,7 @@ export function getProductDefaultValues({
     priceRub,
     slug,
     status,
+    tagIds: tags?.map((tag) => tag.id) ?? [],
     title,
   };
 }
@@ -135,6 +163,7 @@ export function getCreateProductInput(values: ProductFormValues): CreateProductI
     priceRub: values.priceRub,
     slug: values.slug.trim(),
     status: values.status,
+    tagIds: values.tagIds,
     title: values.title.trim(),
   };
 }
@@ -149,6 +178,7 @@ export function getUpdateProductInput(values: ProductFormValues): UpdateProductI
     priceRub: values.priceRub,
     slug: values.slug.trim(),
     status: values.status,
+    tagIds: values.tagIds,
     title: values.title.trim(),
   };
 }
@@ -170,6 +200,34 @@ export function getUpdateCategoryInput(
     image: values.image.trim(),
     slug: values.slug.trim(),
     title: values.title.trim(),
+  };
+}
+
+export function getCreateTagInput(values: ProductTagFormValues): CreateProductTagInputDTO {
+  return {
+    group: values.group,
+    slug: values.slug.trim(),
+    title: values.title.trim(),
+  };
+}
+
+export function getUpdateTagInput(values: ProductTagFormValues): UpdateProductTagInputDTO {
+  return getCreateTagInput(values);
+}
+
+export function getProductTagDefaultValues({
+  group,
+  slug,
+  title,
+}: {
+  readonly group: ProductTagGroupDTO;
+  readonly slug: string;
+  readonly title: string;
+}): ProductTagFormValues {
+  return {
+    group,
+    slug,
+    title,
   };
 }
 

@@ -1,4 +1,4 @@
-import type { Product, ProductStatus } from "../model";
+import type { Product, ProductStatus, ProductTag } from "../model";
 
 const productStatusLabels: Record<ProductStatus, string> = {
   draft: "Черновик",
@@ -8,6 +8,18 @@ const productStatusLabels: Record<ProductStatus, string> = {
 
 export function getProductStatusLabel(status: ProductStatus) {
   return productStatusLabels[status];
+}
+
+const productTagGroupLabels: Record<ProductTag["group"], string> = {
+  audience: "Аудитория",
+  difficulty: "Сложность",
+  format: "Формат",
+  mood: "Настроение",
+  theme: "Тема",
+};
+
+export function getProductTagGroupLabel(group: ProductTag["group"]) {
+  return productTagGroupLabels[group];
 }
 
 export function getProductStatusBadgeVariant(

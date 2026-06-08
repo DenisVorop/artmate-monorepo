@@ -7,7 +7,7 @@ import { CreateProductCard } from "./create-product-card";
 import { ProductsList } from "./products-list";
 
 export function ProductsManagement() {
-  const { categories, isError, isPending, products, refreshProductsView } =
+  const { categories, isError, isPending, products, refreshProductsView, tags } =
     useProductsManagement();
 
   if (isError) {
@@ -41,6 +41,7 @@ export function ProductsManagement() {
       <CreateProductCard
         categories={categories}
         onProductsChange={refreshProductsView}
+        tags={tags}
       />
       <ProductsList products={products} />
     </div>

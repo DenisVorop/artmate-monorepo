@@ -4,6 +4,7 @@ import {
   getAdminProduct,
   getAdminProducts,
   getProductCategories,
+  getProductTags,
 } from "@/shared/actions/products";
 
 const adminProductsStaleTimeMs = 1000 * 60 * 5;
@@ -14,6 +15,7 @@ export const productsQueryKeys = {
   detail: (productId: string) =>
     [...productsQueryKeys.all, "detail", productId] as const,
   list: () => [...productsQueryKeys.all, "list"] as const,
+  tags: () => [...productsQueryKeys.all, "tags"] as const,
 };
 
 export const productsQuery = {
@@ -35,6 +37,13 @@ export const productsQuery = {
     queryOptions({
       queryKey: productsQueryKeys.list(),
       queryFn: getAdminProducts,
+      staleTime: adminProductsStaleTimeMs,
+      retryOnMount: false,
+    }),
+  tags: () =>
+    queryOptions({
+      queryKey: productsQueryKeys.tags(),
+      queryFn: getProductTags,
       staleTime: adminProductsStaleTimeMs,
       retryOnMount: false,
     }),

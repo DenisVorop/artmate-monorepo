@@ -22,6 +22,7 @@ export default async function Page() {
   await Promise.all([
     queryClient.prefetchQuery(productsQuery.list()),
     queryClient.prefetchQuery(productsQuery.categories()),
+    queryClient.prefetchQuery(productsQuery.tags()),
   ]);
 
   return (

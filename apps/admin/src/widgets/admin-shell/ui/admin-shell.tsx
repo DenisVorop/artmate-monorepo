@@ -6,6 +6,7 @@ import {
   LogOut,
   MailCheck,
   PackageSearch,
+  PanelsTopLeft,
   SearchCode,
   SquareKanban,
   Users,
@@ -29,6 +30,7 @@ type AdminShellProps = {
 const navigation: readonly NavigationItem[] = [
   { label: "Заявки", href: routes.orders, Icon: SquareKanban },
   { label: "Товары", href: routes.products, Icon: PackageSearch },
+  { label: "Подборки", href: routes.catalogLandings, Icon: PanelsTopLeft },
   { label: "Блог", href: routes.blog, Icon: FileText },
   { label: "SEO", href: routes.seo, Icon: SearchCode },
   { label: "Баннеры", href: routes.featureBanners, Icon: Megaphone },

@@ -1,5 +1,5 @@
 import Link from "next/link";
-import { FolderTree } from "lucide-react";
+import { FolderTree, Tags } from "lucide-react";
 
 import type { AuthUser } from "@/entities/session";
 import { SessionMenu } from "@/features/auth";
@@ -29,6 +29,12 @@ export function ProductsPage({ currentUser }: ProductsPageProps) {
               <Link href={routes.productCategories}>
                 <FolderTree data-icon="inline-start" aria-hidden="true" />
                 Категории
+              </Link>
+            </Button>
+            <Button asChild variant="outline">
+              <Link href={routes.productTags}>
+                <Tags data-icon="inline-start" aria-hidden="true" />
+                Теги
               </Link>
             </Button>
             <SessionMenu user={currentUser} />

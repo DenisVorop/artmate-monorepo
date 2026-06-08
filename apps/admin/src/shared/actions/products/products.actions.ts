@@ -7,12 +7,15 @@ import { apiCsrfHeader, getForwardedIpHeaders } from "@/shared/lib/api-security"
 import type {
   CreateProductCategoryInputDTO,
   CreateProductInputDTO,
+  CreateProductTagInputDTO,
   ProductCategoryDTO,
   ProductDTO,
   ProductImageDTO,
+  ProductTagDTO,
   UpdateProductCategoryInputDTO,
   UpdateProductImageInputDTO,
   UpdateProductInputDTO,
+  UpdateProductTagInputDTO,
 } from "./products.types";
 
 const AUTH_ACCESS_TOKEN_COOKIE_NAME = "artmate_access_token";
@@ -30,6 +33,10 @@ export async function getAdminProduct(productId: string): Promise<ProductDTO> {
 
 export async function getProductCategories(): Promise<ProductCategoryDTO[]> {
   return requestAdminApi<ProductCategoryDTO[]>("/products/categories");
+}
+
+export async function getProductTags(): Promise<ProductTagDTO[]> {
+  return requestAdminApi<ProductTagDTO[]>("/products/tags");
 }
 
 export async function createProductCategory(
@@ -61,6 +68,26 @@ export async function deleteProductCategory(categoryId: string) {
       method: "DELETE",
     },
   );
+}
+
+export async function createProductTag(input: CreateProductTagInputDTO) {
+  return requestAdminApi<ProductTagDTO>("/products/tags", {
+    method: "POST",
+    body: JSON.stringify(input),
+  });
+}
+
+export async function updateProductTag(tagId: string, input: UpdateProductTagInputDTO) {
+  return requestAdminApi<ProductTagDTO>(`/products/tags/${encodeURIComponent(tagId)}`, {
+    method: "PATCH",
+    body: JSON.stringify(input),
+  });
+}
+
+export async function deleteProductTag(tagId: string) {
+  return requestAdminApi<ProductTagDTO>(`/products/tags/${encodeURIComponent(tagId)}`, {
+    method: "DELETE",
+  });
 }
 
 export async function createProduct(input: CreateProductInputDTO) {

@@ -4,4 +4,5 @@ export {
   getProductPrimaryImage,
   getProductStatusBadgeVariant,
   getProductStatusLabel,
+  getProductTagGroupLabel,
 } from "./product-selectors";

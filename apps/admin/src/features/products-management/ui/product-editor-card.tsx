@@ -12,6 +12,7 @@ import {
   getProductStatusLabel,
   type Product,
   type ProductCategory,
+  type ProductTag,
 } from "@/entities/products";
 import {
   Badge,
@@ -39,6 +40,7 @@ type ProductEditorCardProps = {
   readonly onProductDeleted?: ProductsRefreshCallback;
   readonly onProductsChange: ProductsRefreshCallback;
   readonly product: Product;
+  readonly tags: readonly ProductTag[];
 };
 
 export function ProductEditorCard({
@@ -46,6 +48,7 @@ export function ProductEditorCard({
   onProductDeleted,
   onProductsChange,
   product,
+  tags,
 }: ProductEditorCardProps) {
   const primaryImage = getProductPrimaryImage(product);
   const { handleSubmit, register } = useForm<DeleteProductFormValues>({
@@ -103,6 +106,7 @@ export function ProductEditorCard({
           categories={categories}
           onProductsChange={onProductsChange}
           product={product}
+          tags={tags}
         />
         <ProductImages onProductsChange={onProductsChange} product={product} />
       </CardContent>
