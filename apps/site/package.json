@@ -46,7 +46,7 @@
     "@tailwindcss/postcss": "4.3.0",
     "@tanstack/react-query-devtools": "^5.100.10",
     "@types/lodash": "^4.17.24",
-    "@types/node": "^22.15.3",
+    "@types/node": "^25.9.2",
     "@types/react": "19.2.15",
     "@types/react-dom": "19.2.3",
     "eslint": "^9.39.1",
