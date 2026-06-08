@@ -1,5 +1,14 @@
 # Changelog
 
+## [0.31.0](https://github.com/DenisVorop/artmate-monorepo/compare/v0.30.1...v0.31.0) (2026-06-08)
+
+
+### Features
+
+* **admin:** manage catalog landing pages ([5a4052a](https://github.com/DenisVorop/artmate-monorepo/commit/5a4052a54e683215fe4bbdaf539989e52dbac3a0))
+* **api:** add catalog landing pages ([8ef9f9f](https://github.com/DenisVorop/artmate-monorepo/commit/8ef9f9fe6ecb7cbd8aab35da61c746c3584701a9))
+* **site:** add catalog landing pages ([313e978](https://github.com/DenisVorop/artmate-monorepo/commit/313e9784f6596c54f7b86c279c1535874423a7df))
+
 ## [0.30.1](https://github.com/DenisVorop/artmate-monorepo/compare/v0.30.0...v0.30.1) (2026-06-07)
 
 
