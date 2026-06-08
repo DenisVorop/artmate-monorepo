@@ -5,6 +5,8 @@ import { getCatalogLandingPages } from "@/shared/actions/catalog-landings";
 import { getProductsData } from "@/shared/actions/products";
 import { getAbsoluteUrl, routes } from "@/shared/constants";
 
+export const dynamic = "force-dynamic";
+
 type SitemapEntry = {
   path: string;
   changeFrequency: NonNullable<MetadataRoute.Sitemap[number]["changeFrequency"]>;
