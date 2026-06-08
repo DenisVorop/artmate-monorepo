@@ -1,5 +1,12 @@
 # Changelog
 
+## [0.31.1](https://github.com/DenisVorop/artmate-monorepo/compare/v0.31.0...v0.31.1) (2026-06-08)
+
+
+### Bug Fixes
+
+* **site:** render sitemap dynamically ([1e3fd85](https://github.com/DenisVorop/artmate-monorepo/commit/1e3fd85307b206311ef913da850a093a6008eb0d))
+
 ## [0.31.0](https://github.com/DenisVorop/artmate-monorepo/compare/v0.30.1...v0.31.0) (2026-06-08)
 
 
