@@ -1,0 +1,98 @@
+enum CatalogLandingStatus {
+  DRAFT     @map("draft")
+  PUBLISHED @map("published")
+  ARCHIVED  @map("archived")
+
+  @@map("catalog_landing_status")
+}
+
+enum CatalogLandingProductSource {
+  MANUAL @map("manual")
+  TAGS   @map("tags")
+  MIXED  @map("mixed")
+
+  @@map("catalog_landing_product_source")
+}
+
+enum CatalogLandingTagRuleMode {
+  REQUIRED @map("required")
+  OPTIONAL @map("optional")
+  EXCLUDED @map("excluded")
+
+  @@map("catalog_landing_tag_rule_mode")
+}
+
+enum CatalogLandingProductOverrideMode {
+  INCLUDED @map("included")
+  EXCLUDED @map("excluded")
+
+  @@map("catalog_landing_product_override_mode")
+}
+
+model CatalogLandingPage {
+  id              String                      @id @default(cuid()) @db.VarChar(32)
+  slug            String                      @unique @db.VarChar(180)
+  status          CatalogLandingStatus        @default(DRAFT)
+  isIndexable     Boolean                     @default(true) @map("is_indexable")
+  h1              String                      @db.VarChar(220)
+  metaTitle       String                      @map("meta_title") @db.VarChar(260)
+  metaDescription String                      @map("meta_description") @db.VarChar(500)
+  introHtml       String?                     @map("intro_html") @db.Text
+  seoTitle        String?                     @map("seo_title") @db.VarChar(220)
+  seoHtml         String?                     @map("seo_html") @db.Text
+  productSource   CatalogLandingProductSource @default(TAGS) @map("product_source")
+  minProducts     Int                         @default(2) @map("min_products")
+  createdAt       DateTime                    @default(now()) @map("created_at")
+  updatedAt       DateTime                    @default(now()) @updatedAt @map("updated_at")
+
+  tagRules         CatalogLandingTagRule[]
+  productOverrides CatalogLandingProductOverride[]
+  faqItems         CatalogLandingFaqItem[]
+
+  @@index([status, updatedAt])
+  @@index([isIndexable, status])
+  @@map("catalog_landing_pages")
+}
+
+model CatalogLandingTagRule {
+  landingId String                    @map("landing_id") @db.VarChar(32)
+  tagId     String                    @map("tag_id") @db.VarChar(32)
+  mode      CatalogLandingTagRuleMode
+
+  landing CatalogLandingPage @relation(fields: [landingId], references: [id], onDelete: Cascade)
+  tag     ProductTag         @relation(fields: [tagId], references: [id], onDelete: Restrict)
+
+  @@id([landingId, tagId])
+  @@index([tagId])
+  @@map("catalog_landing_tag_rules")
+}
+
+model CatalogLandingProductOverride {
+  landingId String                            @map("landing_id") @db.VarChar(32)
+  productId String                            @map("product_id") @db.VarChar(32)
+  mode      CatalogLandingProductOverrideMode
+  sortOrder Int                               @default(0) @map("sort_order")
+
+  landing CatalogLandingPage @relation(fields: [landingId], references: [id], onDelete: Cascade)
+  product Product            @relation(fields: [productId], references: [id], onDelete: Cascade)
+
+  @@id([landingId, productId])
+  @@index([productId])
+  @@index([landingId, sortOrder])
+  @@map("catalog_landing_product_overrides")
+}
+
+model CatalogLandingFaqItem {
+  id         String   @id @default(cuid()) @db.VarChar(32)
+  landingId  String   @map("landing_id") @db.VarChar(32)
+  question   String   @db.VarChar(300)
+  answerHtml String   @map("answer_html") @db.Text
+  sortOrder  Int      @default(0) @map("sort_order")
+  createdAt  DateTime @default(now()) @map("created_at")
+  updatedAt  DateTime @default(now()) @updatedAt @map("updated_at")
+
+  landing CatalogLandingPage @relation(fields: [landingId], references: [id], onDelete: Cascade)
+
+  @@index([landingId, sortOrder])
+  @@map("catalog_landing_faq_items")
+}

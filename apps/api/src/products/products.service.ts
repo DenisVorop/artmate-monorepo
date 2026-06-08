@@ -13,22 +13,27 @@ import sanitizeHtml from "sanitize-html";
 import {
   Prisma,
   ProductStatus as PrismaProductStatus,
+  ProductTagGroup as PrismaProductTagGroup,
 } from "../generated/prisma/client";
 import { PrismaService } from "../prisma/prisma.service";
 
 import type {
   CreateProductCategoryRequestDTO,
   CreateProductRequestDTO,
+  CreateProductTagRequestDTO,
   UpdateProductCategoryRequestDTO,
   UpdateProductImageRequestDTO,
   UpdateProductRequestDTO,
+  UpdateProductTagRequestDTO,
 } from "./dto";
 import {
   productCurrencies,
   productImageMimeTypes,
+  productTagGroups,
   type ProductCurrency,
   type ProductImageMimeType,
   type ProductStatus,
+  type ProductTagGroup,
 } from "./products.types";
 
 export type UploadedProductFile = {
@@ -49,6 +54,11 @@ const productInclude = {
         createdAt: "asc",
       },
     ],
+  },
+  tags: {
+    include: {
+      tag: true,
+    },
   },
 } satisfies Prisma.ProductInclude;
 
@@ -78,6 +88,15 @@ type StoredProductCategory = {
   updatedAt: Date;
 };
 
+type StoredProductTag = {
+  id: string;
+  slug: string;
+  title: string;
+  group: PrismaProductTagGroup;
+  createdAt: Date;
+  updatedAt: Date;
+};
+
 @Injectable()
 export class ProductsService {
   constructor(private readonly prisma: PrismaService) {}
@@ -90,6 +109,88 @@ export class ProductsService {
     });
 
     return categories.map((category) => this.mapProductCategory(category));
+  }
+
+  async getProductTags() {
+    const tags = await this.prisma.productTag.findMany({
+      orderBy: [
+        {
+          group: "asc",
+        },
+        {
+          title: "asc",
+        },
+      ],
+    });
+
+    return tags.map((tag) => this.mapProductTag(tag));
+  }
+
+  async createProductTag(input: CreateProductTagRequestDTO) {
+    try {
+      const tag = await this.prisma.productTag.create({
+        data: {
+          slug: this.parseSlug(input.slug),
+          title: this.parseRequiredString(input.title, "title"),
+          group: this.mapProductTagGroup(input.group ?? "theme"),
+        },
+      });
+
+      return this.mapProductTag(tag);
+    } catch (error) {
+      this.handlePrismaMutationError(error, "Product tag slug already exists");
+    }
+  }
+
+  async updateProductTag(tagId: string, input: UpdateProductTagRequestDTO) {
+    const data: Prisma.ProductTagUpdateInput = {};
+
+    if (input.slug !== undefined) {
+      data.slug = this.parseSlug(input.slug);
+    }
+
+    if (input.title !== undefined) {
+      data.title = this.parseRequiredString(input.title, "title");
+    }
+
+    if (input.group !== undefined) {
+      data.group = this.mapProductTagGroup(input.group);
+    }
+
+    try {
+      const tag = await this.prisma.productTag.update({
+        where: { id: tagId },
+        data,
+      });
+
+      return this.mapProductTag(tag);
+    } catch (error) {
+      this.handlePrismaMutationError(
+        error,
+        "Product tag slug already exists",
+        "Product tag not found",
+      );
+    }
+  }
+
+  async deleteProductTag(tagId: string) {
+    try {
+      const tag = await this.prisma.productTag.delete({
+        where: { id: tagId },
+      });
+
+      return this.mapProductTag(tag);
+    } catch (error) {
+      if (error instanceof Prisma.PrismaClientKnownRequestError && error.code === "P2003") {
+        throw new ConflictException("Product tag is used by catalog landing pages");
+      }
+
+      this.handlePrismaMutationError(
+        error,
+        "Product tag slug already exists",
+        "Product tag not found",
+      );
+    }
   }
 
   async getPublishedCategories() {
@@ -365,6 +466,7 @@ export class ProductsService {
           isHit: input.isHit ?? false,
           isOutOfStock: input.isOutOfStock ?? false,
           ...this.getCategoryCreateData(input.categoryId),
+          ...this.getTagAssignmentsCreateData(input.tagIds),
           price: this.parsePriceRub(input.priceRub) * 100,
           currency: this.parseCurrency(input.currency),
         },
@@ -423,6 +525,10 @@ export class ProductsService {
 
     if (input.currency !== undefined) {
       data.currency = this.parseCurrency(input.currency);
+    }
+
+    if (input.tagIds !== undefined) {
+      data.tags = this.getTagAssignmentsUpdateData(input.tagIds);
     }
 
     try {
@@ -722,6 +828,36 @@ export class ProductsService {
     }
   }
 
+  private mapProductTagGroup(group: ProductTagGroup) {
+    switch (group) {
+      case "format":
+        return PrismaProductTagGroup.FORMAT;
+      case "theme":
+        return PrismaProductTagGroup.THEME;
+      case "audience":
+        return PrismaProductTagGroup.AUDIENCE;
+      case "mood":
+        return PrismaProductTagGroup.MOOD;
+      case "difficulty":
+        return PrismaProductTagGroup.DIFFICULTY;
+    }
+  }
+
+  private mapPrismaProductTagGroup(group: PrismaProductTagGroup): ProductTagGroup {
+    switch (group) {
+      case PrismaProductTagGroup.FORMAT:
+        return "format";
+      case PrismaProductTagGroup.THEME:
+        return "theme";
+      case PrismaProductTagGroup.AUDIENCE:
+        return "audience";
+      case PrismaProductTagGroup.MOOD:
+        return "mood";
+      case PrismaProductTagGroup.DIFFICULTY:
+        return "difficulty";
+    }
+  }
+
   private mapPrismaProductStatus(status: PrismaProductStatus): ProductStatus {
     switch (status) {
       case PrismaProductStatus.DRAFT:
@@ -750,6 +886,13 @@ export class ProductsService {
       priceRub: Math.trunc(product.price / 100),
       currency: product.currency as ProductCurrency,
       images: product.images.map((image) => this.mapProductImage(image)),
+      tags: product.tags
+        .map((assignment) => this.mapProductTag(assignment.tag))
+        .sort((a, b) => {
+          const groupCompare = productTagGroups.indexOf(a.group) - productTagGroups.indexOf(b.group);
+
+          return groupCompare || a.title.localeCompare(b.title, "ru-RU");
+        }),
       createdAt: product.createdAt.toISOString(),
       updatedAt: product.updatedAt.toISOString(),
     };
@@ -787,6 +930,51 @@ export class ProductsService {
     };
   }
 
+  private getTagAssignmentsCreateData(tagIds: readonly string[] | undefined) {
+    const uniqueTagIds = this.parseTagIds(tagIds);
+
+    if (uniqueTagIds.length === 0) {
+      return {};
+    }
+
+    return {
+      tags: {
+        create: uniqueTagIds.map((tagId) => ({
+          tag: {
+            connect: {
+              id: tagId,
+            },
+          },
+        })),
+      },
+    };
+  }
+
+  private getTagAssignmentsUpdateData(tagIds: readonly string[]) {
+    const uniqueTagIds = this.parseTagIds(tagIds);
+
+    return {
+      deleteMany: {},
+      create: uniqueTagIds.map((tagId) => ({
+        tag: {
+          connect: {
+            id: tagId,
+          },
+        },
+      })),
+    };
+  }
+
+  private parseTagIds(tagIds: readonly string[] | undefined) {
+    return [
+      ...new Set(
+        (tagIds ?? [])
+          .map((tagId) => this.parseOptionalString(tagId))
+          .filter((tagId): tagId is string => Boolean(tagId)),
+      ),
+    ];
+  }
+
   private mapProductCategory(category: StoredProductCategory) {
     return {
       id: category.id,
@@ -795,6 +983,17 @@ export class ProductsService {
       image: category.image ?? undefined,
       createdAt: category.createdAt.toISOString(),
       updatedAt: category.updatedAt.toISOString(),
+    };
+  }
+
+  private mapProductTag(tag: StoredProductTag) {
+    return {
+      id: tag.id,
+      slug: tag.slug,
+      title: tag.title,
+      group: this.mapPrismaProductTagGroup(tag.group),
+      createdAt: tag.createdAt.toISOString(),
+      updatedAt: tag.updatedAt.toISOString(),
     };
   }
 

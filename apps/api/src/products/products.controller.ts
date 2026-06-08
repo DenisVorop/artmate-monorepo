@@ -28,13 +28,16 @@ import { UsersService } from "../users/users.service";
 import {
   CreateProductImageRequestDTO,
   CreateProductCategoryRequestDTO,
+  CreateProductTagRequestDTO,
   ProductCategoryDTO,
   CreateProductRequestDTO,
   ProductDTO,
   ProductImageDTO,
+  ProductTagDTO,
   UpdateProductCategoryRequestDTO,
   UpdateProductImageRequestDTO,
   UpdateProductRequestDTO,
+  UpdateProductTagRequestDTO,
 } from "./dto";
 import {
   maxProductImageSizeBytes,
@@ -103,6 +106,53 @@ export class AdminProductsController {
     this.usersService.assertRole(request.user, "admin");
 
     return this.productsService.deleteCategory(categoryId);
+  }
+
+  @ValidateResponse(ProductTagDTO, { isArray: true })
+  @ApiOperation({ summary: "List product tags for admin panel" })
+  @ApiOkResponse({ type: [ProductTagDTO] })
+  @Get("tags")
+  getTags(@Req() request: AuthenticatedRequest) {
+    this.usersService.assertRole(request.user, "admin");
+
+    return this.productsService.getProductTags();
+  }
+
+  @ValidateResponse(ProductTagDTO)
+  @ApiOperation({ summary: "Create product tag from admin panel" })
+  @ApiCreatedResponse({ type: ProductTagDTO })
+  @Post("tags")
+  createTag(
+    @Body() body: CreateProductTagRequestDTO,
+    @Req() request: AuthenticatedRequest,
+  ) {
+    this.usersService.assertRole(request.user, "admin");
+
+    return this.productsService.createProductTag(body);
+  }
+
+  @ValidateResponse(ProductTagDTO)
+  @ApiOperation({ summary: "Update product tag from admin panel" })
+  @ApiOkResponse({ type: ProductTagDTO })
+  @Patch("tags/:id")
+  updateTag(
+    @Param("id") tagId: string,
+    @Body() body: UpdateProductTagRequestDTO,
+    @Req() request: AuthenticatedRequest,
+  ) {
+    this.usersService.assertRole(request.user, "admin");
+
+    return this.productsService.updateProductTag(tagId, body);
+  }
+
+  @ValidateResponse(ProductTagDTO)
+  @ApiOperation({ summary: "Delete product tag from admin panel" })
+  @ApiOkResponse({ type: ProductTagDTO })
+  @Delete("tags/:id")
+  deleteTag(@Param("id") tagId: string, @Req() request: AuthenticatedRequest) {
+    this.usersService.assertRole(request.user, "admin");
+
+    return this.productsService.deleteProductTag(tagId);
   }
 
   @ValidateResponse(ProductDTO, { isArray: true })

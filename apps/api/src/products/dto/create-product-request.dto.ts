@@ -1,4 +1,5 @@
 import {
+  IsArray,
   IsBoolean,
   IsIn,
   IsInt,
@@ -53,4 +54,10 @@ export class CreateProductRequestDTO {
   @IsOptional()
   @IsIn(productCurrencies)
   currency?: ProductCurrency;
+
+  @IsOptional()
+  @IsArray()
+  @IsString({ each: true })
+  @MaxLength(32, { each: true })
+  tagIds?: string[];
 }

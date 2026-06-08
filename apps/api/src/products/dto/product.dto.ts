@@ -20,6 +20,7 @@ import {
 
 import { ProductCategoryDTO } from "./product-category.dto";
 import { ProductImageDTO } from "./product-image.dto";
+import { ProductTagDTO } from "./product-tag.dto";
 
 export class ProductDTO {
   @IsString()
@@ -68,6 +69,11 @@ export class ProductDTO {
   @ValidateNested({ each: true })
   @Type(() => ProductImageDTO)
   images!: ProductImageDTO[];
+
+  @IsArray()
+  @ValidateNested({ each: true })
+  @Type(() => ProductTagDTO)
+  tags!: ProductTagDTO[];
 
   @IsISO8601()
   createdAt!: string;

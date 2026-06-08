@@ -6,6 +6,16 @@ enum ProductStatus {
   @@map("product_status")
 }
 
+enum ProductTagGroup {
+  FORMAT     @map("format")
+  THEME      @map("theme")
+  AUDIENCE   @map("audience")
+  MOOD       @map("mood")
+  DIFFICULTY @map("difficulty")
+
+  @@map("product_tag_group")
+}
+
 model Product {
   id          String        @id @default(cuid()) @db.VarChar(32)
   slug        String        @unique @db.VarChar(180)
@@ -24,6 +34,8 @@ model Product {
 
   category ProductCategory? @relation(fields: [categoryId], references: [id], onDelete: Restrict)
   images   ProductImage[]
+  tags     ProductTagAssignment[]
+  catalogLandingOverrides CatalogLandingProductOverride[]
 
   @@index([categoryId])
   @@index([status, createdAt])
@@ -56,4 +68,31 @@ model ProductImage {
 
   @@index([productId, sortOrder])
   @@map("product_images")
+}
+
+model ProductTag {
+  id        String          @id @default(cuid()) @db.VarChar(32)
+  slug      String          @unique @db.VarChar(120)
+  title     String          @db.VarChar(120)
+  group     ProductTagGroup @default(THEME)
+  createdAt DateTime        @default(now()) @map("created_at")
+  updatedAt DateTime        @default(now()) @updatedAt @map("updated_at")
+
+  products            ProductTagAssignment[]
+  catalogLandingRules CatalogLandingTagRule[]
+
+  @@index([group, title])
+  @@map("product_tags")
+}
+
+model ProductTagAssignment {
+  productId String @map("product_id") @db.VarChar(32)
+  tagId     String @map("tag_id") @db.VarChar(32)
+
+  product Product    @relation(fields: [productId], references: [id], onDelete: Cascade)
+  tag     ProductTag @relation(fields: [tagId], references: [id], onDelete: Cascade)
+
+  @@id([productId, tagId])
+  @@index([tagId])
+  @@map("product_tag_assignments")
 }
