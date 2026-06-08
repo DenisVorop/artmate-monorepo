@@ -2810,10 +2810,10 @@
   resolved "https://registry.npmjs.org/@tiptap/extension-bold/-/extension-bold-3.23.1.tgz#7c573b88dbcbe4b0ac3a6f5422bcc2f8696c7bb5"
   integrity sha512-EAYdNzyOjlQh2VBY1EhdxtiTjVMaOAD6P0ezms60dKRjd4oj/8grfXfUqwgo4NVdFb11Ks85vXoHuXJSylfR4A==
 
-"@tiptap/extension-bubble-menu@^3.23.4":
-  version "3.23.4"
-  resolved "https://registry.npmjs.org/@tiptap/extension-bubble-menu/-/extension-bubble-menu-3.23.4.tgz#9e2d5d892d6d4917e44c5ebfe87de68e44878ead"
-  integrity sha512-EPTpL/IFp/aTGZErBq/Mc3dKznj6G/qNEkVYWjueOn1oKApyT0P6WVHGvu/vpMdErhzmoGDuFPPGVS6T8Upx2Q==
+"@tiptap/extension-bubble-menu@^3.26.0":
+  version "3.26.0"
+  resolved "https://registry.npmjs.org/@tiptap/extension-bubble-menu/-/extension-bubble-menu-3.26.0.tgz#ea115a34afd89db9e08544d9ed02c7fa81a281e3"
+  integrity sha512-H2E3Hp0lV79jQV8YGtdDJkXkUalXZeYzKCx+vCZlDpb2ChS7/rNT9YY7poRA1NlJLUO0DH1wbAnFhx9KZMUx5g==
   dependencies:
     "@floating-ui/dom" "^1.0.0"
 
@@ -2842,10 +2842,10 @@
   resolved "https://registry.npmjs.org/@tiptap/extension-dropcursor/-/extension-dropcursor-3.23.1.tgz#c512e5111545d83653d9ba9b784aca9bf39719e0"
   integrity sha512-WRN7e/h9m3uI5j9/+L6jcPhHbTL6aKxfFfQWZHNf5M8TqSL1P+/2h034td0XMj3n48i4fWyzjVUV9+sz6t2fDw==
 
-"@tiptap/extension-floating-menu@^3.23.4":
-  version "3.23.4"
-  resolved "https://registry.npmjs.org/@tiptap/extension-floating-menu/-/extension-floating-menu-3.23.4.tgz#ae6dfc00182811decc43402106c29d704179b29b"
-  integrity sha512-eAc72bKM26yIPx0jsU8qdjE71vFNVu5R9jGbdItBMFc0SPLS4qY8g+8RJ+iWoLwbcSEpgooLS9D9sLfdAU+Tvw==
+"@tiptap/extension-floating-menu@^3.26.0":
+  version "3.26.0"
+  resolved "https://registry.npmjs.org/@tiptap/extension-floating-menu/-/extension-floating-menu-3.26.0.tgz#0adccd23d8c7acdca44a496f07bbafd52558d3c3"
+  integrity sha512-reQ77NRYAOP7iPudsNbzLBuBTdL2aGxZzjccUFmE2lNdmwP23n9A/JhkuUhshVBs/6IozvahI+smG3Bnea0TCQ==
 
 "@tiptap/extension-gapcursor@^3.23.1":
   version "3.23.1"
@@ -2942,17 +2942,17 @@
     prosemirror-transform "^1.10.2"
     prosemirror-view "^1.38.1"
 
-"@tiptap/react@^3.23.4":
-  version "3.23.4"
-  resolved "https://registry.npmjs.org/@tiptap/react/-/react-3.23.4.tgz#df7cf9d8a2d42a3b3eb9bc73e5569fb7ddf8fe3d"
-  integrity sha512-mb5aIY9PuLreOVLExqs+8BAI20I/8+jCUBfEIqheuFY2GRRuBiwczejSlYuADfVDBbPVN5uPw4UMADCaH5wueQ==
+"@tiptap/react@^3.26.0":
+  version "3.26.0"
+  resolved "https://registry.npmjs.org/@tiptap/react/-/react-3.26.0.tgz#a415e68a81b04d5b34aa353d96aed17bed92154d"
+  integrity sha512-NLPAG6tk4/AsfOsUNsbGqdgIHuGsD4A/hlYriozuo+LCAAduuluhzsL/MEHZXtFT4GXUOlCdaEqNCOrMuz/zaw==
   dependencies:
     "@types/use-sync-external-store" "^0.0.6"
     fast-equals "^5.3.3"
     use-sync-external-store "^1.4.0"
   optionalDependencies:
-    "@tiptap/extension-bubble-menu" "^3.23.4"
-    "@tiptap/extension-floating-menu" "^3.23.4"
+    "@tiptap/extension-bubble-menu" "^3.26.0"
+    "@tiptap/extension-floating-menu" "^3.26.0"
 
 "@tiptap/starter-kit@^3.23.1":
   version "3.23.1"
