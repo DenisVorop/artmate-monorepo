@@ -2,10 +2,7 @@
 
 import { ApiResult, type ApiResultDTO } from "@/shared/lib/api-result";
 
-import type {
-  ApiCatalogLandingPageDTO,
-  CatalogLandingPage,
-} from "./catalog-landings.types";
+import type { ApiCatalogLandingPageDTO, CatalogLandingPage } from "./catalog-landings.types";
 
 const DEFAULT_API_BASE_URL = "http://localhost:3002";
 
@@ -90,6 +87,8 @@ function mapCatalogLanding(landing: ApiCatalogLandingPageDTO): CatalogLandingPag
           description: product.description ?? "",
           isHit: product.isHit,
           isOutOfStock: product.isOutOfStock,
+          createdAt: product.createdAt,
+          updatedAt: product.updatedAt,
           tags: product.tags.map((tag) => ({
             id: tag.id,
             slug: tag.slug,
