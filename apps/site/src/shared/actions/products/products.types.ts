@@ -3,6 +3,8 @@ export type ProductCategory = {
   title: string;
   slug: string;
   image: string;
+  createdAt: string;
+  updatedAt: string;
 };
 
 export type ProductTag = {
@@ -26,6 +28,8 @@ export type Product = {
   isHit: boolean;
   isOutOfStock: boolean;
   tags: ProductTag[];
+  createdAt: string;
+  updatedAt: string;
 };
 
 export type ProductHighlight = {
@@ -47,6 +51,8 @@ export type ApiProductCategoryDTO = {
   slug: string;
   title: string;
   image?: string;
+  createdAt: string;
+  updatedAt: string;
 };
 
 export type ApiProductTagDTO = {

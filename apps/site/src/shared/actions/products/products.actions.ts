@@ -1,37 +1,30 @@
-'use server';
+"use server";
 
 import { ApiResult, type ApiResultDTO } from "@/shared/lib/api-result";
 
-import {
-  productHighlights,
-  productHowItWorks,
-  productSpecs,
-} from "./products.data";
-import type {
-  ApiProductDTO,
-  Product,
-  ProductCategory,
-  ProductsData,
-} from "./products.types";
+import { productHighlights, productHowItWorks, productSpecs } from "./products.data";
+import type { ApiProductDTO, Product, ProductCategory, ProductsData } from "./products.types";
 
 const DEFAULT_API_BASE_URL = "http://localhost:3002";
 
 export async function getProductsData(): Promise<ApiResultDTO<ProductsData>> {
-  const result = await ApiResult.prepareApi(async () => {
-    const products = mapProducts(
-      await requestCatalogApi<ApiProductDTO[]>("/catalog/products"),
-    );
+  const result = await ApiResult.prepareApi(
+    async () => {
+      const apiProducts = await requestCatalogApi<ApiProductDTO[]>("/catalog/products");
+      const products = mapProducts(apiProducts);
 
-    return {
-      categories: getCategories(products),
-      products,
-      productSpecs,
-      productHowItWorks,
-      productHighlights,
-    } satisfies ProductsData;
-  }, {
-    isEmptyCb: (data) => data.products.length === 0,
-  })();
+      return {
+        categories: getCategories(apiProducts, products),
+        products,
+        productSpecs,
+        productHowItWorks,
+        productHighlights,
+      } satisfies ProductsData;
+    },
+    {
+      isEmptyCb: (data) => data.products.length === 0,
+    },
+  )();
 
   return result.toDTO() as ApiResultDTO<ProductsData>;
 }
@@ -74,6 +67,8 @@ function mapProducts(products: readonly ApiProductDTO[]): Product[] {
         description: product.description ?? "",
         isHit: product.isHit,
         isOutOfStock: product.isOutOfStock,
+        createdAt: product.createdAt,
+        updatedAt: product.updatedAt,
         tags: product.tags.map((tag) => ({
           id: tag.id,
           slug: tag.slug,
@@ -85,20 +80,29 @@ function mapProducts(products: readonly ApiProductDTO[]): Product[] {
   });
 }
 
-function getCategories(products: readonly Product[]): ProductCategory[] {
+function getCategories(
+  apiProducts: readonly ApiProductDTO[],
+  products: readonly Product[],
+): ProductCategory[] {
   const categories = new Map<string, ProductCategory>();
+  const productsById = new Map(products.map((product) => [product.id, product]));
 
-  for (const product of products) {
-    if (!product.categoryId || !product.category || !product.categorySlug) {
+  for (const apiProduct of apiProducts) {
+    const product = productsById.get(apiProduct.id);
+    const category = apiProduct.category;
+
+    if (!product || !category) {
       continue;
     }
 
-    if (!categories.has(product.categoryId)) {
-      categories.set(product.categoryId, {
-        id: product.categoryId,
-        title: product.category,
-        slug: product.categorySlug,
+    if (!categories.has(category.id)) {
+      categories.set(category.id, {
+        id: category.id,
+        title: category.title,
+        slug: category.slug,
         image: product.image,
+        createdAt: category.createdAt,
+        updatedAt: category.updatedAt,
       });
     }
   }

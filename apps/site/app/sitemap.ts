@@ -4,6 +4,7 @@ import { getBlogPosts } from "@/shared/actions/blog";
 import { getCatalogLandingPages } from "@/shared/actions/catalog-landings";
 import { getProductsData } from "@/shared/actions/products";
 import { getAbsoluteUrl, routes } from "@/shared/constants";
+import { ensureApiResult } from "@/shared/lib/api-result";
 
 export const dynamic = "force-dynamic";
 
@@ -11,6 +12,7 @@ type SitemapEntry = {
   path: string;
   changeFrequency: NonNullable<MetadataRoute.Sitemap[number]["changeFrequency"]>;
   priority: number;
+  lastModified?: Date;
 };
 
 const staticRoutes = [
@@ -77,29 +79,45 @@ const staticRoutes = [
 ] satisfies SitemapEntry[];
 
 export default async function sitemap(): Promise<MetadataRoute.Sitemap> {
-  const lastModified = new Date();
   const [blogData, landingData, productsResult] = await Promise.all([
     getBlogPosts(),
     getCatalogLandingPages(),
     getProductsData(),
   ]);
-  const productsData = productsResult.data;
-  const blogPosts = blogData.data?.items ?? [];
-  const catalogLandings = landingData.data ?? [];
+  const productsData = ensureApiResult(productsResult).data;
+  const blogPosts = ensureApiResult(blogData).data?.items ?? [];
+  const catalogLandings = ensureApiResult(landingData).data ?? [];
   const blogRoutes = blogPosts.map((post) => ({
-    path: routes.blogPost(post.id),
+    path: routes.blogPost(post.slug),
     changeFrequency: "weekly",
     priority: 0.65,
+    lastModified: getLatestDate(post.updatedAt, post.createdAt),
   })) satisfies SitemapEntry[];
-  const categoryRoutes = (productsData?.categories ?? []).map((category) => ({
-    path: routes.catalogCategory(category.slug),
-    changeFrequency: "weekly",
-    priority: 0.8,
-  })) satisfies SitemapEntry[];
+  const categoryRoutes = (productsData?.categories ?? []).map((category) => {
+    const categoryProducts = (productsData?.products ?? []).filter(
+      (product) => product.categoryId === category.id,
+    );
+
+    return {
+      path: routes.catalogCategory(category.slug),
+      changeFrequency: "weekly",
+      priority: 0.8,
+      lastModified: getLatestDate(
+        category.updatedAt,
+        category.createdAt,
+        ...categoryProducts.flatMap((product) => [product.updatedAt, product.createdAt]),
+      ),
+    };
+  }) satisfies SitemapEntry[];
   const catalogLandingRoutes = catalogLandings.map((landing) => ({
     path: routes.catalogLanding(landing.slug),
     changeFrequency: "weekly",
     priority: 0.75,
+    lastModified: getLatestDate(
+      landing.updatedAt,
+      landing.createdAt,
+      ...landing.products.flatMap((product) => [product.updatedAt, product.createdAt]),
+    ),
   })) satisfies SitemapEntry[];
   const productRoutes = (productsData?.products ?? []).flatMap((product) => {
     const category = getProductCategory(productsData?.categories ?? [], product.categoryId);
@@ -113,20 +131,81 @@ export default async function sitemap(): Promise<MetadataRoute.Sitemap> {
         path: routes.product(category?.slug, product.slug),
         changeFrequency: "weekly",
         priority: 0.7,
+        lastModified: getLatestDate(
+          product.updatedAt,
+          product.createdAt,
+          category?.updatedAt,
+          category?.createdAt,
+        ),
       },
     ];
   }) satisfies SitemapEntry[];
+  const blogLastModified = getLatestDate(...blogRoutes.map((route) => route.lastModified));
+  const catalogLastModified = getLatestDate(
+    ...categoryRoutes.map((route) => route.lastModified),
+    ...catalogLandingRoutes.map((route) => route.lastModified),
+    ...productRoutes.map((route) => route.lastModified),
+  );
+  const homeLastModified = getLatestDate(
+    ...(productsData?.products ?? [])
+      .filter((product) => product.isHit)
+      .flatMap((product) => {
+        const category = getProductCategory(productsData?.categories ?? [], product.categoryId);
 
-  return [
-    ...staticRoutes,
+        return [product.updatedAt, product.createdAt, category?.updatedAt, category?.createdAt];
+      }),
+  );
+  const staticRoutesWithLastModified = staticRoutes.map((route) => ({
+    ...route,
+    lastModified:
+      route.path === routes.home
+        ? homeLastModified
+        : route.path === routes.catalog
+          ? catalogLastModified
+          : route.path === routes.blog
+            ? blogLastModified
+            : undefined,
+  })) satisfies SitemapEntry[];
+  const uniqueRoutes = new Map<string, SitemapEntry>();
+
+  for (const route of [
+    ...staticRoutesWithLastModified,
     ...blogRoutes,
     ...categoryRoutes,
     ...catalogLandingRoutes,
     ...productRoutes,
-  ].map((route) => ({
+  ]) {
+    if (!uniqueRoutes.has(route.path)) {
+      uniqueRoutes.set(route.path, route);
+    }
+  }
+
+  return Array.from(uniqueRoutes.values()).map((route) => ({
     url: getAbsoluteUrl(route.path),
-    lastModified,
+    ...(route.lastModified ? { lastModified: route.lastModified } : {}),
     changeFrequency: route.changeFrequency,
     priority: route.priority,
   }));
+}
+
+function getLatestDate(...values: Array<Date | string | null | undefined>): Date | undefined {
+  let latest: Date | undefined;
+
+  for (const value of values) {
+    if (!value) {
+      continue;
+    }
+
+    const date = value instanceof Date ? value : new Date(value);
+
+    if (Number.isNaN(date.getTime())) {
+      continue;
+    }
+
+    if (!latest || date > latest) {
+      latest = date;
+    }
+  }
+
+  return latest;
 }
