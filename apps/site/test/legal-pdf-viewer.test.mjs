@@ -100,6 +100,41 @@ test("legal PDF worker installs working Promise compatibility in its own realm",
   assert.equal(stdout, "worker-ready");
 });
 
+test("PDF-backed legal documents use repository PDFs as their only text source", async () => {
+  const [sourceDocuments, legalPage, publicOfferPdf, personalDataConsentPdf] =
+    await Promise.all([
+      readSource("src/_pages/legal/source-documents.ts"),
+      readSource("src/_pages/legal/index.tsx"),
+      readFile(
+        new URL(
+          "../public/documents/legal/public-offer-2026-07-24.pdf",
+          import.meta.url,
+        ),
+      ),
+      readFile(
+        new URL(
+          "../public/documents/legal/personal-data-consent-2026-07-24.pdf",
+          import.meta.url,
+        ),
+      ),
+    ]);
+
+  assert.match(sourceDocuments, /publicOffer:\s*{\s*contentType:\s*"pdf"/);
+  assert.match(
+    sourceDocuments,
+    /personalDataConsent:\s*{\s*contentType:\s*"pdf"/,
+  );
+  assert.doesNotMatch(sourceDocuments, /\bsections\s*:/);
+  assert.doesNotMatch(
+    sourceDocuments,
+    /Настоящая оферта|Федеральным законом от 27\.07\.2006/,
+  );
+  assert.equal(publicOfferPdf.subarray(0, 5).toString("ascii"), "%PDF-");
+  assert.equal(personalDataConsentPdf.subarray(0, 5).toString("ascii"), "%PDF-");
+  assert.match(legalPage, /document\.contentType === "pdf"/);
+  assert.match(legalPage, /<PdfDocumentViewer/);
+});
+
 async function runWithoutPromiseWithResolvers(script) {
   const { stderr, stdout } = await execFileAsync(
     execPath,

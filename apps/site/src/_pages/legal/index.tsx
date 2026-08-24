@@ -6,6 +6,7 @@ import { Link } from "@/shared/ui/link";
 import { PageTitle, SectionTitle } from "@/shared/ui/typography";
 
 import { sourceLegalDocuments } from "./source-documents";
+import { PdfDocumentViewer } from "./ui/pdf-document-viewer";
 
 export type LegalDocumentId =
   | "privacyPolicy"
@@ -22,14 +23,24 @@ type LegalSection = {
   afterItems?: readonly string[];
 };
 
-type LegalDocument = {
+type LegalDocumentDetails = {
   title: string;
   description: string;
   href: string;
   updatedAt: string;
-  fileHref?: string;
+};
+
+type HtmlLegalDocument = LegalDocumentDetails & {
+  contentType: "html";
   sections: readonly LegalSection[];
 };
+
+type PdfLegalDocument = LegalDocumentDetails & {
+  contentType: "pdf";
+  fileHref: string;
+};
+
+type LegalDocument = HtmlLegalDocument | PdfLegalDocument;
 
 const sellerName = `${companyDetails.legalName}, ИНН ${companyDetails.inn}, ${companyDetails.registrationNumberLabel} ${companyDetails.registrationNumber}`;
 const legalDocumentsUpdatedAt = "04.05.2026";
@@ -37,6 +48,7 @@ const legalDocumentsUpdatedAt = "04.05.2026";
 export const legalDocuments = {
   publicOffer: sourceLegalDocuments.publicOffer,
   privacyPolicy: {
+    contentType: "html",
     title: "Политика конфиденциальности",
     description: "Правила обработки персональных данных покупателей и посетителей сайта Artmate.",
     href: routes.legal.privacyPolicy,
@@ -90,6 +102,7 @@ export const legalDocuments = {
     ],
   },
   userAgreement: {
+    contentType: "html",
     title: "Пользовательское соглашение",
     description: "Правила использования сайта Artmate, каталога, корзины и личного кабинета.",
     href: routes.legal.userAgreement,
@@ -131,6 +144,7 @@ export const legalDocuments = {
   },
   personalDataConsent: sourceLegalDocuments.personalDataConsent,
   cookiePolicy: {
+    contentType: "html",
     title: "Политика Cookie",
     description: "Информация об использовании cookie и технических данных на сайте Artmate.",
     href: routes.legal.cookiePolicy,
@@ -160,6 +174,7 @@ export const legalDocuments = {
     ],
   },
   returnPolicy: {
+    contentType: "html",
     title: "Правила возврата",
     description: "Порядок отмены заказа, возврата товара и возврата денежных средств Artmate.",
     href: routes.legal.returnPolicy,
@@ -209,9 +224,12 @@ type LegalPageProps = {
 
 export function LegalPage({ documentId }: LegalPageProps) {
   const document: LegalDocument = legalDocuments[documentId];
-  const titledSections = document.sections.flatMap((section, index) =>
-    section.title ? [{ index, title: section.title }] : [],
-  );
+  const titledSections =
+    document.contentType === "html"
+      ? document.sections.flatMap((section, index) =>
+          section.title ? [{ index, title: section.title }] : [],
+        )
+      : [];
 
   return (
     <main className="bg-background">
@@ -225,7 +243,7 @@ export function LegalPage({ documentId }: LegalPageProps) {
             <p className="max-w-3xl leading-7 text-muted-foreground">{document.description}</p>
             <p className="text-sm text-muted-foreground">Редакция от {document.updatedAt}</p>
 
-            {document.fileHref && (
+            {document.contentType === "pdf" && (
               <div className="flex flex-wrap gap-3 pt-2">
                 <Button asChild variant="outline" size="lg">
                   <a
@@ -251,70 +269,76 @@ export function LegalPage({ documentId }: LegalPageProps) {
 
           <Separator className="my-8" />
 
-          {titledSections.length > 4 && (
-            <nav
-              aria-label="Содержание документа"
-              className="mb-10 rounded-xl border bg-muted/30 p-5 sm:p-6"
-            >
-              <h2 className="font-display text-lg font-semibold text-foreground">Содержание</h2>
-              <ol className="mt-4 grid gap-x-8 gap-y-2 sm:grid-cols-2">
-                {titledSections.map((section) => (
-                  <li key={section.title}>
-                    <a
-                      href={`#section-${section.index + 1}`}
-                      className="text-sm leading-6 text-muted-foreground underline-offset-4 transition-colors hover:text-foreground hover:underline focus-visible:text-foreground focus-visible:underline focus-visible:outline-none"
-                    >
-                      {section.title}
-                    </a>
-                  </li>
-                ))}
-              </ol>
-            </nav>
-          )}
-
-          <div className="space-y-8">
-            {document.sections.map((section, sectionIndex) => (
-              <section
-                key={section.title ?? `section-${sectionIndex + 1}`}
-                id={section.title ? `section-${sectionIndex + 1}` : undefined}
-                aria-label={section.title ? undefined : document.title}
-                className="scroll-mt-24 space-y-4"
-              >
-                {section.title && (
-                  <SectionTitle className="text-foreground">{section.title}</SectionTitle>
-                )}
-
-                {section.paragraphs?.map((paragraph, paragraphIndex) => (
-                  <p
-                    key={`paragraph-${paragraphIndex + 1}`}
-                    className="leading-7 text-muted-foreground"
-                  >
-                    {paragraph}
-                  </p>
-                ))}
-
-                {section.items && (
-                  <ul className="space-y-3">
-                    {section.items.map((item) => (
-                      <li key={item} className="flex gap-3 leading-7 text-muted-foreground">
-                        <span className="mt-3 size-1.5 shrink-0 rounded-full bg-rose-400" />
-                        <span>{item}</span>
+          {document.contentType === "pdf" ? (
+            <PdfDocumentViewer fileHref={document.fileHref} title={document.title} />
+          ) : (
+            <>
+              {titledSections.length > 4 && (
+                <nav
+                  aria-label="Содержание документа"
+                  className="mb-10 rounded-xl border bg-muted/30 p-5 sm:p-6"
+                >
+                  <h2 className="font-display text-lg font-semibold text-foreground">Содержание</h2>
+                  <ol className="mt-4 grid gap-x-8 gap-y-2 sm:grid-cols-2">
+                    {titledSections.map((section) => (
+                      <li key={section.title}>
+                        <a
+                          href={`#section-${section.index + 1}`}
+                          className="text-sm leading-6 text-muted-foreground underline-offset-4 transition-colors hover:text-foreground hover:underline focus-visible:text-foreground focus-visible:underline focus-visible:outline-none"
+                        >
+                          {section.title}
+                        </a>
                       </li>
                     ))}
-                  </ul>
-                )}
+                  </ol>
+                </nav>
+              )}
 
-                {section.afterItems?.map((paragraph, paragraphIndex) => (
-                  <p
-                    key={`after-items-${paragraphIndex + 1}`}
-                    className="leading-7 text-muted-foreground"
+              <div className="space-y-8">
+                {document.sections.map((section, sectionIndex) => (
+                  <section
+                    key={section.title ?? `section-${sectionIndex + 1}`}
+                    id={section.title ? `section-${sectionIndex + 1}` : undefined}
+                    aria-label={section.title ? undefined : document.title}
+                    className="scroll-mt-24 space-y-4"
                   >
-                    {paragraph}
-                  </p>
+                    {section.title && (
+                      <SectionTitle className="text-foreground">{section.title}</SectionTitle>
+                    )}
+
+                    {section.paragraphs?.map((paragraph, paragraphIndex) => (
+                      <p
+                        key={`paragraph-${paragraphIndex + 1}`}
+                        className="leading-7 text-muted-foreground"
+                      >
+                        {paragraph}
+                      </p>
+                    ))}
+
+                    {section.items && (
+                      <ul className="space-y-3">
+                        {section.items.map((item) => (
+                          <li key={item} className="flex gap-3 leading-7 text-muted-foreground">
+                            <span className="mt-3 size-1.5 shrink-0 rounded-full bg-rose-400" />
+                            <span>{item}</span>
+                          </li>
+                        ))}
+                      </ul>
+                    )}
+
+                    {section.afterItems?.map((paragraph, paragraphIndex) => (
+                      <p
+                        key={`after-items-${paragraphIndex + 1}`}
+                        className="leading-7 text-muted-foreground"
+                      >
+                        {paragraph}
+                      </p>
+                    ))}
+                  </section>
                 ))}
-              </section>
-            ))}
-          </div>
+              </div>
+            </>
+          )}
 
           <Separator className="my-8" />
 
