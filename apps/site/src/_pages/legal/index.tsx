@@ -1,7 +1,11 @@
-import { companyDetails, routes, siteConfig } from "@/shared/constants";
-import { Separator } from "@/shared/ui";
+import { Download, ExternalLink, FileText } from "lucide-react";
+
+import { companyDetails, routes } from "@/shared/constants";
+import { Button, Separator } from "@/shared/ui";
 import { Link } from "@/shared/ui/link";
 import { PageTitle, SectionTitle } from "@/shared/ui/typography";
+
+import { sourceLegalDocuments } from "./source-documents";
 
 export type LegalDocumentId =
   | "privacyPolicy"
@@ -12,9 +16,10 @@ export type LegalDocumentId =
   | "returnPolicy";
 
 type LegalSection = {
-  title: string;
-  paragraphs?: string[];
-  items?: string[];
+  title?: string;
+  paragraphs?: readonly string[];
+  items?: readonly string[];
+  afterItems?: readonly string[];
 };
 
 type LegalDocument = {
@@ -22,70 +27,15 @@ type LegalDocument = {
   description: string;
   href: string;
   updatedAt: string;
-  sections: LegalSection[];
+  fileHref?: string;
+  sections: readonly LegalSection[];
 };
 
 const sellerName = `${companyDetails.legalName}, ИНН ${companyDetails.inn}, ${companyDetails.registrationNumberLabel} ${companyDetails.registrationNumber}`;
 const legalDocumentsUpdatedAt = "04.05.2026";
-const personalDataConsentUpdatedAt = "31.05.2026";
 
 export const legalDocuments = {
-  publicOffer: {
-    title: "Публичная оферта",
-    description: "Условия продажи товаров Artmate, оформления заказа, оплаты, доставки и возврата.",
-    href: routes.legal.publicOffer,
-    updatedAt: legalDocumentsUpdatedAt,
-    sections: [
-      {
-        title: "1. Общие положения",
-        paragraphs: [
-          `Настоящая публичная оферта определяет условия продажи товаров бренда ${companyDetails.brandName} через сайт ${siteConfig.name}. Продавец: ${sellerName}.`,
-          "Оформляя заказ на сайте, покупатель подтверждает, что ознакомился с условиями оферты, политикой конфиденциальности, правилами оплаты, доставки и возврата.",
-        ],
-      },
-      {
-        title: "2. Товары и цены",
-        items: [
-          "На сайте размещаются наименования товаров, описания, характеристики, изображения и цены в рублях.",
-          "Цена товара фиксируется на момент оформления заказа и может быть изменена только для новых заказов.",
-          "Информация о наличии товара, составе заказа и итоговой стоимости отображается в корзине и на странице оформления.",
-        ],
-      },
-      {
-        title: "3. Оформление заказа",
-        items: [
-          "Покупатель добавляет товары в корзину, указывает контактные данные и выбирает доступный способ доставки.",
-          "До оплаты покупатель проверяет состав заказа, стоимость товаров, стоимость доставки и контактные данные.",
-          "Заказ считается оформленным после подтверждения формы заказа и перехода к оплате.",
-        ],
-      },
-      {
-        title: "4. Оплата",
-        paragraphs: [
-          `Оплата заказа проводится через ${companyDetails.paymentProvider}. После подтверждения заказа покупатель перенаправляется на защищенную платежную страницу платежного сервиса.`,
-          `${companyDetails.brandName} не хранит и не обрабатывает реквизиты банковских карт. Обработка платежных данных выполняется на стороне платежного сервиса и банка-эквайера.`,
-        ],
-      },
-      {
-        title: "5. Доставка",
-        paragraphs: [
-          `Доставка заказов выполняется через ${companyDetails.deliveryProvider} в доступные пункты выдачи. Адрес, срок и стоимость доставки отображаются при оформлении заказа.`,
-          "После передачи заказа в доставку покупателю направляется информация о статусе заказа способом, указанным при оформлении.",
-        ],
-      },
-      {
-        title: "6. Возврат и отмена",
-        paragraphs: [
-          "Покупатель может обратиться за отменой заказа или возвратом через контактные данные продавца. Условия возврата описаны в правилах возврата.",
-          "Возврат денежных средств при успешной оплате выполняется на тот же способ оплаты, которым был оплачен заказ, если иное не предусмотрено законом или правилами платежного сервиса.",
-        ],
-      },
-      {
-        title: "7. Контакты продавца",
-        items: getCompanyItems(),
-      },
-    ],
-  },
+  publicOffer: sourceLegalDocuments.publicOffer,
   privacyPolicy: {
     title: "Политика конфиденциальности",
     description: "Правила обработки персональных данных покупателей и посетителей сайта Artmate.",
@@ -179,43 +129,7 @@ export const legalDocuments = {
       },
     ],
   },
-  personalDataConsent: {
-    title: "Согласие на обработку персональных данных",
-    description:
-      "Согласие пользователя на обработку персональных данных при использовании форм Artmate.",
-    href: routes.legal.personalDataConsent,
-    updatedAt: personalDataConsentUpdatedAt,
-    sections: [
-      {
-        title: "1. Согласие пользователя",
-        paragraphs: [
-          `Пользователь дает ${sellerName} согласие на обработку персональных данных путем проставления отдельной отметки в форме сайта перед отправкой данных.`,
-          "Согласие предоставляется на условиях настоящего документа и политики конфиденциальности.",
-        ],
-      },
-      {
-        title: "2. Перечень данных",
-        items: [
-          "Фамилия и имя, если они указаны пользователем.",
-          "Телефон, email, адрес или выбранный пункт выдачи.",
-          "Состав заказа, комментарий к заказу, статусы оплаты и доставки.",
-          "Технические данные, необходимые для работы сайта и защиты от злоупотреблений.",
-        ],
-      },
-      {
-        title: "3. Действия с данными",
-        paragraphs: [
-          "Пользователь соглашается на сбор, запись, систематизацию, хранение, уточнение, использование, передачу, обезличивание, блокирование и удаление персональных данных.",
-        ],
-      },
-      {
-        title: "4. Срок действия и отзыв",
-        paragraphs: [
-          `Согласие действует до достижения целей обработки или до его отзыва. Отозвать согласие можно, направив обращение на ${companyDetails.supportEmail}.`,
-        ],
-      },
-    ],
-  },
+  personalDataConsent: sourceLegalDocuments.personalDataConsent,
   cookiePolicy: {
     title: "Политика Cookie",
     description: "Информация об использовании cookie и технических данных на сайте Artmate.",
@@ -294,7 +208,10 @@ type LegalPageProps = {
 };
 
 export function LegalPage({ documentId }: LegalPageProps) {
-  const document = legalDocuments[documentId];
+  const document: LegalDocument = legalDocuments[documentId];
+  const titledSections = document.sections.flatMap((section, index) =>
+    section.title ? [{ index, title: section.title }] : [],
+  );
 
   return (
     <main className="bg-background">
@@ -307,17 +224,71 @@ export function LegalPage({ documentId }: LegalPageProps) {
             <PageTitle className="max-w-3xl text-foreground">{document.title}</PageTitle>
             <p className="max-w-3xl leading-7 text-muted-foreground">{document.description}</p>
             <p className="text-sm text-muted-foreground">Редакция от {document.updatedAt}</p>
+
+            {document.fileHref && (
+              <div className="flex flex-wrap gap-3 pt-2">
+                <Button asChild variant="outline" size="lg">
+                  <a
+                    href={document.fileHref}
+                    target="_blank"
+                    rel="noreferrer"
+                    aria-label={`${document.title}: открыть PDF в новой вкладке`}
+                  >
+                    <FileText aria-hidden="true" />
+                    Открыть PDF
+                    <ExternalLink aria-hidden="true" className="ml-0.5 size-3.5 opacity-60" />
+                  </a>
+                </Button>
+                <Button asChild variant="ghost" size="lg">
+                  <a href={document.fileHref} download>
+                    <Download aria-hidden="true" />
+                    Скачать PDF
+                  </a>
+                </Button>
+              </div>
+            )}
           </div>
 
           <Separator className="my-8" />
 
-          <div className="space-y-8">
-            {document.sections.map((section) => (
-              <section key={section.title} className="space-y-4">
-                <SectionTitle className="text-foreground">{section.title}</SectionTitle>
+          {titledSections.length > 4 && (
+            <nav
+              aria-label="Содержание документа"
+              className="mb-10 rounded-xl border bg-muted/30 p-5 sm:p-6"
+            >
+              <h2 className="font-display text-lg font-semibold text-foreground">Содержание</h2>
+              <ol className="mt-4 grid gap-x-8 gap-y-2 sm:grid-cols-2">
+                {titledSections.map((section) => (
+                  <li key={section.title}>
+                    <a
+                      href={`#section-${section.index + 1}`}
+                      className="text-sm leading-6 text-muted-foreground underline-offset-4 transition-colors hover:text-foreground hover:underline focus-visible:text-foreground focus-visible:underline focus-visible:outline-none"
+                    >
+                      {section.title}
+                    </a>
+                  </li>
+                ))}
+              </ol>
+            </nav>
+          )}
 
-                {section.paragraphs?.map((paragraph) => (
-                  <p key={paragraph} className="leading-7 text-muted-foreground">
+          <div className="space-y-8">
+            {document.sections.map((section, sectionIndex) => (
+              <section
+                key={section.title ?? `section-${sectionIndex + 1}`}
+                id={section.title ? `section-${sectionIndex + 1}` : undefined}
+                aria-label={section.title ? undefined : document.title}
+                className="scroll-mt-24 space-y-4"
+              >
+                {section.title && (
+                  <SectionTitle className="text-foreground">{section.title}</SectionTitle>
+                )}
+
+                {section.paragraphs?.map((paragraph, paragraphIndex) => (
+                  <p
+                    key={`paragraph-${paragraphIndex + 1}`}
+                    className="leading-7 text-muted-foreground"
+                  >
                     {paragraph}
                   </p>
                 ))}
@@ -332,6 +303,15 @@ export function LegalPage({ documentId }: LegalPageProps) {
                     ))}
                   </ul>
                 )}
+
+                {section.afterItems?.map((paragraph, paragraphIndex) => (
+                  <p
+                    key={`after-items-${paragraphIndex + 1}`}
+                    className="leading-7 text-muted-foreground"
+                  >
+                    {paragraph}
+                  </p>
+                ))}
               </section>
             ))}
           </div>
@@ -339,7 +319,15 @@ export function LegalPage({ documentId }: LegalPageProps) {
           <Separator className="my-8" />
 
           <div className="flex flex-col gap-3 rounded-lg border bg-muted/30 p-5 text-sm text-muted-foreground sm:flex-row sm:items-center sm:justify-between">
-            <span>По вопросам документов и заказов: {companyDetails.supportEmail}</span>
+            <span>
+              По вопросам документов и заказов:{" "}
+              <a
+                href={`mailto:${companyDetails.supportEmail}`}
+                className="font-medium text-foreground underline underline-offset-4"
+              >
+                {companyDetails.supportEmail}
+              </a>
+            </span>
             <Link
               href={routes.paymentAndDelivery}
               className="font-medium text-foreground underline"
