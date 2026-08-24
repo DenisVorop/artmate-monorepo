@@ -1,5 +1,19 @@
 # Changelog
 
+## [0.32.0](https://github.com/DenisVorop/artmate-monorepo/compare/v0.31.1...v0.32.0) (2026-08-24)
+
+
+### Features
+
+* **delivery:** add Ozon pickup selection ([3a7eb87](https://github.com/DenisVorop/artmate-monorepo/commit/3a7eb87fc335b92137175a953f46cd2f58dcdcce))
+* **site:** publish legal documents ([7bfa7a8](https://github.com/DenisVorop/artmate-monorepo/commit/7bfa7a8aa76865e7f0f217dc9f9db7654a03b9e7))
+
+
+### Bug Fixes
+
+* **api:** trust T-Bank Russian CA certificates ([147b385](https://github.com/DenisVorop/artmate-monorepo/commit/147b38517573d37ea90ca78e62bb3c731807cae5))
+* **site:** use accurate sitemap modification dates ([00b5ee8](https://github.com/DenisVorop/artmate-monorepo/commit/00b5ee8015713ff94726471f51e8d4c0771831eb))
+
 ## [0.31.1](https://github.com/DenisVorop/artmate-monorepo/compare/v0.31.0...v0.31.1) (2026-06-08)
 
 
