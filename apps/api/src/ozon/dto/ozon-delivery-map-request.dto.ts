@@ -30,6 +30,6 @@ export class OzonDeliveryMapRequestDTO {
   })
   @IsInt()
   @Min(0)
-  @Max(22)
+  @Max(19)
   zoom!: number;
 }

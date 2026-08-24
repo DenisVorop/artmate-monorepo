@@ -27,7 +27,7 @@ export class CartService {
   async getCart(cartId?: string): Promise<CartDTO> {
     const cart = await this.cartStorage.ensureCart(cartId);
 
-    return this.cartStorage.getDTO(cart);
+    return this.withOzonDeliveryAvailability(this.cartStorage.getDTO(cart));
   }
 
   async addItem(
@@ -45,7 +45,7 @@ export class CartService {
       MAX_QUANTITY,
     );
 
-    return this.cartStorage.getDTO(cart);
+    return this.withOzonDeliveryAvailability(this.cartStorage.getDTO(cart));
   }
 
   async updateItem(
@@ -63,23 +63,36 @@ export class CartService {
       throw new NotFoundException("Cart item not found");
     }
 
-    return this.cartStorage.getDTO(cart);
+    return this.withOzonDeliveryAvailability(this.cartStorage.getDTO(cart));
   }
 
   async removeItem(cartId: string | undefined, productId: string) {
     const cart = await this.cartStorage.removeItem(cartId, productId);
 
-    return this.cartStorage.getDTO(cart);
+    return this.withOzonDeliveryAvailability(this.cartStorage.getDTO(cart));
   }
 
   async clearCart(cartId?: string) {
     const cart = await this.cartStorage.clearCart(cartId);
 
-    return this.cartStorage.getDTO(cart);
+    return this.withOzonDeliveryAvailability(this.cartStorage.getDTO(cart));
   }
 
   async assertItemsInStock(items: readonly CartItemDTO[]) {
     await this.productsService.assertProductsInStock(items.map((item) => item.id));
+  }
+
+  private async withOzonDeliveryAvailability(
+    cart: Omit<CartDTO, "isOzonDeliveryAvailable">,
+  ): Promise<CartDTO> {
+    return {
+      ...cart,
+      isOzonDeliveryAvailable:
+        cart.items.length > 0 &&
+        (await this.productsService.areProductsOzonDeliveryAvailable(
+          cart.items.map((item) => item.id),
+        )),
+    };
   }
 
   private parseProduct(product: CartProductDTO): CartProductDTO {

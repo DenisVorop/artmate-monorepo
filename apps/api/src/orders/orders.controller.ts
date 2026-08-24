@@ -7,6 +7,7 @@ import {
   Headers,
   HttpCode,
   HttpStatus,
+  Ip,
   Param,
   Patch,
   Post,
@@ -17,6 +18,7 @@ import {
 import { AuthGuard } from "../auth/auth.guard";
 import type { AuthUser } from "../auth/auth.types";
 import { ValidateResponse } from "../common/response-validation.interceptor";
+import { DeliveryProxyThrottleService } from "../delivery/delivery-proxy-throttle.service";
 import { UsersService } from "../users/users.service";
 
 import {
@@ -44,6 +46,7 @@ export class OrdersController {
   constructor(
     private readonly ordersService: OrdersService,
     private readonly usersService: UsersService,
+    private readonly deliveryProxyThrottleService: DeliveryProxyThrottleService,
   ) {}
 
   @ValidateResponse(PickupPointDTO, { isArray: true })
@@ -156,7 +159,19 @@ export class OrdersController {
   calculateCheckout(
     @Body() request: CalculateCheckoutRequestDTO,
     @Headers("cookie") cookieHeader: string | undefined,
+    @Headers("x-forwarded-for") forwardedFor: string | undefined,
+    @Headers("x-real-ip") realIp: string | undefined,
+    @Ip() requestIp: string | undefined,
   ) {
+    if (request.delivery.provider === "ozon") {
+      this.deliveryProxyThrottleService.assertAllowed({
+        cookieHeader,
+        forwardedFor,
+        realIp,
+        requestIp,
+      });
+    }
+
     return this.ordersService.calculateCheckout(
       this.getCartId(cookieHeader),
       request,
@@ -176,7 +191,19 @@ export class OrdersController {
     @Body() request: CreateOrderRequestDTO,
     @Headers("cookie") cookieHeader: string | undefined,
     @Req() authRequest: AuthenticatedRequest,
+    @Headers("x-forwarded-for") forwardedFor: string | undefined,
+    @Headers("x-real-ip") realIp: string | undefined,
+    @Ip() requestIp: string | undefined,
   ) {
+    if (request.delivery?.provider === "ozon") {
+      this.deliveryProxyThrottleService.assertAllowed({
+        cookieHeader,
+        forwardedFor,
+        realIp,
+        requestIp,
+      });
+    }
+
     return this.ordersService.createOrder(
       this.getCartId(cookieHeader),
       request,

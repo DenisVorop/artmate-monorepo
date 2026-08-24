@@ -363,6 +363,23 @@ export class ProductsService {
     }
   }
 
+  async areProductsOzonDeliveryAvailable(productIds: readonly string[]) {
+    const uniqueProductIds = [...new Set(productIds.filter(Boolean))];
+
+    if (uniqueProductIds.length === 0) {
+      return false;
+    }
+
+    const availableProductsCount = await this.prisma.product.count({
+      where: {
+        id: { in: uniqueProductIds },
+        isOzonDeliveryAvailable: true,
+      },
+    });
+
+    return availableProductsCount === uniqueProductIds.length;
+  }
+
   async createCategory(input: CreateProductCategoryRequestDTO) {
     try {
       const category = await this.prisma.productCategory.create({
@@ -465,6 +482,7 @@ export class ProductsService {
           status,
           isHit: input.isHit ?? false,
           isOutOfStock: input.isOutOfStock ?? false,
+          isOzonDeliveryAvailable: input.isOzonDeliveryAvailable ?? true,
           ...this.getCategoryCreateData(input.categoryId),
           ...this.getTagAssignmentsCreateData(input.tagIds),
           price: this.parsePriceRub(input.priceRub) * 100,
@@ -513,6 +531,10 @@ export class ProductsService {
 
     if (input.isOutOfStock !== undefined) {
       data.isOutOfStock = input.isOutOfStock;
+    }
+
+    if (input.isOzonDeliveryAvailable !== undefined) {
+      data.isOzonDeliveryAvailable = input.isOzonDeliveryAvailable;
     }
 
     if (input.categoryId !== undefined) {
@@ -878,6 +900,7 @@ export class ProductsService {
       status: this.mapPrismaProductStatus(product.status),
       isHit: product.isHit,
       isOutOfStock: product.isOutOfStock,
+      isOzonDeliveryAvailable: product.isOzonDeliveryAvailable,
       categoryId: product.categoryId ?? undefined,
       category: product.category
         ? this.mapProductCategory(product.category)

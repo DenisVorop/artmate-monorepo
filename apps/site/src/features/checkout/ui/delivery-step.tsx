@@ -8,7 +8,11 @@ import { useCheckout } from "../lib";
 
 import { DeliverySelector } from "./delivery-selector";
 
-export function CheckoutDeliveryStep() {
+type CheckoutDeliveryStepProps = {
+  isOzonDeliveryAvailable: boolean;
+};
+
+export function CheckoutDeliveryStep({ isOzonDeliveryAvailable }: CheckoutDeliveryStepProps) {
   const {
     canContinueDelivery,
     checkoutCalculation,
@@ -19,7 +23,11 @@ export function CheckoutDeliveryStep() {
 
   return (
     <div className="space-y-4">
-      <DeliverySelector selectedDelivery={selectedDelivery} onChange={setSelectedDelivery} />
+      <DeliverySelector
+        isOzonDeliveryAvailable={isOzonDeliveryAvailable}
+        selectedDelivery={selectedDelivery}
+        onChange={setSelectedDelivery}
+      />
 
       {checkoutCalculation.isError ? (
         <DataState
@@ -32,7 +40,7 @@ export function CheckoutDeliveryStep() {
 
       <div className="flex flex-col items-stretch gap-2 sm:flex-row sm:items-center sm:justify-end">
         {!selectedDelivery ? (
-          <p className="text-sm text-muted-foreground">Выберите город и пункт выдачи.</p>
+          <p className="text-sm text-muted-foreground">Выберите службу доставки и пункт выдачи.</p>
         ) : checkoutCalculation.isPending ? (
           <p className="text-sm text-muted-foreground">Дождитесь расчета стоимости доставки.</p>
         ) : null}

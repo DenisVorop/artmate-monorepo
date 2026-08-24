@@ -5,16 +5,25 @@ import {
   IsOptional,
   IsString,
   Max,
+  MaxLength,
   Min,
 } from "class-validator";
+
+import {
+  deliveryPickupPointIdMaxLength,
+  deliveryPickupPointTitleMaxLength,
+  deliveryPickupPointWorkHoursMaxLength,
+} from "../../delivery/delivery.constants";
 
 export class PickupPointDTO {
   @IsString()
   @IsNotEmpty()
+  @MaxLength(deliveryPickupPointIdMaxLength)
   id!: string;
 
   @IsString()
   @IsNotEmpty()
+  @MaxLength(deliveryPickupPointTitleMaxLength)
   title!: string;
 
   @IsString()
@@ -23,6 +32,7 @@ export class PickupPointDTO {
 
   @IsString()
   @IsNotEmpty()
+  @MaxLength(deliveryPickupPointWorkHoursMaxLength)
   workHours!: string;
 
   @IsNumber({ allowInfinity: false, allowNaN: false })

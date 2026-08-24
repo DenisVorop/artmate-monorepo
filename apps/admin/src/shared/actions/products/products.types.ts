@@ -47,6 +47,7 @@ export type ProductDTO = {
   status: ProductStatusDTO;
   isHit: boolean;
   isOutOfStock: boolean;
+  isOzonDeliveryAvailable: boolean;
   categoryId?: string;
   category?: ProductCategoryDTO;
   price: number;
@@ -65,6 +66,7 @@ export type CreateProductInputDTO = {
   status?: ProductStatusDTO;
   isHit?: boolean;
   isOutOfStock?: boolean;
+  isOzonDeliveryAvailable?: boolean;
   categoryId?: string;
   priceRub: number;
   currency?: ProductCurrencyDTO;

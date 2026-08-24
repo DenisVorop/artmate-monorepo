@@ -26,7 +26,7 @@ function BaseCheckoutFlow({ cart, createOrderError }: CheckoutFlowProps) {
       <div className="grid gap-6 lg:grid-cols-[minmax(0,1fr)_22rem] lg:items-start">
         <div className="space-y-4">
           <div hidden={step !== "delivery"}>
-            <CheckoutDeliveryStep />
+            <CheckoutDeliveryStep isOzonDeliveryAvailable={cart.isOzonDeliveryAvailable} />
           </div>
           <div hidden={step !== "contacts"}>
             <CheckoutContactsStep />

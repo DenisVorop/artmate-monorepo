@@ -6,9 +6,12 @@ import {
   IsInt,
   IsNotEmpty,
   IsString,
+  MaxLength,
   Min,
   ValidateNested,
 } from "class-validator";
+
+import { deliveryPickupPointIdMaxLength } from "../../delivery/delivery.constants";
 
 import { OzonCoordinateDTO } from "./ozon-coordinate.dto";
 
@@ -28,10 +31,11 @@ export class OzonDeliveryMapClusterDTO {
   @Min(1)
   count!: number;
 
-  @ApiProperty({ example: [100101, 100102], isArray: true, type: Number })
+  @ApiProperty({ example: ["100101", "100102"], isArray: true, type: String })
   @IsArray()
   @ArrayMinSize(1)
-  @IsInt({ each: true })
-  @Min(1, { each: true })
-  map_point_ids!: number[];
+  @IsString({ each: true })
+  @IsNotEmpty({ each: true })
+  @MaxLength(deliveryPickupPointIdMaxLength, { each: true })
+  map_point_ids!: string[];
 }

@@ -4,8 +4,11 @@ import {
   IsNotEmpty,
   IsOptional,
   IsString,
+  MaxLength,
   Min,
 } from "class-validator";
+
+import { deliveryPickupPointIdMaxLength } from "../../delivery/delivery.constants";
 
 import { deliveryProviders, type DeliveryProvider } from "../orders.constants";
 
@@ -20,6 +23,7 @@ export class CreateOrderDeliveryRequestDTO {
 
   @IsString()
   @IsNotEmpty()
+  @MaxLength(deliveryPickupPointIdMaxLength)
   @IsOptional()
   pickupPointId?: string;
 

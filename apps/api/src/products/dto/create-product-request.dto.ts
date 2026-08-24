@@ -43,6 +43,10 @@ export class CreateProductRequestDTO {
   isOutOfStock?: boolean;
 
   @IsOptional()
+  @IsBoolean()
+  isOzonDeliveryAvailable?: boolean;
+
+  @IsOptional()
   @IsString()
   @MaxLength(32)
   categoryId?: string | null;

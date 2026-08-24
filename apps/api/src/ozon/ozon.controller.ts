@@ -187,8 +187,9 @@ export class OzonController {
   })
   @ApiOkResponse({ type: OzonTokenStatusResponseDTO })
   async refreshToken(@Body() request: OzonRefreshTokenRequestDTO) {
-    const tokenStatus =
-      await this.ozonOAuthService.refreshAccessToken(request.refreshToken);
+    const tokenStatus = await this.ozonOAuthService.refreshAccessToken(
+      request.refreshToken,
+    );
 
     return {
       ok: true,
@@ -277,13 +278,14 @@ export class OzonController {
       point: {
         summary: "Pickup point from map response",
         value: {
-          map_point_ids: [123456789],
+          map_point_ids: ["123456789"],
         },
       },
     },
   })
   @ApiOkResponse({
-    description: "Ozon Seller API response in real mode or Ozon-like mock response.",
+    description:
+      "Ozon Seller API response in real mode or Ozon-like mock response.",
     type: OzonDeliveryPointInfoResponseDTO,
   })
   @ApiForbiddenResponse({

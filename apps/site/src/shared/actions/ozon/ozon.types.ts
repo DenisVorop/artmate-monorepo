@@ -17,11 +17,11 @@ export type OzonDeliveryMapClusterDTO = {
   cluster_id: string;
   coordinate: OzonCoordinateDTO;
   count: number;
-  map_point_ids: number[];
+  map_point_ids: string[];
 };
 
 export type OzonDeliveryMapPointDTO = {
-  map_point_id: number;
+  map_point_id: string;
   coordinate: OzonCoordinateDTO;
   type: "PVZ" | "POSTAMAT";
   status: "available" | "temporarily_unavailable";
@@ -34,7 +34,7 @@ export type OzonDeliveryMapResponseDTO = {
 };
 
 export type OzonDeliveryPointInfoRequestDTO = {
-  map_point_ids: number[];
+  map_point_ids: string[];
 };
 
 export type OzonDeliveryPointRestrictionsDTO = {
@@ -49,7 +49,7 @@ export type OzonDeliveryPointRestrictionsDTO = {
 };
 
 export type OzonDeliveryPointInfoDTO = {
-  map_point_id: number;
+  map_point_id: string;
   external_id: string;
   name: string;
   type: "PVZ" | "POSTAMAT";

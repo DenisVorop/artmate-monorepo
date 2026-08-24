@@ -40,6 +40,30 @@
   background: var(--color-rose-600);
 }
 
+.clusterMarker {
+  align-items: center;
+  background: var(--color-rose-600);
+  border: 3px solid var(--color-background);
+  border-radius: 9999px;
+  box-shadow: 0 6px 18px rgb(244 63 94 / 0.28);
+  color: white;
+  cursor: zoom-in;
+  display: flex;
+  font-size: 12px;
+  font-weight: 700;
+  height: 40px;
+  justify-content: center;
+  line-height: 1;
+  min-width: 40px;
+  padding: 0 6px;
+  width: max-content;
+}
+
+.root :global(.leaflet-marker-icon:focus-visible) {
+  outline: 2px solid var(--color-ring);
+  outline-offset: 3px;
+}
+
 .root :global(.leaflet-control-attribution) {
   font-size: 10px;
 }

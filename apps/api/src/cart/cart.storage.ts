@@ -130,7 +130,7 @@ export class CartStorage {
     return this.touchAndGetCart(cart.id);
   }
 
-  getDTO(cart: StoredCart): CartDTO {
+  getDTO(cart: StoredCart): Omit<CartDTO, "isOzonDeliveryAvailable"> {
     const items = cart.items.map<CartItemDTO>((item) => {
       const price = this.toNumber(item.price);
 
