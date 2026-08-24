@@ -37,7 +37,13 @@ export function LegalField() {
           <label htmlFor={offerId} className="cursor-pointer">
             Я принимаю условия{" "}
           </label>
-          <Link href={routes.legal.publicOffer} className="text-foreground underline">
+          <Link
+            href={routes.legal.publicOffer}
+            target="_blank"
+            rel="noreferrer"
+            aria-label="Публичная оферта (откроется в новой вкладке)"
+            className="text-foreground underline"
+          >
             публичной оферты
           </Link>
           <label htmlFor={offerId} className="cursor-pointer">

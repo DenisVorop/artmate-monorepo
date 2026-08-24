@@ -34,14 +34,26 @@ export const PersonalDataConsentCheckbox = forwardRef<
         <label htmlFor={id} className="cursor-pointer">
           Я согласен на обработку персональных данных в соответствии с{" "}
         </label>
-        <Link href={routes.legal.privacyPolicy} className="text-foreground underline">
+        <Link
+          href={routes.legal.privacyPolicy}
+          target="_blank"
+          rel="noreferrer"
+          aria-label="Политика конфиденциальности (откроется в новой вкладке)"
+          className="text-foreground underline"
+        >
           Политикой конфиденциальности
         </Link>
         <label htmlFor={id} className="cursor-pointer">
           {" "}
           и{" "}
         </label>
-        <Link href={routes.legal.personalDataConsent} className="text-foreground underline">
+        <Link
+          href={routes.legal.personalDataConsent}
+          target="_blank"
+          rel="noreferrer"
+          aria-label="Согласие на обработку персональных данных (откроется в новой вкладке)"
+          className="text-foreground underline"
+        >
           Согласием на обработку персональных данных
         </Link>
         <label htmlFor={id} className="cursor-pointer">

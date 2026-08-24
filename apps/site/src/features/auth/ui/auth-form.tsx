@@ -621,6 +621,20 @@ function RegisterForm({
         <FieldError message={errors.acceptedPersonalDataConsent?.message} />
       </div>
 
+      <p className="text-xs leading-5 text-muted-foreground">
+        Создавая аккаунт, вы принимаете условия{" "}
+        <Link
+          href={routes.legal.publicOffer}
+          target="_blank"
+          rel="noreferrer"
+          aria-label="Публичная оферта (откроется в новой вкладке)"
+          className="text-foreground underline underline-offset-4"
+        >
+          публичной оферты
+        </Link>
+        .
+      </p>
+
       <Button type="submit" disabled={isSubmitting} className="h-10 w-full">
         {isSubmitting ? (
           <LoaderCircle data-icon="inline-start" className="animate-spin" />
