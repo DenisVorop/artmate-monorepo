@@ -45,6 +45,9 @@ export class ProductDTO {
   @IsBoolean()
   isOutOfStock!: boolean;
 
+  @IsBoolean()
+  isOzonDeliveryAvailable!: boolean;
+
   @IsOptional()
   @IsString()
   categoryId?: string;

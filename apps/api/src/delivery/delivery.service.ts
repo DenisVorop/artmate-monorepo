@@ -1,5 +1,12 @@
 import { BadRequestException, Injectable } from "@nestjs/common";
 
+import { OzonLogisticsService } from "../ozon/ozon-logistics.service";
+
+import { ozonDeliveryPriceRub } from "./delivery.constants";
+import type {
+  StorefrontOzonDeliveryMapRequestDTO,
+  StorefrontOzonDeliveryMapResponseDTO,
+} from "./dto";
 import { CdekDeliveryProvider } from "./providers/cdek/cdek-delivery.provider";
 import type {
   DeliveryCartItem,
@@ -10,7 +17,10 @@ import type {
 
 @Injectable()
 export class DeliveryService {
-  constructor(private readonly cdekDeliveryProvider: CdekDeliveryProvider) {}
+  constructor(
+    private readonly cdekDeliveryProvider: CdekDeliveryProvider,
+    private readonly ozonLogisticsService: OzonLogisticsService,
+  ) {}
 
   searchCdekCities(query: string, countryCode?: string) {
     return this.cdekDeliveryProvider.searchCities(query, countryCode);
@@ -18,6 +28,31 @@ export class DeliveryService {
 
   getCdekPickupPoints(cityCode: number) {
     return this.cdekDeliveryProvider.getPickupPoints(cityCode);
+  }
+
+  async getOzonDeliveryMap(
+    request: StorefrontOzonDeliveryMapRequestDTO,
+  ): Promise<StorefrontOzonDeliveryMapResponseDTO> {
+    const clusters = await this.ozonLogisticsService.getMapClusters({
+      viewport: {
+        left_bottom: request.viewport.leftBottom,
+        right_top: request.viewport.rightTop,
+      },
+      zoom: request.zoom,
+    });
+
+    return { clusters };
+  }
+
+  getOzonDeliveryPoints(mapPointIds: readonly string[]) {
+    return this.ozonLogisticsService
+      .getPickupPointsByIds(mapPointIds)
+      .then((points) =>
+        points.map((point) => ({
+          ...point,
+          deliveryPrice: ozonDeliveryPriceRub,
+        })),
+      );
   }
 
   calculatePickupPointDelivery(
@@ -54,18 +89,20 @@ export class DeliveryService {
   private async calculateManualOzonDelivery(
     selection: DeliverySelection,
   ): Promise<DeliveryQuote> {
-    if (!selection.pickupPointAddress?.trim()) {
-      throw new BadRequestException("delivery.pickupPointAddress is required");
+    const pickupPointId = selection.pickupPointId;
+
+    if (!pickupPointId?.trim()) {
+      throw new BadRequestException("delivery.pickupPointId is required");
     }
 
+    const pickupPoint =
+      await this.ozonLogisticsService.getPickupPoint(pickupPointId);
+
     return {
-      deliveryPrice: 0,
+      deliveryPrice: ozonDeliveryPriceRub,
       pickupPoint: {
-        address: selection.pickupPointAddress.trim(),
-        deliveryPrice: 0,
-        id: "manual-ozon-pickup",
-        title: "Заявка из формы",
-        workHours: "Уточняется",
+        ...pickupPoint,
+        deliveryPrice: ozonDeliveryPriceRub,
       },
       provider: "ozon",
     };

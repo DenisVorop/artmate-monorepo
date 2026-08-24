@@ -1,9 +1,9 @@
 "use server";
 
-import { cookies } from "next/headers";
+import { cookies, headers } from "next/headers";
 
 import { ApiResult, type ApiResultDTO } from "@/shared/lib/api-result";
-import { apiCsrfHeader } from "@/shared/lib/api-security";
+import { apiCsrfHeader, getForwardedIpHeaders } from "@/shared/lib/api-security";
 
 import type {
   CalculateCheckoutInputDTO,
@@ -87,6 +87,7 @@ export async function getOrder(orderId: string): Promise<ApiResultDTO<OrderDTO>>
 
 async function requestOrders<T>(path: string, init: RequestInit = {}) {
   const cookieStore = await cookies();
+  const headerStore = await headers();
   const cartId = cookieStore.get(CART_COOKIE_NAME)?.value;
   const accessToken = cookieStore.get(AUTH_ACCESS_TOKEN_COOKIE_NAME)?.value;
   const cookieHeader = getRequestCookieHeader([
@@ -100,6 +101,7 @@ async function requestOrders<T>(path: string, init: RequestInit = {}) {
       "content-type": "application/json",
       ...(cookieHeader ? { cookie: cookieHeader } : {}),
       ...init.headers,
+      ...getForwardedIpHeaders(headerStore),
       ...apiCsrfHeader,
     },
   });

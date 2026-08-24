@@ -59,63 +59,74 @@ export function CreateProductCard({
       </CardHeader>
       <CardContent>
         <form
-          className="grid gap-3 lg:grid-cols-[minmax(12rem,1.4fr)_minmax(10rem,1fr)_8rem_11rem_minmax(10rem,1fr)_6rem_8rem_auto]"
+          className="grid gap-3"
           onSubmit={submitForm}
         >
-          <LabeledField label="Название">
-            <Input
-              placeholder="Постер Artmate"
-              required
-              {...register("title")}
-            />
-          </LabeledField>
-          <LabeledField label="Slug">
-            <Input
-              placeholder="artmate-poster"
-              required
-              {...register("slug")}
-            />
-          </LabeledField>
-          <LabeledField label="Цена, ₽">
-            <Input
-              min={0}
-              placeholder="1290"
-              required
-              step={1}
-              type="number"
-              {...register("priceRub", {
-                valueAsNumber: true,
-              })}
-            />
-          </LabeledField>
-          <LabeledField label="Статус">
-            <ProductStatusSelect
-              defaultValue="draft"
-              selectProps={register("status")}
-            />
-          </LabeledField>
-          <LabeledField label="Категория">
-            <ProductCategorySelect
-              categories={categories}
-              selectProps={register("categoryId")}
-            />
-          </LabeledField>
-          <LabeledCheckbox label="Хит">
-            <input type="checkbox" {...register("isHit")} />
-          </LabeledCheckbox>
-          <LabeledCheckbox label="Нет в наличии">
-            <input type="checkbox" {...register("isOutOfStock")} />
-          </LabeledCheckbox>
-          <div className="flex items-end">
-            <Button className="w-full" disabled={isCreatingProduct} type="submit">
-              <Plus data-icon="inline-start" aria-hidden="true" />
-              Создать
-            </Button>
+          <div className="grid gap-3 sm:grid-cols-2 xl:grid-cols-[minmax(12rem,1.4fr)_minmax(10rem,1fr)_8rem_11rem_minmax(10rem,1fr)]">
+            <LabeledField label="Название">
+              <Input
+                placeholder="Постер Artmate"
+                required
+                {...register("title")}
+              />
+            </LabeledField>
+            <LabeledField label="Slug">
+              <Input
+                placeholder="artmate-poster"
+                required
+                {...register("slug")}
+              />
+            </LabeledField>
+            <LabeledField label="Цена, ₽">
+              <Input
+                min={0}
+                placeholder="1290"
+                required
+                step={1}
+                type="number"
+                {...register("priceRub", {
+                  valueAsNumber: true,
+                })}
+              />
+            </LabeledField>
+            <LabeledField label="Статус">
+              <ProductStatusSelect
+                defaultValue="draft"
+                selectProps={register("status")}
+              />
+            </LabeledField>
+            <LabeledField label="Категория">
+              <ProductCategorySelect
+                categories={categories}
+                selectProps={register("categoryId")}
+              />
+            </LabeledField>
           </div>
-          <LabeledField className="lg:col-span-8" label="Теги">
+          <div className="grid gap-3 sm:grid-cols-2 xl:grid-cols-[6rem_8rem_minmax(12rem,1fr)_auto]">
+            <LabeledCheckbox label="Хит">
+              <input type="checkbox" {...register("isHit")} />
+            </LabeledCheckbox>
+            <LabeledCheckbox label="Нет в наличии">
+              <input type="checkbox" {...register("isOutOfStock")} />
+            </LabeledCheckbox>
+            <LabeledCheckbox label="Доступна доставка Ozon">
+              <input type="checkbox" {...register("isOzonDeliveryAvailable")} />
+            </LabeledCheckbox>
+            <div className="flex items-end">
+              <Button
+                className="w-full xl:w-auto"
+                disabled={isCreatingProduct}
+                type="submit"
+              >
+                <Plus data-icon="inline-start" aria-hidden="true" />
+                Создать
+              </Button>
+            </div>
+          </div>
+          <LabeledField label="Теги">
             <ProductTagsField inputProps={register("tagIds")} tags={tags} />
           </LabeledField>
-          <LabeledField className="lg:col-span-8" label="Описание">
+          <LabeledField label="Описание">
             <Controller
               control={control}
               name="description"

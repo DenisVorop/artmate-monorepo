@@ -8,18 +8,26 @@ import {
   IsNotEmpty,
   IsNumber,
   IsString,
+  MaxLength,
   Min,
   ValidateNested,
 } from "class-validator";
+
+import {
+  deliveryPickupPointIdMaxLength,
+  deliveryPickupPointTitleMaxLength,
+  deliveryPickupPointWorkHoursMaxLength,
+} from "../../delivery/delivery.constants";
 
 import { OzonCoordinateDTO } from "./ozon-coordinate.dto";
 import { OzonDeliveryPointRestrictionsDTO } from "./ozon-delivery-point-restrictions.dto";
 
 export class OzonDeliveryPointInfoDTO {
-  @ApiProperty({ example: 100101 })
-  @IsInt()
-  @Min(1)
-  map_point_id!: number;
+  @ApiProperty({ example: "100101" })
+  @IsString()
+  @IsNotEmpty()
+  @MaxLength(deliveryPickupPointIdMaxLength)
+  map_point_id!: string;
 
   @ApiProperty({ example: "ozon-tverskaya-12" })
   @IsString()
@@ -29,6 +37,7 @@ export class OzonDeliveryPointInfoDTO {
   @ApiProperty({ example: "Ozon ПВЗ, Тверская" })
   @IsString()
   @IsNotEmpty()
+  @MaxLength(deliveryPickupPointTitleMaxLength)
   name!: string;
 
   @ApiProperty({ example: "PVZ", enum: ["PVZ", "POSTAMAT"] })
@@ -64,6 +73,7 @@ export class OzonDeliveryPointInfoDTO {
   @ApiProperty({ example: "Ежедневно 09:00-22:00" })
   @IsString()
   @IsNotEmpty()
+  @MaxLength(deliveryPickupPointWorkHoursMaxLength)
   work_hours!: string;
 
   @ApiProperty({ example: 350 })

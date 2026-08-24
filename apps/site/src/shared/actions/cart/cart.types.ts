@@ -20,6 +20,7 @@ export type CartDTO = {
   subtotal: number;
   total: number;
   currency: "RUB";
+  isOzonDeliveryAvailable: boolean;
 };
 
 export type AddCartItemInputDTO = {

@@ -7,3 +7,8 @@ export const OZON_OAUTH_STATE_COOKIE_NAME = "artmate_ozon_oauth_state";
 export const OZON_OAUTH_STATE_MAX_AGE_MS = 10 * 60 * 1000;
 export const OZON_TOKEN_EXPIRY_SAFETY_MS = 60 * 1000;
 export const OZON_OAUTH_TOKEN_KEY = "default";
+
+/** Caps simultaneous Seller API calls so public map traffic cannot exhaust sockets. */
+export const ozonSellerApiMaxConcurrentRequests = 8;
+/** Fails stalled Seller API requests before they occupy the concurrency budget too long. */
+export const ozonSellerApiRequestTimeoutMs = 8_000;

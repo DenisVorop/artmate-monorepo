@@ -2,8 +2,16 @@ import {
   BadGatewayException,
   BadRequestException,
   Injectable,
+  ServiceUnavailableException,
 } from "@nestjs/common";
 
+import {
+  deliveryPickupPointIdMaxLength,
+  deliveryPickupPointTitleMaxLength,
+  deliveryPickupPointWorkHoursMaxLength,
+  ozonDeliveryPriceRub,
+} from "../delivery/delivery.constants";
+import type { StorefrontOzonDeliveryMapClusterDTO } from "../delivery/dto";
 import type { PickupPointDTO } from "../orders/dto";
 
 import type {
@@ -18,6 +26,7 @@ import {
   OZON_MOCK_PICKUP_POINTS,
   type OzonMockPickupPoint,
 } from "./ozon-logistics.mock-data";
+import { ozonSellerApiMaxConcurrentRequests } from "./ozon.constants";
 import { OzonOAuthService } from "./ozon-oauth.service";
 
 type OzonLogisticsMode = "mock" | "real";
@@ -39,14 +48,13 @@ const DEFAULT_MOSCOW_VIEWPORT: OzonDeliveryMapRequestDTO = {
 
 @Injectable()
 export class OzonLogisticsService {
+  private activeSellerApiRequests = 0;
+
   constructor(private readonly ozonOAuthService: OzonOAuthService) {}
 
   async getDeliveryMap(request: OzonDeliveryMapRequestDTO): Promise<unknown> {
     if (this.getMode() === "real") {
-      return this.ozonOAuthService.requestSellerApi(
-        "/v1/delivery/map",
-        request,
-      );
+      return this.requestSellerApi("/v1/delivery/map", request);
     }
 
     await this.delayMockResponse();
@@ -58,10 +66,7 @@ export class OzonLogisticsService {
     request: OzonDeliveryPointInfoRequestDTO,
   ): Promise<unknown> {
     if (this.getMode() === "real") {
-      return this.ozonOAuthService.requestSellerApi(
-        "/v1/delivery/point/info",
-        request,
-      );
+      return this.requestSellerApi("/v1/delivery/point/info", request);
     }
 
     await this.delayMockResponse();
@@ -69,25 +74,117 @@ export class OzonLogisticsService {
     return this.getMockDeliveryPointInfo(request);
   }
 
+  async getMapClusters(
+    request: OzonDeliveryMapRequestDTO,
+  ): Promise<StorefrontOzonDeliveryMapClusterDTO[]> {
+    const response = await this.getDeliveryMap(request);
+    const { clusters, points } = this.getMapItems(response);
+    const normalizedClusters = clusters.map((cluster) => {
+      const clusterRecord = this.toRecord(cluster);
+      const coordinate = this.parseMapCoordinate(clusterRecord.coordinate);
+      const rawMapPointIds = clusterRecord.map_point_ids;
+
+      if (!Array.isArray(rawMapPointIds)) {
+        throw this.createInvalidMapResponseException();
+      }
+
+      const mapPointIds = rawMapPointIds
+        .map((id) => this.parseExternalMapPointId(id))
+        .filter((id): id is string => Boolean(id));
+      const viewport = this.parseClusterViewport(clusterRecord.viewport);
+      const isSameBuilding = this.getBoolean(clusterRecord, "is_same_building");
+      const pointsCount =
+        this.getNumber(clusterRecord, "points_count") ??
+        this.getNumber(clusterRecord, "count") ??
+        mapPointIds.length;
+
+      if (
+        mapPointIds.length !== rawMapPointIds.length ||
+        mapPointIds.length === 0 ||
+        !Number.isInteger(pointsCount) ||
+        pointsCount < 1
+      ) {
+        throw this.createInvalidMapResponseException();
+      }
+
+      if (
+        Object.hasOwn(clusterRecord, "is_same_building") &&
+        isSameBuilding === undefined
+      ) {
+        throw this.createInvalidMapResponseException();
+      }
+
+      return {
+        coordinate,
+        isSameBuilding: isSameBuilding ?? false,
+        mapPointIds,
+        pointsCount,
+        ...(viewport ? { viewport } : {}),
+      };
+    });
+    const clusteredMapPointIds = new Set(
+      normalizedClusters.flatMap((cluster) => cluster.mapPointIds),
+    );
+    const leafClusters = points.flatMap((point) => {
+      const pointRecord = this.toRecord(point);
+      const mapPointId = this.parseExternalMapPointId(pointRecord.map_point_id);
+
+      if (!mapPointId) {
+        throw this.createInvalidMapResponseException();
+      }
+
+      return clusteredMapPointIds.has(mapPointId)
+        ? []
+        : [
+            {
+              coordinate: this.parseMapCoordinate(pointRecord.coordinate),
+              isSameBuilding: true,
+              mapPointIds: [mapPointId],
+              pointsCount: 1,
+            },
+          ];
+    });
+
+    return [...normalizedClusters, ...leafClusters];
+  }
+
   async getPickupPoints(): Promise<PickupPointDTO[]> {
     if (this.getMode() === "mock") {
-      return OZON_MOCK_PICKUP_POINTS.filter((point) =>
-        this.isMockPointAvailable(point),
+      return OZON_MOCK_PICKUP_POINTS.filter(
+        (point) => point.type === "PVZ" && this.isMockPointAvailable(point),
       ).map((point) => this.mapMockPointToPickupPoint(point));
     }
 
     const mapResponse = await this.getDeliveryMap(DEFAULT_MOSCOW_VIEWPORT);
-    const mapPointIds = this.extractMapPointIds(mapResponse);
+    const mapPointIds = this.extractMapPointIds(mapResponse).slice(0, 100);
 
     if (mapPointIds.length === 0) {
       return [];
     }
 
-    const pointInfoResponse = await this.getDeliveryPointInfo({
-      map_point_ids: mapPointIds.slice(0, 100),
+    return this.getPickupPointsByIds(mapPointIds);
+  }
+
+  async getPickupPointsByIds(
+    mapPointIds: readonly string[],
+  ): Promise<PickupPointDTO[]> {
+    if (this.getMode() === "mock") {
+      return mapPointIds.flatMap((id) => {
+        const point = this.findMockPickupPoint(id);
+
+        return point && point.type === "PVZ" && this.isMockPointAvailable(point)
+          ? [this.mapMockPointToPickupPoint(point)]
+          : [];
+      });
+    }
+
+    const response = await this.getDeliveryPointInfo({
+      map_point_ids: [...mapPointIds],
     });
 
-    return this.mapPointInfoResponseToPickupPoints(pointInfoResponse);
+    return this.mapPointInfoResponseToPickupPoints(response, {
+      skipUnavailable: true,
+    });
   }
 
   async getPickupPoint(pickupPointId: string): Promise<PickupPointDTO> {
@@ -102,7 +199,7 @@ export class OzonLogisticsService {
         });
       }
 
-      if (!this.isMockPointAvailable(point)) {
+      if (point.type !== "PVZ" || !this.isMockPointAvailable(point)) {
         throw new BadRequestException({
           message: "Ozon pickup point is unavailable",
           code: "UNAVAILABLE_POINT",
@@ -118,12 +215,12 @@ export class OzonLogisticsService {
       map_point_ids: [mapPointId],
     });
     const pickupPoints = this.mapPointInfoResponseToPickupPoints(response);
-    const pickupPoint = pickupPoints.find((point) => point.id === pickupPointId);
+    const pickupPoint = pickupPoints.find((point) => point.id === mapPointId);
 
     if (!pickupPoint) {
       throw new BadGatewayException({
         message: "Ozon Logistics point-info response does not contain point",
-        pickupPointId,
+        pickupPointId: mapPointId,
       });
     }
 
@@ -140,7 +237,7 @@ export class OzonLogisticsService {
     return {
       clusters: this.getMockClusters(points, request.zoom),
       points: points.map((point) => ({
-        map_point_id: point.mapPointId,
+        map_point_id: String(point.mapPointId),
         coordinate: {
           lat: point.lat,
           long: point.long,
@@ -156,7 +253,11 @@ export class OzonLogisticsService {
     request: OzonDeliveryPointInfoRequestDTO,
   ): OzonDeliveryPointInfoResponseDTO {
     const points = request.map_point_ids.map((mapPointId) =>
-      OZON_MOCK_PICKUP_POINTS.find((point) => point.mapPointId === mapPointId),
+      OZON_MOCK_PICKUP_POINTS.find(
+        (point) =>
+          String(point.mapPointId) === mapPointId ||
+          point.externalId === mapPointId,
+      ),
     );
     const missingPointIds = request.map_point_ids.filter(
       (_mapPointId, index) => !points[index],
@@ -184,7 +285,9 @@ export class OzonLogisticsService {
     }
 
     if (zoom >= 13) {
-      return points.map((point) => this.createMockCluster(point.externalId, [point]));
+      return points.map((point) =>
+        this.createMockCluster(point.externalId, [point], true),
+      );
     }
 
     const cityGroups = new Map<string, OzonMockPickupPoint[]>();
@@ -197,14 +300,18 @@ export class OzonLogisticsService {
     }
 
     return Array.from(cityGroups.entries()).map(([city, cityPoints]) =>
-      this.createMockCluster(`mock-${city}`, cityPoints),
+      this.createMockCluster(`mock-${city}`, cityPoints, false),
     );
   }
 
   private createMockCluster(
     clusterId: string,
     points: OzonMockPickupPoint[],
-  ): OzonDeliveryMapClusterDTO {
+    isSameBuilding: boolean,
+  ): OzonDeliveryMapClusterDTO & {
+    is_same_building: boolean;
+    viewport?: OzonDeliveryMapRequestDTO["viewport"];
+  } {
     const count = points.length;
 
     if (count === 0) {
@@ -218,7 +325,22 @@ export class OzonLogisticsService {
         long: this.getAverage(points.map((point) => point.long)),
       },
       count,
-      map_point_ids: points.map((point) => point.mapPointId),
+      is_same_building: isSameBuilding,
+      map_point_ids: points.map((point) => String(point.mapPointId)),
+      ...(!isSameBuilding
+        ? {
+            viewport: {
+              left_bottom: {
+                lat: Math.min(...points.map((point) => point.lat)),
+                long: Math.min(...points.map((point) => point.long)),
+              },
+              right_top: {
+                lat: Math.max(...points.map((point) => point.lat)),
+                long: Math.max(...points.map((point) => point.long)),
+              },
+            },
+          }
+        : {}),
     };
   }
 
@@ -233,7 +355,7 @@ export class OzonLogisticsService {
     }
 
     return {
-      map_point_id: point.mapPointId,
+      map_point_id: String(point.mapPointId),
       external_id: point.externalId,
       name: point.name,
       type: point.type,
@@ -262,105 +384,182 @@ export class OzonLogisticsService {
     };
   }
 
-  private mapMockPointToPickupPoint(point: OzonMockPickupPoint): PickupPointDTO {
+  private mapMockPointToPickupPoint(
+    point: OzonMockPickupPoint,
+  ): PickupPointDTO {
     return {
       id: String(point.mapPointId),
       title: point.name,
       address: point.address,
       workHours: point.workHours,
-      deliveryPrice: point.deliveryPrice,
+      deliveryPrice: ozonDeliveryPriceRub,
+      latitude: point.lat,
+      longitude: point.long,
     };
   }
 
-  private mapPointInfoResponseToPickupPoints(response: unknown): PickupPointDTO[] {
+  private mapPointInfoResponseToPickupPoints(
+    response: unknown,
+    options: { skipUnavailable?: boolean } = {},
+  ): PickupPointDTO[] {
     const points = this.getPointInfoItems(response);
 
-    return points.map((point) => this.mapUnknownPointInfoToPickupPoint(point));
+    return points.flatMap((point) => {
+      if (!this.isPickupPointDeliveryMethod(point)) {
+        return [];
+      }
+
+      try {
+        return [this.mapUnknownPointInfoToPickupPoint(point)];
+      } catch (error) {
+        if (options.skipUnavailable && error instanceof BadRequestException) {
+          return [];
+        }
+
+        throw error;
+      }
+    });
   }
 
   private mapUnknownPointInfoToPickupPoint(point: unknown): PickupPointDTO {
-    const record = this.toRecord(point);
+    const outerRecord = this.toRecord(point);
+    const deliveryMethodRecord = this.toRecord(outerRecord.delivery_method);
+    const hasDeliveryMethod = Object.keys(deliveryMethodRecord).length > 0;
+    const record = hasDeliveryMethod ? deliveryMethodRecord : outerRecord;
     const mapPointId =
-      this.getNumber(record, "map_point_id") ??
-      this.getNumber(record, "mapPointId") ??
-      this.getNumber(record, "id");
+      this.parseExternalMapPointId(record.map_point_id) ??
+      this.parseExternalMapPointId(record.mapPointId) ??
+      this.parseExternalMapPointId(record.id);
     const available = this.getBoolean(record, "available");
+    const enabled = this.getBoolean(outerRecord, "enabled");
     const status = this.getString(record, "status");
+    const title =
+      this.getString(record, "name") ?? this.getString(record, "title");
+    const address =
+      this.getString(record, "address") ??
+      this.getNestedString(record, ["address", "full_address"]);
+    const workHours =
+      this.getString(record, "work_hours") ??
+      this.getString(record, "workHours") ??
+      this.formatWorkingHours(record.working_hours);
 
-    if (!mapPointId) {
+    if (
+      !mapPointId ||
+      !title ||
+      !address ||
+      !workHours ||
+      title.length > deliveryPickupPointTitleMaxLength ||
+      workHours.length > deliveryPickupPointWorkHoursMaxLength
+    ) {
       throw new BadGatewayException({
-        message: "Ozon Logistics point-info item is missing map_point_id",
+        message: "Ozon Logistics point-info item is invalid",
       });
     }
 
-    if (available === false || status === "temporarily_unavailable") {
+    if (
+      (hasDeliveryMethod && enabled === undefined) ||
+      (!hasDeliveryMethod && available === undefined)
+    ) {
+      throw new BadGatewayException({
+        message: "Ozon Logistics point-info availability is invalid",
+      });
+    }
+
+    if (
+      enabled === false ||
+      available === false ||
+      status === "temporarily_unavailable"
+    ) {
       throw new BadRequestException({
         message: "Ozon pickup point is unavailable",
         code: "UNAVAILABLE_POINT",
-        pickupPointId: String(mapPointId),
+        pickupPointId: mapPointId,
       });
     }
 
     return {
-      id: String(mapPointId),
-      title:
-        this.getString(record, "name") ??
-        this.getString(record, "title") ??
-        `Ozon pickup point ${mapPointId}`,
-      address:
-        this.getString(record, "address") ??
-        this.getNestedString(record, ["address", "full_address"]) ??
-        "Address is not provided by Ozon",
-      workHours:
-        this.getString(record, "work_hours") ??
-        this.getString(record, "workHours") ??
-        "Working hours are not provided by Ozon",
-      deliveryPrice: this.getNumber(record, "delivery_price") ?? 0,
+      id: mapPointId,
+      title,
+      address,
+      workHours,
+      deliveryPrice: ozonDeliveryPriceRub,
+      ...this.getOptionalPointCoordinates(record),
     };
   }
 
   private getPointInfoItems(response: unknown): unknown[] {
-    const record = this.toRecord(response);
+    const record = this.getUpstreamResponseRecord(response, "point-info");
 
-    return (
-      this.getArray(record, "points") ??
-      this.getArray(record, "delivery_points") ??
-      this.getArray(record, "items") ??
-      []
-    );
+    if (!Object.hasOwn(record, "points") || !Array.isArray(record.points)) {
+      throw new BadGatewayException({
+        message: "Ozon Logistics point-info response is invalid",
+      });
+    }
+
+    return record.points;
   }
 
-  private extractMapPointIds(response: unknown): number[] {
-    const record = this.toRecord(response);
-    const ids = new Set<number>();
-    const clusters = this.getArray(record, "clusters") ?? [];
-    const points = this.getArray(record, "points") ?? [];
+  private extractMapPointIds(response: unknown) {
+    const { clusters, points } = this.getMapItems(response);
+    const ids = new Set<string>();
 
     for (const cluster of clusters) {
-      const clusterRecord = this.toRecord(cluster);
-      const mapPointIds = this.getArray(clusterRecord, "map_point_ids") ?? [];
+      const rawMapPointIds = this.toRecord(cluster).map_point_ids;
 
-      for (const mapPointId of mapPointIds) {
-        const parsedMapPointId = this.parseOptionalMapPointId(mapPointId);
+      if (!Array.isArray(rawMapPointIds)) {
+        throw this.createInvalidMapResponseException();
+      }
 
-        if (parsedMapPointId) {
-          ids.add(parsedMapPointId);
+      for (const value of rawMapPointIds) {
+        const mapPointId = this.parseExternalMapPointId(value);
+
+        if (!mapPointId) {
+          throw this.createInvalidMapResponseException();
         }
+
+        ids.add(mapPointId);
       }
     }
 
     for (const point of points) {
-      const pointRecord = this.toRecord(point);
-      const parsedMapPointId = this.parseOptionalMapPointId(
-        pointRecord.map_point_id,
+      const mapPointId = this.parseExternalMapPointId(
+        this.toRecord(point).map_point_id,
       );
 
-      if (parsedMapPointId) {
-        ids.add(parsedMapPointId);
+      if (!mapPointId) {
+        throw this.createInvalidMapResponseException();
       }
+
+      ids.add(mapPointId);
     }
 
-    return Array.from(ids);
+    return [...ids];
+  }
+
+  private isPickupPointDeliveryMethod(point: unknown) {
+    const record = this.toRecord(point);
+    const deliveryMethod = this.toRecord(record.delivery_method);
+    const deliveryType = this.toRecord(deliveryMethod.delivery_type);
+
+    if (Object.keys(deliveryMethod).length > 0) {
+      if (typeof deliveryType.id !== "number") {
+        throw new BadGatewayException({
+          message: "Ozon Logistics point-info delivery type is invalid",
+        });
+      }
+
+      return deliveryType.id === 1002;
+    }
+
+    const type = this.getString(record, "type");
+
+    if (type !== "PVZ" && type !== "POSTAMAT") {
+      throw new BadGatewayException({
+        message: "Ozon Logistics point-info delivery type is invalid",
+      });
+    }
+
+    return type === "PVZ";
   }
 
   private findMockPickupPoint(pickupPointId: string) {
@@ -401,16 +600,128 @@ export class OzonLogisticsService {
     );
   }
 
+  private getMapItems(response: unknown) {
+    const record = this.getUpstreamResponseRecord(response, "map");
+    const hasClusters = Object.hasOwn(record, "clusters");
+    const hasPoints = Object.hasOwn(record, "points");
+
+    if (
+      (!hasClusters && !hasPoints) ||
+      (hasClusters && !Array.isArray(record.clusters)) ||
+      (hasPoints && !Array.isArray(record.points))
+    ) {
+      throw this.createInvalidMapResponseException();
+    }
+
+    return {
+      clusters: hasClusters ? (record.clusters as unknown[]) : [],
+      points: hasPoints ? (record.points as unknown[]) : [],
+    };
+  }
+
+  private getUpstreamResponseRecord(response: unknown, operation: string) {
+    if (!response || typeof response !== "object" || Array.isArray(response)) {
+      throw new BadGatewayException({
+        message: `Ozon Logistics ${operation} response is invalid`,
+      });
+    }
+
+    return response as Record<string, unknown>;
+  }
+
+  private parseMapCoordinate(value: unknown) {
+    const coordinate = this.toRecord(value);
+    const lat = this.getNumber(coordinate, "lat");
+    const long = this.getNumber(coordinate, "long");
+
+    if (
+      lat === undefined ||
+      long === undefined ||
+      lat < -90 ||
+      lat > 90 ||
+      long < -180 ||
+      long > 180
+    ) {
+      throw this.createInvalidMapResponseException();
+    }
+
+    return { lat, long };
+  }
+
+  private getOptionalPointCoordinates(record: Record<string, unknown>) {
+    const value = record.coordinates ?? record.coordinate;
+
+    if (value === undefined || value === null) {
+      return {};
+    }
+
+    const coordinate = this.parseMapCoordinate(value);
+
+    return {
+      latitude: coordinate.lat,
+      longitude: coordinate.long,
+    };
+  }
+
+  private createInvalidMapResponseException() {
+    return new BadGatewayException({
+      message: "Ozon Logistics map response is invalid",
+    });
+  }
+
+  private parseClusterViewport(value: unknown) {
+    if (value === undefined || value === null) {
+      return undefined;
+    }
+
+    const viewport = this.toRecord(value);
+    const leftBottom = this.toRecord(viewport.left_bottom);
+    const rightTop = this.toRecord(viewport.right_top);
+    const leftBottomLat = this.getNumber(leftBottom, "lat");
+    const leftBottomLong = this.getNumber(leftBottom, "long");
+    const rightTopLat = this.getNumber(rightTop, "lat");
+    const rightTopLong = this.getNumber(rightTop, "long");
+
+    if (
+      leftBottomLat === undefined ||
+      leftBottomLong === undefined ||
+      rightTopLat === undefined ||
+      rightTopLong === undefined ||
+      leftBottomLat < -90 ||
+      leftBottomLat > 90 ||
+      rightTopLat < -90 ||
+      rightTopLat > 90 ||
+      leftBottomLong < -180 ||
+      leftBottomLong > 180 ||
+      rightTopLong < -180 ||
+      rightTopLong > 180
+    ) {
+      throw new BadGatewayException({
+        code: "INVALID_OZON_MAP_CLUSTER_VIEWPORT",
+        message: "Ozon returned an invalid map cluster viewport",
+      });
+    }
+
+    if (leftBottomLong > rightTopLong) {
+      return undefined;
+    }
+
+    return {
+      leftBottom: { lat: leftBottomLat, long: leftBottomLong },
+      rightTop: { lat: rightTopLat, long: rightTopLong },
+    };
+  }
+
   private isMockPointAvailable(point: OzonMockPickupPoint) {
     return point.status === "available";
   }
 
-  private parseMapPointId(value: string): number {
-    const mapPointId = this.parseOptionalMapPointId(value);
+  private parseMapPointId(value: string): string {
+    const mapPointId = this.parseExternalMapPointId(value);
 
     if (!mapPointId) {
       throw new BadRequestException({
-        message: "Ozon pickup point id must be a numeric map_point_id",
+        message: "Ozon pickup point id must be a non-empty string",
         code: "INVALID_MAP_POINT_ID",
         pickupPointId: value,
       });
@@ -427,15 +738,83 @@ export class OzonLogisticsService {
           ? Number(value)
           : Number.NaN;
 
-    if (!Number.isInteger(parsedValue) || parsedValue <= 0) {
+    if (!Number.isSafeInteger(parsedValue) || parsedValue <= 0) {
       return undefined;
     }
 
     return parsedValue;
   }
 
+  private parseExternalMapPointId(value: unknown): string | undefined {
+    if (
+      typeof value === "string" &&
+      value.trim() &&
+      value.length <= deliveryPickupPointIdMaxLength
+    ) {
+      return value;
+    }
+
+    if (typeof value === "number" && Number.isSafeInteger(value) && value > 0) {
+      return String(value);
+    }
+
+    return undefined;
+  }
+
+  private formatWorkingHours(value: unknown) {
+    if (!Array.isArray(value)) {
+      return undefined;
+    }
+
+    const periods = value.flatMap((day) => {
+      const dayRecord = this.toRecord(day);
+      const dayPeriods = Array.isArray(dayRecord.periods)
+        ? dayRecord.periods
+        : [];
+
+      return dayPeriods.flatMap((period) => {
+        const periodRecord = this.toRecord(period);
+        const from = this.formatWorkingTime(periodRecord.min);
+        const to = this.formatWorkingTime(periodRecord.max);
+
+        return from && to ? [`${from}-${to}`] : [];
+      });
+    });
+
+    return periods[0];
+  }
+
+  private formatWorkingTime(value: unknown) {
+    const record = this.toRecord(value);
+    const hours = this.getNumber(record, "hours");
+    const minutes = this.getNumber(record, "minutes");
+
+    if (hours === undefined || minutes === undefined) {
+      return undefined;
+    }
+
+    return `${String(hours).padStart(2, "0")}:${String(minutes).padStart(2, "0")}`;
+  }
+
   private getMode(): OzonLogisticsMode {
     return process.env.OZON_LOGISTICS_MODE === "real" ? "real" : "mock";
+  }
+
+  private async requestSellerApi(path: string, body: unknown) {
+    if (this.activeSellerApiRequests >= ozonSellerApiMaxConcurrentRequests) {
+      throw new ServiceUnavailableException({
+        code: "OZON_SELLER_API_CONCURRENCY_LIMIT",
+        message: "Ozon delivery service is busy. Try again later",
+      });
+    }
+
+    this.activeSellerApiRequests += 1;
+
+    try {
+      return await this.ozonOAuthService.requestSellerApi(path, body);
+    } finally {
+      this.activeSellerApiRequests -= 1;
+    }
   }
 
   private async delayMockResponse() {
@@ -454,12 +833,6 @@ export class OzonLogisticsService {
     }
 
     return value as Record<string, unknown>;
-  }
-
-  private getArray(record: Record<string, unknown>, key: string) {
-    const value = record[key];
-
-    return Array.isArray(value) ? value : undefined;
   }
 
   private getString(record: Record<string, unknown>, key: string) {

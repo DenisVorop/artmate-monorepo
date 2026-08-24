@@ -14,6 +14,8 @@ type CdekShipmentStatusChangedInput = {
 };
 
 const defaultTelegramWebAppUrl = "https://artmate.ru";
+const maxTelegramMessageLength = 4096;
+const telegramTruncationSuffix = "\n\n...";
 
 const customerOrderStatusLabels: Record<OrderStatus, string> = {
   new: "В обработке",
@@ -116,7 +118,7 @@ export class OrdersTelegramService {
   }
 
   private formatOrderMessage(order: OrderDTO) {
-    const lines = [
+    const headerLines = [
       "<b>Новый заказ Artmate</b>",
       "",
       `<b>Номер:</b> <code>${this.formatText(order.id)}</code>`,
@@ -128,28 +130,122 @@ export class OrdersTelegramService {
       `<b>Email:</b> <code>${this.formatText(order.customer.email)}</code>`,
       "",
       "<b>Товары</b>",
-      ...order.items.map((item, index) =>
-        [
-          `<b>${index + 1}.</b> ${this.formatText(item.title)}`,
-          `${item.quantity} шт. x ${this.formatMoney(item.price)} = ${this.formatMoney(
-            item.lineTotal,
-          )}`,
-        ].join("\n"),
-      ),
+    ];
+    const itemLines = order.items.map((item, index) =>
+      [
+        `<b>${index + 1}.</b> ${this.formatText(item.title)}`,
+        `${item.quantity} шт. x ${this.formatMoney(item.price)} = ${this.formatMoney(
+          item.lineTotal,
+        )}`,
+      ].join("\n"),
+    );
+    const createDeliveryLines = (pickupPointAddress: string) => [
       "",
       "<b>Доставка</b>",
-      `<b>Служба:</b> ${this.formatText(this.getDeliveryProviderLabel(order.delivery.provider))}`,
-      `<b>ПВЗ:</b> ${this.formatText(order.delivery.pickupPoint.address)}`,
+      `<b>Доставка:</b> ${this.formatText(
+        this.getDeliveryProviderLabel(order.delivery.provider),
+      )}`,
+      `<b>ПВЗ:</b> ${pickupPointAddress}`,
       `<b>Стоимость:</b> ${this.formatMoney(order.deliveryPrice)}`,
       "",
       `<b>Статус:</b> ${this.formatText(customerOrderStatusLabels[order.status])}`,
       `<b>Итого:</b> ${this.formatMoney(order.total)}`,
-      order.comment ? "" : undefined,
-      order.comment ? "<b>Комментарий</b>" : undefined,
-      order.comment ? this.formatMessage(order.comment) : undefined,
-    ].filter((line): line is string => typeof line === "string");
+    ];
+    let deliveryLines = createDeliveryLines(
+      this.formatText(order.delivery.pickupPoint.address),
+    );
+    const commentLines = order.comment
+      ? ["", "<b>Комментарий</b>", this.formatMessage(order.comment)]
+      : [];
+    const messageWithoutComment = [
+      ...headerLines,
+      ...itemLines,
+      ...deliveryLines,
+    ].join("\n");
+    const message = [messageWithoutComment, ...commentLines].join("\n");
 
-    return this.trimTelegramMessage(lines.join("\n"));
+    if (message.length <= maxTelegramMessageLength) {
+      return message;
+    }
+
+    let mandatoryMessage = messageWithoutComment;
+
+    if (mandatoryMessage.length > maxTelegramMessageLength) {
+      const visibleItemLines: string[] = [];
+
+      for (const itemLine of itemLines) {
+        const candidate = [
+          ...headerLines,
+          ...visibleItemLines,
+          itemLine,
+          "...",
+          ...deliveryLines,
+        ].join("\n");
+
+        if (candidate.length > maxTelegramMessageLength) {
+          break;
+        }
+
+        visibleItemLines.push(itemLine);
+      }
+
+      mandatoryMessage = [
+        ...headerLines,
+        ...visibleItemLines,
+        ...(visibleItemLines.length < itemLines.length ? ["..."] : []),
+        ...deliveryLines,
+      ].join("\n");
+    }
+
+    if (mandatoryMessage.length > maxTelegramMessageLength) {
+      const visibleHeaderLines: string[] = [];
+
+      for (const headerLine of headerLines) {
+        const candidate = `${[
+          ...visibleHeaderLines,
+          headerLine,
+          "...",
+          ...deliveryLines,
+        ].join("\n")}${telegramTruncationSuffix}`;
+
+        if (candidate.length <= maxTelegramMessageLength) {
+          visibleHeaderLines.push(headerLine);
+        }
+      }
+
+      mandatoryMessage = `${[
+        ...visibleHeaderLines,
+        "...",
+        ...deliveryLines,
+      ].join("\n")}${telegramTruncationSuffix}`;
+    }
+
+    if (mandatoryMessage.length > maxTelegramMessageLength) {
+      const mandatoryMessageWithoutAddress = `${[
+        "...",
+        ...createDeliveryLines(""),
+      ].join("\n")}${telegramTruncationSuffix}`;
+      const pickupPointAddressBudget = Math.max(
+        0,
+        maxTelegramMessageLength - mandatoryMessageWithoutAddress.length,
+      );
+
+      deliveryLines = createDeliveryLines(
+        this.formatTextWithinLength(
+          order.delivery.pickupPoint.address,
+          pickupPointAddressBudget,
+        ),
+      );
+      mandatoryMessage = `${["...", ...deliveryLines].join(
+        "\n",
+      )}${telegramTruncationSuffix}`;
+    }
+
+    const messageWithComment = [mandatoryMessage, ...commentLines].join("\n");
+
+    return messageWithComment.length <= maxTelegramMessageLength
+      ? messageWithComment
+      : mandatoryMessage;
   }
 
   private formatOrderStatusChangedMessage(input: {
@@ -193,6 +289,9 @@ export class OrdersTelegramService {
       `<b>Клиент:</b> ${this.formatText(order.customer.name)}`,
       `<b>Телефон:</b> <code>${this.formatText(order.customer.phone)}</code>`,
       `<b>Email:</b> <code>${this.formatText(order.customer.email)}</code>`,
+      `<b>Доставка:</b> ${this.formatText(
+        this.getDeliveryProviderLabel(order.delivery.provider),
+      )}`,
       `<b>Способ оплаты:</b> ${this.formatText(
         this.getPaymentMethodLabel(order.payment.method),
       )}`,
@@ -243,6 +342,9 @@ export class OrdersTelegramService {
       "",
       `<b>Заказ:</b> <code>${this.formatText(order.id)}</code>`,
       `<b>Товары:</b> ${this.formatMoney(order.subtotal)}`,
+      `<b>Доставка:</b> ${this.formatText(
+        this.getDeliveryProviderLabel(order.delivery.provider),
+      )}`,
       `<b>Доставка:</b> ${this.formatMoney(order.deliveryPrice)}`,
       `<b>Итого:</b> ${this.formatMoney(order.total)}`,
       `<b>Статус:</b> ${this.formatText(customerOrderStatusLabels[order.status])}`,
@@ -361,7 +463,19 @@ export class OrdersTelegramService {
   }
 
   private getDeliveryProviderLabel(provider: OrderDTO["delivery"]["provider"]) {
-    return provider === "cdek" ? "СДЭК" : "Ozon";
+    switch (provider) {
+      case "cdek":
+        return "СДЭК";
+      case "ozon":
+        return "Ozon";
+      default: {
+        const unsupportedProvider: never = provider;
+
+        throw new Error(
+          `Unsupported delivery provider: ${String(unsupportedProvider)}`,
+        );
+      }
+    }
   }
 
   private getPaymentMethodLabel(method: OrderDTO["payment"]["method"]) {
@@ -444,6 +558,38 @@ export class OrdersTelegramService {
     return this.escapeHtml(value.trim().replaceAll(/\s+/g, " "));
   }
 
+  private formatTextWithinLength(value: string, maxLength: number) {
+    const normalizedValue = value.trim().replaceAll(/\s+/g, " ");
+    const formattedValue = this.escapeHtml(normalizedValue);
+
+    if (formattedValue.length <= maxLength) {
+      return formattedValue;
+    }
+
+    const suffix = "...";
+
+    if (maxLength <= suffix.length) {
+      return suffix.slice(0, maxLength);
+    }
+
+    let compactedValue = "";
+
+    for (const character of normalizedValue) {
+      const formattedCharacter = this.escapeHtml(character);
+
+      if (
+        compactedValue.length + formattedCharacter.length + suffix.length >
+        maxLength
+      ) {
+        break;
+      }
+
+      compactedValue += formattedCharacter;
+    }
+
+    return `${compactedValue}${suffix}`;
+  }
+
   private formatMessage(value: string) {
     return this.escapeHtml(value.trim());
   }
@@ -461,13 +607,20 @@ export class OrdersTelegramService {
   }
 
   private trimTelegramMessage(text: string) {
-    const maxTelegramMessageLength = 4096;
-
     if (text.length <= maxTelegramMessageLength) {
       return text;
     }
 
-    return `${text.slice(0, maxTelegramMessageLength - 20)}\n\n...`;
+    const lineBreakIndex = text.lastIndexOf(
+      "\n",
+      maxTelegramMessageLength - telegramTruncationSuffix.length,
+    );
+
+    if (lineBreakIndex <= 0) {
+      return telegramTruncationSuffix.trim();
+    }
+
+    return `${text.slice(0, lineBreakIndex)}${telegramTruncationSuffix}`;
   }
 
   private getTelegramOrdersChatId() {

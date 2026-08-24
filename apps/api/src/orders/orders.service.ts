@@ -7,8 +7,8 @@ import {
 } from "@nestjs/common";
 
 import type { AuthUser } from "../auth/auth.types";
+import type { CartDTO } from "../cart/dto";
 import { CartService } from "../cart/cart.service";
-import { CartStorage } from "../cart/cart.storage";
 import { DeliveryService } from "../delivery/delivery.service";
 import type { DeliverySelection } from "../delivery/providers/delivery-provider.interface";
 import {
@@ -53,6 +53,8 @@ const MAX_ADMIN_COMMENT_LENGTH = ORDER_ADMIN_COMMENT_MAX_LENGTH;
 const CDEK_SHIPMENT_STATUS_SYNC_INTERVAL_MS = 1000 * 60 * 15;
 const CDEK_SHIPMENT_TRACK_NUMBER_ATTEMPTS = 3;
 const CDEK_SHIPMENT_TRACK_NUMBER_RETRY_DELAY_MS = 1000;
+const ozonDeliveryUnavailableMessage =
+  "данный товар не можем доставить через озон";
 const finalCdekShipmentStatusCodes = new Set([
   "DELIVERED",
   "INVALID",
@@ -105,7 +107,6 @@ export class OrdersService {
   private readonly logger = new Logger(OrdersService.name);
 
   constructor(
-    private readonly cartStorage: CartStorage,
     private readonly cartService: CartService,
     private readonly deliveryService: DeliveryService,
     private readonly notificationQueueService: NotificationQueueService,
@@ -198,8 +199,7 @@ export class OrdersService {
     cartId: string | undefined,
     request: CalculateCheckoutRequestDTO,
   ): Promise<CheckoutCalculationDTO> {
-    const cart = await this.cartStorage.ensureCart(cartId);
-    const cartDTO = this.cartStorage.getDTO(cart);
+    const cartDTO = await this.cartService.getCart(cartId);
 
     if (cartDTO.items.length === 0) {
       throw new BadRequestException("Cart is empty");
@@ -207,8 +207,12 @@ export class OrdersService {
 
     await this.cartService.assertItemsInStock(cartDTO.items);
 
+    const deliverySelection = this.parseDeliverySelection(request.delivery);
+
+    this.assertOzonDeliveryAvailable(deliverySelection, cartDTO);
+
     const delivery = await this.deliveryService.calculatePickupPointDelivery(
-      this.parseDeliverySelection(request.delivery),
+      deliverySelection,
       cartDTO.items,
     );
     const deliveryPrice = delivery.deliveryPrice;
@@ -233,8 +237,7 @@ export class OrdersService {
     request: CreateOrderRequestDTO,
     user: AuthUser,
   ): Promise<OrderDTO> {
-    const cart = await this.cartStorage.ensureCart(cartId);
-    const cartDTO = this.cartStorage.getDTO(cart);
+    const cartDTO = await this.cartService.getCart(cartId);
 
     if (cartDTO.items.length === 0) {
       throw new BadRequestException("Cart is empty");
@@ -243,8 +246,12 @@ export class OrdersService {
     await this.cartService.assertItemsInStock(cartDTO.items);
 
     const customer = this.parseCustomer(request.customer);
+    const deliverySelection = this.parseDeliverySelection(request.delivery);
+
+    this.assertOzonDeliveryAvailable(deliverySelection, cartDTO);
+
     const delivery = await this.deliveryService.calculatePickupPointDelivery(
-      this.parseDeliverySelection(request.delivery),
+      deliverySelection,
       cartDTO.items,
     );
     const paymentMethod = request.payment?.method ?? "ozon_acquiring";
@@ -664,6 +671,7 @@ export class OrdersService {
 
     const delivery = value as Record<string, unknown>;
     const provider = delivery.provider;
+    const pickupPointId = delivery.pickupPointId;
 
     if (provider !== "ozon" && provider !== "cdek") {
       throw new BadRequestException("delivery.provider must be ozon or cdek");
@@ -675,9 +683,21 @@ export class OrdersService {
         "delivery.cityCode",
       ),
       pickupPointAddress: this.parseOptionalString(delivery.pickupPointAddress),
-      pickupPointId: this.parseOptionalString(delivery.pickupPointId),
+      pickupPointId:
+        typeof pickupPointId === "string" && pickupPointId.trim()
+          ? pickupPointId
+          : undefined,
       provider,
     };
+  }
+
+  private assertOzonDeliveryAvailable(
+    selection: DeliverySelection,
+    cart: CartDTO,
+  ) {
+    if (selection.provider === "ozon" && !cart.isOzonDeliveryAvailable) {
+      throw new BadRequestException(ozonDeliveryUnavailableMessage);
+    }
   }
 
   private parseOrderId(value: unknown): string {

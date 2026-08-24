@@ -1,5 +1,6 @@
 import {
   BadGatewayException,
+  GatewayTimeoutException,
   HttpException,
   Injectable,
   InternalServerErrorException,
@@ -16,6 +17,7 @@ import {
   OZON_OAUTH_TOKEN_URL,
   OZON_SELLER_API_URL,
   OZON_TOKEN_EXPIRY_SAFETY_MS,
+  ozonSellerApiRequestTimeoutMs,
 } from "./ozon.constants";
 import type {
   OzonOAuthAccessType,
@@ -73,7 +75,10 @@ export class OzonOAuthService {
     return this.getTokenStatus();
   }
 
-  async refreshAccessToken(refreshTokenOverride?: string) {
+  async refreshAccessToken(
+    refreshTokenOverride?: string,
+    signal?: AbortSignal,
+  ) {
     const storedToken = this.storedToken ?? (await this.getStoredToken());
     const refreshToken =
       this.getOptionalString(refreshTokenOverride) ??
@@ -86,12 +91,15 @@ export class OzonOAuthService {
       );
     }
 
-    const token = await this.requestToken({
-      grant_type: "refresh_token",
-      client_id: this.getClientId(),
-      client_secret: this.getClientSecret(),
-      refresh_token: refreshToken,
-    });
+    const token = await this.requestToken(
+      {
+        grant_type: "refresh_token",
+        client_id: this.getClientId(),
+        client_secret: this.getClientSecret(),
+        refresh_token: refreshToken,
+      },
+      signal,
+    );
 
     if (!token.refreshToken) {
       token.refreshToken = refreshToken;
@@ -102,7 +110,7 @@ export class OzonOAuthService {
     return this.getTokenStatus();
   }
 
-  async getAccessToken() {
+  async getAccessToken(signal?: AbortSignal) {
     const token = this.storedToken ?? (await this.getStoredToken());
 
     if (token && this.hasValidAccessToken(token)) {
@@ -110,7 +118,7 @@ export class OzonOAuthService {
       return token.accessToken;
     }
 
-    await this.refreshAccessToken();
+    await this.refreshAccessToken(undefined, signal);
 
     if (!this.storedToken) {
       throw new UnauthorizedException("Ozon OAuth token is missing");
@@ -120,17 +128,31 @@ export class OzonOAuthService {
   }
 
   async requestSellerApi(path: string, body: unknown = {}) {
-    const accessToken = await this.getAccessToken();
-    const response = await fetch(`${this.getSellerApiUrl()}${path}`, {
-      method: "POST",
-      headers: {
-        authorization: `Bearer ${accessToken}`,
-        "content-type": "application/json",
-      },
-      body: JSON.stringify(body),
-    });
+    const signal = AbortSignal.timeout(ozonSellerApiRequestTimeoutMs);
+    const accessToken = await this.getAccessToken(signal);
+    let response: Response;
 
-    const responseBody = await this.parseResponseBody(response);
+    try {
+      response = await fetch(`${this.getSellerApiUrl()}${path}`, {
+        method: "POST",
+        headers: {
+          authorization: `Bearer ${accessToken}`,
+          "content-type": "application/json",
+        },
+        body: JSON.stringify(body),
+        signal,
+      });
+    } catch (error) {
+      throw this.createSellerApiTransportException(error, signal);
+    }
+
+    let responseBody: unknown;
+
+    try {
+      responseBody = await this.parseResponseBody(response);
+    } catch (error) {
+      throw this.createSellerApiTransportException(error, signal);
+    }
 
     if (!response.ok) {
       const errorResponse = {
@@ -157,7 +179,7 @@ export class OzonOAuthService {
       hasAccessToken: Boolean(token?.accessToken),
       hasRefreshToken: Boolean(
         token?.refreshToken ??
-          this.getOptionalString(process.env.OZON_OAUTH_REFRESH_TOKEN),
+        this.getOptionalString(process.env.OZON_OAUTH_REFRESH_TOKEN),
       ),
       persisted: Boolean(token),
       expiresAt: token ? new Date(token.expiresAt).toISOString() : undefined,
@@ -171,16 +193,24 @@ export class OzonOAuthService {
 
   private async requestToken(
     body: Record<string, string>,
+    signal = AbortSignal.timeout(ozonSellerApiRequestTimeoutMs),
   ): Promise<OzonStoredOAuthToken> {
-    const response = await fetch(OZON_OAUTH_TOKEN_URL, {
-      method: "POST",
-      headers: {
-        "content-type": "application/json",
-      },
-      body: JSON.stringify(body),
-    });
+    let response: Response;
+    let responseBody: unknown;
 
-    const responseBody = await this.parseResponseBody(response);
+    try {
+      response = await fetch(OZON_OAUTH_TOKEN_URL, {
+        method: "POST",
+        headers: {
+          "content-type": "application/json",
+        },
+        body: JSON.stringify(body),
+        signal,
+      });
+      responseBody = await this.parseResponseBody(response);
+    } catch (error) {
+      throw this.createOAuthTokenTransportException(error, signal);
+    }
 
     if (!response.ok) {
       throw new BadGatewayException({
@@ -194,10 +224,31 @@ export class OzonOAuthService {
   }
 
   private mapTokenResponse(responseBody: unknown): OzonStoredOAuthToken {
-    const token = responseBody as OzonOAuthTokenResponse;
-    const expiresIn = this.getExpiresIn(token.expires_in);
+    if (
+      !responseBody ||
+      typeof responseBody !== "object" ||
+      Array.isArray(responseBody)
+    ) {
+      throw new BadGatewayException({
+        message: "Ozon OAuth token response is invalid",
+        bodyShape: this.getSafeTokenResponseShape(responseBody),
+      });
+    }
 
-    if (typeof token.access_token !== "string" || !expiresIn) {
+    const token = responseBody as OzonOAuthTokenResponse;
+    const accessToken = this.getOptionalString(token.access_token);
+    const expiresIn = this.getExpiresIn(token.expires_in);
+    const expiresAt = accessToken
+      ? this.getTokenExpiresAt(accessToken, expiresIn)
+      : undefined;
+
+    if (
+      !accessToken ||
+      typeof expiresAt !== "number" ||
+      !Number.isFinite(expiresAt) ||
+      !Number.isFinite(new Date(expiresAt).getTime()) ||
+      expiresAt <= Date.now()
+    ) {
       throw new BadGatewayException({
         message: "Ozon OAuth token response is invalid",
         bodyShape: this.getSafeTokenResponseShape(responseBody),
@@ -205,8 +256,8 @@ export class OzonOAuthService {
     }
 
     return {
-      accessToken: token.access_token,
-      expiresAt: Date.now() + expiresIn * 1000,
+      accessToken,
+      expiresAt,
       refreshToken: this.getOptionalString(token.refresh_token),
       scope: this.getScopeList(token.scope),
       tokenType: this.getOptionalString(token.token_type),
@@ -226,7 +277,7 @@ export class OzonOAuthService {
   private hasValidAccessToken(token: OzonStoredOAuthToken) {
     return Boolean(
       token.accessToken &&
-        token.expiresAt - OZON_TOKEN_EXPIRY_SAFETY_MS > Date.now(),
+      token.expiresAt - OZON_TOKEN_EXPIRY_SAFETY_MS > Date.now(),
     );
   }
 
@@ -278,7 +329,8 @@ export class OzonOAuthService {
   private mapPrismaToken(token: PrismaOzonOAuthToken): OzonStoredOAuthToken {
     return {
       accessToken: token.accessToken,
-      expiresAt: token.expiresAt.getTime(),
+      expiresAt:
+        this.getJwtExpiresAt(token.accessToken) ?? token.expiresAt.getTime(),
       refreshToken: this.getOptionalString(token.refreshToken),
       scope: token.scope,
       tokenType: this.getOptionalString(token.tokenType),
@@ -332,6 +384,126 @@ export class OzonOAuthService {
     return undefined;
   }
 
+  private getTokenExpiresAt(
+    accessToken: string,
+    expiresIn: number | undefined,
+  ) {
+    const jwtExpiresAt = this.getJwtExpiresAt(accessToken);
+
+    if (jwtExpiresAt !== undefined) {
+      return jwtExpiresAt;
+    }
+
+    if (this.getJwtExpiresAtSeconds(accessToken) !== undefined) {
+      return undefined;
+    }
+
+    if (!expiresIn || expiresIn <= 0) {
+      return undefined;
+    }
+
+    if (expiresIn >= 1_000_000_000_000) {
+      return expiresIn;
+    }
+
+    if (expiresIn >= 1_000_000_000) {
+      return expiresIn * 1000;
+    }
+
+    return Date.now() + expiresIn * 1000;
+  }
+
+  private getJwtExpiresAt(accessToken: string) {
+    const expiresAtSeconds = this.getJwtExpiresAtSeconds(accessToken);
+
+    if (expiresAtSeconds === undefined) {
+      return undefined;
+    }
+
+    const expiresAt = expiresAtSeconds * 1000;
+
+    return Number.isFinite(expiresAt) &&
+      Number.isFinite(new Date(expiresAt).getTime())
+      ? expiresAt
+      : undefined;
+  }
+
+  private getJwtExpiresAtSeconds(accessToken: string) {
+    const parts = accessToken.split(".");
+
+    if (parts.length !== 3 || !parts[1]) {
+      return undefined;
+    }
+
+    try {
+      const payload = JSON.parse(
+        Buffer.from(parts[1], "base64url").toString("utf8"),
+      ) as unknown;
+
+      if (!payload || typeof payload !== "object") {
+        return undefined;
+      }
+
+      const expiresAtSeconds = (payload as Record<string, unknown>).exp;
+
+      return typeof expiresAtSeconds === "number" &&
+        Number.isFinite(expiresAtSeconds) &&
+        expiresAtSeconds > 0
+        ? expiresAtSeconds
+        : undefined;
+    } catch {
+      return undefined;
+    }
+  }
+
+  private createSellerApiTransportException(
+    error: unknown,
+    signal: AbortSignal,
+  ) {
+    const errorName =
+      error && typeof error === "object" && "name" in error
+        ? error.name
+        : undefined;
+
+    if (
+      signal.aborted ||
+      errorName === "TimeoutError" ||
+      errorName === "AbortError"
+    ) {
+      return new GatewayTimeoutException({
+        message: "Ozon Seller API request timed out",
+      });
+    }
+
+    return new BadGatewayException({
+      message: "Ozon Seller API request failed",
+    });
+  }
+
+  private createOAuthTokenTransportException(
+    error: unknown,
+    signal: AbortSignal,
+  ) {
+    const errorName =
+      error && typeof error === "object" && "name" in error
+        ? error.name
+        : undefined;
+
+    if (
+      signal.aborted ||
+      errorName === "TimeoutError" ||
+      errorName === "AbortError"
+    ) {
+      return new GatewayTimeoutException({
+        message: "Ozon OAuth token request timed out",
+      });
+    }
+
+    return new BadGatewayException({
+      message: "Ozon OAuth token request failed",
+    });
+  }
+
   private getSafeTokenResponseShape(responseBody: unknown) {
     if (!responseBody || typeof responseBody !== "object") {
       return typeof responseBody;
@@ -340,9 +512,7 @@ export class OzonOAuthService {
     return Object.fromEntries(
       Object.entries(responseBody).map(([key, value]) => [
         key,
-        key.includes("token") || key === "access_token"
-          ? typeof value
-          : value,
+        key.includes("token") || key === "access_token" ? typeof value : value,
       ]),
     );
   }
@@ -385,7 +555,7 @@ export class OzonOAuthService {
   private isConfigured() {
     return Boolean(
       this.getOptionalString(process.env.OZON_OAUTH_CLIENT_ID) &&
-        this.getOptionalString(process.env.OZON_OAUTH_CLIENT_SECRET),
+      this.getOptionalString(process.env.OZON_OAUTH_CLIENT_SECRET),
     );
   }
 }

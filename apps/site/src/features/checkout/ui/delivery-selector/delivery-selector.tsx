@@ -1,15 +1,19 @@
 "use client";
 
-import { CheckCircle2, CircleAlert, LoaderCircle, MapPin, Truck } from "lucide-react";
-import { useMemo, useState } from "react";
+import { CheckCircle2, CircleAlert, LoaderCircle, MapPin } from "lucide-react";
+import { useEffect, useMemo, useState } from "react";
 
-import type { DeliveryCityDTO, DeliveryPickupPointDTO } from "@/shared/actions/delivery";
+import type {
+  DeliveryCityDTO,
+  DeliveryPickupPointDTO,
+  OzonDeliveryMapRequestDTO,
+} from "@/shared/actions/delivery";
 import type { CreateOrderDeliveryInputDTO } from "@/shared/actions/orders";
 import { cn } from "@/shared/lib";
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from "@/shared/ui";
 
 import { filterPickupPoints, formatPickupPointCount } from "../../lib";
-import { useCdekCities, useCdekPickupPoints } from "../../model";
+import { useCdekCities, useCdekPickupPoints, useOzonPickupPoints } from "../../model";
 
 import { ComboboxField } from "./combobox-field";
 import { ComboboxOption } from "./combobox-option";
@@ -19,40 +23,80 @@ import { MapPlaceholder } from "./map-placeholder";
 import { PickupPointsMap } from "./pickup-points-map";
 
 type DeliverySelectorProps = {
+  isOzonDeliveryAvailable: boolean;
   onChange: (_delivery: CreateOrderDeliveryInputDTO | undefined) => void;
   selectedDelivery?: CreateOrderDeliveryInputDTO;
 };
 
-export function DeliverySelector({ onChange, selectedDelivery }: DeliverySelectorProps) {
-  const [selectedCompany, setSelectedCompany] = useState<DeliveryCompanyCode | undefined>(
-    selectedDelivery?.provider === "cdek" ? "cdek" : defaultDeliveryCompany,
+export function DeliverySelector({
+  isOzonDeliveryAvailable,
+  onChange,
+  selectedDelivery,
+}: DeliverySelectorProps) {
+  const [selectedCompany, setSelectedCompany] = useState<DeliveryCompanyCode>(() =>
+    selectedDelivery?.provider === "ozon" && isOzonDeliveryAvailable
+      ? "ozon"
+      : defaultDeliveryCompany,
   );
   const [cityQuery, setCityQuery] = useState("");
   const [pickupPointQuery, setPickupPointQuery] = useState("");
   const [isCityOpen, setIsCityOpen] = useState(false);
   const [isPickupPointOpen, setIsPickupPointOpen] = useState(false);
   const [selectedCity, setSelectedCity] = useState<DeliveryCityDTO>();
+  const [selectedOzonPoint, setSelectedOzonPoint] = useState<DeliveryPickupPointDTO>();
+  const [ozonMapRequest, setOzonMapRequest] = useState<OzonDeliveryMapRequestDTO>();
   const { cities, isError: areCitiesError, isPending: areCitiesPending } = useCdekCities(cityQuery);
   const {
-    isError: arePickupPointsError,
-    isPending: arePickupPointsPending,
-    pickupPoints,
+    isError: areCdekPickupPointsError,
+    isPending: areCdekPickupPointsPending,
+    pickupPoints: cdekPickupPoints,
   } = useCdekPickupPoints(selectedCity?.code);
-  const selectedPickupPoint = pickupPoints.find(
-    (point) => point.id === selectedDelivery?.pickupPointId,
+  const ozonPickupPoints = useOzonPickupPoints(
+    selectedCompany === "ozon" && isOzonDeliveryAvailable ? ozonMapRequest : undefined,
   );
-  const filteredPickupPoints = useMemo(
-    () => filterPickupPoints(pickupPoints, pickupPointQuery),
-    [pickupPointQuery, pickupPoints],
+  const selectedCdekPoint =
+    selectedDelivery?.provider === "cdek"
+      ? cdekPickupPoints.find((point) => point.id === selectedDelivery.pickupPointId)
+      : undefined;
+  const filteredCdekPickupPoints = useMemo(
+    () => filterPickupPoints(cdekPickupPoints, pickupPointQuery),
+    [cdekPickupPoints, pickupPointQuery],
   );
+  const visibleOzonPoints = useMemo(() => {
+    const points = selectedOzonPoint
+      ? [
+          selectedOzonPoint,
+          ...ozonPickupPoints.pickupPoints.filter((point) => point.id !== selectedOzonPoint.id),
+        ]
+      : ozonPickupPoints.pickupPoints;
+
+    return filterPickupPoints(points, pickupPointQuery);
+  }, [ozonPickupPoints.pickupPoints, pickupPointQuery, selectedOzonPoint]);
+
+  useEffect(() => {
+    const hasUnavailableOzonSelection =
+      selectedCompany === "ozon" || selectedDelivery?.provider === "ozon";
+
+    if (isOzonDeliveryAvailable || !hasUnavailableOzonSelection) {
+      return;
+    }
+
+    setSelectedCompany("cdek");
+    setSelectedOzonPoint(undefined);
+    setOzonMapRequest(undefined);
+    setPickupPointQuery("");
+    setIsPickupPointOpen(false);
+    onChange(undefined);
+  }, [isOzonDeliveryAvailable, onChange, selectedCompany, selectedDelivery?.provider]);
 
   const resetDelivery = () => {
     setPickupPointQuery("");
+    setSelectedOzonPoint(undefined);
     onChange(undefined);
   };
 
   const selectCompany = (company: DeliveryCompanyCode) => {
-    if (company === selectedCompany) {
+    if (company === selectedCompany || (company === "ozon" && !isOzonDeliveryAvailable)) {
       return;
     }
 
@@ -60,6 +104,8 @@ export function DeliverySelector({ onChange, selectedDelivery }: DeliverySelecto
     setCityQuery("");
     setPickupPointQuery("");
     setSelectedCity(undefined);
+    setSelectedOzonPoint(undefined);
+    setOzonMapRequest(undefined);
     setIsCityOpen(false);
     setIsPickupPointOpen(false);
     onChange(undefined);
@@ -72,7 +118,7 @@ export function DeliverySelector({ onChange, selectedDelivery }: DeliverySelecto
     resetDelivery();
   };
 
-  const selectPickupPoint = (point: DeliveryPickupPointDTO) => {
+  const selectCdekPickupPoint = (point: DeliveryPickupPointDTO) => {
     if (!selectedCity) {
       return;
     }
@@ -86,16 +132,30 @@ export function DeliverySelector({ onChange, selectedDelivery }: DeliverySelecto
     });
   };
 
+  const selectOzonPickupPoint = (point: DeliveryPickupPointDTO) => {
+    setSelectedOzonPoint(point);
+    setPickupPointQuery("");
+    setIsPickupPointOpen(false);
+    onChange({
+      provider: "ozon",
+      pickupPointId: point.id,
+    });
+  };
+
   return (
     <Card>
       <CardHeader>
         <CardTitle>Доставка</CardTitle>
         <CardDescription>
-          Выберите город и пункт выдачи, чтобы мы рассчитали стоимость в итогах заказа.
+          Сначала выберите службу доставки, затем пункт выдачи на карте.
         </CardDescription>
       </CardHeader>
       <CardContent className="space-y-5">
-        <DeliveryCompanySelector selectedCompany={selectedCompany} onSelect={selectCompany} />
+        <DeliveryCompanySelector
+          isOzonDeliveryAvailable={isOzonDeliveryAvailable}
+          selectedCompany={selectedCompany}
+          onSelect={selectCompany}
+        />
 
         {selectedCompany === "cdek" ? (
           <div
@@ -141,9 +201,9 @@ export function DeliverySelector({ onChange, selectedDelivery }: DeliverySelecto
               </ComboboxField>
 
               <ComboboxField
-                disabled={!selectedCity || arePickupPointsPending || arePickupPointsError}
+                disabled={!selectedCity || areCdekPickupPointsPending || areCdekPickupPointsError}
                 emptyText={
-                  arePickupPointsError
+                  areCdekPickupPointsError
                     ? "Не удалось загрузить ПВЗ"
                     : selectedCity
                       ? pickupPointQuery
@@ -153,59 +213,46 @@ export function DeliverySelector({ onChange, selectedDelivery }: DeliverySelecto
                 }
                 inputValue={pickupPointQuery}
                 isOpen={isPickupPointOpen}
-                isPending={arePickupPointsPending}
+                isPending={areCdekPickupPointsPending}
                 label="Пункт выдачи"
                 onInputChange={setPickupPointQuery}
                 onOpenChange={setIsPickupPointOpen}
                 placeholder="Адрес или название ПВЗ"
-                selectedLabel={selectedPickupPoint?.address}
+                selectedLabel={selectedCdekPoint?.address}
                 triggerLabel={
-                  selectedPickupPoint
-                    ? selectedPickupPoint.address
+                  selectedCdekPoint
+                    ? selectedCdekPoint.address
                     : selectedCity
                       ? "Выберите пункт выдачи"
                       : "Сначала выберите город"
                 }
               >
-                {filteredPickupPoints.slice(0, 80).map((point) => (
+                {filteredCdekPickupPoints.slice(0, 80).map((point) => (
                   <ComboboxOption
                     key={point.id}
                     description={point.workHours}
                     icon={<MapPin className="size-4 text-muted-foreground" />}
-                    isSelected={selectedPickupPoint?.id === point.id}
+                    isSelected={selectedCdekPoint?.id === point.id}
                     label={point.address}
                     meta={point.title}
-                    onSelect={() => selectPickupPoint(point)}
+                    onSelect={() => selectCdekPickupPoint(point)}
                   />
                 ))}
               </ComboboxField>
 
-              {selectedCity && !arePickupPointsPending && !arePickupPointsError ? (
+              {selectedCity && !areCdekPickupPointsPending && !areCdekPickupPointsError ? (
                 <p className="text-sm text-muted-foreground">
-                  {pickupPoints.length > 0
-                    ? `Нашли ${formatPickupPointCount(pickupPoints.length)}. Выберите адрес в списке или на карте.`
+                  {cdekPickupPoints.length > 0
+                    ? `Нашли ${formatPickupPointCount(cdekPickupPoints.length)}. Выберите адрес в списке или на карте.`
                     : "Для этого города пункты выдачи пока не найдены."}
                 </p>
               ) : null}
 
-              {selectedPickupPoint ? (
-                <div className="rounded-lg border border-emerald-200 bg-emerald-50/60 p-3 text-sm">
-                  <div className="flex items-start gap-2">
-                    <CheckCircle2 className="mt-0.5 size-4 shrink-0 text-emerald-600" />
-                    <div className="min-w-0 space-y-1">
-                      <p className="font-medium">Выбран пункт выдачи</p>
-                      <p className="text-muted-foreground">{selectedPickupPoint.address}</p>
-                      <p className="text-xs text-muted-foreground">
-                        {selectedPickupPoint.workHours}
-                      </p>
-                    </div>
-                  </div>
-                </div>
-              ) : null}
+              {selectedCdekPoint ? <SelectedPickupPoint point={selectedCdekPoint} /> : null}
             </div>
 
             {selectedCity ? (
-              arePickupPointsError ? (
+              areCdekPickupPointsError ? (
                 <MapPlaceholder
                   compact
                   icon={<CircleAlert className="size-4" />}
@@ -213,7 +260,7 @@ export function DeliverySelector({ onChange, selectedDelivery }: DeliverySelecto
                 >
                   Попробуйте выбрать город заново или обновить страницу.
                 </MapPlaceholder>
-              ) : arePickupPointsPending ? (
+              ) : areCdekPickupPointsPending ? (
                 <MapPlaceholder
                   icon={<LoaderCircle className="size-4 animate-spin" />}
                   title="Загружаем пункты выдачи"
@@ -222,9 +269,10 @@ export function DeliverySelector({ onChange, selectedDelivery }: DeliverySelecto
                 </MapPlaceholder>
               ) : (
                 <PickupPointsMap
-                  onSelect={selectPickupPoint}
-                  pickupPoints={pickupPoints}
-                  selectedPickupPointId={selectedPickupPoint?.id}
+                  ariaLabel="Карта пунктов выдачи СДЭК"
+                  onSelect={selectCdekPickupPoint}
+                  pickupPoints={cdekPickupPoints}
+                  selectedPickupPointId={selectedCdekPoint?.id}
                 />
               )
             ) : (
@@ -234,11 +282,92 @@ export function DeliverySelector({ onChange, selectedDelivery }: DeliverySelecto
             )}
           </div>
         ) : (
-          <MapPlaceholder compact icon={<Truck className="size-4" />}>
-            Выберите службу доставки, чтобы перейти к выбору пункта выдачи
-          </MapPlaceholder>
+          <div className="grid gap-5 md:grid-cols-[minmax(0,0.95fr)_minmax(18rem,1.05fr)]">
+            <div className="space-y-4">
+              <ComboboxField
+                disabled={ozonPickupPoints.isPending || ozonPickupPoints.isError}
+                emptyText={
+                  ozonPickupPoints.isError
+                    ? "Не удалось загрузить ПВЗ"
+                    : pickupPointQuery
+                      ? ozonPickupPoints.aggregateClusters.length > 0
+                        ? "Среди раскрытых точек ПВЗ не найден - приблизьте область или раскройте кластер"
+                        : "ПВЗ не найден"
+                      : ozonPickupPoints.aggregateClusters.length > 0
+                        ? "Приблизьте группу точек на карте, чтобы увидеть ПВЗ"
+                        : "Передвиньте карту, чтобы найти ПВЗ"
+                }
+                inputValue={pickupPointQuery}
+                isOpen={isPickupPointOpen}
+                isPending={ozonPickupPoints.isPending}
+                label="Пункт выдачи Ozon"
+                onInputChange={setPickupPointQuery}
+                onOpenChange={setIsPickupPointOpen}
+                placeholder="Адрес или название ПВЗ"
+                selectedLabel={selectedOzonPoint?.address}
+                triggerLabel={selectedOzonPoint?.address ?? "Выберите пункт выдачи"}
+              >
+                {visibleOzonPoints.map((point) => (
+                  <ComboboxOption
+                    key={point.id}
+                    description={point.workHours}
+                    icon={<MapPin className="size-4 text-muted-foreground" />}
+                    isSelected={selectedOzonPoint?.id === point.id}
+                    label={point.address}
+                    meta={point.title}
+                    onSelect={() => selectOzonPickupPoint(point)}
+                  />
+                ))}
+              </ComboboxField>
+
+              <p aria-live="polite" className="text-sm text-muted-foreground">
+                {ozonPickupPoints.isError
+                  ? "Не удалось загрузить ПВЗ. Передвиньте карту или попробуйте позже."
+                  : ozonPickupPoints.isPending
+                    ? "Загружаем ПВЗ в видимой области карты."
+                    : ozonPickupPoints.pickupPoints.length > 0 &&
+                        ozonPickupPoints.aggregateClusters.length > 0
+                      ? `Можно выбрать ${formatPickupPointCount(ozonPickupPoints.pickupPoints.length)}. Нажмите на круг с числом, чтобы раскрыть другие области.`
+                      : ozonPickupPoints.pickupPoints.length > 0
+                        ? `В видимой области ${formatPickupPointCount(ozonPickupPoints.pickupPoints.length)}.`
+                        : ozonPickupPoints.aggregateClusters.length > 0
+                          ? "Нажмите на круг с числом, чтобы приблизить область и открыть доступные ПВЗ."
+                          : "В этой области ПВЗ не найдены - передвиньте или уменьшите масштаб карты."}
+              </p>
+
+              {selectedOzonPoint ? <SelectedPickupPoint point={selectedOzonPoint} /> : null}
+            </div>
+
+            <PickupPointsMap
+              aggregateClusters={ozonPickupPoints.aggregateClusters}
+              ariaLabel="Карта пунктов выдачи Ozon"
+              emptyMessage="Передвиньте карту, чтобы найти пункт выдачи Ozon."
+              fitPoints={false}
+              initialCenter={{ lat: 55.75, long: 37.62 }}
+              initialZoom={11}
+              onSelect={selectOzonPickupPoint}
+              onViewportChange={setOzonMapRequest}
+              pickupPoints={visibleOzonPoints}
+              selectedPickupPointId={selectedOzonPoint?.id}
+            />
+          </div>
         )}
       </CardContent>
     </Card>
+  );
+}
+
+function SelectedPickupPoint({ point }: { point: DeliveryPickupPointDTO }) {
+  return (
+    <div className="rounded-lg border border-emerald-200 bg-emerald-50/60 p-3 text-sm">
+      <div className="flex items-start gap-2">
+        <CheckCircle2 className="mt-0.5 size-4 shrink-0 text-emerald-600" />
+        <div className="min-w-0 space-y-1">
+          <p className="font-medium">Выбран пункт выдачи</p>
+          <p className="text-muted-foreground">{point.address}</p>
+          <p className="text-xs text-muted-foreground">{point.workHours}</p>
+        </div>
+      </div>
+    </div>
   );
 }

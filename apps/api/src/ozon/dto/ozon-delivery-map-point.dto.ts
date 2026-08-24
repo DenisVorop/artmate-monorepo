@@ -1,14 +1,24 @@
 import { Type } from "class-transformer";
 import { ApiProperty } from "@nestjs/swagger";
-import { IsBoolean, IsIn, IsInt, Min, ValidateNested } from "class-validator";
+import {
+  IsBoolean,
+  IsIn,
+  IsNotEmpty,
+  IsString,
+  MaxLength,
+  ValidateNested,
+} from "class-validator";
+
+import { deliveryPickupPointIdMaxLength } from "../../delivery/delivery.constants";
 
 import { OzonCoordinateDTO } from "./ozon-coordinate.dto";
 
 export class OzonDeliveryMapPointDTO {
-  @ApiProperty({ example: 100101 })
-  @IsInt()
-  @Min(1)
-  map_point_id!: number;
+  @ApiProperty({ example: "100101" })
+  @IsString()
+  @IsNotEmpty()
+  @MaxLength(deliveryPickupPointIdMaxLength)
+  map_point_id!: string;
 
   @ApiProperty({ type: OzonCoordinateDTO })
   @ValidateNested()

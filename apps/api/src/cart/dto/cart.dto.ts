@@ -1,6 +1,7 @@
 import { Type } from "class-transformer";
 import {
   IsArray,
+  IsBoolean,
   IsIn,
   IsInt,
   IsNotEmpty,
@@ -36,4 +37,7 @@ export class CartDTO {
 
   @IsIn(["RUB"])
   currency!: "RUB";
+
+  @IsBoolean()
+  isOzonDeliveryAvailable!: boolean;
 }
