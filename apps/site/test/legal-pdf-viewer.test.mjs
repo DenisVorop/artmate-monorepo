@@ -115,7 +115,11 @@ test("legal registry uses configured repository PDFs as its only PDF document so
     findVariableObject(legalPage, "index.tsx", "legalDocuments", ts.ScriptKind.TSX),
     "legalDocuments",
   );
-  const pdfDocumentIds = ["personalDataConsent", "publicOffer"];
+  const expectedPdfFileHrefs = new Map([
+    ["personalDataConsent", "/documents/legal/personal-data-consent-2026-07-24.pdf"],
+    ["publicOffer", "/documents/legal/public-offer-2026-07-24.pdf"],
+  ]);
+  const pdfDocumentIds = [...expectedPdfFileHrefs.keys()].sort();
   const htmlDocumentIds = ["cookiePolicy", "privacyPolicy", "returnPolicy", "userAgreement"];
   const pdfMetadataKeys = ["contentType", "description", "fileHref", "href", "title", "updatedAt"];
 
@@ -140,6 +144,7 @@ test("legal registry uses configured repository PDFs as its only PDF document so
     assert.equal(getStringProperty(metadata, "contentType", documentId), "pdf");
 
     const fileHref = getStringProperty(metadata, "fileHref", documentId);
+    assert.equal(fileHref, expectedPdfFileHrefs.get(documentId), `${documentId}.fileHref`);
     assert.match(fileHref, /^\/(?!\/)/, `${documentId}.fileHref must be a root-relative path`);
 
     const publicDirectory = new URL("../public/", import.meta.url);
