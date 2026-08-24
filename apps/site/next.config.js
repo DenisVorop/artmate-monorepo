@@ -3,6 +3,7 @@
 import path from "node:path";
 import { fileURLToPath } from "node:url";
 
+const legacyPdfJsBuild = "pdfjs-dist/legacy/build/pdf.mjs";
 const apiImageRemotePattern = getApiImageRemotePattern();
 const repoRoot = path.resolve(path.dirname(fileURLToPath(import.meta.url)), "../..");
 
@@ -87,6 +88,9 @@ const nextConfig = {
     ],
   },
   turbopack: {
+    resolveAlias: {
+      "pdfjs-dist": legacyPdfJsBuild,
+    },
     rules: {
       "*.svg": {
         loaders: ["@svgr/webpack"],
@@ -95,6 +99,8 @@ const nextConfig = {
     },
   },
   webpack(config) {
+    config.resolve.alias["pdfjs-dist$"] = legacyPdfJsBuild;
+
     const fileLoaderRule = config.module.rules.find((rule) => rule.test?.test?.(".svg"));
 
     config.module.rules.push(
