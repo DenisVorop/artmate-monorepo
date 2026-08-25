@@ -1,5 +1,8 @@
+import { Fragment } from "react";
+
 import { Accordion, AccordionContent, AccordionItem, AccordionTrigger, Card, CardContent, CardHeader, CardTitle } from "@/shared/ui";
 import { cn } from "@/shared/lib";
+import { companyDetails } from "@/shared/constants";
 import type { FaqSection } from "../lib";
 
 type ListProps = {
@@ -33,7 +36,29 @@ export function List({ sections }: ListProps) {
                   <AccordionItem key={item.question} value={item.question}>
                     <AccordionTrigger className="py-4 text-base">{item.question}</AccordionTrigger>
                     <AccordionContent className="text-muted-foreground">
-                      {item.answer}
+                      <div className="space-y-3">
+                        {item.answer.split("\n\n").map((paragraph) => {
+                          const parts = paragraph.split(companyDetails.supportEmail);
+
+                          return (
+                            <p key={paragraph}>
+                              {parts.map((part, index) => (
+                                <Fragment key={`${part}-${index}`}>
+                                  {part}
+                                  {index < parts.length - 1 && (
+                                    <a
+                                      className="underline underline-offset-4 hover:text-foreground"
+                                      href={`mailto:${companyDetails.supportEmail}`}
+                                    >
+                                      {companyDetails.supportEmail}
+                                    </a>
+                                  )}
+                                </Fragment>
+                              ))}
+                            </p>
+                          );
+                        })}
+                      </div>
                     </AccordionContent>
                   </AccordionItem>
                 ))}
