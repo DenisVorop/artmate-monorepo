@@ -1,5 +1,23 @@
 # Changelog
 
+## [0.33.0](https://github.com/DenisVorop/artmate-monorepo/compare/v0.32.0...v0.33.0) (2026-08-25)
+
+
+### Features
+
+* **site:** add legal PDF viewer ([110c2eb](https://github.com/DenisVorop/artmate-monorepo/commit/110c2eb4ce396e8d90393a6f86e615d22cee3137))
+* **site:** redesign payment and delivery page ([cff0d03](https://github.com/DenisVorop/artmate-monorepo/commit/cff0d03d23a2624f4dd40680143792b33d66825b))
+* **site:** render source legal PDFs ([24ace08](https://github.com/DenisVorop/artmate-monorepo/commit/24ace086038b6d55dc53288df8307f0e2fe1e7b0))
+* **site:** update FAQ content ([d82777b](https://github.com/DenisVorop/artmate-monorepo/commit/d82777b170d03cde35715d98470e6cd5aa45b13e))
+
+
+### Bug Fixes
+
+* **api:** sync CDEK delivery statuses ([7e2876d](https://github.com/DenisVorop/artmate-monorepo/commit/7e2876d16fdc4223c19b83cdfc976ecc20b54e85))
+* **site:** align delivery choices and messaging ([1dc825d](https://github.com/DenisVorop/artmate-monorepo/commit/1dc825d1c4538243126f846e386711e0a4bbf84a))
+* **site:** improve payment delivery accessibility ([d6dd224](https://github.com/DenisVorop/artmate-monorepo/commit/d6dd22426bd0517bf7109b188ace6a6400bc1083))
+* **site:** support PDF viewer browser range ([8c9f9b4](https://github.com/DenisVorop/artmate-monorepo/commit/8c9f9b48a0404b625b60f1a4ae2d621658a157a1))
+
 ## [0.32.0](https://github.com/DenisVorop/artmate-monorepo/compare/v0.31.1...v0.32.0) (2026-08-24)
 
 
