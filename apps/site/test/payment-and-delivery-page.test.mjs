@@ -59,3 +59,21 @@ test("payment and delivery page exposes a semantic journey and support routes", 
   assert.match(source, /routes\.faq/);
   assert.match(source, /routes\.contacts/);
 });
+
+test("payment and delivery metadata names supported providers", async () => {
+  const registry = await readFile(
+    new URL("../src/shared/lib/seo/registry.ts", import.meta.url),
+    "utf8",
+  );
+  const start = registry.indexOf("paymentAndDelivery:");
+  const end = registry.indexOf("\n  account:", start);
+
+  assert.notEqual(start, -1);
+  assert.notEqual(end, -1);
+
+  const paymentAndDeliveryMetadata = registry.slice(start, end);
+
+  for (const provider of ["СДЭК", "Ozon", "T-Bank", "Ozon Pay"]) {
+    assert.match(paymentAndDeliveryMetadata, new RegExp(provider));
+  }
+});

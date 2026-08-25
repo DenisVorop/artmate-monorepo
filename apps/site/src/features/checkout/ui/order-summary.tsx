@@ -3,20 +3,9 @@ import { LoaderCircle, Truck } from "lucide-react";
 
 import type { Cart } from "@/entities/cart";
 import { cn, shouldBypassNextImageOptimization } from "@/shared/lib";
-import {
-  Card,
-  CardContent,
-  CardDescription,
-  CardHeader,
-  CardTitle,
-  Separator,
-} from "@/shared/ui";
+import { Card, CardContent, CardDescription, CardHeader, CardTitle, Separator } from "@/shared/ui";
 
-import {
-  formatEstimatedDeliveryDateRange,
-  formatMoney,
-  useCheckout,
-} from "../lib";
+import { formatEstimatedDeliveryDateRange, formatMoney, useCheckout } from "../lib";
 
 type OrderSummaryProps = {
   cart: Cart;
@@ -26,6 +15,12 @@ type OrderSummaryProps = {
 export function OrderSummary({ cart, compact = false }: OrderSummaryProps) {
   const { checkoutCalculation, selectedDelivery } = useCheckout();
   const calculation = checkoutCalculation.calculation;
+  const deliveryProviderName =
+    calculation?.delivery.provider === "cdek"
+      ? "СДЭК"
+      : calculation?.delivery.provider === "ozon"
+        ? "Ozon"
+        : undefined;
   const deliveryPrice = calculation?.deliveryPrice;
   const estimatedDeliveryDate = formatEstimatedDeliveryDateRange(
     calculation?.estimatedDeliveryDateRange,
@@ -92,8 +87,8 @@ export function OrderSummary({ cart, compact = false }: OrderSummaryProps) {
             )}
             <div className="min-w-0 space-y-1">
               <p className="font-medium">
-                {calculation
-                  ? "СДЭК, пункт выдачи"
+                {deliveryProviderName
+                  ? `${deliveryProviderName}, пункт выдачи`
                   : hasDelivery
                     ? "Пункт выбран"
                     : "Доставка не выбрана"}

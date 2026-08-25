@@ -62,6 +62,10 @@ export function CartSummary({
         </div>
       </CardContent>
       <CardFooter className="flex-col items-stretch gap-2">
+        <p className="mb-1 text-center text-xs leading-5 text-muted-foreground">
+          Службу доставки и ПВЗ СДЭК или Ozon выберете на следующем шаге. Доступность Ozon зависит
+          от товаров в корзине.
+        </p>
         <CheckoutButton disabled={isLoading || isEmpty} />
         <Button asChild variant="outline" className="w-full">
           <Link href={routes.catalog}>

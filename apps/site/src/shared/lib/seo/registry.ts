@@ -63,12 +63,14 @@ export const seoPages = {
   paymentAndDelivery: {
     title: "Оплата и доставка - Artmate",
     description:
-      "Как оформить заказ Artmate, оплатить его онлайн и получить доставку в удобный пункт выдачи.",
+      "Доставка заказов Artmate по России в доступные пункты выдачи СДЭК и Ozon, онлайн-оплата через T-Bank или Ozon Pay.",
     canonical: routes.paymentAndDelivery,
     keywords: [
       "common",
-      "доставка раскрасок Artmate",
-      "оплата заказа Artmate",
+      "доставка СДЭК Artmate",
+      "доставка Ozon Artmate",
+      "оплата T-Bank Artmate",
+      "оплата Ozon Pay Artmate",
       "пункт выдачи заказа",
     ],
   },
