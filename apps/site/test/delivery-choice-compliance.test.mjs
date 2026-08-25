@@ -9,10 +9,11 @@ async function readSource(path) {
 test("cart explains that CDEK or Ozon is selected on the checkout step", async () => {
   const source = await readSource("src/features/cart/ui/cart-summary.tsx");
 
-  assert.match(source, /routes\.checkout/);
-  assert.match(source, /СДЭК/);
-  assert.match(source, /Ozon/);
-  assert.match(source, /следующем шаге/);
+  assert.match(
+    source,
+    /<CardFooter\b[^>]*>\s*<p\b[^>]*>\s*Службу\s+доставки\s+и\s+ПВЗ\s+СДЭК\s+или\s+Ozon\s+выберете\s+на\s+следующем\s+шаге\.\s*Доступность\s+Ozon\s+зависит\s+от\s+товаров\s+в\s+корзине\.\s*<\/p>/u,
+  );
+  assert.match(source, /<CtaGradientLink\s+href=\{routes\.checkout\}>/u);
 });
 
 test("checkout offers both declared delivery companies", async () => {
@@ -27,8 +28,12 @@ test("checkout offers both declared delivery companies", async () => {
 test("order summary derives the visible company from the checkout calculation", async () => {
   const source = await readSource("src/features/checkout/ui/order-summary.tsx");
 
-  assert.match(source, /calculation\?\.delivery\.provider/);
-  assert.match(source, /СДЭК/);
-  assert.match(source, /Ozon/);
-  assert.doesNotMatch(source, /calculation\s*\?\s*"СДЭК, пункт выдачи"/);
+  assert.match(
+    source,
+    /const\s+deliveryProviderName\s*=\s*calculation\?\.delivery\.provider\s*===\s*"cdek"\s*\?\s*"СДЭК"\s*:\s*calculation\?\.delivery\.provider\s*===\s*"ozon"\s*\?\s*"Ozon"\s*:\s*undefined\s*;/u,
+  );
+  assert.match(
+    source,
+    /<p\b[^>]*className="font-medium"[^>]*>\s*\{\s*deliveryProviderName\s*\?\s*`\$\{deliveryProviderName\},\s*пункт\s+выдачи`\s*:\s*hasDelivery\s*\?\s*"Пункт выбран"\s*:\s*"Доставка не выбрана"\s*\}\s*<\/p>/u,
+  );
 });
