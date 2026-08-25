@@ -16,17 +16,37 @@ async function readPageSource() {
 test("payment and delivery page names every supported provider and omits requisites", async () => {
   const source = await readPageSource();
 
-  for (const provider of ["СДЭК", "Ozon", "T-Bank", "Ozon Pay"]) {
-    assert.match(source, new RegExp(provider));
-  }
-
-  assert.match(source, /по России/);
-  assert.match(source, /доступн(?:ый|ые)\s+пункт(?:ы)?\s+выдачи/);
-
-  assert.doesNotMatch(
+  assert.match(
     source,
-    /companyDetails|Реквизиты продавца|ИНН|БИК|Корреспондентский счет|Расчетный счет/,
+    /(?:достав[а-яё]*|пункт[а-яё]*\s+выдачи|ПВЗ)(?=[^.!?]{0,240}СДЭК)(?=[^.!?]{0,240}\bOzon\b(?!\s+Pay\b))[^.!?]{0,240}[.!?]/iu,
   );
+  assert.match(source, /\bT-Bank\b/);
+  assert.match(source, /\bOzon Pay\b/);
+
+  assert.match(
+    source,
+    /достав[а-яё]*\s+по России[^.!?]{0,180}(?:где|если)[^.!?]{0,120}доступн(?:ый|ые)\s+пункт(?:ы)?\s+выдачи/iu,
+  );
+  assert.doesNotMatch(source, /по\s+всей\s+России/iu);
+  assert.match(
+    source,
+    /ориентировочн[а-яё]*\s+срок[^.!?]{0,120}только\s+если[^.!?]{0,120}(?:его\s+)?переда[её]т\s+служб[а-яё]*\s+доставки/iu,
+  );
+
+  const forbiddenRequisites = new RegExp(
+    [
+      String.raw`(?<![\p{L}\p{N}_])(?:companyDetails|legalName|shortName|legalAddress|taxId|inn|kpp|ogrn|ogrnip|registrationNumberLabel|registrationNumber|registrationDate|bankName|bankBik|bik|bankAccount|bankCorrespondentAccount|correspondentAccount|checkingAccount)(?![\p{L}\p{N}_])`,
+      String.raw`Реквизиты\s+продавца`,
+      String.raw`(?<![\p{L}\p{N}_])(?:ИНН|КПП|ОГРНИП|ОГРН|БИК)(?![\p{L}\p{N}_])`,
+      String.raw`Юридическ(?:ий|ого)\s+адрес`,
+      String.raw`Банк\s+получателя`,
+      String.raw`Корреспондентск(?:ий|ого)\s+сч[её]т`,
+      String.raw`Расч[её]тн(?:ый|ого)\s+сч[её]т`,
+    ].join("|"),
+    "iu",
+  );
+
+  assert.doesNotMatch(source, forbiddenRequisites);
 });
 
 test("payment and delivery page exposes a semantic journey and support routes", async () => {
