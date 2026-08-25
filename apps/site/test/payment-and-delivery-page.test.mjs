@@ -60,20 +60,25 @@ test("payment and delivery page exposes a semantic journey and support routes", 
   assert.match(source, /routes\.contacts/);
 });
 
-test("payment and delivery metadata names supported providers", async () => {
+test("payment and delivery description states supported providers and limits", async () => {
   const registry = await readFile(
     new URL("../src/shared/lib/seo/registry.ts", import.meta.url),
     "utf8",
   );
-  const start = registry.indexOf("paymentAndDelivery:");
-  const end = registry.indexOf("\n  account:", start);
+  const description =
+    /paymentAndDelivery\s*:\s*\{\s*title\s*:\s*"[^"]*"\s*,\s*description\s*:\s*"([^"]*)"/u.exec(
+      registry,
+    )?.[1];
 
-  assert.notEqual(start, -1);
-  assert.notEqual(end, -1);
+  assert.ok(description, "paymentAndDelivery.description must be a non-empty string");
 
-  const paymentAndDeliveryMetadata = registry.slice(start, end);
+  assert.match(description, /СДЭК/u);
+  assert.match(description, /\bOzon\b(?!\s+Pay\b)/u);
+  assert.match(description, /\bT-Bank\b/u);
+  assert.match(description, /\bOzon Pay\b/u);
+  assert.match(description, /по\s+России/iu);
+  assert.match(description, /доступные\s+пункты\s+выдачи/iu);
 
-  for (const provider of ["СДЭК", "Ozon", "T-Bank", "Ozon Pay"]) {
-    assert.match(paymentAndDeliveryMetadata, new RegExp(provider));
-  }
+  assert.doesNotMatch(description, /по\s+всей\s+России|(?:в\s+)?любо(?:й|го|м)\s+город(?:а|е)?/iu);
+  assert.doesNotMatch(description, /срок[а-яё]*|завтра|доставим\s+за\s+\d+(?:\s+[а-яё]+)?/iu);
 });
