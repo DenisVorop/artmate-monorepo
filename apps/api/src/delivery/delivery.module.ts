@@ -4,6 +4,7 @@ import { OzonModule } from "../ozon/ozon.module";
 
 import { CdekClientService } from "./providers/cdek/cdek-client.service";
 import { CdekDeliveryProvider } from "./providers/cdek/cdek-delivery.provider";
+import { CdekWebhookService } from "./providers/cdek/cdek-webhook.service";
 import { DeliveryController } from "./delivery.controller";
 import { DeliveryProxyThrottleService } from "./delivery-proxy-throttle.service";
 import { DeliveryService } from "./delivery.service";
@@ -13,6 +14,7 @@ import { DeliveryService } from "./delivery.service";
   controllers: [DeliveryController],
   providers: [
     CdekClientService,
+    CdekWebhookService,
     CdekDeliveryProvider,
     DeliveryProxyThrottleService,
     DeliveryService,

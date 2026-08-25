@@ -376,7 +376,23 @@ export class CdekDeliveryProvider implements DeliveryProviderAdapter {
   }
 
   private getLatestStatus(statuses: CdekOrderStatus[] | undefined) {
-    return statuses?.filter((status) => !this.getBoolean(status.deleted)).at(-1);
+    return statuses
+      ?.filter((status) => !this.getBoolean(status.deleted))
+      .reduce<CdekOrderStatus | undefined>((latestStatus, status) => {
+        if (!latestStatus) {
+          return status;
+        }
+
+        const latestDate = Date.parse(
+          this.getString(latestStatus.date_time) ?? "",
+        );
+        const statusDate = Date.parse(this.getString(status.date_time) ?? "");
+
+        return !Number.isNaN(statusDate) &&
+          (Number.isNaN(latestDate) || statusDate > latestDate)
+          ? status
+          : latestStatus;
+      }, undefined);
   }
 
   private mapPickupPoint(

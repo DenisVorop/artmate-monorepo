@@ -65,3 +65,14 @@ export type CdekOrderInfoResponse = {
   related_entities?: unknown;
   requests?: CdekOrderRequestInfo[];
 };
+
+export type CdekWebhookResponseItem = {
+  type?: unknown;
+  url?: unknown;
+  uuid?: unknown;
+};
+
+export type CdekWebhookMutationResponse = {
+  entity?: { uuid?: unknown };
+  requests?: CdekOrderRequestInfo[];
+};
