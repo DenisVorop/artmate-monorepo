@@ -77,7 +77,9 @@ export function ServiceDetails() {
       <div className="container">
         <div className="grid items-end gap-4 md:grid-cols-[minmax(0,1fr)_minmax(20rem,0.7fr)] md:gap-10">
           <div>
-            <SectionLabel color="emerald">Выбор за вами</SectionLabel>
+            <SectionLabel color="emerald" className="text-emerald-700">
+              Выбор за вами
+            </SectionLabel>
             <SectionTitle id="service-details-title" className="mt-3">
               Доставка и оплата
             </SectionTitle>

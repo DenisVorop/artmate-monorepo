@@ -39,7 +39,7 @@ export function OrderSteps() {
     <section className="container py-12 md:py-16" aria-labelledby="order-steps-title">
       <div className="grid items-end gap-4 md:grid-cols-[minmax(0,1fr)_minmax(20rem,0.7fr)] md:gap-10">
         <div>
-          <SectionLabel>Как это работает</SectionLabel>
+          <SectionLabel className="text-rose-700">Как это работает</SectionLabel>
           <SectionTitle id="order-steps-title" className="mt-3">
             Путь заказа без сюрпризов
           </SectionTitle>
@@ -68,7 +68,7 @@ export function OrderSteps() {
               >
                 <step.icon className="size-5" />
               </span>
-              <span className="flex items-center gap-2 text-xs font-bold text-foreground/45">
+              <span className="flex items-center gap-2 text-xs font-bold text-foreground/70">
                 {String(index + 1).padStart(2, "0")}
                 <ArrowUpRight className="size-4" aria-hidden="true" />
               </span>

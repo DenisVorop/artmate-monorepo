@@ -13,6 +13,22 @@ async function readPageSource() {
   return sources.join("\n");
 }
 
+function readPageFile(file) {
+  return readFile(new URL(`../src/_pages/payment-and-delivery/${file}`, import.meta.url), "utf8");
+}
+
+test("payment and delivery labels and step numbers use accessible contrast classes", async () => {
+  const [orderSteps, serviceDetails] = await Promise.all([
+    readPageFile("ui/order-steps.tsx"),
+    readPageFile("ui/service-details.tsx"),
+  ]);
+
+  assert.match(orderSteps, /<SectionLabel[^>]*className="text-rose-700"[^>]*>/u);
+  assert.match(orderSteps, /className="[^"]*\btext-foreground\/70\b[^"]*"/u);
+  assert.doesNotMatch(orderSteps, /text-foreground\/45/u);
+  assert.match(serviceDetails, /<SectionLabel[^>]*className="text-emerald-700"[^>]*>/u);
+});
+
 test("payment and delivery page names every supported provider and omits requisites", async () => {
   const source = await readPageSource();
 
@@ -60,6 +76,18 @@ test("payment and delivery page exposes a semantic journey and support routes", 
   assert.match(source, /routes\.contacts/);
 });
 
+test("payment and delivery page composes every page section", async () => {
+  const composition = await readPageFile("index.tsx");
+
+  for (const component of ["Hero", "OrderSteps", "ServiceDetails", "Help"]) {
+    assert.match(
+      composition,
+      new RegExp(`<${component}\\s*/>`, "u"),
+      `PaymentAndDeliveryPage must render <${component} />`,
+    );
+  }
+});
+
 test("payment and delivery description states supported providers and limits", async () => {
   const registry = await readFile(
     new URL("../src/shared/lib/seo/registry.ts", import.meta.url),
@@ -81,4 +109,35 @@ test("payment and delivery description states supported providers and limits", a
 
   assert.doesNotMatch(description, /по\s+всей\s+России|(?:в\s+)?любо(?:й|го|м)\s+город(?:а|е)?/iu);
   assert.doesNotMatch(description, /срок[а-яё]*|завтра|доставим\s+за\s+\d+(?:\s+[а-яё]+)?/iu);
+});
+
+test("payment and delivery keywords identify every supported provider", async () => {
+  const registry = await readFile(
+    new URL("../src/shared/lib/seo/registry.ts", import.meta.url),
+    "utf8",
+  );
+  const config = /paymentAndDelivery\s*:\s*\{([\s\S]*?)\n\s*\},\n\s*account\s*:/u.exec(
+    registry,
+  )?.[1];
+
+  assert.ok(config, "paymentAndDelivery SEO config must exist");
+
+  const keywordList = /keywords\s*:\s*\[([\s\S]*?)\]/u.exec(config)?.[1];
+
+  assert.ok(keywordList, "paymentAndDelivery.keywords must be a non-empty array");
+
+  const keywords = [...keywordList.matchAll(/"([^"]+)"/gu)].map((match) => match[1]);
+  const providerKeywords = [
+    ["СДЭК", /достав[а-яё]*[^,]*СДЭК/iu],
+    ["Ozon", /достав[а-яё]*[^,]*\bOzon\b(?!\s+Pay\b)/iu],
+    ["T-Bank", /оплат[а-яё]*[^,]*\bT-Bank\b/iu],
+    ["Ozon Pay", /оплат[а-яё]*[^,]*\bOzon Pay\b/iu],
+  ];
+
+  for (const [provider, pattern] of providerKeywords) {
+    assert.ok(
+      keywords.some((keyword) => pattern.test(keyword)),
+      `paymentAndDelivery.keywords must include a provider-specific ${provider} keyword`,
+    );
+  }
 });
