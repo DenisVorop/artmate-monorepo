@@ -1,5 +1,22 @@
 # Changelog
 
+## [0.34.0](https://github.com/DenisVorop/artmate-monorepo/compare/v0.33.0...v0.34.0) (2026-08-30)
+
+
+### Features
+
+* **admin:** manage digital coloring collections ([8023fcd](https://github.com/DenisVorop/artmate-monorepo/commit/8023fcd3c3c3dddd65a79ebe37a7669b6477b3cd))
+* **api:** add digital coloring collections ([103032f](https://github.com/DenisVorop/artmate-monorepo/commit/103032f116cd8a3070e60cd4bbf019210af5e737))
+* **site:** add digital coloring pages ([dc34c9f](https://github.com/DenisVorop/artmate-monorepo/commit/dc34c9f8575cbd009786186e39991adb75f4ac0c))
+* **site:** add responsive product image viewer ([13c6686](https://github.com/DenisVorop/artmate-monorepo/commit/13c668621e3b05dd04ada3309ec3c9274fc2f80d))
+
+
+### Bug Fixes
+
+* **admin:** correct session menu trigger ([6fd62ef](https://github.com/DenisVorop/artmate-monorepo/commit/6fd62ef1ac6d929300a2d28ca463101efca3bedf))
+* **api:** expose Ozon delivery on catalog items ([fcc5581](https://github.com/DenisVorop/artmate-monorepo/commit/fcc55815c7646111c6e81edb08a51f81222481dc))
+* **site:** improve coloring palette readability ([b688d7c](https://github.com/DenisVorop/artmate-monorepo/commit/b688d7cbda674bc9993a8a98ce9b6c42f3f567b5))
+
 ## [0.33.0](https://github.com/DenisVorop/artmate-monorepo/compare/v0.32.0...v0.33.0) (2026-08-25)
 
 
