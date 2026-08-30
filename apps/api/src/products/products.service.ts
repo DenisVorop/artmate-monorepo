@@ -45,6 +45,14 @@ export type UploadedProductFile = {
 
 const productInclude = {
   category: true,
+  coloringCollection: {
+    select: {
+      coverUrl: true,
+      slug: true,
+      status: true,
+      title: true,
+    },
+  },
   images: {
     orderBy: [
       {
@@ -165,6 +173,15 @@ export class ProductsService {
 
       return this.mapProductTag(tag);
     } catch (error) {
+      if (
+        error instanceof Prisma.PrismaClientKnownRequestError &&
+        error.code === "P2003"
+      ) {
+        throw new ConflictException(
+          "Product tag is in use and cannot be changed or deleted",
+        );
+      }
+
       this.handlePrismaMutationError(
         error,
         "Product tag slug already exists",
@@ -181,8 +198,13 @@ export class ProductsService {
 
       return this.mapProductTag(tag);
     } catch (error) {
-      if (error instanceof Prisma.PrismaClientKnownRequestError && error.code === "P2003") {
-        throw new ConflictException("Product tag is used by catalog landing pages");
+      if (
+        error instanceof Prisma.PrismaClientKnownRequestError &&
+        error.code === "P2003"
+      ) {
+        throw new ConflictException(
+          "Product tag is in use and cannot be changed or deleted",
+        );
       }
 
       this.handlePrismaMutationError(
@@ -340,7 +362,9 @@ export class ProductsService {
         },
       },
     });
-    const productsById = new Map(products.map((product) => [product.id, product]));
+    const productsById = new Map(
+      products.map((product) => [product.id, product]),
+    );
     const unavailableProducts = uniqueProductIds.flatMap((productId) => {
       const product = productsById.get(productId);
 
@@ -513,7 +537,8 @@ export class ProductsService {
     }
 
     if (input.description !== undefined) {
-      data.description = this.parseProductDescription(input.description) ?? null;
+      data.description =
+        this.parseProductDescription(input.description) ?? null;
     }
 
     if (input.status !== undefined) {
@@ -576,9 +601,29 @@ export class ProductsService {
       throw new NotFoundException("Product not found");
     }
 
-    await this.prisma.product.delete({
-      where: { id: productId },
-    });
+    try {
+      await this.prisma.product.delete({
+        where: { id: productId },
+      });
+    } catch (error) {
+      if (
+        error instanceof Prisma.PrismaClientKnownRequestError &&
+        error.code === "P2003"
+      ) {
+        throw new ConflictException(
+          "Product contains colorings and cannot be deleted",
+        );
+      }
+
+      if (
+        error instanceof Prisma.PrismaClientKnownRequestError &&
+        error.code === "P2025"
+      ) {
+        throw new NotFoundException("Product not found");
+      }
+
+      throw error;
+    }
 
     await Promise.all(
       product.images.map((image) => this.deleteLocalImageFile(image.url)),
@@ -645,7 +690,9 @@ export class ProductsService {
         ...(input.alt !== undefined
           ? { alt: this.parseOptionalString(input.alt) ?? null }
           : {}),
-        ...(input.sortOrder !== undefined ? { sortOrder: input.sortOrder } : {}),
+        ...(input.sortOrder !== undefined
+          ? { sortOrder: input.sortOrder }
+          : {}),
       },
     });
 
@@ -752,9 +799,7 @@ export class ProductsService {
     }
   }
 
-  private isProductImageMimeType(
-    value: string,
-  ): value is ProductImageMimeType {
+  private isProductImageMimeType(value: string): value is ProductImageMimeType {
     return productImageMimeTypes.includes(value as ProductImageMimeType);
   }
 
@@ -791,7 +836,10 @@ export class ProductsService {
   }
 
   private sanitizeProductDescription(value: string | undefined) {
-    const sanitized = sanitizeHtml(value ?? "", productDescriptionSanitizeOptions).trim();
+    const sanitized = sanitizeHtml(
+      value ?? "",
+      productDescriptionSanitizeOptions,
+    ).trim();
 
     if (!sanitized) {
       return undefined;
@@ -865,7 +913,9 @@ export class ProductsService {
     }
   }
 
-  private mapPrismaProductTagGroup(group: PrismaProductTagGroup): ProductTagGroup {
+  private mapPrismaProductTagGroup(
+    group: PrismaProductTagGroup,
+  ): ProductTagGroup {
     switch (group) {
       case PrismaProductTagGroup.FORMAT:
         return "format";
@@ -896,7 +946,9 @@ export class ProductsService {
       id: product.id,
       slug: product.slug,
       title: product.title,
-      description: this.sanitizeProductDescription(product.description ?? undefined),
+      description: this.sanitizeProductDescription(
+        product.description ?? undefined,
+      ),
       status: this.mapPrismaProductStatus(product.status),
       isHit: product.isHit,
       isOutOfStock: product.isOutOfStock,
@@ -912,10 +964,20 @@ export class ProductsService {
       tags: product.tags
         .map((assignment) => this.mapProductTag(assignment.tag))
         .sort((a, b) => {
-          const groupCompare = productTagGroups.indexOf(a.group) - productTagGroups.indexOf(b.group);
+          const groupCompare =
+            productTagGroups.indexOf(a.group) -
+            productTagGroups.indexOf(b.group);
 
           return groupCompare || a.title.localeCompare(b.title, "ru-RU");
         }),
+      digitalCollection:
+        product.coloringCollection?.status === "PUBLISHED" &&
+        product.coloringCollection.coverUrl
+          ? {
+              slug: product.coloringCollection.slug,
+              title: product.coloringCollection.title,
+            }
+          : undefined,
       createdAt: product.createdAt.toISOString(),
       updatedAt: product.updatedAt.toISOString(),
     };
@@ -1072,7 +1134,9 @@ export class ProductsService {
       return undefined;
     }
 
-    const relativePath = decodeURIComponent(pathname.replace(/^\/uploads\//, ""));
+    const relativePath = decodeURIComponent(
+      pathname.replace(/^\/uploads\//, ""),
+    );
 
     if (relativePath.split("/").includes("..")) {
       return undefined;

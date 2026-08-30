@@ -6,12 +6,25 @@ import {
   NestInterceptor,
   UseInterceptors,
 } from "@nestjs/common";
+import { createHash } from "node:crypto";
 import { ClassConstructor, plainToInstance } from "class-transformer";
 import { validateSync, ValidationError } from "class-validator";
 import { Observable, map } from "rxjs";
 
+import { matchesIfNoneMatch, quoteStrongEtag } from "./conditional-get";
+
 type ResponseValidationOptions = {
+  conditionalGet?: boolean;
   isArray?: boolean;
+};
+
+type ConditionalGetRequest = {
+  headers: { "if-none-match"?: string };
+};
+
+type ConditionalGetResponse = {
+  setHeader(name: string, value: string): void;
+  statusCode: number;
 };
 
 const validatorOptions = {
@@ -25,19 +38,51 @@ const validatorOptions = {
 };
 
 @Injectable()
-export class ResponseValidationInterceptor<T extends object>
-  implements NestInterceptor
-{
+export class ResponseValidationInterceptor<
+  T extends object,
+> implements NestInterceptor {
   constructor(
     private readonly dto: ClassConstructor<T>,
     private readonly options: ResponseValidationOptions = {},
   ) {}
 
   intercept(
-    _context: ExecutionContext,
+    context: ExecutionContext,
     next: CallHandler,
-  ): Observable<T | T[]> {
-    return next.handle().pipe(map((value) => this.validateResponse(value)));
+  ): Observable<T | T[] | undefined> {
+    const http = context.switchToHttp();
+    const request = http.getRequest<ConditionalGetRequest>();
+    const response = http.getResponse<ConditionalGetResponse>();
+
+    if (this.options.conditionalGet) {
+      response.setHeader("Cache-Control", "no-store");
+    }
+
+    return next.handle().pipe(
+      map((value) => {
+        const validated = this.validateResponse(value);
+
+        if (!this.options.conditionalGet) {
+          return validated;
+        }
+
+        const etag = quoteStrongEtag(
+          createHash("sha256").update(JSON.stringify(validated)).digest("hex"),
+        );
+        response.setHeader(
+          "Cache-Control",
+          "public, max-age=0, must-revalidate",
+        );
+        response.setHeader("ETag", etag);
+
+        if (matchesIfNoneMatch(request.headers["if-none-match"], etag)) {
+          response.statusCode = 304;
+          return undefined;
+        }
+
+        return validated;
+      }),
+    );
   }
 
   private validateResponse(value: unknown): T | T[] {
@@ -68,9 +113,7 @@ export class ResponseValidationInterceptor<T extends object>
 
   private formatErrors(errors: ValidationError[], path = ""): string[] {
     return errors.flatMap((error) => {
-      const propertyPath = path
-        ? `${path}.${error.property}`
-        : error.property;
+      const propertyPath = path ? `${path}.${error.property}` : error.property;
       const currentErrors = Object.values(error.constraints ?? {}).map(
         (message) => `${propertyPath}: ${message}`,
       );

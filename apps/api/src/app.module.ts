@@ -6,6 +6,7 @@ import { AuthModule } from "./auth/auth.module";
 import { BlogModule } from "./blog/blog.module";
 import { CartModule } from "./cart/cart.module";
 import { CatalogLandingsModule } from "./catalog-landings/catalog-landings.module";
+import { ColoringsModule } from "./colorings/colorings.module";
 import { CsrfMiddleware } from "./common/csrf.middleware";
 import { SecurityHeadersMiddleware } from "./common/security-headers.middleware";
 import { ContactsModule } from "./contacts/contacts.module";
@@ -28,6 +29,7 @@ import { UsersModule } from "./users/users.module";
     OrdersModule,
     ProductsModule,
     CatalogLandingsModule,
+    ColoringsModule,
     BlogModule,
     OzonModule,
     DeliveryModule,

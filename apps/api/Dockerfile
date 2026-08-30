@@ -31,7 +31,11 @@ ENV PORT=3002
 ENV NODE_EXTRA_CA_CERTS=/etc/ssl/certs/ca-certificates.crt
 
 RUN apt-get update \
-  && apt-get install -y --no-install-recommends ca-certificates \
+  && apt-get install -y --no-install-recommends \
+    ca-certificates \
+    fontconfig \
+    fonts-dejavu-core \
+  && fc-cache -f \
   && rm -rf /var/lib/apt/lists/*
 
 COPY apps/api/certificates/russian-trusted-root-ca.crt \
@@ -59,10 +63,16 @@ COPY --from=builder --chown=node:node /app/package.json /app/yarn.lock /app/.npm
 COPY --from=builder --chown=node:node /app/node_modules ./node_modules
 COPY --from=builder --chown=node:node /app/apps/api/package.json ./apps/api/package.json
 COPY --from=builder --chown=node:node /app/apps/api/dist ./apps/api/dist
+COPY --from=builder --chown=node:node /app/apps/site/src/widgets/header/assets/logo-square.svg ./apps/api/assets/artmate-logo-square.svg
 COPY --from=builder --chown=node:node /app/apps/api/prisma ./apps/api/prisma
 COPY --from=builder --chown=node:node /app/apps/api/prisma.config.ts ./apps/api/prisma.config.ts
 
-RUN mkdir -p /app/apps/api/uploads && chown -R node:node /app/apps/api/uploads
+RUN mkdir -p \
+      /app/apps/api/uploads/colorings \
+      /app/apps/api/private/colorings \
+  && chown -R node:node \
+      /app/apps/api/uploads \
+      /app/apps/api/private
 
 USER node
 WORKDIR /app/apps/api

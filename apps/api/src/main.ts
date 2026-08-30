@@ -9,6 +9,7 @@ import { type NestExpressApplication } from "@nestjs/platform-express";
 import { DocumentBuilder, SwaggerModule } from "@nestjs/swagger";
 
 import { AppModule } from "./app.module";
+import { configureStaticUploads } from "./colorings/static-uploads";
 
 async function bootstrap() {
   const app = await NestFactory.create<NestExpressApplication>(AppModule);
@@ -31,9 +32,7 @@ async function bootstrap() {
     }),
   );
 
-  app.useStaticAssets(join(process.cwd(), "uploads"), {
-    prefix: "/uploads/",
-  });
+  configureStaticUploads(app, join(process.cwd(), "uploads"));
 
   if (process.env.SWAGGER_ENABLED !== "false") {
     setupSwagger(app);
@@ -66,7 +65,10 @@ function getCorsOrigins() {
       process.env.ADMIN_URL ?? "http://localhost:3003",
     ].join(",");
 
-  return origins.split(",").map((origin) => origin.trim()).filter(Boolean);
+  return origins
+    .split(",")
+    .map((origin) => origin.trim())
+    .filter(Boolean);
 }
 
 function getPort(port: string | undefined) {

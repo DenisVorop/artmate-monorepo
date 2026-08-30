@@ -33,6 +33,14 @@ import {
 
 const productInclude = {
   category: true,
+  coloringCollection: {
+    select: {
+      coverUrl: true,
+      slug: true,
+      status: true,
+      title: true,
+    },
+  },
   images: {
     orderBy: [
       {
@@ -902,6 +910,14 @@ export class CatalogLandingsService {
 
           return groupCompare || a.title.localeCompare(b.title, "ru-RU");
         }),
+      digitalCollection:
+        product.coloringCollection?.status === "PUBLISHED" &&
+        product.coloringCollection.coverUrl
+          ? {
+              slug: product.coloringCollection.slug,
+              title: product.coloringCollection.title,
+            }
+          : undefined,
       createdAt: product.createdAt.toISOString(),
       updatedAt: product.updatedAt.toISOString(),
     };

@@ -22,6 +22,14 @@ import { ProductCategoryDTO } from "./product-category.dto";
 import { ProductImageDTO } from "./product-image.dto";
 import { ProductTagDTO } from "./product-tag.dto";
 
+export class ProductDigitalCollectionDTO {
+  @IsString()
+  slug!: string;
+
+  @IsString()
+  title!: string;
+}
+
 export class ProductDTO {
   @IsString()
   id!: string;
@@ -77,6 +85,11 @@ export class ProductDTO {
   @ValidateNested({ each: true })
   @Type(() => ProductTagDTO)
   tags!: ProductTagDTO[];
+
+  @IsOptional()
+  @ValidateNested()
+  @Type(() => ProductDigitalCollectionDTO)
+  digitalCollection?: ProductDigitalCollectionDTO;
 
   @IsISO8601()
   createdAt!: string;

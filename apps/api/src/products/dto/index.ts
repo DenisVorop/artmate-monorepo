@@ -3,7 +3,7 @@ export { CreateProductCategoryRequestDTO } from "./create-product-category-reque
 export { CreateProductRequestDTO } from "./create-product-request.dto";
 export { CreateProductTagRequestDTO } from "./create-product-tag-request.dto";
 export { ProductCategoryDTO } from "./product-category.dto";
-export { ProductDTO } from "./product.dto";
+export { ProductDigitalCollectionDTO, ProductDTO } from "./product.dto";
 export { ProductImageDTO } from "./product-image.dto";
 export { ProductTagDTO } from "./product-tag.dto";
 export { UpdateProductCategoryRequestDTO } from "./update-product-category-request.dto";

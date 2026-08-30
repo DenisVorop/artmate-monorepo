@@ -133,6 +133,7 @@ services:
       CONTENT_ASSISTANT_DEFAULT_BLOG_CATEGORY_ID: ${CONTENT_ASSISTANT_DEFAULT_BLOG_CATEGORY_ID:-}
     volumes:
       - api-uploads:/app/apps/api/uploads
+      - api-private-colorings:/app/apps/api/private/colorings
     depends_on:
       postgres:
         condition: service_healthy
@@ -206,6 +207,7 @@ services:
 volumes:
   postgres-data:
   api-uploads:
+  api-private-colorings:
   caddy-data:
   caddy-config:
 

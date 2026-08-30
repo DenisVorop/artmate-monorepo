@@ -36,6 +36,7 @@ model Product {
   category                ProductCategory?                @relation(fields: [categoryId], references: [id], onDelete: Restrict)
   images                  ProductImage[]
   tags                    ProductTagAssignment[]
+  coloringCollection      ColoringCollection?
   catalogLandingOverrides CatalogLandingProductOverride[]
 
   @@index([categoryId])
@@ -80,8 +81,10 @@ model ProductTag {
   updatedAt DateTime        @default(now()) @updatedAt @map("updated_at")
 
   products            ProductTagAssignment[]
+  colorings           ColoringThemeAssignment[]
   catalogLandingRules CatalogLandingTagRule[]
 
+  @@unique([id, group])
   @@index([group, title])
   @@map("product_tags")
 }

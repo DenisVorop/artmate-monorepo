@@ -28,6 +28,7 @@ out/
 build
 dist
 apps/api/uploads/
+apps/api/private/
 
 # Debug
 npm-debug.log*
