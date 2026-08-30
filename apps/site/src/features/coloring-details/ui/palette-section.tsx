@@ -36,31 +36,36 @@ export function PaletteSection({ palette, themes }: PaletteSectionProps) {
 
           {palette.colors.length > 0 ? (
             <ul
-              className="grid grid-cols-1 gap-2 min-[360px]:grid-cols-2 md:grid-cols-3 lg:grid-cols-4 xl:grid-cols-5"
+              className="grid grid-cols-1 gap-3 sm:grid-cols-2 lg:grid-cols-3"
               aria-label="Цвета и номера маркеров"
             >
               {palette.colors.map((color) => (
                 <li
                   key={color.symbolPosition}
-                  className="flex min-w-0 items-center gap-2 rounded-lg bg-white/6 p-2 ring-1 ring-white/10"
+                  className="flex min-w-0 items-center gap-2 rounded-xl bg-white/6 p-3 ring-1 ring-white/10 sm:p-4 md:gap-3"
                 >
                   <span
                     aria-hidden="true"
-                    className="size-8 shrink-0 rounded-full ring-1 ring-white/20"
+                    className="size-10 shrink-0 rounded-full ring-1 ring-white/20 md:size-12"
                     style={{ backgroundColor: color.hex }}
                   />
-                  <span className="min-w-0 leading-tight">
-                    <span className="block text-xs whitespace-nowrap text-stone-200">
-                      № {color.symbol} · Цвет {String(color.colorNumber).padStart(3, "0")}
-                    </span>
-                    <span className="mt-1 block text-xs whitespace-nowrap text-stone-300">
-                      <code className="font-mono text-[11px] text-white">{color.hex}</code> · Маркер{" "}
-                      {color.markerNumber}
-                    </span>
-                    <span className="mt-1 block truncate text-[11px] text-stone-500">
-                      Pantone {color.pantone}
-                    </span>
-                  </span>
+                  <div className="min-w-0 flex-1">
+                    <div className="flex flex-wrap items-baseline gap-x-2 gap-y-1">
+                      <p className="shrink-0 text-lg whitespace-nowrap text-stone-300">
+                        № {color.symbol}
+                      </p>
+                      <div className="flex items-baseline gap-x-2 whitespace-nowrap">
+                        <span className="text-xl font-medium text-stone-200">Маркер</span>
+                        <strong className="text-3xl font-semibold tracking-tight text-white tabular-nums">
+                          {color.markerNumber}
+                        </strong>
+                      </div>
+                    </div>
+                    <div className="mt-2 flex flex-wrap gap-x-2 gap-y-1 text-xs text-stone-400">
+                      <code className="font-mono">{color.hex}</code>
+                      <span>Pantone {color.pantone}</span>
+                    </div>
+                  </div>
                 </li>
               ))}
             </ul>

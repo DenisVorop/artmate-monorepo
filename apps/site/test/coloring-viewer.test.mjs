@@ -631,12 +631,125 @@ test("details render persisted palette colors, legacy empty state, and category-
   assert.match(source, /aria-label="Цвета и номера маркеров"/);
   assert.match(source, /style=\{\{ backgroundColor: color\.hex \}\}/);
   assert.match(source, /№ \{color\.symbol\}/);
-  assert.match(source, /color\.colorNumber/);
+  assert.doesNotMatch(paletteSource, /color\.colorNumber/);
   assert.match(source, /\{color\.hex\}/);
   assert.match(source, /Маркер[\s\S]*?\{color\.markerNumber\}/);
   assert.match(source, /Pantone \{color\.pantone\}/);
-  assert.match(source, /min-\[360px\]:grid-cols-2/);
+  assert.match(paletteSource, /grid-cols-1[^"]*sm:grid-cols-2[^"]*lg:grid-cols-3/);
+  assert.doesNotMatch(paletteSource, /min-\[360px\]:grid-cols|grid-cols-[45]/);
   assert.doesNotMatch(source, /iframe/i);
+});
+
+test("palette places prominent marker numbers after symbols with secondary HEX and Pantone", async () => {
+  const { PaletteSection } = evaluateTypeScript(
+    await readSource("src/features/coloring-details/ui/palette-section.tsx"),
+    {
+      "lucide-react": { Palette: "Palette" },
+      "@/shared/ui": {
+        Badge: "Badge",
+        Card: "Card",
+        CardContent: "CardContent",
+        CardDescription: "CardDescription",
+        CardTitle: "CardTitle",
+      },
+    },
+  );
+  const colors = [
+    {
+      symbolPosition: 1,
+      symbol: "1",
+      colorNumber: 27,
+      markerNumber: "001",
+      hex: "#D2DBD6",
+      pantone: "5595C",
+    },
+    {
+      symbolPosition: 10,
+      symbol: "A",
+      colorNumber: 61,
+      markerNumber: "065",
+      hex: "#DAAB9C",
+      pantone: "7613U",
+    },
+    {
+      symbolPosition: 19,
+      symbol: "J",
+      colorNumber: 168,
+      markerNumber: "704",
+      hex: "#FFDDE2",
+      pantone: "705U",
+    },
+  ];
+
+  function getElements(node) {
+    if (Array.isArray(node)) return node.flatMap(getElements);
+    if (!node || typeof node !== "object") return [];
+
+    return [node, ...getElements(node.props.children)];
+  }
+
+  function getText(node) {
+    if (Array.isArray(node)) return node.map(getText).join("");
+    if (typeof node === "string" || typeof node === "number") return String(node);
+
+    return node?.props ? getText(node.props.children) : "";
+  }
+
+  const palette = PaletteSection({
+    palette: { colors, label: "Artmate", version: "test", usedColorCount: colors.length },
+    themes: [],
+  });
+  const grid = getElements(palette).find(
+    (node) => node.type === "ul" && node.props["aria-label"] === "Цвета и номера маркеров",
+  );
+
+  assert.ok(grid);
+  assert.equal(grid.props.children.length, colors.length);
+
+  for (const [index, color] of colors.entries()) {
+    const card = grid.props.children[index];
+    const elements = getElements(card);
+    const marker = elements.find((node) => node.props.children === color.markerNumber);
+
+    assert.ok(
+      marker,
+      `Marker ${color.markerNumber} must stay an exact string, including leading zeros`,
+    );
+    assert.match(marker.props.className, /\btext-3xl\b/);
+    assert.match(marker.props.className, /\btext-white\b/);
+    const markerLabel = elements.find((node) => node.props.children === "Маркер");
+    const symbolLabel = elements.find((node) => node.type === "p");
+
+    assert.ok(markerLabel);
+    assert.match(markerLabel.props.className, /\btext-xl\b/);
+    assert.ok(symbolLabel);
+    assert.match(symbolLabel.props.className, /\btext-lg\b/);
+    assert.equal(getText(symbolLabel), `№ ${color.symbol}`);
+    assert.doesNotMatch(getText(card), /Цвет \d/);
+    const labelRow = elements.find(
+      (node) => Array.isArray(node.props.children) && node.props.children[0] === symbolLabel,
+    );
+
+    assert.ok(labelRow);
+    assert.match(labelRow.props.className, /\bflex\b/);
+    assert.match(labelRow.props.className, /\bitems-baseline\b/);
+    assert.deepEqual(labelRow.props.children[1].props.children, [markerLabel, marker]);
+
+    for (const value of [color.hex, `Pantone ${color.pantone}`]) {
+      assert.ok(
+        elements.some((node) => {
+          const classes = (node.props.className ?? "").split(/\s+/);
+
+          return (
+            classes.includes("text-xs") &&
+            classes.includes("text-stone-400") &&
+            getText(node).includes(value)
+          );
+        }),
+        `${value} must remain small, gray metadata`,
+      );
+    }
+  }
 });
 
 test("details compose hero, full-width viewer, and palette in semantic DOM order", async () => {
@@ -655,7 +768,7 @@ test("details compose hero, full-width viewer, and palette in semantic DOM order
   assert.match(palette, /aria-labelledby="coloring-palette-title"/);
   assert.match(palette, /role="heading"/);
   assert.match(palette, /aria-level=\{2\}/);
-  assert.match(palette, /md:grid-cols-3 lg:grid-cols-4 xl:grid-cols-5/);
+  assert.match(palette, /grid-cols-1[^"]*sm:grid-cols-2[^"]*lg:grid-cols-3/);
 });
 
 test("hero stacks title, description and purchase CTA vertically at every breakpoint", async () => {
