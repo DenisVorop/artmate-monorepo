@@ -873,6 +873,7 @@ export class CatalogLandingsService {
       status: this.mapProductStatus(product.status),
       isHit: product.isHit,
       isOutOfStock: product.isOutOfStock,
+      isOzonDeliveryAvailable: product.isOzonDeliveryAvailable,
       categoryId: product.categoryId ?? undefined,
       category: product.category
         ? {
