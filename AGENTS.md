@@ -25,6 +25,12 @@ Workspaces:
 - `packages/ui` - stub React UI package для shared workspace-компонентов.
 - `packages/eslint-config`, `packages/typescript-config` - общие конфиги.
 
+Проект находится в активной разработке. Когда пользователь явно заменяет route,
+API-контракт, UI-сценарий или реализацию новым вариантом, удаляй прежний вариант,
+legacy redirects, aliases, compatibility fallbacks и тесты старого поведения. Не
+сохраняй обратную совместимость без отдельного запроса пользователя или явно
+подтверждённой production-необходимости.
+
 Основные команды из корня:
 
 ```bash
@@ -381,13 +387,13 @@ src/_pages/<page>/
 
 Минимальные проверки после изменений:
 
-| Изменения | Минимум | Дополнительно |
-| --- | --- | --- |
-| `apps/site` | `yarn workspace site check-types` + `yarn workspace site lint` | `yarn workspace site build`, если затронуты route boundaries, metadata, Next Image, app router, data builders или hydration |
-| `apps/admin` | `yarn workspace admin check-types` + `yarn workspace admin lint` | `yarn workspace admin build`, если затронуты route boundaries, auth redirects, Next Image, app router, query providers или hydration |
-| `apps/api` | `yarn workspace api check-types` + `yarn workspace api lint` | `yarn workspace api build`, если меняется runtime/build output |
-| `packages/ui` | `yarn workspace @repo/ui check-types` + `yarn workspace @repo/ui lint` | проверки потребителей, если меняется публичный UI API |
-| shared configs | релевантные workspace checks | корневые `yarn lint` / `yarn check-types`, если затронуто много workspaces |
+| Изменения      | Минимум                                                                | Дополнительно                                                                                                                        |
+| -------------- | ---------------------------------------------------------------------- | ------------------------------------------------------------------------------------------------------------------------------------ |
+| `apps/site`    | `yarn workspace site check-types` + `yarn workspace site lint`         | `yarn workspace site build`, если затронуты route boundaries, metadata, Next Image, app router, data builders или hydration          |
+| `apps/admin`   | `yarn workspace admin check-types` + `yarn workspace admin lint`       | `yarn workspace admin build`, если затронуты route boundaries, auth redirects, Next Image, app router, query providers или hydration |
+| `apps/api`     | `yarn workspace api check-types` + `yarn workspace api lint`           | `yarn workspace api build`, если меняется runtime/build output                                                                       |
+| `packages/ui`  | `yarn workspace @repo/ui check-types` + `yarn workspace @repo/ui lint` | проверки потребителей, если меняется публичный UI API                                                                                |
+| shared configs | релевантные workspace checks                                           | корневые `yarn lint` / `yarn check-types`, если затронуто много workspaces                                                           |
 
 После изменений только в документации (`*.md`) кодовые проверки обычно не нужны. Достаточно проверить diff и форматирование затронутого файла, если есть сомнения.
 
