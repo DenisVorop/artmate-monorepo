@@ -1,10 +1,12 @@
+"use client";
+
 import { ChevronsUpDown, LogOut, ShieldCheck } from "lucide-react";
 
 import { getUserDisplayName, getUserInitials, type AuthUser } from "@/entities/session";
 import {
   Avatar,
   AvatarFallback,
-  Button,
+  buttonVariants,
   DropdownMenu,
   DropdownMenuContent,
   DropdownMenuItem,
@@ -27,14 +29,18 @@ export function SessionMenu({ user }: SessionMenuProps) {
       <form action={logoutAdminAction} id="admin-session-logout" />
 
       <DropdownMenu>
-        <DropdownMenuTrigger asChild>
-          <Button type="button" variant="outline" className="max-w-full justify-between">
-            <Avatar size="sm">
-              <AvatarFallback>{getUserInitials(user)}</AvatarFallback>
-            </Avatar>
-            <span className="min-w-0 truncate">{title}</span>
-            <ChevronsUpDown aria-hidden="true" />
-          </Button>
+        <DropdownMenuTrigger
+          className={buttonVariants({
+            className: "max-w-full justify-between",
+            variant: "outline",
+          })}
+          type="button"
+        >
+          <Avatar size="sm">
+            <AvatarFallback>{getUserInitials(user)}</AvatarFallback>
+          </Avatar>
+          <span className="min-w-0 truncate">{title}</span>
+          <ChevronsUpDown aria-hidden="true" />
         </DropdownMenuTrigger>
         <DropdownMenuContent align="end" className="w-64">
           <DropdownMenuLabel>
