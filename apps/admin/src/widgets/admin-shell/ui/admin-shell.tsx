@@ -2,6 +2,7 @@ import type { ReactNode } from "react";
 import type { LucideIcon } from "lucide-react";
 import {
   FileText,
+  Images,
   Megaphone,
   LogOut,
   MailCheck,
@@ -30,6 +31,7 @@ type AdminShellProps = {
 const navigation: readonly NavigationItem[] = [
   { label: "Заявки", href: routes.orders, Icon: SquareKanban },
   { label: "Товары", href: routes.products, Icon: PackageSearch },
+  { label: "Цифровые версии", href: routes.digitalVersions, Icon: Images },
   { label: "Подборки", href: routes.catalogLandings, Icon: PanelsTopLeft },
   { label: "Блог", href: routes.blog, Icon: FileText },
   { label: "SEO", href: routes.seo, Icon: SearchCode },

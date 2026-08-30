@@ -8,6 +8,11 @@ export const routes = {
   catalogLandings: "/catalog-landings",
   catalogLanding: (landingId: string) => `/catalog-landings/${landingId}`,
   catalogLandingCreate: "/catalog-landings/new",
+  digitalVersion: (collectionId: string) => `/digital-versions/${collectionId}`,
+  digitalVersionColoring: (collectionId: string, coloringId: string) =>
+    `/digital-versions/${collectionId}/colorings/${coloringId}`,
+  digitalVersionCreate: "/digital-versions/new",
+  digitalVersions: "/digital-versions",
   featureBanners: "/feature-banners",
   home: "/",
   login: "/login",
