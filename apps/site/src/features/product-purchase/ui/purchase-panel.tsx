@@ -1,6 +1,6 @@
 "use client";
 
-import { Check, LoaderCircle, Minus, Plus, ShoppingBag } from "lucide-react";
+import { Check, LoaderCircle, Minus, Palette, Plus, ShoppingBag } from "lucide-react";
 import { useEffect, useMemo, useRef, useState } from "react";
 
 import type { Product } from "@/entities/products";
@@ -138,6 +138,26 @@ export function ProductPurchase({ product, onAddToCart }: PurchasePanelProps) {
             <Link href={routes.cart}>Перейти в корзину</Link>
           </Button>
         </div>
+
+        {product.digitalCollection ? (
+          <>
+            <Separator />
+            <Button
+              asChild
+              className="h-11 w-full border-rose-200 bg-rose-50/70 text-rose-950 hover:border-rose-300 hover:bg-rose-100"
+              size="lg"
+              variant="outline"
+            >
+              <Link
+                aria-label={`Смотреть цифровую версию «${product.digitalCollection.title}»`}
+                href={routes.digitalCollection(product.digitalCollection.slug)}
+              >
+                <Palette data-icon="inline-start" aria-hidden="true" />
+                Смотреть цифровую версию
+              </Link>
+            </Button>
+          </>
+        ) : null}
       </CardContent>
     </Card>
   );

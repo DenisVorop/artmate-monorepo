@@ -83,6 +83,7 @@ export { PersonalDataConsentCheckbox } from "./personal-data-consent-checkbox";
 export { Progress } from "./progress";
 export { ResponsiveMediaViewer } from "./responsive-media-viewer";
 export { Separator } from "./separator";
+export { Slider } from "./slider";
 export { Tabs, TabsContent, TabsList, TabsTrigger, tabsListVariants } from "./tabs";
 export { Textarea } from "./textarea";
 export { Tooltip, TooltipContent, TooltipProvider, TooltipTrigger } from "./tooltip";

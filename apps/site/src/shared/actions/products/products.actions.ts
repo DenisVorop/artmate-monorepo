@@ -67,6 +67,7 @@ function mapProducts(products: readonly ApiProductDTO[]): Product[] {
         description: product.description ?? "",
         isHit: product.isHit,
         isOutOfStock: product.isOutOfStock,
+        digitalCollection: product.digitalCollection,
         createdAt: product.createdAt,
         updatedAt: product.updatedAt,
         tags: product.tags.map((tag) => ({

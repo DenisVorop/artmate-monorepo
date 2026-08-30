@@ -2,6 +2,8 @@ import type { MetadataRoute } from "next";
 import { getProductCategory } from "@/entities/products";
 import { getBlogPosts } from "@/shared/actions/blog";
 import { getCatalogLandingPages } from "@/shared/actions/catalog-landings";
+import { getPublicColoringCollections } from "@/shared/actions/coloring-collections";
+import { getPublicColoringsManifest } from "@/shared/actions/colorings";
 import { getProductsData } from "@/shared/actions/products";
 import { getAbsoluteUrl, routes } from "@/shared/constants";
 import { ensureApiResult } from "@/shared/lib/api-result";
@@ -25,6 +27,11 @@ const staticRoutes = [
     path: routes.catalog,
     changeFrequency: "weekly",
     priority: 0.9,
+  },
+  {
+    path: routes.colorings,
+    changeFrequency: "weekly",
+    priority: 0.85,
   },
   {
     path: routes.blog,
@@ -79,14 +86,26 @@ const staticRoutes = [
 ] satisfies SitemapEntry[];
 
 export default async function sitemap(): Promise<MetadataRoute.Sitemap> {
-  const [blogData, landingData, productsResult] = await Promise.all([
-    getBlogPosts(),
-    getCatalogLandingPages(),
-    getProductsData(),
-  ]);
+  const [blogData, landingData, productsResult, coloringsResult, coloringCollectionsResult] =
+    await Promise.all([
+      getBlogPosts(),
+      getCatalogLandingPages(),
+      getProductsData(),
+      getPublicColoringsManifest(),
+      getPublicColoringCollections(),
+    ]);
   const productsData = ensureApiResult(productsResult).data;
   const blogPosts = ensureApiResult(blogData).data?.items ?? [];
   const catalogLandings = ensureApiResult(landingData).data ?? [];
+  const colorings = ensureApiResult(coloringsResult).data;
+  const coloringCollections = ensureApiResult(coloringCollectionsResult).data;
+
+  if (!colorings) {
+    throw new Error("Public colorings manifest returned no data");
+  }
+  if (!coloringCollections) {
+    throw new Error("Public coloring collections returned no data");
+  }
   const blogRoutes = blogPosts.map((post) => ({
     path: routes.blogPost(post.slug),
     changeFrequency: "weekly",
@@ -140,6 +159,18 @@ export default async function sitemap(): Promise<MetadataRoute.Sitemap> {
       },
     ];
   }) satisfies SitemapEntry[];
+  const coloringRoutes = colorings.map((coloring) => ({
+    path: routes.coloring(coloring.collectionSlug, coloring.number),
+    changeFrequency: "monthly",
+    priority: 0.6,
+    lastModified: new Date(coloring.lastModified),
+  })) satisfies SitemapEntry[];
+  const coloringCollectionRoutes = coloringCollections.map((collection) => ({
+    path: routes.coloringCollection(collection.slug),
+    changeFrequency: "weekly",
+    priority: 0.7,
+    lastModified: new Date(collection.lastModified),
+  })) satisfies SitemapEntry[];
   const blogLastModified = getLatestDate(...blogRoutes.map((route) => route.lastModified));
   const catalogLastModified = getLatestDate(
     ...categoryRoutes.map((route) => route.lastModified),
@@ -162,9 +193,14 @@ export default async function sitemap(): Promise<MetadataRoute.Sitemap> {
         ? homeLastModified
         : route.path === routes.catalog
           ? catalogLastModified
-          : route.path === routes.blog
-            ? blogLastModified
-            : undefined,
+          : route.path === routes.colorings
+            ? getLatestDate(
+                ...coloringCollections.map((collection) => collection.lastModified),
+                ...coloringRoutes.map((route) => route.lastModified),
+              )
+            : route.path === routes.blog
+              ? blogLastModified
+              : undefined,
   })) satisfies SitemapEntry[];
   const uniqueRoutes = new Map<string, SitemapEntry>();
 
@@ -174,6 +210,8 @@ export default async function sitemap(): Promise<MetadataRoute.Sitemap> {
     ...categoryRoutes,
     ...catalogLandingRoutes,
     ...productRoutes,
+    ...coloringCollectionRoutes,
+    ...coloringRoutes,
   ]) {
     if (!uniqueRoutes.has(route.path)) {
       uniqueRoutes.set(route.path, route);

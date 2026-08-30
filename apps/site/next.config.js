@@ -4,7 +4,9 @@ import path from "node:path";
 import { fileURLToPath } from "node:url";
 
 const legacyPdfJsBuild = "pdfjs-dist/legacy/build/pdf.mjs";
-const apiImageRemotePattern = getApiImageRemotePattern();
+const apiImageRemotePattern = getApiImageRemotePattern("/uploads/**");
+const apiColoringRemotePattern = getApiImageRemotePattern("/colorings/**");
+const apiColoringCollectionRemotePattern = getApiImageRemotePattern("/coloring-collections/**");
 const repoRoot = path.resolve(path.dirname(fileURLToPath(import.meta.url)), "../..");
 
 /** @type {import('next').NextConfig} */
@@ -13,8 +15,11 @@ const nextConfig = {
   outputFileTracingRoot: repoRoot,
   htmlLimitedBots: /.*/,
   images: {
+    dangerouslyAllowLocalIP: process.env.NODE_ENV !== "production",
     remotePatterns: [
       apiImageRemotePattern,
+      apiColoringRemotePattern,
+      apiColoringCollectionRemotePattern,
       {
         protocol: "https",
         hostname: "api.artmate.ru",
@@ -22,8 +27,28 @@ const nextConfig = {
       },
       {
         protocol: "https",
+        hostname: "api.artmate.ru",
+        pathname: "/colorings/**",
+      },
+      {
+        protocol: "https",
+        hostname: "api.artmate.ru",
+        pathname: "/coloring-collections/**",
+      },
+      {
+        protocol: "https",
         hostname: "api.art-mate.ru",
         pathname: "/uploads/**",
+      },
+      {
+        protocol: "https",
+        hostname: "api.art-mate.ru",
+        pathname: "/colorings/**",
+      },
+      {
+        protocol: "https",
+        hostname: "api.art-mate.ru",
+        pathname: "/coloring-collections/**",
       },
       {
         protocol: "https",
@@ -127,7 +152,7 @@ const nextConfig = {
 
 export default nextConfig;
 
-function getApiImageRemotePattern() {
+function getApiImageRemotePattern(pathname) {
   const fallbackUrl = "http://localhost:3002";
   const rawUrl = process.env.API_PUBLIC_URL ?? process.env.API_BASE_URL ?? fallbackUrl;
 
@@ -138,14 +163,14 @@ function getApiImageRemotePattern() {
       protocol: url.protocol.replace(":", ""),
       hostname: url.hostname,
       port: url.port || undefined,
-      pathname: "/uploads/**",
+      pathname,
     };
   } catch {
     return {
       protocol: "http",
       hostname: "localhost",
       port: "3002",
-      pathname: "/uploads/**",
+      pathname,
     };
   }
 }

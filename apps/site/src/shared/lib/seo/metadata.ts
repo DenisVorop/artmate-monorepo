@@ -1,15 +1,22 @@
 import type { Metadata } from "next";
-import { siteConfig } from "@/shared/constants";
+import { routes, siteConfig } from "@/shared/constants";
 
 import { getSeoKeywords } from "./keywords";
 import { seoPages } from "./registry";
-import { createCategoryDescription, createProductDescription } from "./text";
+import {
+  createCategoryDescription,
+  createColoringSeoDescription,
+  createColoringSeoTitle,
+  createProductDescription,
+} from "./text";
 import type {
   LegalSeoInput,
   MetadataInput,
   SeoBlogPost,
   SeoCatalogLanding,
   SeoCategory,
+  SeoColoring,
+  SeoColoringCollection,
   SeoPageKey,
   SeoProduct,
 } from "./types";
@@ -142,6 +149,50 @@ export function createProductMetadata(product: SeoProduct, category?: SeoCategor
   });
 }
 
+export function createColoringMetadata(coloring: SeoColoring): Metadata {
+  const title = createColoringSeoTitle(coloring.collection.title, coloring.number);
+
+  return createMetadata(
+    {
+      title,
+      description: createColoringSeoDescription(coloring.collection.title, coloring.number),
+      canonical: routes.coloring(coloring.collection.slug, coloring.number),
+      image: {
+        url: coloring.colored.url,
+        width: coloring.width,
+        height: coloring.height,
+        alt: coloring.colored.alt,
+      },
+    },
+    true,
+  );
+}
+
+export function createColoringCollectionsMetadata(): Metadata {
+  return createMetadata({
+    title: "Цифровые версии раскрасок Artmate",
+    description:
+      "Цифровые версии раскрасок Artmate: выбирайте тематику и смотрите готовые иллюстрации в палитре маркеров Artmate.",
+    canonical: routes.colorings,
+    keywords: ["common", "catalog", "цифровые раскраски", "раскраски Artmate"],
+  });
+}
+
+export function createColoringCollectionMetadata(collection: SeoColoringCollection): Metadata {
+  return createMetadata(
+    {
+      title: `${collection.title} - цифровые раскраски Artmate`,
+      description:
+        collection.description ??
+        `Цифровые версии иллюстраций «${collection.title}» в палитре маркеров Artmate.`,
+      canonical: routes.coloringCollection(collection.slug),
+      image: collection.cover,
+      keywords: ["common", "catalog", collection.title, "цифровые раскраски"],
+    },
+    true,
+  );
+}
+
 export function createBlogPostMetadata(post: SeoBlogPost): Metadata {
   const title = post.metaTitle ?? `${post.title} - Блог Artmate`;
 
@@ -160,7 +211,7 @@ export function createBlogPostMetadata(post: SeoBlogPost): Metadata {
   });
 }
 
-function createMetadata(input: MetadataInput): Metadata {
+function createMetadata(input: MetadataInput, useDetailedTwitterImage = false): Metadata {
   const title = {
     absolute: input.title,
   };
@@ -205,7 +256,7 @@ function createMetadata(input: MetadataInput): Metadata {
       card: "summary_large_image",
       title: input.title,
       description: input.description,
-      images: [image.url],
+      images: [useDetailedTwitterImage ? image : image.url],
     },
   };
 }

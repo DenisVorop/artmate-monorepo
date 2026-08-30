@@ -8,11 +8,20 @@ import {
   siteConfig,
 } from "@/shared/constants";
 
-import { createCategoryDescription, createProductDescription, normalizeSeoText } from "./text";
+import {
+  createCategoryDescription,
+  createColoringSeoDescription,
+  createColoringSeoTitle,
+  createProductDescription,
+  normalizeSeoText,
+} from "./text";
 import type {
   SeoBlogArticleContent,
   SeoBlogPost,
   SeoCategory,
+  SeoColoring,
+  SeoColoringCollection,
+  SeoColoringCollectionSummary,
   SeoFaqSection,
   SeoProduct,
 } from "./types";
@@ -97,6 +106,18 @@ type BlogPostStructuredDataProps = {
   post: SeoBlogPost;
 };
 
+type ColoringStructuredDataProps = {
+  coloring: SeoColoring;
+};
+
+type ColoringCollectionsStructuredDataProps = {
+  collections: readonly SeoColoringCollectionSummary[];
+};
+
+type ColoringCollectionStructuredDataProps = {
+  collection: SeoColoringCollection;
+};
+
 export function RootStructuredData() {
   return <StructuredData data={rootStructuredData} />;
 }
@@ -119,7 +140,9 @@ export function CatalogLandingStructuredData({
   title,
   url,
 }: CatalogLandingStructuredDataProps) {
-  return <StructuredData data={getCatalogLandingStructuredData(title, description, products, url)} />;
+  return (
+    <StructuredData data={getCatalogLandingStructuredData(title, description, products, url)} />
+  );
 }
 
 export function FaqStructuredData({ sections }: FaqStructuredDataProps) {
@@ -134,6 +157,22 @@ export function FaqStructuredData({ sections }: FaqStructuredDataProps) {
 
 export function BlogPostStructuredData({ content, post }: BlogPostStructuredDataProps) {
   return <StructuredData data={getBlogPostStructuredData(post, content)} />;
+}
+
+export function ColoringStructuredData({ coloring }: ColoringStructuredDataProps) {
+  return <StructuredData data={getColoringStructuredData(coloring)} />;
+}
+
+export function ColoringCollectionsStructuredData({
+  collections,
+}: ColoringCollectionsStructuredDataProps) {
+  return <StructuredData data={getColoringCollectionsStructuredData(collections)} />;
+}
+
+export function ColoringCollectionStructuredData({
+  collection,
+}: ColoringCollectionStructuredDataProps) {
+  return <StructuredData data={getColoringCollectionStructuredData(collection)} />;
 }
 
 function StructuredData({ data }: { data: unknown }) {
@@ -411,6 +450,177 @@ function getBlogPostStructuredData(post: SeoBlogPost, content: SeoBlogArticleCon
   ];
 }
 
+function getColoringStructuredData(coloring: SeoColoring) {
+  const pagePath = routes.coloring(coloring.collection.slug, coloring.number);
+  const pageUrl = getAbsoluteUrl(pagePath);
+  const coloringName = `Картина ${coloring.number}`;
+  const seoTitle = createColoringSeoTitle(coloring.collection.title, coloring.number);
+  const seoDescription = createColoringSeoDescription(coloring.collection.title, coloring.number);
+  const artworkId = `${pageUrl}#artwork`;
+  const outlineImageId = `${pageUrl}#outline-image`;
+  const coloredImageId = `${pageUrl}#colored-image`;
+  const breadcrumbId = `${pageUrl}#breadcrumbs`;
+  const category = coloring.collection.product.category;
+  const product = coloring.collection.product;
+  const collection = {
+    "@type": "CreativeWork",
+    name: coloring.collection.title,
+    url: getAbsoluteUrl(routes.coloringCollection(coloring.collection.slug)),
+    isPartOf: {
+      "@type": "Product",
+      name: product.title,
+      url: getAbsoluteUrl(routes.product(category?.slug, product.slug)),
+    },
+  };
+
+  return {
+    "@context": "https://schema.org",
+    "@graph": [
+      {
+        "@type": "WebPage",
+        "@id": pageUrl,
+        url: pageUrl,
+        name: seoTitle,
+        description: seoDescription,
+        inLanguage: "ru-RU",
+        datePublished: coloring.firstPublishedAt,
+        dateModified: coloring.publishedAt,
+        mainEntity: { "@id": artworkId },
+        primaryImageOfPage: { "@id": coloredImageId },
+        breadcrumb: { "@id": breadcrumbId },
+      },
+      {
+        "@type": "VisualArtwork",
+        "@id": artworkId,
+        name: seoTitle,
+        description: seoDescription,
+        datePublished: coloring.firstPublishedAt,
+        dateModified: coloring.publishedAt,
+        image: [{ "@id": outlineImageId }, { "@id": coloredImageId }],
+        isPartOf: collection,
+      },
+      {
+        "@type": "ImageObject",
+        "@id": outlineImageId,
+        contentUrl: coloring.outline.url,
+        width: coloring.width,
+        height: coloring.height,
+        caption: coloring.outline.alt,
+      },
+      {
+        "@type": "ImageObject",
+        "@id": coloredImageId,
+        contentUrl: coloring.colored.url,
+        width: coloring.width,
+        height: coloring.height,
+        caption: coloring.colored.alt,
+      },
+      getBreadcrumbStructuredData(
+        [
+          { name: "Главная", url: routes.home },
+          { name: "Цифровые версии", url: routes.colorings },
+          {
+            name: coloring.collection.title,
+            url: routes.coloringCollection(coloring.collection.slug),
+          },
+          { name: coloringName, url: pagePath },
+        ],
+        breadcrumbId,
+        false,
+      ),
+    ],
+  };
+}
+
+function getColoringCollectionsStructuredData(
+  collections: readonly SeoColoringCollectionSummary[],
+) {
+  const pageUrl = getAbsoluteUrl(routes.colorings);
+  const itemListId = `${pageUrl}#item-list`;
+  const breadcrumbId = `${pageUrl}#breadcrumbs`;
+
+  return [
+    {
+      "@context": "https://schema.org",
+      "@type": "CollectionPage",
+      "@id": pageUrl,
+      name: "Цифровые версии раскрасок Artmate",
+      description:
+        "Тематики цифровых раскрасок с готовыми иллюстрациями в палитре маркеров Artmate.",
+      url: pageUrl,
+      inLanguage: "ru-RU",
+      mainEntity: { "@id": itemListId },
+      breadcrumb: { "@id": breadcrumbId },
+    },
+    {
+      "@context": "https://schema.org",
+      "@type": "ItemList",
+      "@id": itemListId,
+      numberOfItems: collections.length,
+      itemListElement: collections.map((collection, index) => ({
+        "@type": "ListItem",
+        position: index + 1,
+        name: collection.title,
+        url: getAbsoluteUrl(routes.coloringCollection(collection.slug)),
+        image: collection.cover.url,
+      })),
+    },
+    getBreadcrumbStructuredData(
+      [
+        { name: "Главная", url: routes.home },
+        { name: "Цифровые версии", url: routes.colorings },
+      ],
+      breadcrumbId,
+    ),
+  ];
+}
+
+function getColoringCollectionStructuredData(collection: SeoColoringCollection) {
+  const path = routes.coloringCollection(collection.slug);
+  const pageUrl = getAbsoluteUrl(path);
+  const itemListId = `${pageUrl}#item-list`;
+  const breadcrumbId = `${pageUrl}#breadcrumbs`;
+
+  return [
+    {
+      "@context": "https://schema.org",
+      "@type": "CollectionPage",
+      "@id": pageUrl,
+      name: collection.title,
+      description:
+        collection.description ??
+        `Цифровые версии иллюстраций «${collection.title}» в палитре маркеров Artmate.`,
+      url: pageUrl,
+      image: collection.cover.url,
+      dateModified: collection.lastModified,
+      inLanguage: "ru-RU",
+      mainEntity: { "@id": itemListId },
+      breadcrumb: { "@id": breadcrumbId },
+    },
+    {
+      "@context": "https://schema.org",
+      "@type": "ItemList",
+      "@id": itemListId,
+      numberOfItems: collection.colorings.length,
+      itemListElement: collection.colorings.map((coloring, index) => ({
+        "@type": "ListItem",
+        position: index + 1,
+        name: `Картина ${coloring.number}`,
+        url: getAbsoluteUrl(routes.coloring(collection.slug, coloring.number)),
+        image: coloring.card.url,
+      })),
+    },
+    getBreadcrumbStructuredData(
+      [
+        { name: "Главная", url: routes.home },
+        { name: "Цифровые версии", url: routes.colorings },
+        { name: collection.title, url: path },
+      ],
+      breadcrumbId,
+    ),
+  ];
+}
+
 function getBlogPostAuthorStructuredData(post: SeoBlogPost) {
   if (post.author?.name) {
     return {
@@ -432,9 +642,13 @@ type BreadcrumbItem = {
   url: string;
 };
 
-function getBreadcrumbStructuredData(items: readonly BreadcrumbItem[], id?: string) {
+function getBreadcrumbStructuredData(
+  items: readonly BreadcrumbItem[],
+  id?: string,
+  includeContext = true,
+) {
   return {
-    "@context": "https://schema.org",
+    ...(includeContext ? { "@context": "https://schema.org" } : {}),
     "@type": "BreadcrumbList",
     ...(id ? { "@id": id } : {}),
     itemListElement: items.map((item, index) => ({

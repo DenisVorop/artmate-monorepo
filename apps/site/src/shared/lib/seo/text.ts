@@ -1,5 +1,13 @@
 import type { SeoProduct } from "./types";
 
+export function createColoringSeoTitle(collectionTitle: string, number: number) {
+  return `Цифровая версия раскраски «${collectionTitle}». Картина ${number}`;
+}
+
+export function createColoringSeoDescription(collectionTitle: string, number: number) {
+  return `Картина ${number} из цифровой версии раскраски «${collectionTitle}»: контур и цветной пример в палитре маркеров Artmate.`;
+}
+
 export function createCategoryDescription(categoryTitle: string) {
   return `Купить раскраски по номерам Artmate в категории «${categoryTitle}»: антистресс-альбомы A4 на спирали, 25 иллюстраций, бумага 190 г/м² для маркеров и карандашей.`;
 }

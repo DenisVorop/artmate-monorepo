@@ -2,6 +2,9 @@ export {
   createBlogPostMetadata,
   createCatalogLandingMetadata,
   createCategoryMetadata,
+  createColoringCollectionMetadata,
+  createColoringCollectionsMetadata,
+  createColoringMetadata,
   createLegalMetadata,
   createPageMetadata,
   createProductMetadata,
@@ -9,11 +12,20 @@ export {
 } from "./metadata";
 export { seoPages } from "./registry";
 export { Seo } from "./service";
-export { createCategoryDescription, createProductDescription, normalizeSeoText } from "./text";
+export {
+  createCategoryDescription,
+  createColoringSeoDescription,
+  createColoringSeoTitle,
+  createProductDescription,
+  normalizeSeoText,
+} from "./text";
 export {
   BlogPostStructuredData,
   CatalogLandingStructuredData,
   CatalogCategoryStructuredData,
+  ColoringCollectionStructuredData,
+  ColoringCollectionsStructuredData,
+  ColoringStructuredData,
   FaqStructuredData,
   ProductStructuredData,
   RootStructuredData,
@@ -24,6 +36,9 @@ export type {
   SeoBlogPost,
   SeoCatalogLanding,
   SeoCategory,
+  SeoColoring,
+  SeoColoringCollection,
+  SeoColoringCollectionSummary,
   SeoFaqSection,
   SeoPageKey,
   SeoProduct,
