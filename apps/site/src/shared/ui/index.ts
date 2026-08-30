@@ -45,6 +45,19 @@ export {
   DialogTrigger,
 } from "./dialog";
 export {
+  Drawer,
+  DrawerClose,
+  DrawerContent,
+  DrawerDescription,
+  DrawerFooter,
+  DrawerHandle,
+  DrawerHeader,
+  DrawerOverlay,
+  DrawerPortal,
+  DrawerTitle,
+  DrawerTrigger,
+} from "./drawer";
+export {
   DropdownMenu,
   DropdownMenuCheckboxItem,
   DropdownMenuContent,
@@ -64,9 +77,11 @@ export {
 export { Input } from "./input";
 export { InfiniteCarousel } from "./infinite-carousel";
 export { Label } from "./label";
+export { MediaExpandButton } from "./media-expand-button";
 export { Popover, PopoverAnchor, PopoverContent, PopoverTrigger } from "./popover";
 export { PersonalDataConsentCheckbox } from "./personal-data-consent-checkbox";
 export { Progress } from "./progress";
+export { ResponsiveMediaViewer } from "./responsive-media-viewer";
 export { Separator } from "./separator";
 export { Tabs, TabsContent, TabsList, TabsTrigger, tabsListVariants } from "./tabs";
 export { Textarea } from "./textarea";

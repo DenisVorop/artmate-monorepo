@@ -1,17 +1,10 @@
 "use client";
 
-import { ChevronLeft, ChevronRight, Expand, X } from "lucide-react";
+import { ChevronLeft, ChevronRight } from "lucide-react";
 import Image from "next/image";
 import { useCallback, useEffect, useRef, useState, type MouseEvent, type UIEvent } from "react";
 
-import {
-  AspectRatio,
-  Button,
-  Dialog,
-  DialogClose,
-  DialogContent,
-  DialogTitle,
-} from "@/shared/ui";
+import { AspectRatio, Button, MediaExpandButton, ResponsiveMediaViewer } from "@/shared/ui";
 import { cn, shouldBypassNextImageOptimization } from "@/shared/lib";
 
 type GalleryProps = {
@@ -54,6 +47,7 @@ export function Gallery({ images, title }: GalleryProps) {
   const [isLightboxOpen, setIsLightboxOpen] = useState(false);
   const mainTrackRef = useRef<HTMLDivElement>(null);
   const lightboxTrackRef = useRef<HTMLDivElement>(null);
+  const lightboxTriggerRef = useRef<HTMLElement | null>(null);
   const initialLightboxIndexRef = useRef(0);
   const mainScrollTargetIndexRef = useRef<number | null>(null);
   const lightboxScrollTargetIndexRef = useRef<number | null>(null);
@@ -126,7 +120,8 @@ export function Gallery({ images, title }: GalleryProps) {
     };
   }, [isLightboxOpen, showNextInLightbox, showPreviousInLightbox]);
 
-  const openLightbox = () => {
+  const openLightbox = (event: MouseEvent<HTMLButtonElement>) => {
+    lightboxTriggerRef.current = event.currentTarget;
     initialLightboxIndexRef.current = activeIndex;
     setLightboxIndex(activeIndex);
     setIsLightboxOpen(true);
@@ -225,7 +220,7 @@ export function Gallery({ images, title }: GalleryProps) {
             ref={mainTrackRef}
             onScroll={handleMainScroll}
             onPointerDown={clearMainScrollTarget}
-            className="absolute inset-0 flex snap-x snap-mandatory overflow-x-auto overscroll-x-contain scroll-smooth [scrollbar-width:none] [&::-webkit-scrollbar]:hidden"
+            className="absolute inset-0 flex snap-x snap-mandatory [scrollbar-width:none] overflow-x-auto overscroll-x-contain scroll-smooth [&::-webkit-scrollbar]:hidden"
           >
             {images.map((image, index) => (
               <button
@@ -250,16 +245,7 @@ export function Gallery({ images, title }: GalleryProps) {
             ))}
           </div>
 
-          <Button
-            type="button"
-            variant="secondary"
-            size="icon-lg"
-            aria-label="Открыть галерею"
-            onClick={openLightbox}
-            className="absolute top-3 right-3 bg-background/85 shadow-sm backdrop-blur"
-          >
-            <Expand />
-          </Button>
+          <MediaExpandButton aria-label="Открыть галерею" onClick={openLightbox} />
 
           {hasMultipleImages && (
             <>
@@ -319,111 +305,101 @@ export function Gallery({ images, title }: GalleryProps) {
         )}
       </div>
 
-      <Dialog open={isLightboxOpen} onOpenChange={setIsLightboxOpen}>
-        <DialogContent
-          showCloseButton={false}
-          className="h-dvh max-w-screen gap-0 overflow-hidden rounded-none border-0 bg-black/55 p-0 text-white ring-0 backdrop-blur-md sm:max-w-screen"
-        >
-          <DialogTitle className="sr-only">{title}</DialogTitle>
-
-          <div className="absolute inset-x-0 top-0 z-10 flex h-14 items-center justify-between px-4">
-            <span className="rounded-full bg-black/30 px-2.5 py-1 text-sm text-white/80 backdrop-blur">
+      <ResponsiveMediaViewer
+        open={isLightboxOpen}
+        onOpenChange={setIsLightboxOpen}
+        title={title}
+        description="Просмотр фотографий товара"
+        returnFocusRef={lightboxTriggerRef}
+        toolbar={
+          <div className="flex min-w-0 items-center gap-3">
+            <span className="shrink-0 rounded-full bg-rose-50 px-2.5 py-1 text-xs font-medium text-rose-700 ring-1 ring-rose-200/70">
               {lightboxIndex + 1} / {images.length}
             </span>
-            <DialogClose asChild>
-              <Button
-                type="button"
-                variant="ghost"
-                size="icon-lg"
-                aria-label="Закрыть галерею"
-                className="bg-black/30 text-white backdrop-blur hover:bg-black/45 hover:text-white"
-              >
-                <X />
-              </Button>
-            </DialogClose>
+            <span className="truncate text-sm font-semibold text-stone-900">{title}</span>
           </div>
-
-          <div
-            ref={lightboxTrackRef}
-            onScroll={handleLightboxScroll}
-            onPointerDown={clearLightboxScrollTarget}
-            className="flex min-h-0 flex-1 snap-x snap-mandatory overflow-x-auto overscroll-x-contain scroll-smooth [scrollbar-width:none] [&::-webkit-scrollbar]:hidden"
-          >
-            {images.map((image, index) => (
-              <div
-                key={`${image}-${index}`}
-                className="flex h-full w-full flex-none snap-center items-center justify-center px-4 py-16"
-              >
-                <div className="relative aspect-[3/4] w-[min(78vw,calc((100dvh-12rem)*0.75),42rem)] overflow-hidden rounded-xl bg-black/20 shadow-2xl ring-1 ring-white/15 max-md:w-[min(92vw,calc((100dvh-11rem)*0.75))]">
-                  <Image
-                    fill
-                    src={image}
-                    alt={`${title}, фото ${index + 1}`}
-                    unoptimized={shouldBypassNextImageOptimization(image)}
-                    sizes="(min-width: 768px) 42rem, 92vw"
-                    className="object-cover"
-                    draggable={false}
-                  />
-                </div>
+        }
+      >
+        <div
+          ref={lightboxTrackRef}
+          onScroll={handleLightboxScroll}
+          onPointerDown={clearLightboxScrollTarget}
+          className="flex min-h-0 flex-1 snap-x snap-mandatory [scrollbar-width:none] overflow-x-auto overscroll-x-contain scroll-smooth [&::-webkit-scrollbar]:hidden"
+        >
+          {images.map((image, index) => (
+            <div
+              key={`${image}-${index}`}
+              className="flex h-full w-full flex-none snap-center items-center justify-center p-3 sm:p-6"
+            >
+              <div className="relative aspect-[3/4] w-[min(78vw,calc((min(92dvh,64rem)-12rem)*0.75),42rem)] overflow-hidden rounded-xl bg-white shadow-xl ring-1 shadow-stone-900/10 ring-stone-200 max-md:w-[min(92vw,calc((100dvh-12rem)*0.75))]">
+                <Image
+                  fill
+                  src={image}
+                  alt={`${title}, фото ${index + 1}`}
+                  unoptimized={shouldBypassNextImageOptimization(image)}
+                  sizes="(min-width: 768px) 42rem, 92vw"
+                  className="object-cover"
+                  draggable={false}
+                />
               </div>
+            </div>
+          ))}
+        </div>
+
+        {hasMultipleImages && (
+          <>
+            <Button
+              type="button"
+              variant="ghost"
+              size="icon-lg"
+              aria-label="Предыдущее фото"
+              onClick={showPreviousInLightbox}
+              className="absolute top-[calc(50%-1.125rem)] left-4 hidden border border-stone-200 bg-white/90 text-stone-700 shadow-lg backdrop-blur hover:border-rose-200 hover:bg-rose-50 hover:text-rose-600 focus-visible:ring-rose-400/40 active:not-aria-[haspopup]:translate-y-0 md:inline-flex"
+            >
+              <ChevronLeft />
+            </Button>
+            <Button
+              type="button"
+              variant="ghost"
+              size="icon-lg"
+              aria-label="Следующее фото"
+              onClick={showNextInLightbox}
+              className="absolute top-[calc(50%-1.125rem)] right-4 hidden border border-stone-200 bg-white/90 text-stone-700 shadow-lg backdrop-blur hover:border-rose-200 hover:bg-rose-50 hover:text-rose-600 focus-visible:ring-rose-400/40 active:not-aria-[haspopup]:translate-y-0 md:inline-flex"
+            >
+              <ChevronRight />
+            </Button>
+          </>
+        )}
+
+        {hasMultipleImages && (
+          <div className="flex shrink-0 justify-center gap-2 overflow-x-auto border-t border-stone-200 bg-white/80 px-4 py-3">
+            {images.map((image, index) => (
+              <button
+                key={`${image}-${index}`}
+                type="button"
+                aria-label={`Открыть фото ${index + 1}`}
+                aria-pressed={lightboxIndex === index}
+                onClick={() => selectLightboxImage(index)}
+                className={cn(
+                  "relative h-16 w-12 shrink-0 overflow-hidden rounded-lg border bg-white shadow-sm transition",
+                  lightboxIndex === index
+                    ? "border-rose-500 opacity-100 ring-2 ring-rose-200"
+                    : "border-stone-200 opacity-65 hover:border-rose-200 hover:opacity-100",
+                )}
+              >
+                <Image
+                  fill
+                  src={image}
+                  alt=""
+                  unoptimized={shouldBypassNextImageOptimization(image)}
+                  sizes="48px"
+                  className="object-cover"
+                />
+              </button>
             ))}
           </div>
-
-          {hasMultipleImages && (
-            <>
-              <Button
-                type="button"
-                variant="ghost"
-                size="icon-lg"
-                aria-label="Предыдущее фото"
-                onClick={showPreviousInLightbox}
-                className="absolute top-[calc(50%-1.125rem)] left-4 bg-black/35 text-white backdrop-blur hover:bg-black/50 hover:text-white active:not-aria-[haspopup]:translate-y-0"
-              >
-                <ChevronLeft />
-              </Button>
-              <Button
-                type="button"
-                variant="ghost"
-                size="icon-lg"
-                aria-label="Следующее фото"
-                onClick={showNextInLightbox}
-                className="absolute top-[calc(50%-1.125rem)] right-4 bg-black/35 text-white backdrop-blur hover:bg-black/50 hover:text-white active:not-aria-[haspopup]:translate-y-0"
-              >
-                <ChevronRight />
-              </Button>
-            </>
-          )}
-
-          {hasMultipleImages && (
-            <div className="flex shrink-0 justify-center gap-2 overflow-x-auto px-4 py-4">
-              {images.map((image, index) => (
-                <button
-                  key={`${image}-${index}`}
-                  type="button"
-                  aria-label={`Открыть фото ${index + 1}`}
-                  aria-pressed={lightboxIndex === index}
-                  onClick={() => selectLightboxImage(index)}
-                  className={cn(
-                    "relative h-16 w-12 shrink-0 overflow-hidden rounded-lg border transition",
-                    lightboxIndex === index
-                      ? "border-white opacity-100"
-                      : "border-white/20 opacity-60 hover:opacity-100",
-                  )}
-                >
-                  <Image
-                    fill
-                    src={image}
-                    alt=""
-                    unoptimized={shouldBypassNextImageOptimization(image)}
-                    sizes="48px"
-                    className="object-cover"
-                  />
-                </button>
-              ))}
-            </div>
-          )}
-        </DialogContent>
-      </Dialog>
+        )}
+      </ResponsiveMediaViewer>
     </div>
   );
 }
