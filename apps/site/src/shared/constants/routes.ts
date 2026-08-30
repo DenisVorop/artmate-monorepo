@@ -1,3 +1,21 @@
+const coloringNumberPattern = /^(?:0[1-9]|[1-9]\d)$/;
+
+export function formatColoringNumber(number: number) {
+  if (!Number.isInteger(number) || number < 1 || number > 99) {
+    throw new RangeError("Coloring number must be an integer from 1 to 99");
+  }
+
+  return String(number).padStart(2, "0");
+}
+
+export function parseColoringNumber(value: string) {
+  if (!coloringNumberPattern.test(value)) {
+    return null;
+  }
+
+  return Number(value);
+}
+
 export const routes = {
   home: "/",
   auth: "/auth",
@@ -6,6 +24,11 @@ export const routes = {
   account: "/account",
   cart: "/cart",
   catalog: "/catalog",
+  colorings: "/raskraski",
+  coloringCollection: (slug: string) => `/raskraski/digital/${slug}`,
+  digitalCollection: (slug: string) => `/raskraski/digital/${slug}`,
+  coloring: (collectionSlug: string, number: number) =>
+    `/raskraski/digital/${collectionSlug}/${formatColoringNumber(number)}`,
   catalogCategory: (categorySlug: string) => `/catalog/raskraski/${categorySlug}`,
   catalogLanding: (slug: string) => `/catalog/podborki/${slug}`,
   blog: "/blog",

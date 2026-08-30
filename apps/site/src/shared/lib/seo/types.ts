@@ -76,6 +76,60 @@ export type SeoProduct = {
   title: string;
 };
 
+export type SeoColoring = {
+  colored: SeoColoringImage;
+  description: string;
+  firstPublishedAt: string;
+  height: number;
+  outline: SeoColoringImage;
+  collection: {
+    slug: string;
+    title: string;
+    product: {
+      category?: {
+        slug: string;
+        title: string;
+      };
+      slug: string;
+      title: string;
+    };
+  };
+  number: number;
+  publishedAt: string;
+  title: string;
+  width: number;
+};
+
+export type SeoColoringCollectionSummary = {
+  cover: SeoImage;
+  description?: string;
+  lastModified: string;
+  product: {
+    category?: {
+      slug: string;
+      title: string;
+    };
+    slug: string;
+    title: string;
+  };
+  slug: string;
+  title: string;
+};
+
+export type SeoColoringCollection = SeoColoringCollectionSummary & {
+  colorings: readonly {
+    card: SeoImage;
+    number: number;
+    position: number;
+    title: string;
+  }[];
+};
+
+type SeoColoringImage = {
+  alt: string;
+  url: string;
+};
+
 export type SeoBlogArticleContent = {
   blocks: readonly SeoBlogArticleBlock[];
 };

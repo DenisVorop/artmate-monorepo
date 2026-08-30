@@ -27,6 +27,10 @@ export type Product = {
   description: string;
   isHit: boolean;
   isOutOfStock: boolean;
+  digitalCollection?: {
+    slug: string;
+    title: string;
+  };
   tags: ProductTag[];
   createdAt: string;
   updatedAt: string;
@@ -80,6 +84,10 @@ export type ApiProductDTO = {
   status: "draft" | "published" | "archived";
   isHit: boolean;
   isOutOfStock: boolean;
+  digitalCollection?: {
+    slug: string;
+    title: string;
+  };
   categoryId?: string;
   category?: ApiProductCategoryDTO;
   price: number;

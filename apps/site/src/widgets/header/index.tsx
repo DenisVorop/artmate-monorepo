@@ -26,7 +26,7 @@ export function Header() {
         <Logo />
 
         <nav
-          className="hidden shrink-0 lg:ml-6 lg:block lg:w-[30rem] xl:ml-20 xl:w-[31rem]"
+          className="hidden min-w-0 flex-1 lg:ml-3 lg:block xl:ml-8"
           aria-label="Основная навигация"
         >
           <Menu />

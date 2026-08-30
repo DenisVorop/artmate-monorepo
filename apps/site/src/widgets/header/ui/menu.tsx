@@ -19,6 +19,10 @@ const navItems = [
     title: "Каталог",
   },
   {
+    href: routes.colorings,
+    title: "Цифровые версии",
+  },
+  {
     href: routes.paymentAndDelivery,
     title: "Оплата и доставка",
   },
@@ -54,7 +58,7 @@ export function Menu() {
   const pathname = usePathname();
 
   return (
-    <ul className="flex items-center gap-1 text-sm font-medium text-muted-foreground">
+    <ul className="flex items-center gap-0.5 text-xs font-medium text-muted-foreground xl:gap-1 xl:text-sm">
       {navItems.map((item) => {
         const isActive = isRouteActive(pathname, item.href);
 
@@ -64,7 +68,7 @@ export function Menu() {
               href={item.href}
               aria-current={isActive ? "page" : undefined}
               className={cn(
-                "relative inline-flex h-9 items-center rounded-md px-3 transition-colors hover:bg-rose-50 hover:text-rose-950",
+                "relative inline-flex h-9 items-center rounded-md px-2 transition-colors hover:bg-rose-50 hover:text-rose-950 xl:px-3",
                 isActive ? "text-rose-950" : "text-muted-foreground",
               )}
             >
