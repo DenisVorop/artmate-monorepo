@@ -1,0 +1,175 @@
+enum ColoringStatus {
+  DRAFT     @map("draft")
+  PUBLISHED @map("published")
+  ARCHIVED  @map("archived")
+
+  @@map("coloring_status")
+}
+
+enum ColoringCollectionStatus {
+  DRAFT     @map("draft")
+  PUBLISHED @map("published")
+  ARCHIVED  @map("archived")
+
+  @@map("coloring_collection_status")
+}
+
+enum ColoringRevisionReviewDecision {
+  APPROVED @map("approved")
+  REJECTED @map("rejected")
+
+  @@map("coloring_revision_review_decision")
+}
+
+model MarkerColor {
+  id                  String                         @id @db.VarChar(32)
+  colorNumber         Int                            @unique @map("color_number")
+  pantone             String                         @db.VarChar(40)
+  hex                 String                         @db.VarChar(7)
+  catalogPosition     Int                            @unique @map("catalog_position")
+  markerNumber        String                         @unique @map("marker_number") @db.VarChar(3)
+  revisionAssignments ColoringRevisionPaletteColor[]
+
+  @@map("marker_colors")
+}
+
+model Coloring {
+  id                  String         @id @default(cuid()) @db.VarChar(32)
+  collectionId        String         @map("collection_id") @db.VarChar(32)
+  number              Int
+  title               String         @db.VarChar(220)
+  description         String?        @db.Text
+  position            Int
+  status              ColoringStatus @default(DRAFT)
+  revisionSequence    Int            @default(0) @map("revision_sequence")
+  publishedRevisionId String?        @unique @map("published_revision_id") @db.VarChar(32)
+  publishedAt         DateTime?      @map("published_at")
+  publishedById       String?        @map("published_by_id")
+  createdAt           DateTime       @default(now()) @map("created_at")
+  updatedAt           DateTime       @default(now()) @updatedAt @map("updated_at")
+
+  collection        ColoringCollection        @relation(fields: [collectionId], references: [id], onDelete: Restrict)
+  themes            ColoringThemeAssignment[]
+  revisions         ColoringRevision[]        @relation("ColoringRevisions")
+  publishedRevision ColoringRevision?         @relation("PublishedColoringRevision", fields: [id, publishedRevisionId], references: [coloringId, id], onDelete: NoAction)
+  publishedBy       User?                     @relation("ColoringPublisher", fields: [publishedById], references: [id], onDelete: SetNull)
+
+  @@unique([collectionId, position])
+  @@unique([collectionId, number])
+  @@unique([id, publishedRevisionId])
+  @@index([publishedById])
+  @@map("colorings")
+}
+
+model ColoringCollection {
+  id                    String                   @id @default(cuid()) @db.VarChar(32)
+  productId             String                   @unique @map("product_id") @db.VarChar(32)
+  slug                  String                   @unique @db.VarChar(180)
+  title                 String                   @db.VarChar(220)
+  description           String?                  @db.Text
+  position              Int                      @default(0)
+  expectedColoringCount Int                      @default(25) @map("expected_coloring_count")
+  status                ColoringCollectionStatus @default(DRAFT)
+  coverUrl              String?                  @map("cover_url") @db.Text
+  coverAlt              String?                  @map("cover_alt") @db.VarChar(220)
+  coverWidth            Int?                     @map("cover_width")
+  coverHeight           Int?                     @map("cover_height")
+  publishedAt           DateTime?                @map("published_at")
+  createdAt             DateTime                 @default(now()) @map("created_at")
+  updatedAt             DateTime                 @default(now()) @updatedAt @map("updated_at")
+
+  product   Product    @relation(fields: [productId], references: [id], onDelete: Restrict)
+  colorings Coloring[]
+
+  @@index([status, position])
+  @@map("coloring_collections")
+}
+
+model ColoringThemeAssignment {
+  coloringId String          @map("coloring_id") @db.VarChar(32)
+  tagId      String          @map("tag_id") @db.VarChar(32)
+  tagGroup   ProductTagGroup @default(THEME) @map("tag_group")
+
+  coloring Coloring   @relation(fields: [coloringId], references: [id], onDelete: Cascade)
+  tag      ProductTag @relation(fields: [tagId, tagGroup], references: [id, group], onDelete: Restrict, onUpdate: Restrict)
+
+  @@id([coloringId, tagId])
+  @@index([tagId])
+  @@map("coloring_theme_assignments")
+}
+
+model ColoringRevision {
+  id                    String    @id @db.VarChar(32)
+  coloringId            String    @map("coloring_id") @db.VarChar(32)
+  version               Int
+  paletteLabel          String    @map("palette_label") @db.VarChar(120)
+  paletteVersion        String    @map("palette_version") @db.VarChar(80)
+  usedColorCount        Int       @map("used_color_count")
+  width                 Int
+  height                Int
+  derivativeProfile     String    @map("derivative_profile") @db.VarChar(40)
+  colorSpace            String    @map("color_space") @db.VarChar(20)
+  outlineSourceMime     String    @map("outline_source_mime") @db.VarChar(20)
+  outlineSourceChecksum String    @map("outline_source_checksum") @db.Char(64)
+  outlineStorageKey     String    @unique @map("outline_storage_key") @db.Text
+  outlineByteSize       Int       @map("outline_byte_size")
+  outlineChecksum       String    @map("outline_checksum") @db.Char(64)
+  outlineAlt            String    @map("outline_alt") @db.VarChar(220)
+  coloredSourceMime     String    @map("colored_source_mime") @db.VarChar(20)
+  coloredSourceChecksum String    @map("colored_source_checksum") @db.Char(64)
+  coloredStorageKey     String    @unique @map("colored_storage_key") @db.Text
+  coloredByteSize       Int       @map("colored_byte_size")
+  coloredChecksum       String    @map("colored_checksum") @db.Char(64)
+  coloredAlt            String    @map("colored_alt") @db.VarChar(220)
+  cardStorageKey        String?   @unique @map("card_storage_key") @db.Text
+  cardByteSize          Int?      @map("card_byte_size")
+  cardChecksum          String?   @map("card_checksum") @db.Char(64)
+  cardWidth             Int?      @map("card_width")
+  cardHeight            Int?      @map("card_height")
+  createdById           String?   @map("created_by_id")
+  firstPublishedAt      DateTime? @map("first_published_at")
+  createdAt             DateTime  @default(now()) @map("created_at")
+
+  coloring      Coloring                       @relation("ColoringRevisions", fields: [coloringId], references: [id], onDelete: Cascade)
+  paletteColors ColoringRevisionPaletteColor[]
+  review        ColoringRevisionReview?
+  createdBy     User?                          @relation("ColoringRevisionCreator", fields: [createdById], references: [id], onDelete: SetNull)
+  publishedFor  Coloring?                      @relation("PublishedColoringRevision")
+
+  @@unique([coloringId, version])
+  @@unique([coloringId, id])
+  @@index([createdById])
+  @@map("coloring_revisions")
+}
+
+model ColoringRevisionPaletteColor {
+  revisionId     String @map("revision_id") @db.VarChar(32)
+  markerColorId  String @map("marker_color_id") @db.VarChar(32)
+  symbolPosition Int    @map("symbol_position")
+  colorNumber    Int    @map("color_number")
+  pantone        String @db.VarChar(40)
+  hex            String @db.VarChar(7)
+  markerNumber   String @map("marker_number") @db.VarChar(3)
+
+  revision    ColoringRevision @relation(fields: [revisionId], references: [id], onDelete: Cascade)
+  markerColor MarkerColor      @relation(fields: [markerColorId], references: [id], onDelete: Restrict)
+
+  @@id([revisionId, symbolPosition])
+  @@unique([revisionId, markerColorId], map: "coloring_revision_palette_colors_revision_marker_key")
+  @@index([markerColorId])
+  @@map("coloring_revision_palette_colors")
+}
+
+model ColoringRevisionReview {
+  revisionId   String                         @id @map("revision_id") @db.VarChar(32)
+  decision     ColoringRevisionReviewDecision
+  comment      String?                        @db.Text
+  reviewedById String?                        @map("reviewed_by_id")
+  reviewedAt   DateTime                       @default(now()) @map("reviewed_at")
+
+  revision   ColoringRevision @relation(fields: [revisionId], references: [id], onDelete: Cascade)
+  reviewedBy User?            @relation("ColoringRevisionReviewer", fields: [reviewedById], references: [id], onDelete: SetNull)
+
+  @@index([reviewedById])
+  @@map("coloring_revision_reviews")
+}

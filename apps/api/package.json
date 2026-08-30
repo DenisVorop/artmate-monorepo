@@ -7,6 +7,7 @@
     "dev": "ts-node src/main.ts",
     "prebuild": "prisma generate",
     "build": "tsc -p tsconfig.build.json",
+    "backfill:coloring-cards": "ts-node src/colorings/backfill-coloring-cards.ts",
     "import:ozon-products": "ts-node src/products/import-ozon-products.ts",
     "seed:blog-mocks": "ts-node src/blog/seed-blog-mocks.ts",
     "start": "node dist/main.js",
