@@ -2,7 +2,7 @@
 
 import { CreditCard, LoaderCircle, ShoppingBag } from "lucide-react";
 
-import { PromoCodeForm, usePromocode } from "@/features/promocode";
+import { getPromoPricingState, PromoCodeForm, usePromocode } from "@/features/promocode";
 import { routes } from "@/shared/constants";
 import { cn } from "@/shared/lib";
 import {
@@ -35,15 +35,8 @@ export function CartSummary({
   isClearingCart,
   onClear,
 }: CartSummaryProps) {
-  const {
-    isError: isPromoError,
-    isHydrating,
-    isPending: isPromoPending,
-    preview,
-    selectedCode,
-  } = usePromocode();
-  const isPromoUnavailable = Boolean(selectedCode) && (isPromoError || !preview);
-  const isTotalUnavailable = isHydrating || isPromoPending || isPromoUnavailable || isMutating;
+  const promoPricing = getPromoPricingState(usePromocode());
+  const isTotalUnavailable = !promoPricing.isReady || isMutating;
 
   return (
     <Card className="lg:sticky lg:top-24">
@@ -58,21 +51,19 @@ export function CartSummary({
           <span className="text-muted-foreground">Товары</span>
           <span className="font-medium">{formatMoney(subtotal)}</span>
         </div>
-        {preview && !isPromoPending ? (
+        {promoPricing.preview ? (
           <div className="flex items-center justify-between gap-4 text-sm text-emerald-700">
-            <span>Скидка ({preview.code})</span>
-            <span className="font-medium">-{formatMoney(preview.discount)}</span>
+            <span>Скидка ({promoPricing.preview.code})</span>
+            <span className="font-medium">-{formatMoney(promoPricing.preview.discount)}</span>
           </div>
         ) : null}
         <Separator />
         <div className="flex items-center justify-between text-lg font-semibold">
           <span>К оплате</span>
-          {isPromoUnavailable && !isPromoPending ? (
-            <span className="text-sm text-destructive">Недоступно</span>
-          ) : isTotalUnavailable ? (
+          {isTotalUnavailable ? (
             <AmountSkeleton className="h-6 w-24" />
           ) : (
-            <span>{formatMoney(preview?.total ?? subtotal)}</span>
+            <span>{formatMoney(promoPricing.preview?.total ?? subtotal)}</span>
           )}
         </div>
       </CardContent>
