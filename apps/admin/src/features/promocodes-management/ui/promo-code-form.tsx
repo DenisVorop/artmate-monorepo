@@ -13,7 +13,7 @@ import {
   Textarea,
 } from "@/shared/ui";
 
-import type { PromoCodeFormValues } from "../lib";
+import { generatePromoCode, type PromoCodeFormValues } from "../lib";
 
 type PromoCodeFormProps = {
   readonly codeImmutable?: boolean;
@@ -39,6 +39,16 @@ export function PromoCodeForm({
     watch,
   } = form;
   const type = watch("type");
+  const codeInputId = `${formId}-code`;
+
+  const handleGenerateCode = () => {
+    if (submitPending || codeImmutable) return;
+
+    form.setValue("code", generatePromoCode(), {
+      shouldDirty: true,
+      shouldValidate: true,
+    });
+  };
 
   return (
     <form id={formId} onSubmit={onSubmit}>
@@ -47,20 +57,45 @@ export function PromoCodeForm({
         disabled={submitPending}
       >
         <div className="grid gap-4 lg:grid-cols-2">
-          <LabeledField error={errors.code?.message} label="Код">
-            <Input
-              aria-invalid={Boolean(errors.code)}
-              disabled={codeImmutable}
-              maxLength={40}
-              placeholder="ARTMATE10"
-              {...register("code")}
-            />
+          <div className="grid gap-1.5">
+            <label
+              className="text-xs font-medium text-muted-foreground"
+              htmlFor={codeInputId}
+            >
+              Код
+            </label>
+            <div className="grid min-w-0 gap-2 sm:grid-cols-[minmax(0,1fr)_auto]">
+              <Input
+                aria-invalid={Boolean(errors.code)}
+                disabled={codeImmutable}
+                id={codeInputId}
+                maxLength={40}
+                placeholder="ARTMATE10"
+                {...register("code")}
+              />
+              {!codeImmutable ? (
+                <Button
+                  className="w-full sm:w-auto"
+                  disabled={submitPending}
+                  onClick={handleGenerateCode}
+                  type="button"
+                  variant="outline"
+                >
+                  Сгенерировать
+                </Button>
+              ) : null}
+            </div>
             {codeImmutable ? (
               <p className="text-xs text-muted-foreground">
                 Код нельзя изменить после создания.
               </p>
             ) : null}
-          </LabeledField>
+            {errors.code?.message ? (
+              <span className="text-xs text-destructive">
+                {errors.code.message}
+              </span>
+            ) : null}
+          </div>
           <LabeledField error={errors.name?.message} label="Название">
             <Input
               aria-invalid={Boolean(errors.name)}

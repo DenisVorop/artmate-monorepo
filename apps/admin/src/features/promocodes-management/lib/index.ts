@@ -11,6 +11,7 @@ export {
   utcToMoscowDateTime,
   type PromoCodeFormValues,
 } from "./form-values";
+export { generatePromoCode } from "./generate-code";
 export {
   getReleasePromoCodeInput,
   releasePromoCodeDefaultValues,
