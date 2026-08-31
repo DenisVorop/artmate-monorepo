@@ -96,6 +96,7 @@ async function createAccountHarness({
       }),
       useUnlinkTelegram: () => ({ isPending: false, mutate: async () => undefined }),
     },
+    "./welcome-promo-card": { WelcomePromoCard: component("WelcomePromoCard") },
     "@/entities/orders": {
       getLatestOrder: () => undefined,
       getPreferredCustomerEmail: () => undefined,

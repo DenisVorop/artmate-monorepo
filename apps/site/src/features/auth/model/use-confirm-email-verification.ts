@@ -9,7 +9,11 @@ import {
   type ConfirmEmailVerificationInputDTO,
 } from "@/shared/actions/auth";
 import { ApiResult } from "@/shared/lib/api-result";
-import { cartPricingQueryKey } from "@/shared/lib/query-keys";
+import {
+  cartPricingQueryKey,
+  featureBannersQueryKey,
+  welcomeOfferQueryKey,
+} from "@/shared/lib/query-keys";
 
 type UseConfirmEmailVerificationMutationOptions = {
   onSuccess?: (_session: AuthSessionDTO | undefined) => void;
@@ -23,6 +27,10 @@ export function useConfirmEmailVerificationMutation(
     mutationFn: async (input: ConfirmEmailVerificationInputDTO) =>
       ApiResult.fromDTO(await confirmEmailVerification(input)).unwrap(),
     onSuccess: (session) => {
+      void queryClient.cancelQueries({ queryKey: featureBannersQueryKey });
+      void queryClient.cancelQueries({ queryKey: welcomeOfferQueryKey });
+      queryClient.removeQueries({ queryKey: featureBannersQueryKey });
+      queryClient.removeQueries({ queryKey: welcomeOfferQueryKey });
       queryClient.setQueryData(sessionQuery.getSession().queryKey, session ?? { user: null });
       void queryClient.invalidateQueries({ queryKey: cartPricingQueryKey });
       options.onSuccess?.(session);

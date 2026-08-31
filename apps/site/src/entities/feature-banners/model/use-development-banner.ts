@@ -7,8 +7,13 @@ import {
 
 import { useFeatureBanners } from "./use-feature-banners";
 
-export function useDevelopmentBanner() {
-  const { banners, isError, isPending } = useFeatureBanners();
+type UseDevelopmentBannerInput = {
+  enabled: boolean;
+  owner: string;
+};
+
+export function useDevelopmentBanner(input: UseDevelopmentBannerInput) {
+  const { banners, isError, isPending } = useFeatureBanners(input);
   const bannersBySlug = getFeatureBannersBySlug(banners);
   const banner = bannersBySlug[featureBannerSlugs.siteDevelopment];
 

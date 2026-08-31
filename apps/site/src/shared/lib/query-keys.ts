@@ -5,3 +5,10 @@ export function createQueryKey(...parts: QueryKeyPart[]) {
 }
 
 export const cartPricingQueryKey = ["cart-pricing"] as const;
+export const featureBannersQueryKey = ["feature-banners"] as const;
+export const welcomeOfferQueryKey = [...cartPricingQueryKey, "welcome-offer"] as const;
+export const guestQueryOwner = "guest";
+
+export function getQueryOwner(userId: string | null | undefined) {
+  return userId ?? guestQueryOwner;
+}

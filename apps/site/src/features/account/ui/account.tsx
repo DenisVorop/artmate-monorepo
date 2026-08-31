@@ -56,6 +56,7 @@ import {
   type TelegramLinkFormValues,
 } from "../lib";
 import { useConfirmTelegramLink, useUnlinkTelegram } from "../model";
+import { WelcomePromoCard } from "./welcome-promo-card";
 
 export function Account() {
   const { user, isPending: isSessionPending } = useSession();
@@ -96,6 +97,7 @@ export function Account() {
   const latestOrder = getLatestOrder(accountOrders);
   const email = user.email ?? getPreferredCustomerEmail(accountOrders);
   const userTitle = getSessionUserDisplayName(user);
+  const isTelegramLinked = Boolean(telegramLink.data?.linked && telegramLink.data.account);
 
   return (
     <section className="container py-8 md:py-12">
@@ -132,6 +134,7 @@ export function Account() {
           </Card>
 
           <TelegramLinkCard telegramLink={telegramLink} />
+          <WelcomePromoCard userId={user.id} isTelegramLinked={isTelegramLinked} />
         </aside>
 
         <div className="space-y-4">

@@ -1,36 +1,16 @@
 "use client";
 
-import { useEffect, useState } from "react";
 import { Check, Cookie } from "lucide-react";
 
 import { routes } from "@/shared/constants";
+import { acceptCookieConsent, useCookieConsent } from "@/shared/lib/cookie-consent";
 import { Button } from "@/shared/ui";
 import { Link } from "@/shared/ui/link";
 
-import { cookieConsentAcceptedValue, cookieConsentStorageKey } from "../lib/consent-storage";
-
 export function CookieConsentBanner() {
-  const [isVisible, setIsVisible] = useState(false);
+  const { isAccepted, isReady } = useCookieConsent();
 
-  useEffect(() => {
-    try {
-      setIsVisible(localStorage.getItem(cookieConsentStorageKey) !== cookieConsentAcceptedValue);
-    } catch {
-      setIsVisible(true);
-    }
-  }, []);
-
-  function handleAccept() {
-    try {
-      localStorage.setItem(cookieConsentStorageKey, cookieConsentAcceptedValue);
-    } catch {
-      // The current session can still hide the banner if storage is unavailable.
-    }
-
-    setIsVisible(false);
-  }
-
-  if (!isVisible) {
+  if (!isReady || isAccepted) {
     return null;
   }
 
@@ -60,7 +40,7 @@ export function CookieConsentBanner() {
         <Button
           type="button"
           variant="outline"
-          onClick={handleAccept}
+          onClick={() => acceptCookieConsent()}
           className="h-8 w-full border-stone-200 bg-white px-2.5 text-xs text-stone-800 hover:bg-stone-50 focus-visible:border-rose-200 focus-visible:ring-rose-200/40 md:h-9 md:w-auto md:px-2.5 md:text-sm"
         >
           <Check data-icon="inline-start" aria-hidden="true" />

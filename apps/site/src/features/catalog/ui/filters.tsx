@@ -2,6 +2,7 @@
 
 import { Blocks, ChevronDown, Search, SlidersHorizontal, Sparkles, Tags, X } from "lucide-react";
 import { useDevelopmentBanner } from "@/entities/feature-banners";
+import { useSession } from "@/entities/session";
 import {
   Button,
   DropdownMenu,
@@ -13,11 +14,16 @@ import {
   Separator,
 } from "@/shared/ui";
 import { cn } from "@/shared/lib";
+import { getQueryOwner } from "@/shared/lib/query-keys";
 import { useCatalog } from "../lib/catalog-provider";
 import { sortOptions, type SortValue } from "../lib/catalog-state";
 
 export function Filters() {
-  const { hasDevelopmentBanner } = useDevelopmentBanner();
+  const { isPending, user } = useSession();
+  const { hasDevelopmentBanner } = useDevelopmentBanner({
+    enabled: !isPending,
+    owner: getQueryOwner(user?.id),
+  });
   const {
     categories,
     categoryId,
