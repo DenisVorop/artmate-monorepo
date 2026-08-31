@@ -11,6 +11,7 @@ import {
 
 import type { CartItemDTO } from "../cart/dto";
 import type { OrderCustomerDTO, OrderDeliveryDTO } from "../orders/dto";
+import type { OrderReceiptItemPricing } from "../orders/payment-receipt";
 
 type TBankAcquiringPayType = "O" | "T";
 
@@ -90,6 +91,7 @@ export type TBankAcquiringCreateCheckoutPaymentInput = {
   items: CartItemDTO[];
   notificationUrl: string;
   orderId: string;
+  receiptPricing?: OrderReceiptItemPricing[];
   successUrl: string;
 };
 
@@ -116,7 +118,6 @@ export type TBankAcquiringParsedNotification = {
 const defaultAcquiringBaseUrl = "https://securepay.tinkoff.ru";
 const successfulPaymentStatuses = new Set(["CONFIRMED"]);
 const failedPaymentStatuses = new Set([
-  "AUTH_FAIL",
   "CANCELED",
   "DEADLINE_EXPIRED",
   "REJECTED",
@@ -199,6 +200,12 @@ export class TBankAcquiringService {
         "T-Bank Acquiring notification token is invalid",
       );
     }
+    const terminalKey = this.getStringProperty(notification, "TerminalKey");
+    if (!terminalKey || terminalKey !== this.getTerminalKey()) {
+      throw new UnauthorizedException(
+        "T-Bank Acquiring notification terminal is invalid",
+      );
+    }
   }
 
   parseNotification(
@@ -240,18 +247,48 @@ export class TBankAcquiringService {
   private createReceiptItems(
     input: TBankAcquiringCreateCheckoutPaymentInput,
   ): TBankReceiptItem[] {
-    const items: TBankReceiptItem[] = input.items.map((item) => {
-      const price = this.createAmountKopecks(item.price);
-
-      return {
-        Amount: price * item.quantity,
+    if (
+      input.receiptPricing &&
+      (input.receiptPricing.length !== input.items.length ||
+        new Set(input.receiptPricing.map((item) => item.id)).size !==
+          input.receiptPricing.length)
+    ) {
+      throw new BadRequestException(
+        "T-Bank receipt pricing does not match order items",
+      );
+    }
+    const items: TBankReceiptItem[] = input.items.flatMap((item) => {
+      const pricing = input.receiptPricing?.find(
+        (candidate) => candidate.id === item.id,
+      );
+      const groups = pricing?.priceGroups ?? [
+        {
+          quantity: item.quantity,
+          totalKopecks: this.createAmountKopecks(item.price) * item.quantity,
+          unitPriceKopecks: this.createAmountKopecks(item.price),
+        },
+      ];
+      if (input.receiptPricing && !pricing) {
+        throw new BadRequestException(
+          "T-Bank receipt pricing is missing an order item",
+        );
+      }
+      if (
+        groups.reduce((sum, group) => sum + group.quantity, 0) !== item.quantity
+      ) {
+        throw new BadRequestException(
+          "T-Bank receipt pricing quantity must match order item",
+        );
+      }
+      return groups.map((group) => ({
+        Amount: group.totalKopecks,
         Name: this.truncate(item.title, 128),
         PaymentMethod: "full_prepayment" as const,
         PaymentObject: "commodity" as const,
-        Price: price,
-        Quantity: item.quantity,
+        Price: group.unitPriceKopecks,
+        Quantity: group.quantity,
         Tax: this.getTax(),
-      };
+      }));
     });
 
     if (input.deliveryPrice > 0) {
@@ -259,7 +296,10 @@ export class TBankAcquiringService {
 
       items.push({
         Amount: deliveryPrice,
-        Name: this.truncate(this.getDeliveryItemName(input.deliveryProvider), 128),
+        Name: this.truncate(
+          this.getDeliveryItemName(input.deliveryProvider),
+          128,
+        ),
         PaymentMethod: "full_prepayment",
         PaymentObject: "service",
         Price: deliveryPrice,
@@ -268,6 +308,11 @@ export class TBankAcquiringService {
       });
     }
 
+    if (items.length > 100) {
+      throw new BadRequestException(
+        "T-Bank receipt cannot contain more than 100 items",
+      );
+    }
     return items;
   }
 
@@ -449,11 +494,7 @@ export class TBankAcquiringService {
     const message = this.getStringProperty(value, "Message");
     const details = this.getStringProperty(value, "Details");
 
-    return [
-      errorCode ? `ErrorCode=${errorCode}` : undefined,
-      message,
-      details,
-    ]
+    return [errorCode ? `ErrorCode=${errorCode}` : undefined, message, details]
       .filter((item): item is string => Boolean(item))
       .join("; ");
   }

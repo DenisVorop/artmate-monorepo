@@ -5,6 +5,7 @@ import { CartModule } from "../cart/cart.module";
 import { DeliveryModule } from "../delivery/delivery.module";
 import { NotificationQueueModule } from "../notifications/notification-queue.module";
 import { OzonModule } from "../ozon/ozon.module";
+import { PromocodesModule } from "../promocodes/promocodes.module";
 import { TBankModule } from "../tbank/tbank.module";
 import { UsersModule } from "../users/users.module";
 
@@ -20,6 +21,7 @@ import { OrdersStorage } from "./orders.storage";
     DeliveryModule,
     NotificationQueueModule,
     OzonModule,
+    PromocodesModule,
     TBankModule,
     UsersModule,
   ],

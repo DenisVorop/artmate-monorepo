@@ -36,6 +36,7 @@ model User {
   orderAdminComments       OrderAdminComment[]         @relation("OrderAdminCommentAuthor")
   orderHistory             OrderHistory[]              @relation("OrderHistoryAuthor")
   orders                   Order[]
+  promoRedemptions         PromoRedemption[]
   createdColoringRevisions ColoringRevision[]          @relation("ColoringRevisionCreator")
   coloringRevisionReviews  ColoringRevisionReview[]    @relation("ColoringRevisionReviewer")
   publishedColorings       Coloring[]                  @relation("ColoringPublisher")

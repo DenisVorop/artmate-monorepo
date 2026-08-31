@@ -1,0 +1,65 @@
+enum PromoCodeType {
+  PERCENTAGE @map("percentage")
+  FIXED      @map("fixed")
+
+  @@map("promo_code_type")
+}
+
+enum PromoRedemptionStatus {
+  RESERVED @map("reserved")
+  USED     @map("used")
+  RELEASED @map("released")
+
+  @@map("promo_redemption_status")
+}
+
+model PromoCode {
+  id                   String        @id @default(cuid())
+  code                 String        @unique(map: "promo_codes_code_key") @db.VarChar(40)
+  name                 String        @db.VarChar(160)
+  description          String?       @db.Text
+  type                 PromoCodeType
+  basisPoints          Int?          @map("basis_points")
+  amountKopecks        BigInt?       @map("amount_kopecks")
+  maxDiscountKopecks   BigInt?       @map("max_discount_kopecks")
+  minSubtotalKopecks   BigInt        @default(0) @map("min_subtotal_kopecks")
+  startsAt             DateTime?     @map("starts_at")
+  endsAt               DateTime?     @map("ends_at")
+  maxUses              Int?          @map("max_uses")
+  maxUsesPerUser       Int?          @map("max_uses_per_user")
+  isActive             Boolean       @default(true) @map("is_active")
+  usedCount            Int           @default(0) @map("used_count")
+  reservedCount        Int           @default(0) @map("reserved_count")
+  createdAt            DateTime      @default(now()) @map("created_at")
+  updatedAt            DateTime      @default(now()) @updatedAt @map("updated_at")
+
+  redemptions PromoRedemption[]
+
+  @@index([isActive, startsAt, endsAt], map: "promo_codes_active_dates_idx")
+  @@map("promo_codes")
+}
+
+model PromoRedemption {
+  id                      String                @id @default(cuid())
+  promoCodeId             String                @map("promo_code_id")
+  orderId                 String                @unique(map: "promo_redemptions_order_id_key") @map("order_id") @db.VarChar(32)
+  userId                  String?               @map("user_id")
+  status                  PromoRedemptionStatus @default(RESERVED)
+  codeSnapshot            String                @map("code_snapshot") @db.VarChar(40)
+  termsSnapshot           Json                  @map("terms_snapshot") @db.JsonB
+  pricingSnapshot         Json                  @map("pricing_snapshot") @db.JsonB
+  subtotalKopecksSnapshot BigInt                @map("subtotal_kopecks_snapshot")
+  discountKopecksSnapshot BigInt                @map("discount_kopecks_snapshot")
+  totalKopecksSnapshot    BigInt                @map("total_kopecks_snapshot")
+  createdAt               DateTime              @default(now()) @map("created_at")
+  usedAt                  DateTime?             @map("used_at")
+  releasedAt              DateTime?             @map("released_at")
+
+  promoCode PromoCode @relation(fields: [promoCodeId], references: [id], onDelete: Restrict, onUpdate: Cascade, map: "promo_redemptions_promo_code_id_fkey")
+  order     Order     @relation(fields: [orderId], references: [id], onDelete: Restrict, onUpdate: Cascade, map: "promo_redemptions_order_id_fkey")
+  user      User?     @relation(fields: [userId], references: [id], onDelete: SetNull, onUpdate: Cascade, map: "promo_redemptions_user_id_fkey")
+
+  @@index([promoCodeId, status], map: "promo_redemptions_promo_status_idx")
+  @@index([promoCodeId, userId, status], map: "promo_redemptions_promo_user_status_idx")
+  @@map("promo_redemptions")
+}
