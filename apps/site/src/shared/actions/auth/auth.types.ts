@@ -87,7 +87,6 @@ export type AuthTelegramLinkStatusDTO = {
 };
 
 export type ConfirmTelegramLinkInputDTO = {
-  acceptedPersonalDataConsent: boolean;
   code: string;
 };
 
