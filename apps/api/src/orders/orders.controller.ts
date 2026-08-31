@@ -16,6 +16,7 @@ import {
 } from "@nestjs/common";
 
 import { AuthGuard } from "../auth/auth.guard";
+import { AuthService } from "../auth/auth.service";
 import type { AuthUser } from "../auth/auth.types";
 import { ValidateResponse } from "../common/response-validation.interceptor";
 import { DeliveryProxyThrottleService } from "../delivery/delivery-proxy-throttle.service";
@@ -47,6 +48,7 @@ export class OrdersController {
     private readonly ordersService: OrdersService,
     private readonly usersService: UsersService,
     private readonly deliveryProxyThrottleService: DeliveryProxyThrottleService,
+    private readonly authService: AuthService,
   ) {}
 
   @ValidateResponse(PickupPointDTO, { isArray: true })
@@ -156,12 +158,13 @@ export class OrdersController {
     },
   })
   @ApiOkResponse({ type: CheckoutCalculationDTO })
-  calculateCheckout(
+  async calculateCheckout(
     @Body() request: CalculateCheckoutRequestDTO,
     @Headers("cookie") cookieHeader: string | undefined,
     @Headers("x-forwarded-for") forwardedFor: string | undefined,
     @Headers("x-real-ip") realIp: string | undefined,
     @Ip() requestIp: string | undefined,
+    @Headers("authorization") authorization: string | undefined,
   ) {
     if (request.delivery.provider === "ozon") {
       this.deliveryProxyThrottleService.assertAllowed({
@@ -172,9 +175,18 @@ export class OrdersController {
       });
     }
 
+    const token = this.authService.getTokenFromRequest(
+      authorization,
+      cookieHeader,
+    );
+    const user = token
+      ? await this.authService.verifyAccessToken(token)
+      : undefined;
+
     return this.ordersService.calculateCheckout(
       this.getCartId(cookieHeader),
       request,
+      user,
     );
   }
 
@@ -291,6 +303,10 @@ export class OrdersController {
       return undefined;
     }
 
-    return decodeURIComponent(rawCartId);
+    try {
+      return decodeURIComponent(rawCartId);
+    } catch {
+      return undefined;
+    }
   }
 }

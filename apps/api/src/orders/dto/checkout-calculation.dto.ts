@@ -37,6 +37,14 @@ export class CheckoutCalculationDTO {
 
   @IsNumber({ allowInfinity: false, allowNaN: false })
   @Min(0)
+  discount!: number;
+
+  @IsOptional()
+  @IsString()
+  promoCode!: string | null;
+
+  @IsNumber({ allowInfinity: false, allowNaN: false })
+  @Min(0)
   deliveryPrice!: number;
 
   @IsNumber({ allowInfinity: false, allowNaN: false })

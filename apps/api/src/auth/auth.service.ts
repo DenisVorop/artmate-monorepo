@@ -99,7 +99,11 @@ export class AuthService {
       return undefined;
     }
 
-    return decodeURIComponent(rawValue);
+    try {
+      return decodeURIComponent(rawValue);
+    } catch {
+      return undefined;
+    }
   }
 
   private getBearerToken(authorizationHeader?: string) {

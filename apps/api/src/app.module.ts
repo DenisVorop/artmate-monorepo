@@ -17,6 +17,7 @@ import { OrdersModule } from "./orders/orders.module";
 import { OzonModule } from "./ozon/ozon.module";
 import { PrismaModule } from "./prisma/prisma.module";
 import { ProductsModule } from "./products/products.module";
+import { PromocodesModule } from "./promocodes/promocodes.module";
 import { SeoModule } from "./seo/seo.module";
 import { UsersModule } from "./users/users.module";
 
@@ -28,6 +29,7 @@ import { UsersModule } from "./users/users.module";
     CartModule,
     OrdersModule,
     ProductsModule,
+    PromocodesModule,
     CatalogLandingsModule,
     ColoringsModule,
     BlogModule,

@@ -11,6 +11,7 @@ import {
 
 import type { CartItemDTO } from "../cart/dto";
 import type { OrderCustomerDTO, OrderDeliveryDTO } from "../orders/dto";
+import type { OrderReceiptItemPricing } from "../orders/payment-receipt";
 
 type OzonAcquiringMoney = {
   currencyCode: "643";
@@ -61,6 +62,7 @@ export type OzonAcquiringCreateCheckoutPaymentInput = {
   items: CartItemDTO[];
   notificationUrl: string;
   orderId: string;
+  receiptPricing?: OrderReceiptItemPricing[];
   successUrl: string;
 };
 
@@ -73,7 +75,7 @@ export type OzonAcquiringCreateCheckoutPaymentResult = {
 
 export type OzonAcquiringPaymentNotification = Record<string, unknown>;
 
-export type OzonAcquiringParsedNotification = {
+type OzonAcquiringParsedNotificationFields = {
   acquiringOrderId?: string;
   amount?: string;
   currencyCode?: string;
@@ -87,6 +89,25 @@ export type OzonAcquiringParsedNotification = {
   transactionUid?: string;
 };
 
+export type OzonAcquiringVerifiedNotification =
+  | {
+      profile: "canonical";
+      merchantOrderId: string;
+      acquiringOrderId?: string;
+      transactionIdentity?:
+        | { kind: "transactionId"; value: string }
+        | { kind: "transactionUid"; value: string };
+    }
+  | {
+      profile: "secondary";
+      merchantOrderId: string;
+    };
+
+export type OzonAcquiringParsedNotification =
+  OzonAcquiringParsedNotificationFields & {
+    verified: OzonAcquiringVerifiedNotification;
+  };
+
 const defaultAcquiringBaseUrl = "https://payapi.ozon.ru";
 
 @Injectable()
@@ -99,6 +120,18 @@ export class OzonAcquiringService {
     const accessKey = this.getAccessKey();
     const amount = this.createMoney(input.amount);
     const paymentAlgorithm = this.getPaymentAlgorithm();
+    const items = this.createOrderItems(input);
+    const itemsAmount = items.reduce(
+      (sum, item) => sum + Number(item.price.value) * item.quantity,
+      0,
+    );
+    if (itemsAmount !== Number(amount.value)) {
+      throw new BadRequestException({
+        message: "Ozon receipt amount must match order total",
+        orderAmount: amount.value,
+        receiptAmount: String(itemsAmount),
+      });
+    }
     const requestBody: OzonAcquiringCreateOrderRequest = {
       accessKey,
       amount,
@@ -107,7 +140,7 @@ export class OzonAcquiringService {
       failUrl: input.failUrl,
       fiscalizationPhone: input.customer.phone,
       fiscalizationType,
-      items: this.createOrderItems(input),
+      items,
       mode: "MODE_FULL",
       notificationUrl: input.notificationUrl,
       paymentAlgorithm,
@@ -157,6 +190,7 @@ export class OzonAcquiringService {
 
   parseNotification(
     notification: OzonAcquiringPaymentNotification,
+    verified: OzonAcquiringVerifiedNotification,
   ): OzonAcquiringParsedNotification {
     return {
       acquiringOrderId: this.getStringProperty(notification, "orderID"),
@@ -173,10 +207,13 @@ export class OzonAcquiringService {
       status: this.getStringProperty(notification, "status"),
       transactionId: this.getNotificationValue(notification, "transactionID"),
       transactionUid: this.getStringProperty(notification, "transactionUid"),
+      verified,
     };
   }
 
-  assertValidNotification(notification: OzonAcquiringPaymentNotification) {
+  assertValidNotification(
+    notification: OzonAcquiringPaymentNotification,
+  ): OzonAcquiringVerifiedNotification {
     const requestSign = this.getStringProperty(notification, "requestSign");
 
     if (!requestSign) {
@@ -186,15 +223,58 @@ export class OzonAcquiringService {
     }
 
     const candidates = this.createNotificationSignatureCandidates(notification);
-    const isValid = candidates.some((candidate) =>
-      this.isSafeEqual(candidate, requestSign),
-    );
+    const profile = candidates.find((candidate) =>
+      this.isSafeEqual(candidate.signature, requestSign),
+    )?.profile;
 
-    if (!isValid) {
+    if (!profile) {
       throw new UnauthorizedException(
         "Ozon Acquiring notification signature is invalid",
       );
     }
+
+    const extOrderId = this.getStringProperty(notification, "extOrderID");
+    const extTransactionId = this.getStringProperty(
+      notification,
+      "extTransactionID",
+    );
+    const merchantOrderId =
+      profile === "canonical" ? extOrderId : extTransactionId;
+    if (!merchantOrderId) {
+      throw new UnauthorizedException(
+        "Ozon Acquiring signed merchant order identity is missing",
+      );
+    }
+    const otherMerchantOrderId =
+      profile === "canonical" ? extTransactionId : extOrderId;
+    if (otherMerchantOrderId && otherMerchantOrderId !== merchantOrderId) {
+      throw new UnauthorizedException(
+        "Ozon Acquiring merchant order identities conflict",
+      );
+    }
+
+    if (profile === "secondary") {
+      return { profile, merchantOrderId };
+    }
+
+    const transactionId = this.getNotificationValue(
+      notification,
+      "transactionID",
+    );
+    const transactionUid = this.getStringProperty(
+      notification,
+      "transactionUid",
+    );
+    return {
+      profile,
+      merchantOrderId,
+      acquiringOrderId: this.getStringProperty(notification, "orderID"),
+      transactionIdentity: transactionId
+        ? { kind: "transactionId", value: transactionId }
+        : transactionUid
+          ? { kind: "transactionUid", value: transactionUid }
+          : undefined,
+    };
   }
 
   private createNotificationSignatureCandidates(
@@ -216,28 +296,34 @@ export class OzonAcquiringService {
       this.getStringProperty(notification, "currencyCode") ?? "";
 
     return [
-      this.sha256Hex(
-        [
-          accessKey,
-          acquiringOrderId,
-          transactionId,
-          extOrderId,
-          amount,
-          currencyCode,
-          notificationSecretKey,
-        ].join("|"),
-      ),
-      this.sha256Hex(
-        [
-          accessKey,
-          "",
-          "",
-          extTransactionId,
-          amount,
-          currencyCode,
-          notificationSecretKey,
-        ].join("|"),
-      ),
+      {
+        profile: "canonical" as const,
+        signature: this.sha256Hex(
+          [
+            accessKey,
+            acquiringOrderId,
+            transactionId,
+            extOrderId,
+            amount,
+            currencyCode,
+            notificationSecretKey,
+          ].join("|"),
+        ),
+      },
+      {
+        profile: "secondary" as const,
+        signature: this.sha256Hex(
+          [
+            accessKey,
+            "",
+            "",
+            extTransactionId,
+            amount,
+            currencyCode,
+            notificationSecretKey,
+          ].join("|"),
+        ),
+      },
     ];
   }
 
@@ -276,14 +362,57 @@ export class OzonAcquiringService {
   private createOrderItems(
     input: OzonAcquiringCreateCheckoutPaymentInput,
   ): OzonAcquiringCreateOrderItem[] {
-    const items = input.items.map((item) => ({
-      extId: item.id,
-      name: item.title,
-      needMark: false as const,
-      price: this.createMoney(item.price),
-      quantity: item.quantity,
-      vat: "VAT_NONE" as const,
-    }));
+    if (
+      input.receiptPricing &&
+      (input.receiptPricing.length !== input.items.length ||
+        new Set(input.receiptPricing.map((item) => item.id)).size !==
+          input.receiptPricing.length)
+    ) {
+      throw new BadRequestException(
+        "Ozon receipt pricing does not match order items",
+      );
+    }
+    const items = input.items.flatMap((item, itemIndex) => {
+      const pricing = input.receiptPricing?.find(
+        (candidate) => candidate.id === item.id,
+      );
+      if (!pricing) {
+        if (input.receiptPricing) {
+          throw new BadRequestException(
+            "Ozon receipt pricing is missing an order item",
+          );
+        }
+        return [
+          {
+            extId: item.id,
+            name: item.title,
+            needMark: false as const,
+            price: this.createMoney(item.price),
+            quantity: item.quantity,
+            vat: "VAT_NONE" as const,
+          },
+        ];
+      }
+      if (
+        pricing.priceGroups.reduce((sum, group) => sum + group.quantity, 0) !==
+        item.quantity
+      ) {
+        throw new BadRequestException(
+          "Ozon receipt pricing quantity must match order item",
+        );
+      }
+      return pricing.priceGroups.map((group, groupIndex) => ({
+        extId: `${input.orderId}-item-${itemIndex}-price-${groupIndex}`,
+        name: item.title,
+        needMark: false as const,
+        price: {
+          currencyCode: "643" as const,
+          value: String(group.unitPriceKopecks),
+        },
+        quantity: group.quantity,
+        vat: "VAT_NONE" as const,
+      }));
+    });
 
     if (input.deliveryPrice > 0) {
       items.push({

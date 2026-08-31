@@ -25,6 +25,7 @@ type ProtectedOrdersController = {
     forwardedFor: string | undefined,
     realIp: string | undefined,
     requestIp: string | undefined,
+    authorization: string | undefined,
   ): unknown;
   createOrder(
     request: CreateOrderRequestDTO,
@@ -73,6 +74,7 @@ describe("OrdersController Ozon proxy protection", () => {
       identity.forwardedFor,
       identity.realIp,
       identity.requestIp,
+      undefined,
     );
 
     assert.deepEqual(fixture.events, ["throttle", "calculateCheckout"]);
@@ -110,6 +112,7 @@ describe("OrdersController Ozon proxy protection", () => {
           identity.forwardedFor,
           identity.realIp,
           identity.requestIp,
+          undefined,
         ),
       (error) => error === throttleError,
     );
@@ -144,6 +147,7 @@ describe("OrdersController Ozon proxy protection", () => {
       identity.forwardedFor,
       identity.realIp,
       identity.requestIp,
+      undefined,
     );
     await fixture.controller.createOrder(
       { ...ozonOrderRequest, delivery: cdekDelivery },
@@ -159,13 +163,27 @@ describe("OrdersController Ozon proxy protection", () => {
   });
 
   it("exports one shared throttle provider without registering another in OrdersModule", () => {
-    const deliveryProviders = getModuleMetadata(DeliveryModule, MODULE_METADATA.PROVIDERS);
-    const deliveryExports = getModuleMetadata(DeliveryModule, MODULE_METADATA.EXPORTS);
-    const orderImports = getModuleMetadata(OrdersModule, MODULE_METADATA.IMPORTS);
-    const orderProviders = getModuleMetadata(OrdersModule, MODULE_METADATA.PROVIDERS);
+    const deliveryProviders = getModuleMetadata(
+      DeliveryModule,
+      MODULE_METADATA.PROVIDERS,
+    );
+    const deliveryExports = getModuleMetadata(
+      DeliveryModule,
+      MODULE_METADATA.EXPORTS,
+    );
+    const orderImports = getModuleMetadata(
+      OrdersModule,
+      MODULE_METADATA.IMPORTS,
+    );
+    const orderProviders = getModuleMetadata(
+      OrdersModule,
+      MODULE_METADATA.PROVIDERS,
+    );
 
     assert.equal(
-      deliveryProviders.filter((provider) => provider === DeliveryProxyThrottleService).length,
+      deliveryProviders.filter(
+        (provider) => provider === DeliveryProxyThrottleService,
+      ).length,
       1,
     );
     assert.equal(deliveryExports.includes(DeliveryProxyThrottleService), true);
@@ -208,6 +226,9 @@ function createFixture(throttleError?: HttpException) {
     ordersService,
     usersService,
     throttle,
+    {
+      getTokenFromRequest: () => undefined,
+    },
   ]) as ProtectedOrdersController;
 
   return {
@@ -224,5 +245,7 @@ function createFixture(throttleError?: HttpException) {
 }
 
 function getModuleMetadata(module: object, metadataKey: string): unknown[] {
-  return (Reflect.getMetadata(metadataKey, module) as unknown[] | undefined) ?? [];
+  return (
+    (Reflect.getMetadata(metadataKey, module) as unknown[] | undefined) ?? []
+  );
 }

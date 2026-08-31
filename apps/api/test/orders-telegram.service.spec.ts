@@ -429,6 +429,8 @@ function createOrder(provider: OrderDTO["delivery"]["provider"]): OrderDTO {
     shipments: [],
     itemsCount: 1,
     subtotal: 1_000,
+    discount: 0,
+    promoCode: null,
     deliveryPrice: 200,
     total: 1_200,
     currency: "RUB",
