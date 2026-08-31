@@ -29,7 +29,7 @@ import {
   type WelcomeBonusLifecycleState,
 } from "./welcome-bonus-lifecycle";
 
-const appearanceDelayMs = 20_000;
+const appearanceDelayMs = 10_000;
 const maxTimeoutMs = 2_147_483_647;
 const subscribeHydration = () => () => undefined;
 const getClientSnapshot = () => true;

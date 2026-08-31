@@ -119,7 +119,7 @@ export function Account() {
       </div>
 
       <div className="grid gap-6 lg:grid-cols-[22rem_minmax(0,1fr)] lg:items-start">
-        <aside className="space-y-4 lg:sticky lg:top-24">
+        <aside className="space-y-4">
           <Card>
             <CardHeader>
               <CardTitle className="flex items-center gap-2">

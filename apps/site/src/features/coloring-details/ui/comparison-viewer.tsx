@@ -2,7 +2,14 @@
 
 import { ImageOff, LoaderCircle, RotateCcw } from "lucide-react";
 import Image from "next/image";
-import { useCallback, useReducer, useRef, useState, type MouseEvent } from "react";
+import {
+  useCallback,
+  useReducer,
+  useRef,
+  useState,
+  type CSSProperties,
+  type MouseEvent,
+} from "react";
 
 import type { Coloring } from "@/entities/coloring";
 import { Button } from "@/shared/ui";
@@ -48,7 +55,14 @@ export function ComparisonViewer({ colored, height, outline, width }: Comparison
   };
 
   return (
-    <div className="space-y-4">
+    <div
+      className="mx-auto w-full space-y-4 md:max-w-[var(--comparison-max-width)]"
+      style={
+        {
+          "--comparison-max-width": `calc((100dvh - 8rem) * ${width / height})`,
+        } as CSSProperties
+      }
+    >
       <div
         ref={viewerStatusRef}
         role="group"
