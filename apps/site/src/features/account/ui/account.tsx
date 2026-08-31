@@ -46,7 +46,6 @@ import {
   DialogTrigger,
   Input,
   Label,
-  PersonalDataConsentCheckbox,
 } from "@/shared/ui";
 import { Link } from "@/shared/ui/link";
 import { PageTitle, SectionTitle } from "@/shared/ui/typography";
@@ -196,7 +195,6 @@ function TelegramLinkCard({ telegramLink }: TelegramLinkCardProps) {
     reset,
   } = useForm<TelegramLinkFormValues>({
     defaultValues: {
-      acceptedPersonalDataConsent: false,
       code: "",
     },
     resolver: zodResolver(telegramLinkFormSchema),
@@ -351,19 +349,6 @@ function TelegramLinkCard({ telegramLink }: TelegramLinkCardProps) {
                 />
                 {errors.code?.message ? (
                   <p className="text-sm text-destructive">{errors.code.message}</p>
-                ) : null}
-              </div>
-
-              <div className="space-y-2">
-                <PersonalDataConsentCheckbox
-                  id="telegram-link-personal-data-consent"
-                  hasError={Boolean(errors.acceptedPersonalDataConsent)}
-                  {...register("acceptedPersonalDataConsent")}
-                />
-                {errors.acceptedPersonalDataConsent?.message ? (
-                  <p className="text-sm text-destructive">
-                    {errors.acceptedPersonalDataConsent.message}
-                  </p>
                 ) : null}
               </div>
 

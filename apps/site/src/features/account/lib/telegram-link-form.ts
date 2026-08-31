@@ -3,9 +3,6 @@ import { z } from "zod";
 import type { ConfirmTelegramLinkInputDTO } from "@/shared/actions/auth";
 
 export const telegramLinkFormSchema = z.object({
-  acceptedPersonalDataConsent: z
-    .boolean()
-    .refine((value) => value, "Подтвердите согласие на обработку персональных данных"),
   code: z
     .string()
     .trim()
@@ -18,7 +15,6 @@ export function toConfirmTelegramLinkInput(
   values: TelegramLinkFormValues,
 ): ConfirmTelegramLinkInputDTO {
   return {
-    acceptedPersonalDataConsent: values.acceptedPersonalDataConsent,
     code: values.code.trim(),
   };
 }
