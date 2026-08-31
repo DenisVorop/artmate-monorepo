@@ -17,6 +17,7 @@ import {
   CardContent,
   CardTitle,
   DataState,
+  ExpandableText,
 } from "@/shared/ui";
 import { Link } from "@/shared/ui/link";
 import { PageTitle, SectionSubtitle } from "@/shared/ui/typography";
@@ -85,7 +86,9 @@ export function ColoringCollectionGallery({ slug }: ColoringCollectionGalleryPro
           </Badge>
           <PageTitle>{collection.title}</PageTitle>
           {collection.description ? (
-            <SectionSubtitle>{collection.description}</SectionSubtitle>
+            <ExpandableText collapsible>
+              <SectionSubtitle>{collection.description}</SectionSubtitle>
+            </ExpandableText>
           ) : null}
         </div>
       </section>

@@ -72,6 +72,17 @@ export function DeliverySelector({
 
     return filterPickupPoints(points, pickupPointQuery);
   }, [ozonPickupPoints.pickupPoints, pickupPointQuery, selectedOzonPoint]);
+  const ozonStatusMessage = ozonPickupPoints.isError
+    ? "Не удалось загрузить ПВЗ. Попробуйте позже."
+    : ozonPickupPoints.isPending
+      ? "Загружаем ПВЗ на карте."
+      : ozonPickupPoints.pickupPoints.length > 0 && ozonPickupPoints.aggregateClusters.length > 0
+        ? `Доступно ${formatPickupPointCount(ozonPickupPoints.pickupPoints.length)} и группы ПВЗ.`
+        : ozonPickupPoints.pickupPoints.length > 0
+          ? `В области ${formatPickupPointCount(ozonPickupPoints.pickupPoints.length)}.`
+          : ozonPickupPoints.aggregateClusters.length > 0
+            ? "На карте есть группы ПВЗ - приблизьте их."
+            : "ПВЗ не найдены - измените область карты.";
 
   useEffect(() => {
     const hasUnavailableOzonSelection =
@@ -283,7 +294,7 @@ export function DeliverySelector({
           </div>
         ) : (
           <div className="grid gap-5 md:grid-cols-[minmax(0,0.95fr)_minmax(18rem,1.05fr)]">
-            <div className="space-y-4">
+            <div className="min-w-0 space-y-4">
               <ComboboxField
                 disabled={ozonPickupPoints.isPending || ozonPickupPoints.isError}
                 emptyText={
@@ -320,19 +331,12 @@ export function DeliverySelector({
                 ))}
               </ComboboxField>
 
-              <p aria-live="polite" className="text-sm text-muted-foreground">
-                {ozonPickupPoints.isError
-                  ? "Не удалось загрузить ПВЗ. Передвиньте карту или попробуйте позже."
-                  : ozonPickupPoints.isPending
-                    ? "Загружаем ПВЗ в видимой области карты."
-                    : ozonPickupPoints.pickupPoints.length > 0 &&
-                        ozonPickupPoints.aggregateClusters.length > 0
-                      ? `Можно выбрать ${formatPickupPointCount(ozonPickupPoints.pickupPoints.length)}. Нажмите на круг с числом, чтобы раскрыть другие области.`
-                      : ozonPickupPoints.pickupPoints.length > 0
-                        ? `В видимой области ${formatPickupPointCount(ozonPickupPoints.pickupPoints.length)}.`
-                        : ozonPickupPoints.aggregateClusters.length > 0
-                          ? "Нажмите на круг с числом, чтобы приблизить область и открыть доступные ПВЗ."
-                          : "В этой области ПВЗ не найдены - передвиньте или уменьшите масштаб карты."}
+              <p
+                aria-live="polite"
+                className="h-5 min-w-0 truncate text-sm leading-5 text-muted-foreground"
+                title={ozonStatusMessage}
+              >
+                {ozonStatusMessage}
               </p>
 
               {selectedOzonPoint ? <SelectedPickupPoint point={selectedOzonPoint} /> : null}

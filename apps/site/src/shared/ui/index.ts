@@ -74,6 +74,7 @@ export {
   DropdownMenuSubTrigger,
   DropdownMenuTrigger,
 } from "./dropdown-menu";
+export { ExpandableText } from "./expandable-text";
 export { Input } from "./input";
 export { InfiniteCarousel } from "./infinite-carousel";
 export { Label } from "./label";

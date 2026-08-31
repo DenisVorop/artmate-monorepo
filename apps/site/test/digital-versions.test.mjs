@@ -15,6 +15,7 @@ function evaluateTypeScript(source, mocks = {}) {
   const output = ts.transpileModule(source, {
     compilerOptions: {
       esModuleInterop: true,
+      jsx: ts.JsxEmit.ReactJSX,
       module: ts.ModuleKind.CommonJS,
       target: ts.ScriptTarget.ES2022,
     },
@@ -232,7 +233,10 @@ test("digital catalog UI keeps covers clean, uses light card derivatives, and ex
   assert.match(catalog, /hover:shadow-lg/);
   assert.doesNotMatch(catalog, /hover:-translate-y/);
   assert.doesNotMatch(catalog, /CardTitle|CardDescription|collection\.description/);
-  assert.match(gallery, /<ul className="grid grid-cols-1 gap-4 sm:grid-cols-2 sm:gap-5 md:grid-cols-3 lg:grid-cols-4">/);
+  assert.match(
+    gallery,
+    /<ul className="grid grid-cols-1 gap-4 sm:grid-cols-2 sm:gap-5 md:grid-cols-3 lg:grid-cols-4">/,
+  );
   assert.doesNotMatch(gallery, /xl:grid-cols-5|sizes=/);
   assert.match(gallery, /src=\{coloring\.card\.url\}/);
   assert.match(gallery, /\bunoptimized\b/);
@@ -252,15 +256,106 @@ test("digital catalog UI keeps covers clean, uses light card derivatives, and ex
 
 test("digital collection hero stacks the count, title and optional description with coloring-page spacing", async () => {
   const gallery = await readSource("src/features/coloring-collection-gallery/ui/gallery.tsx");
-  const hero = gallery.match(/<section className="container space-y-6 py-5 md:space-y-8 md:py-8">[\s\S]*?<\/section>/)?.[0];
+  const hero = gallery.match(
+    /<section className="container space-y-6 py-5 md:space-y-8 md:py-8">[\s\S]*?<\/section>/,
+  )?.[0];
 
   assert.ok(hero);
   assert.match(hero, /<div className="max-w-3xl space-y-3">/);
   assert.match(hero, /<Badge variant="secondary" className="h-auto px-3 py-1\.5 text-rose-700">/);
   assert.match(
     hero,
-    /\{collection\.coloringCount\} из \{collection\.expectedColoringCount\} иллюстраций[\s\S]*?<PageTitle>\{collection\.title\}<\/PageTitle>[\s\S]*?\{collection\.description \? \(\s*<SectionSubtitle>\{collection\.description\}<\/SectionSubtitle>\s*\) : null\}/,
+    /\{collection\.coloringCount\} из \{collection\.expectedColoringCount\} иллюстраций[\s\S]*?<PageTitle>\{collection\.title\}<\/PageTitle>[\s\S]*?\{collection\.description \? \(\s*<ExpandableText collapsible>[\s\S]*?<SectionSubtitle>\{collection\.description\}<\/SectionSubtitle>[\s\S]*?<\/ExpandableText>\s*\) : null\}/,
   );
   assert.doesNotMatch(hero, /grid-cols|flex-row|justify-self-end|max-w-md/);
   assert.match(gallery, /<CardTitle[\s\S]*?>\s*\{coloring\.title\}\s*<\/CardTitle>/);
+});
+
+test("digital collection descriptions always use the shared disclosure without changing content", async () => {
+  const source = await readSource("src/features/coloring-collection-gallery/ui/gallery.tsx");
+  const jsx = (type, props) => ({ type, props });
+  let description;
+  const { ColoringCollectionGallery } = evaluateTypeScript(source, {
+    "react/jsx-runtime": { jsx, jsxs: jsx },
+    "next/image": "Image",
+    "@/entities/coloring-collection": {
+      useColoringCollectionData: () => ({
+        collection: { ...collection, description },
+        isError: false,
+        isPending: false,
+        refetch() {},
+      }),
+    },
+    "@/shared/constants": {
+      routes: {
+        home: "/",
+        colorings: "/raskraski",
+        coloring: (slug, number) => `/raskraski/digital/${slug}/${number}`,
+      },
+    },
+    "@/shared/ui": {
+      Badge: "Badge",
+      Breadcrumb: "Breadcrumb",
+      BreadcrumbItem: "BreadcrumbItem",
+      BreadcrumbLink: "BreadcrumbLink",
+      BreadcrumbList: "BreadcrumbList",
+      BreadcrumbPage: "BreadcrumbPage",
+      BreadcrumbSeparator: "BreadcrumbSeparator",
+      Button: "Button",
+      Card: "Card",
+      CardContent: "CardContent",
+      CardTitle: "CardTitle",
+      DataState: "DataState",
+      ExpandableText: "ExpandableText",
+    },
+    "@/shared/ui/link": { Link: "Link" },
+    "@/shared/ui/typography": {
+      PageTitle: "PageTitle",
+      SectionSubtitle: "SectionSubtitle",
+    },
+  });
+
+  function getElements(node) {
+    if (Array.isArray(node)) return node.flatMap(getElements);
+    if (!node || typeof node !== "object") return [];
+
+    return [node, ...getElements(node.props.children)];
+  }
+
+  function getText(node) {
+    if (Array.isArray(node)) return node.map(getText).join("");
+    if (typeof node === "string" || typeof node === "number") return String(node);
+
+    return node?.props ? getText(node.props.children) : "";
+  }
+
+  for (const value of ["Короткое описание", "Длинное описание ".repeat(50)]) {
+    description = value;
+    const elements = getElements(ColoringCollectionGallery({ slug: "forest" }));
+    const disclosure = elements.find((element) => element.type === "ExpandableText");
+    const subtitle = elements.find((element) => element.type === "SectionSubtitle");
+
+    assert.ok(disclosure);
+    assert.equal(disclosure.props.collapsible, true);
+    assert.strictEqual(disclosure.props.children, subtitle);
+    assert.equal(getText(subtitle), value);
+    assert.ok(elements.some((element) => element.type === "PageTitle"));
+    assert.ok(elements.some((element) => element.type === "ul"));
+  }
+
+  for (const value of ["", null]) {
+    description = value;
+    const elements = getElements(ColoringCollectionGallery({ slug: "forest" }));
+
+    assert.equal(
+      elements.some((element) => element.type === "ExpandableText"),
+      false,
+    );
+    assert.equal(
+      elements.some((element) => element.type === "SectionSubtitle"),
+      false,
+    );
+    assert.ok(elements.some((element) => element.type === "PageTitle"));
+    assert.ok(elements.some((element) => element.type === "ul"));
+  }
 });
