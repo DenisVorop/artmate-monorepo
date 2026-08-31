@@ -13,7 +13,9 @@ type UpdateFeatureBannerVariables = {
   readonly input: UpdateFeatureBannerInputDTO;
 };
 
-export function useUpdateFeatureBanner() {
+export function useUpdateFeatureBanner(options?: {
+  readonly onSuccess?: () => void;
+}) {
   const queryClient = useQueryClient();
   const { isPending, mutate } = useMutation({
     meta: {
@@ -22,8 +24,12 @@ export function useUpdateFeatureBanner() {
     },
     mutationFn: ({ bannerId, input }: UpdateFeatureBannerVariables) =>
       updateFeatureBanner(bannerId, input),
-    onSuccess: () =>
-      queryClient.invalidateQueries({ queryKey: featureBannersQueryKeys.all }),
+    onSuccess: async () => {
+      await queryClient.invalidateQueries({
+        queryKey: featureBannersQueryKeys.all,
+      });
+      options?.onSuccess?.();
+    },
   });
 
   return { isPending, mutate };

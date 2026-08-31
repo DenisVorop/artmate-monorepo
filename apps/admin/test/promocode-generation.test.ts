@@ -122,6 +122,7 @@ function loadPromoCodeForm(generatedCodes: readonly string[]) {
       readonly codeImmutable?: boolean;
       readonly form: Record<string, unknown>;
       readonly formId: string;
+      readonly kind?: "standard" | "welcome";
       readonly onSubmit: () => void;
       readonly submitLabel: string;
       readonly submitPending: boolean;
@@ -132,6 +133,7 @@ function loadPromoCodeForm(generatedCodes: readonly string[]) {
 function renderPromoCodeForm({
   codeImmutable = false,
   generatedCodes = ["ARTM-ABCDEF", "ARTM-PQRSTU"],
+  kind = "standard" as "standard" | "welcome",
   submitPending = false,
 } = {}) {
   const harness = loadPromoCodeForm(generatedCodes);
@@ -147,6 +149,7 @@ function renderPromoCodeForm({
       watch: () => "percentage",
     },
     formId: "create-promo-code",
+    kind,
     onSubmit: () => {
       submitCallCount += 1;
     },
@@ -267,4 +270,18 @@ test("generation is pending-safe and edit-locked while keeping code labeling exp
     false,
   );
   assert.equal(lockedHarness.getGenerateCallCount(), 0);
+});
+
+test("welcome form explains eligibility and locks the per-user limit", () => {
+  const harness = renderPromoCodeForm({ kind: "welcome" });
+  const maxUsesPerUserInput = harness.nodes.find(
+    (node) => node.type === "Input" && node.props.name === "maxUsesPerUser",
+  );
+  const text = harness.nodes.map(getRenderedText).join(" ");
+
+  assert.ok(maxUsesPerUserInput);
+  assert.equal(maxUsesPerUserInput.props.disabled, true);
+  assert.match(text, /Регистрация/);
+  assert.match(text, /привязка Telegram/);
+  assert.match(text, /одно применение/);
 });

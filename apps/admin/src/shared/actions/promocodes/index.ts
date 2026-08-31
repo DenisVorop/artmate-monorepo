@@ -10,6 +10,7 @@ export { promoCodeTypes, promoCodeUsageStatuses } from "./promocodes.types";
 export type {
   PromoCodeAdminDTO,
   PromoCodeInputDTO,
+  PromoCodeKindDTO,
   PromoCodeMutationResultDTO,
   ReleasePromoCodeRedemptionInputDTO,
   PromoCodeTypeDTO,

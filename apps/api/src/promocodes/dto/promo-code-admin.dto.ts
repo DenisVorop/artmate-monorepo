@@ -12,8 +12,10 @@ import {
 } from "class-validator";
 
 import {
+  promoCodeKinds,
   promoCodeTypes,
   promoRedemptionStatuses,
+  type PromoCodeKind,
   type PromoCodeType,
   type PromoRedemptionStatus,
 } from "../promocodes.types";
@@ -28,6 +30,7 @@ export class PromoCodeUsageDTO {
 export class PromoCodeAdminDTO {
   @IsString() id!: string;
   @IsString() code!: string;
+  @IsIn(promoCodeKinds) kind!: PromoCodeKind;
   @IsString() name!: string;
   @IsOptional() @IsString() description!: string | null;
   @IsIn(promoCodeTypes) type!: PromoCodeType;

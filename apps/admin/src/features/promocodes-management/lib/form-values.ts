@@ -124,7 +124,10 @@ export function getPromoCodeDefaultValues(
     isActive: promoCode.isActive,
     maxDiscount: formatOptionalMoney(promoCode.maxDiscountKopecks),
     maxUses: formatOptionalInteger(promoCode.maxUses),
-    maxUsesPerUser: formatOptionalInteger(promoCode.maxUsesPerUser),
+    maxUsesPerUser:
+      promoCode.kind === "welcome"
+        ? "1"
+        : formatOptionalInteger(promoCode.maxUsesPerUser),
     minSubtotal: formatIntegerAsDecimal(promoCode.minSubtotalKopecks ?? 0, 2),
     name: promoCode.name,
     startsAt: utcToMoscowDateTime(promoCode.startsAt),
@@ -165,7 +168,8 @@ export function getTogglePromoCodeInput(
         ? (promoCode.maxDiscountKopecks ?? null)
         : null,
     maxUses: promoCode.maxUses ?? null,
-    maxUsesPerUser: promoCode.maxUsesPerUser ?? null,
+    maxUsesPerUser:
+      promoCode.kind === "welcome" ? 1 : (promoCode.maxUsesPerUser ?? null),
     minSubtotalKopecks: promoCode.minSubtotalKopecks ?? 0,
     name: promoCode.name,
     startsAt: promoCode.startsAt ?? null,
@@ -273,9 +277,12 @@ function getEditablePromoCodeInput(
     maxUses: values.maxUses
       ? parseRequiredPositiveInteger(values.maxUses)
       : null,
-    maxUsesPerUser: values.maxUsesPerUser
-      ? parseRequiredPositiveInteger(values.maxUsesPerUser)
-      : null,
+    maxUsesPerUser:
+      originalPromoCode?.kind === "welcome"
+        ? 1
+        : values.maxUsesPerUser
+          ? parseRequiredPositiveInteger(values.maxUsesPerUser)
+          : null,
     minSubtotalKopecks: values.minSubtotal
       ? parseRequiredDecimal(values.minSubtotal)
       : 0,

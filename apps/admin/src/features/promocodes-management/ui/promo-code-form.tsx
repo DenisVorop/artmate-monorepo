@@ -4,6 +4,7 @@ import { Save } from "lucide-react";
 import type { ReactNode } from "react";
 import { Controller, type UseFormReturn } from "react-hook-form";
 
+import type { PromoCodeKindDTO } from "@/shared/actions/promocodes";
 import {
   Button,
   Checkbox,
@@ -19,6 +20,7 @@ type PromoCodeFormProps = {
   readonly codeImmutable?: boolean;
   readonly form: UseFormReturn<PromoCodeFormValues>;
   readonly formId: string;
+  readonly kind?: PromoCodeKindDTO;
   readonly onSubmit: () => void;
   readonly submitLabel: string;
   readonly submitPending: boolean;
@@ -28,6 +30,7 @@ export function PromoCodeForm({
   codeImmutable = false,
   form,
   formId,
+  kind = "standard",
   onSubmit,
   submitLabel,
   submitPending,
@@ -39,6 +42,7 @@ export function PromoCodeForm({
     watch,
   } = form;
   const type = watch("type");
+  const isWelcome = kind === "welcome";
   const codeInputId = `${formId}-code`;
 
   const handleGenerateCode = () => {
@@ -109,6 +113,15 @@ export function PromoCodeForm({
           <Textarea rows={3} {...register("description")} />
         </LabeledField>
 
+        {isWelcome ? (
+          <div className="rounded-md border bg-muted/40 px-4 py-3 text-sm">
+            <p className="font-medium">Условия приветственного промокода</p>
+            <p className="mt-1 text-muted-foreground">
+              Регистрация, привязка Telegram и одно применение на аккаунт.
+            </p>
+          </div>
+        ) : null}
+
         <div className="grid gap-4 lg:grid-cols-3">
           <LabeledField label="Тип скидки">
             <NativeSelect
@@ -175,10 +188,16 @@ export function PromoCodeForm({
             label="Лимит на пользователя"
           >
             <Input
+              disabled={isWelcome}
               inputMode="numeric"
               placeholder="Без ограничения"
               {...register("maxUsesPerUser")}
             />
+            {isWelcome ? (
+              <span className="text-xs text-muted-foreground">
+                Для приветственного промокода лимит всегда равен 1.
+              </span>
+            ) : null}
           </LabeledField>
         </div>
 

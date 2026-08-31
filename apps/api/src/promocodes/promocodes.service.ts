@@ -9,13 +9,17 @@ import { isISO8601 } from "class-validator";
 import {
   Prisma,
   OrderPaymentStatus as PrismaOrderPaymentStatus,
+  PromoCodeKind as PrismaPromoCodeKind,
   PromoCodeType as PrismaPromoCodeType,
   PromoRedemptionStatus as PrismaPromoRedemptionStatus,
 } from "../generated/prisma/client";
 import { PrismaService } from "../prisma/prisma.service";
 
 import type { PromoCodeInputDTO, UpdatePromoCodeInputDTO } from "./dto";
-import { getPromoIneligibilityMessage } from "./eligibility";
+import {
+  getPromoCampaignIneligibilityMessage,
+  getPromoIneligibilityMessage,
+} from "./eligibility";
 import { calculatePromoPricing, type PromoPricingItemInput } from "./pricing";
 import { normalizePromoCodeValue, promoCodePattern } from "./promo-code";
 import type { PromoCodeType, PromoTerms } from "./promocodes.types";
@@ -29,6 +33,10 @@ const adminInclude = {
 
 export type PromoTransaction = Prisma.TransactionClient;
 type PromoRecord = Prisma.PromoCodeGetPayload<Record<string, never>>;
+type PromoEvaluationClient = Pick<
+  PromoTransaction,
+  "promoRedemption" | "telegramAccount"
+>;
 
 export type ReservePromoInput = {
   code: string;
@@ -85,6 +93,14 @@ export class PromocodesService {
           );
         }
         if (
+          current.kind === PrismaPromoCodeKind.WELCOME &&
+          data.maxUsesPerUser !== 1
+        ) {
+          throw new BadRequestException(
+            "Лимит приветственного промокода на пользователя должен быть равен 1",
+          );
+        }
+        if (
           typeof data.maxUses === "number" &&
           data.maxUses !== current.maxUses &&
           current.usedCount + current.reservedCount > data.maxUses
@@ -130,6 +146,96 @@ export class PromocodesService {
     } catch (error) {
       this.handleMutationError(error);
     }
+  }
+
+  async getWelcome(userId: string, now = new Date()) {
+    const promo = await this.prisma.promoCode.findFirst({
+      where: { kind: PrismaPromoCodeKind.WELCOME },
+    });
+    if (!promo) return { promo: null };
+
+    const message = await this.getIneligibilityMessage(
+      promo,
+      safeBigIntToNumber(promo.minSubtotalKopecks),
+      userId,
+      now,
+      this.prisma,
+    );
+    if (message) return { promo: null };
+
+    return {
+      promo: {
+        code: promo.code,
+        discountPercent:
+          promo.type === PrismaPromoCodeType.PERCENTAGE
+            ? promo.basisPoints! / 100
+            : null,
+        amount:
+          promo.type === PrismaPromoCodeType.FIXED
+            ? safeBigIntToNumber(promo.amountKopecks!) / 100
+            : null,
+        minSubtotal: safeBigIntToNumber(promo.minSubtotalKopecks) / 100,
+        maxDiscount:
+          promo.maxDiscountKopecks === null
+            ? null
+            : safeBigIntToNumber(promo.maxDiscountKopecks) / 100,
+        endsAt: promo.endsAt?.toISOString() ?? null,
+      },
+    };
+  }
+
+  async getWelcomeOffer(userId?: string, now = new Date()) {
+    const promo = await this.prisma.promoCode.findFirst({
+      where: { kind: PrismaPromoCodeKind.WELCOME },
+    });
+    if (
+      !promo ||
+      getPromoCampaignIneligibilityMessage(promo, now) !== undefined
+    ) {
+      return { offer: null };
+    }
+
+    if (userId) {
+      const [telegramAccount, occupiedRedemptions] = await Promise.all([
+        this.prisma.telegramAccount.findUnique({
+          where: { userId },
+          select: { id: true },
+        }),
+        this.prisma.promoRedemption.count({
+          where: {
+            promoCodeId: promo.id,
+            userId,
+            status: {
+              in: [
+                PrismaPromoRedemptionStatus.RESERVED,
+                PrismaPromoRedemptionStatus.USED,
+              ],
+            },
+          },
+        }),
+      ]);
+      if (telegramAccount || occupiedRedemptions > 0) return { offer: null };
+    }
+
+    return {
+      offer: {
+        action: userId ? ("link_telegram" as const) : ("authorize" as const),
+        discountPercent:
+          promo.type === PrismaPromoCodeType.PERCENTAGE
+            ? promo.basisPoints! / 100
+            : null,
+        amount:
+          promo.type === PrismaPromoCodeType.FIXED
+            ? safeBigIntToNumber(promo.amountKopecks!) / 100
+            : null,
+        minSubtotal: safeBigIntToNumber(promo.minSubtotalKopecks) / 100,
+        maxDiscount:
+          promo.maxDiscountKopecks === null
+            ? null
+            : safeBigIntToNumber(promo.maxDiscountKopecks) / 100,
+        endsAt: promo.endsAt?.toISOString() ?? null,
+      },
+    };
   }
 
   async preview(input: {
@@ -416,33 +522,18 @@ export class PromocodesService {
     items: readonly PromoPricingItemInput[],
     userId: string | undefined,
     now: Date,
-    client: Pick<PromoTransaction, "promoRedemption">,
+    client: PromoEvaluationClient,
   ) {
     const subtotalKopecks = calculatePromoPricing(items, {
       type: "fixed",
       amountKopecks: 0,
     }).subtotalKopecks;
-    const userRedemptionCount =
-      promo.maxUsesPerUser !== null && userId
-        ? await client.promoRedemption.count({
-            where: {
-              promoCodeId: promo.id,
-              userId,
-              status: {
-                in: [
-                  PrismaPromoRedemptionStatus.RESERVED,
-                  PrismaPromoRedemptionStatus.USED,
-                ],
-              },
-            },
-          })
-        : undefined;
-    const message = getPromoIneligibilityMessage(
-      {
-        ...promo,
-        minSubtotalKopecks: safeBigIntToNumber(promo.minSubtotalKopecks),
-      },
-      { now, subtotalKopecks, userId, userRedemptionCount },
+    const message = await this.getIneligibilityMessage(
+      promo,
+      subtotalKopecks,
+      userId,
+      now,
+      client,
     );
     if (message) throw new BadRequestException(message);
     const pricing = calculatePromoPricing(
@@ -471,6 +562,50 @@ export class PromocodesService {
       );
     }
     return pricing;
+  }
+
+  private async getIneligibilityMessage(
+    promo: PromoRecord,
+    subtotalKopecks: number,
+    userId: string | undefined,
+    now: Date,
+    client: PromoEvaluationClient,
+  ) {
+    if (promo.kind === PrismaPromoCodeKind.WELCOME) {
+      if (!userId) {
+        return "Для применения приветственного промокода необходимо войти";
+      }
+      const telegramAccount = await client.telegramAccount.findUnique({
+        where: { userId },
+        select: { id: true },
+      });
+      if (!telegramAccount) {
+        return "Для применения приветственного промокода необходимо привязать Telegram";
+      }
+    }
+
+    const userRedemptionCount =
+      promo.maxUsesPerUser !== null && userId
+        ? await client.promoRedemption.count({
+            where: {
+              promoCodeId: promo.id,
+              userId,
+              status: {
+                in: [
+                  PrismaPromoRedemptionStatus.RESERVED,
+                  PrismaPromoRedemptionStatus.USED,
+                ],
+              },
+            },
+          })
+        : undefined;
+    return getPromoIneligibilityMessage(
+      {
+        ...promo,
+        minSubtotalKopecks: safeBigIntToNumber(promo.minSubtotalKopecks),
+      },
+      { now, subtotalKopecks, userId, userRedemptionCount },
+    );
   }
 
   private parseInput(
@@ -583,6 +718,7 @@ export class PromocodesService {
   private mapTerms(promo: PromoRecord): PromoTerms {
     return {
       code: promo.code,
+      kind: promo.kind.toLowerCase() as PromoTerms["kind"],
       type: promo.type.toLowerCase() as PromoCodeType,
       basisPoints: promo.basisPoints,
       amountKopecks:

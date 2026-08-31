@@ -22,7 +22,7 @@ model FeatureBanner {
   description String                @db.Text
   ctaLabel    String?               @map("cta_label") @db.VarChar(80)
   ctaHref     String?               @map("cta_href") @db.Text
-  audience    FeatureBannerAudience @default(ALL)
+  audiences   FeatureBannerAudience[] @default([ALL])
   tone        FeatureBannerTone     @default(INFO)
   enabled     Boolean               @default(false)
   sortOrder   Int                   @default(0) @map("sort_order")
@@ -31,6 +31,5 @@ model FeatureBanner {
   updatedAt   DateTime              @default(now()) @updatedAt @map("updated_at")
 
   @@index([enabled, archivedAt, sortOrder])
-  @@index([audience, enabled])
   @@map("feature_banners")
 }

@@ -26,7 +26,7 @@ export function getFeatureBannerAudienceLabel(audience: FeatureBannerAudience) {
     case "anonymous":
       return "Гости";
     case "telegram_unlinked":
-      return "Без Telegram";
+      return "Авторизованные без Telegram";
   }
 }
 

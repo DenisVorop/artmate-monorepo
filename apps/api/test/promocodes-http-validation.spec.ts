@@ -12,6 +12,7 @@ import {
 } from "@nestjs/common";
 import {
   GUARDS_METADATA,
+  HEADERS_METADATA,
   HTTP_CODE_METADATA,
   PATH_METADATA,
 } from "@nestjs/common/constants";
@@ -56,6 +57,7 @@ describe("promocodes HTTP validation", () => {
       undefined,
     );
     for (const invalid of [
+      validInput({ kind: "welcome" }),
       validInput({ maxDiscountKopecks: 0 }),
       validInput({ maxUses: 2_147_483_648 }),
       validInput({ name: "x".repeat(161) }),
@@ -65,6 +67,59 @@ describe("promocodes HTTP validation", () => {
     ]) {
       await assert.rejects(transform(PromoCodeInputDTO, invalid));
     }
+  });
+
+  it("protects GET welcome with auth and private no-store caching", () => {
+    const handler = (
+      PublicPromocodesController.prototype as unknown as {
+        welcome: (...args: unknown[]) => unknown;
+      }
+    ).welcome;
+    const guards = Reflect.getMetadata(GUARDS_METADATA, handler) as unknown[];
+    const headers = Reflect.getMetadata(HEADERS_METADATA, handler) as Array<{
+      name: string;
+      value: string;
+    }>;
+
+    assert.equal(Reflect.getMetadata(PATH_METADATA, handler), "welcome");
+    assert.equal(guards.includes(AuthGuard), true);
+    assert.deepEqual(headers, [
+      { name: "Cache-Control", value: "private, no-store" },
+    ]);
+  });
+
+  it("keeps welcome-offer public with optional auth and private no-store caching", async () => {
+    const handler = PublicPromocodesController.prototype.welcomeOffer;
+    const guards = (Reflect.getMetadata(GUARDS_METADATA, handler) ?? []) as unknown[];
+    const headers = Reflect.getMetadata(HEADERS_METADATA, handler) as Array<{
+      name: string;
+      value: string;
+    }>;
+    const userIds: Array<string | undefined> = [];
+    let authenticated = false;
+    const controller = new PublicPromocodesController(
+      {
+        getWelcomeOffer: (userId?: string) => {
+          userIds.push(userId);
+          return { offer: null };
+        },
+      } as never,
+      {} as never,
+      {
+        getSession: async () => ({
+          user: authenticated ? { id: "user-1" } : null,
+        }),
+      } as never,
+    );
+
+    assert.equal(guards.includes(AuthGuard), false);
+    assert.deepEqual(headers, [
+      { name: "Cache-Control", value: "private, no-store" },
+    ]);
+    await controller.welcomeOffer({ headers: {} });
+    authenticated = true;
+    await controller.welcomeOffer({ headers: {} });
+    assert.deepEqual(userIds, [undefined, "user-1"]);
   });
 
   it("handles malformed encoded cookies without throwing URIError", () => {
@@ -78,7 +133,7 @@ describe("promocodes HTTP validation", () => {
     );
   });
 
-  it("registers only preview as the public route with explicit HTTP 200", () => {
+  it("registers welcome-offer, welcome and preview public-controller routes", () => {
     const prototype = PublicPromocodesController.prototype;
     const routes = Object.getOwnPropertyNames(prototype).flatMap(
       (methodName) => {
@@ -91,7 +146,11 @@ describe("promocodes HTTP validation", () => {
       },
     );
 
-    assert.deepEqual(routes, [{ methodName: "preview", path: "preview" }]);
+    assert.deepEqual(routes, [
+      { methodName: "welcomeOffer", path: "welcome-offer" },
+      { methodName: "welcome", path: "welcome" },
+      { methodName: "preview", path: "preview" },
+    ]);
     assert.equal(
       Reflect.getMetadata(
         HTTP_CODE_METADATA,

@@ -1,6 +1,8 @@
 export const promoCodeTypes = ["percentage", "fixed"] as const;
 export type PromoCodeTypeDTO = (typeof promoCodeTypes)[number];
 
+export type PromoCodeKindDTO = "standard" | "welcome";
+
 export const promoCodeUsageStatuses = ["reserved", "used", "released"] as const;
 export type PromoCodeUsageStatusDTO = (typeof promoCodeUsageStatuses)[number];
 
@@ -42,6 +44,7 @@ export type PromoCodeUsageDTO = {
 
 export type PromoCodeAdminDTO = PromoCodeInputDTO & {
   id: string;
+  kind: PromoCodeKindDTO;
   usedCount: number;
   reservedCount: number;
   createdAt: string;

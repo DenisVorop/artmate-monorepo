@@ -2,6 +2,7 @@ import {
   Body,
   Controller,
   Get,
+  Header,
   HttpCode,
   HttpStatus,
   Param,
@@ -25,6 +26,8 @@ import {
   PromoPreviewDTO,
   ReleasePromoRedemptionDTO,
   UpdatePromoCodeInputDTO,
+  WelcomeOfferResponseDTO,
+  WelcomePromoResponseDTO,
 } from "./dto";
 import { PromocodesThrottleService } from "./promocodes-throttle.service";
 import { PromocodesService } from "./promocodes.service";
@@ -48,6 +51,27 @@ export class PublicPromocodesController {
     private readonly throttle: PromocodesThrottleService,
     private readonly authService: AuthService,
   ) {}
+
+  @ValidateResponse(WelcomeOfferResponseDTO)
+  @ApiOkResponse({ type: WelcomeOfferResponseDTO })
+  @Header("Cache-Control", "private, no-store")
+  @Get("welcome-offer")
+  async welcomeOffer(@Req() request: HttpRequest) {
+    const session = await this.authService.getSession(
+      request.headers.authorization,
+      request.headers.cookie,
+    );
+    return this.promocodesService.getWelcomeOffer(session.user?.id);
+  }
+
+  @ValidateResponse(WelcomePromoResponseDTO)
+  @ApiOkResponse({ type: WelcomePromoResponseDTO })
+  @UseGuards(AuthGuard)
+  @Header("Cache-Control", "private, no-store")
+  @Get("welcome")
+  welcome(@Req() request: HttpRequest) {
+    return this.promocodesService.getWelcome(request.user!.id);
+  }
 
   @ValidateResponse(PromoPreviewDTO)
   @ApiOkResponse({ type: PromoPreviewDTO })

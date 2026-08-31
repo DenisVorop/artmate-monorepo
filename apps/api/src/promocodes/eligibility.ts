@@ -18,11 +18,8 @@ export function getPromoIneligibilityMessage(
     userRedemptionCount?: number;
   },
 ) {
-  if (!promo.isActive) return "Промокод неактивен";
-  if (promo.startsAt && input.now < promo.startsAt)
-    return "Срок действия промокода еще не начался";
-  if (promo.endsAt && input.now >= promo.endsAt)
-    return "Срок действия промокода истек";
+  const campaignMessage = getPromoCampaignIneligibilityMessage(promo, input.now);
+  if (campaignMessage) return campaignMessage;
   if (input.subtotalKopecks < promo.minSubtotalKopecks) {
     return "Сумма заказа меньше минимальной для этого промокода";
   }
@@ -37,6 +34,32 @@ export function getPromoIneligibilityMessage(
     if ((input.userRedemptionCount ?? 0) >= promo.maxUsesPerUser) {
       return "Ваш лимит применений промокода исчерпан";
     }
+  }
+  return undefined;
+}
+
+export function getPromoCampaignIneligibilityMessage(
+  promo: Pick<
+    PromoEligibilityInput,
+    | "endsAt"
+    | "isActive"
+    | "maxUses"
+    | "reservedCount"
+    | "startsAt"
+    | "usedCount"
+  >,
+  now: Date,
+) {
+  if (!promo.isActive) return "Промокод неактивен";
+  if (promo.startsAt && now < promo.startsAt)
+    return "Срок действия промокода еще не начался";
+  if (promo.endsAt && now >= promo.endsAt)
+    return "Срок действия промокода истек";
+  if (
+    promo.maxUses !== null &&
+    promo.usedCount + promo.reservedCount >= promo.maxUses
+  ) {
+    return "Лимит применений промокода исчерпан";
   }
   return undefined;
 }
