@@ -1,5 +1,12 @@
 # Changelog
 
+## [0.35.1](https://github.com/DenisVorop/artmate-monorepo/compare/v0.35.0...v0.35.1) (2026-08-31)
+
+
+### Bug Fixes
+
+* **site:** refine welcome and coloring UX ([d72fef5](https://github.com/DenisVorop/artmate-monorepo/commit/d72fef5104d7a4ac0f16cbd2237e85392b10c3e4))
+
 ## [0.35.0](https://github.com/DenisVorop/artmate-monorepo/compare/v0.34.0...v0.35.0) (2026-08-31)
 
 
