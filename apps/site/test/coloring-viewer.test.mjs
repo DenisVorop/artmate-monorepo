@@ -274,6 +274,31 @@ test("viewer keeps exactly two stable image URLs and has no coloring fullscreen 
   assert.doesNotMatch(source, /iframe|onContextMenu/i);
 });
 
+test("desktop viewer fits the image to dynamic viewport height without mobile letterboxing", async () => {
+  const source = await readSource("src/features/coloring-details/ui/comparison-viewer.tsx");
+  const frame = getJsxElements(source, "div").find(
+    (element) => getJsxAttribute(element, "ref") === "viewerStatusRef",
+  );
+
+  assert.ok(frame);
+  const [viewerRoot] = getJsxAncestors(frame);
+  const rootClassName = getJsxAttribute(viewerRoot, "className");
+
+  assert.match(rootClassName, /\bmx-auto\b/);
+  assert.match(rootClassName, /\bw-full\b/);
+  assert.match(
+    rootClassName,
+    /(?:^|\s)md:max-w-\[var\(--comparison-max-width\)\](?=\s|$)/,
+  );
+  assert.doesNotMatch(rootClassName, /(?:^|\s)max-w-\[var\(--comparison-max-width\)\]/);
+  assert.match(
+    getJsxAttribute(viewerRoot, "style"),
+    /\{\s*"--comparison-max-width": `calc\(\(100dvh - 8rem\) \* \$\{width \/ height\}\)`,?\s*\} as CSSProperties/,
+  );
+  assert.equal(getJsxAttribute(frame, "style"), "{ aspectRatio: `${width} / ${height}` }");
+  assert.equal((source.match(/object-contain/g) ?? []).length, 2);
+});
+
 test("image and below sliders share the same value, readiness and commit state", async () => {
   const source = await readSource("src/features/coloring-details/ui/comparison-viewer.tsx");
   const controls = getJsxElements(source, "ComparisonSlider");

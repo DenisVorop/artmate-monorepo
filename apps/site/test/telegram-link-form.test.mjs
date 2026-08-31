@@ -233,3 +233,21 @@ test("account keeps the guest login gate and pending guards", async () => {
   );
   assert.equal(submitButton.props.disabled, true);
 });
+
+test("account keeps its responsive grid without a sticky profile column", async () => {
+  const { tree } = await createAccountHarness();
+  const aside = findNode(tree, (node) => node.type === "aside");
+
+  assert.equal(aside.props.className, "space-y-4");
+  assert.equal(aside.props.children.length, 3);
+  assert.equal(
+    findNode(
+      tree,
+      (node) =>
+        node.type === "div" &&
+        node.props.className ===
+          "grid gap-6 lg:grid-cols-[22rem_minmax(0,1fr)] lg:items-start",
+    )?.props.className,
+    "grid gap-6 lg:grid-cols-[22rem_minmax(0,1fr)] lg:items-start",
+  );
+});

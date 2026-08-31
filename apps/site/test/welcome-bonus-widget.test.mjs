@@ -54,6 +54,15 @@ test("welcome bonus excludes protected roots and descendants only", async () => 
   }
 });
 
+test("welcome bonus uses the 10-second product appearance delay", async () => {
+  const welcomeHook = await readSource(
+    "src/features/welcome-bonus/lib/use-welcome-bonus.ts",
+  );
+
+  assert.match(welcomeHook, /const appearanceDelayMs = 10_000;/u);
+  assert.match(welcomeHook, /durationMs: appearanceDelayMs/u);
+});
+
 test("foreground timer accumulates only resumed time without sleeping", async () => {
   const { createForegroundTimer } = evaluateTypeScript(
     await readSource("src/features/welcome-bonus/lib/foreground-timer.ts"),
@@ -224,7 +233,7 @@ test("welcome offer requests stop for excluded, suppressed, or ended visits but 
   );
 });
 
-test("welcome lifecycle rechecks authoritative offer expiry before the 20-second reveal", async () => {
+test("welcome lifecycle rechecks authoritative offer expiry before the delayed reveal", async () => {
   const { createForegroundTimer } = evaluateTypeScript(
     await readSource("src/features/welcome-bonus/lib/foreground-timer.ts"),
   );
