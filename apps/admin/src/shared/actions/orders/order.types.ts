@@ -96,6 +96,8 @@ export type AdminOrderDTO = {
   items: OrderItemDTO[];
   itemsCount: number;
   subtotal: number;
+  discount: number;
+  promoCode?: string | null;
   deliveryPrice: number;
   total: number;
   currency: "RUB";

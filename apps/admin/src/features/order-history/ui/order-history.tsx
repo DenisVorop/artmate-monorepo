@@ -103,6 +103,9 @@ function OrderSummary({ order }: { readonly order: AdminOrder }) {
               <CreditCard data-icon="inline-start" aria-hidden="true" />
               {getPaymentStatusLabel(order.payment.status)}
             </Badge>
+            {order.promoCode ? (
+              <Badge variant="outline">Промокод {order.promoCode}</Badge>
+            ) : null}
           </div>
           <h2 className="mt-3 text-2xl font-semibold tracking-normal">
             Заказ {order.id}
@@ -115,6 +118,9 @@ function OrderSummary({ order }: { readonly order: AdminOrder }) {
 
         <div className="grid grid-cols-2 gap-2 text-sm">
           <Metric label="Товары" value={`${order.itemsCount} шт.`} />
+          <Metric label="Подытог" value={formatMoney(order.subtotal)} />
+          <Metric label="Скидка" value={`− ${formatMoney(order.discount)}`} />
+          <Metric label="Доставка" value={formatMoney(order.deliveryPrice)} />
           <Metric label="Итого" value={formatMoney(order.total)} />
         </div>
       </div>
@@ -165,7 +171,14 @@ function HistoryTimeline({
       {history.length > 0 ? (
         <ol className="divide-y">
           {history.map((event) => (
-            <li className="p-4" key={event.id}>
+            <li
+              className={
+                event.eventType === "promo_used_after_release"
+                  ? "border-l-4 border-l-destructive bg-destructive/5 p-4"
+                  : "p-4"
+              }
+              key={event.id}
+            >
               <div className="flex flex-col gap-3 sm:flex-row sm:items-start sm:justify-between">
                 <div className="min-w-0">
                   <p className="font-medium">{getHistoryEventTitle(event)}</p>
@@ -347,6 +360,14 @@ function getHistoryEventTitle(event: AdminOrder["history"][number]) {
     return "Комментарий добавлен";
   }
 
+  if (event.eventType === "promo_reservation_released") {
+    return "Резерв промокода снят оператором";
+  }
+
+  if (event.eventType === "promo_used_after_release") {
+    return "Внимание: оплата после снятия резерва";
+  }
+
   return event.eventType;
 }
 
@@ -366,11 +387,22 @@ function getHistoryEventText(event: AdminOrder["history"][number]) {
     return "Администратор оставил внутренний комментарий.";
   }
 
+  if (event.eventType === "promo_reservation_released") {
+    return "Оператор подтвердил окончательное закрытие оплаты без списания и снял резерв.";
+  }
+
+  if (event.eventType === "promo_used_after_release") {
+    return "После ручного снятия резерва подтверждена реальная оплата; применение учтено как использованное.";
+  }
+
   return "Системное событие заказа.";
 }
 
 function getHistoryAuthorLabel(eventType: string) {
-  return eventType === "status_changed" ? "Система" : "Администратор";
+  return eventType === "status_changed" ||
+    eventType === "promo_used_after_release"
+    ? "Система"
+    : "Администратор";
 }
 
 function getStatusLabel(value: unknown) {
