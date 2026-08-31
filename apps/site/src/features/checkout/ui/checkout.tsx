@@ -1,13 +1,15 @@
 "use client";
 
 import { ArrowLeft, ShoppingBag } from "lucide-react";
-import { useCallback, useMemo, useState } from "react";
+import { useMemo, useState } from "react";
 import { useRouter } from "next/navigation";
 
+import type { Cart } from "@/entities/cart";
 import { useCartData } from "@/entities/cart";
 import { getPreferredCustomerPhone, useOrdersData } from "@/entities/orders";
 import { useUser } from "@/entities/session";
 import { AuthForm } from "@/features/auth";
+import { usePromocode, withPromocode } from "@/features/promocode";
 import { routes } from "@/shared/constants";
 import {
   Button,
@@ -24,71 +26,18 @@ import { PageTitle } from "@/shared/ui/typography";
 import { useCreateOrderMutation } from "../model";
 import {
   type CheckoutCreateOrderInput,
+  type CheckoutAuthConfirmationState,
   type CheckoutCustomerDefaults,
   type CheckoutOrder,
+  transitionCheckoutAuthConfirmation,
 } from "../lib";
 
 import { CheckoutFlow } from "./checkout-flow";
 
+type AuthDialogDefaults = Pick<CheckoutCustomerDefaults, "email" | "name">;
+
 export function Checkout() {
-  const router = useRouter();
-  const user = useUser();
   const cart = useCartData();
-  const orders = useOrdersData({ enabled: Boolean(user) });
-  const [pendingOrderInput, setPendingOrderInput] = useState<CheckoutCreateOrderInput>();
-  const [isAuthDialogOpen, setIsAuthDialogOpen] = useState(false);
-  const handleOrderCreated = useCallback(
-    (order: CheckoutOrder | undefined) => {
-      setPendingOrderInput(undefined);
-      setIsAuthDialogOpen(false);
-
-      if (order?.payment.redirectUrl) {
-        window.location.assign(order.payment.redirectUrl);
-        return;
-      }
-
-      if (order?.id) {
-        router.push(`${routes.checkoutSuccess}?orderId=${encodeURIComponent(order.id)}`);
-      }
-    },
-    [router],
-  );
-  const { createOrder, isPending, error } = useCreateOrderMutation({
-    onSuccess: handleOrderCreated,
-  });
-  const pendingCustomerEmail = pendingOrderInput?.customer.email;
-  const pendingCustomerName = pendingOrderInput?.customer.name;
-  const customerOrders = orders.isError ? [] : orders.data;
-  const customerPhone = user?.phone ?? getPreferredCustomerPhone(customerOrders);
-  const requiresAuth = !user;
-  const customerDefaults = useMemo<CheckoutCustomerDefaults>(
-    () => ({
-      ...(user?.email ? { email: user.email } : {}),
-      ...(user?.name ? { name: user.name } : {}),
-      ...(customerPhone ? { phone: customerPhone } : {}),
-    }),
-    [customerPhone, user?.email, user?.name],
-  );
-
-  const handleSubmit = async (input: CheckoutCreateOrderInput) => {
-    if (!user) {
-      setPendingOrderInput(input);
-      setIsAuthDialogOpen(true);
-      return;
-    }
-
-    createOrder(input);
-  };
-
-  const handleCheckoutAuthenticated = () => {
-    if (!pendingOrderInput) {
-      setIsAuthDialogOpen(false);
-      return;
-    }
-
-    setIsAuthDialogOpen(false);
-    createOrder(pendingOrderInput);
-  };
 
   if (cart.isPending) {
     return (
@@ -132,6 +81,154 @@ export function Checkout() {
     );
   }
 
+  return <LoadedCheckout cart={cart.data} />;
+}
+
+function LoadedCheckout({ cart }: { cart: Cart }) {
+  const [authDialogDefaults, setAuthDialogDefaults] = useState<AuthDialogDefaults>();
+  const [isAuthDialogOpen, setIsAuthDialogOpen] = useState(false);
+  const [authConfirmationState, setAuthConfirmationState] =
+    useState<CheckoutAuthConfirmationState>("ready");
+
+  const requestLogin = (defaults?: AuthDialogDefaults) => {
+    setAuthDialogDefaults(defaults);
+    setAuthConfirmationState((state) => transitionCheckoutAuthConfirmation(state, "request-auth"));
+    setIsAuthDialogOpen(true);
+  };
+
+  return (
+    <PromocodeCheckout
+      authDialogDefaults={authDialogDefaults}
+      authConfirmationState={authConfirmationState}
+      cart={cart}
+      isAuthDialogOpen={isAuthDialogOpen}
+      onAuthDialogOpenChange={setIsAuthDialogOpen}
+      onAuthRequired={requestLogin}
+      onAuthenticated={() => {
+        setAuthConfirmationState((state) =>
+          transitionCheckoutAuthConfirmation(state, "auth-succeeded"),
+        );
+        setIsAuthDialogOpen(false);
+      }}
+      onManualConfirmation={() =>
+        setAuthConfirmationState((state) =>
+          transitionCheckoutAuthConfirmation(state, "manual-confirmation"),
+        )
+      }
+      onPromocodeLoginRequested={() => requestLogin()}
+    />
+  );
+}
+
+type PromocodeCheckoutProps = {
+  authDialogDefaults?: AuthDialogDefaults;
+  authConfirmationState: CheckoutAuthConfirmationState;
+  cart: Cart;
+  isAuthDialogOpen: boolean;
+  onAuthDialogOpenChange: (_isOpen: boolean) => void;
+  onAuthRequired: (_defaults?: AuthDialogDefaults) => void;
+  onAuthenticated: () => void;
+  onManualConfirmation: () => void;
+};
+
+function BasePromocodeCheckout({
+  authDialogDefaults,
+  authConfirmationState,
+  cart,
+  isAuthDialogOpen,
+  onAuthDialogOpenChange,
+  onAuthRequired,
+  onAuthenticated,
+  onManualConfirmation,
+}: PromocodeCheckoutProps) {
+  return (
+    <>
+      {authConfirmationState === "manual-confirmation-required" ? (
+        <p className="container mb-4 rounded-lg border bg-muted/30 p-3 text-sm" role="status">
+          Вход выполнен. Дождитесь нового расчета суммы и подтвердите заказ вручную.
+        </p>
+      ) : null}
+      <CheckoutScenario
+        cart={cart}
+        onAuthRequired={onAuthRequired}
+        onManualConfirmation={onManualConfirmation}
+      />
+
+      <Dialog open={isAuthDialogOpen} onOpenChange={onAuthDialogOpenChange}>
+        <DialogContent className="sm:max-w-md">
+          <DialogHeader>
+            <DialogTitle>Вход для оформления заказа</DialogTitle>
+            <DialogDescription>
+              После входа мы заново проверим промокод и итоговую сумму. Для создания заказа нужно
+              будет явно подтвердить оформление еще раз.
+            </DialogDescription>
+          </DialogHeader>
+          <AuthForm
+            embedded
+            key={`${authDialogDefaults?.email ?? ""}:${authDialogDefaults?.name ?? ""}`}
+            initialEmail={authDialogDefaults?.email}
+            initialName={authDialogDefaults?.name}
+            isEmailLocked={Boolean(authDialogDefaults?.email)}
+            showNameOptionalHint={false}
+            onAuthenticated={onAuthenticated}
+          />
+        </DialogContent>
+      </Dialog>
+    </>
+  );
+}
+
+const PromocodeCheckout = withPromocode(BasePromocodeCheckout);
+
+function CheckoutScenario({
+  cart,
+  onAuthRequired,
+  onManualConfirmation,
+}: {
+  cart: Cart;
+  onAuthRequired: (_defaults?: AuthDialogDefaults) => void;
+  onManualConfirmation: () => void;
+}) {
+  const router = useRouter();
+  const user = useUser();
+  const orders = useOrdersData({ enabled: Boolean(user) });
+  const { clearCode } = usePromocode();
+  const customerOrders = orders.isError ? [] : orders.data;
+  const customerPhone = user?.phone ?? getPreferredCustomerPhone(customerOrders);
+  const customerDefaults = useMemo<CheckoutCustomerDefaults>(
+    () => ({
+      ...(user?.email ? { email: user.email } : {}),
+      ...(user?.name ? { name: user.name } : {}),
+      ...(customerPhone ? { phone: customerPhone } : {}),
+    }),
+    [customerPhone, user?.email, user?.name],
+  );
+  const handleOrderCreated = (order: CheckoutOrder | undefined) => {
+    clearCode();
+
+    if (order?.payment.redirectUrl) {
+      window.location.assign(order.payment.redirectUrl);
+      return;
+    }
+
+    if (order?.id) {
+      router.push(`${routes.checkoutSuccess}?orderId=${encodeURIComponent(order.id)}`);
+    }
+  };
+  const { createOrder, isPending, error } = useCreateOrderMutation({
+    onSuccess: handleOrderCreated,
+  });
+
+  const handleSubmit = async (input: CheckoutCreateOrderInput) => {
+    if (!user) {
+      onAuthRequired({ email: input.customer.email, name: input.customer.name });
+      return;
+    }
+
+    onManualConfirmation();
+    createOrder(input);
+  };
+
   return (
     <section className="container py-8 md:py-12">
       <div className="mb-8 flex flex-col justify-between gap-4 sm:flex-row sm:items-end">
@@ -153,35 +250,14 @@ export function Checkout() {
       </div>
 
       <CheckoutFlow
-        cart={cart.data}
+        cart={cart}
         createOrderError={error}
         customerDefaults={customerDefaults}
         isEmailLocked={Boolean(user?.email)}
         isSubmitting={isPending}
         onSubmit={handleSubmit}
-        requiresAuth={requiresAuth}
+        requiresAuth={!user}
       />
-
-      <Dialog open={isAuthDialogOpen} onOpenChange={setIsAuthDialogOpen}>
-        <DialogContent className="sm:max-w-md">
-          <DialogHeader>
-            <DialogTitle>Вход для оформления заказа</DialogTitle>
-            <DialogDescription>
-              Код подтверждения придет на почту, указанную в форме заказа. После успешного входа
-              заказ отправится автоматически.
-            </DialogDescription>
-          </DialogHeader>
-          <AuthForm
-            embedded
-            key={`${pendingCustomerEmail ?? ""}:${pendingCustomerName ?? ""}`}
-            initialEmail={pendingCustomerEmail}
-            initialName={pendingCustomerName}
-            isEmailLocked={Boolean(pendingCustomerEmail)}
-            showNameOptionalHint={false}
-            onAuthenticated={handleCheckoutAuthenticated}
-          />
-        </DialogContent>
-      </Dialog>
     </section>
   );
 }

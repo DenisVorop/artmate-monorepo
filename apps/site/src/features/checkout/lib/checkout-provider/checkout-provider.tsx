@@ -11,6 +11,10 @@ import {
 } from "react";
 import { FormProvider, useForm } from "react-hook-form";
 
+import type { Cart } from "@/entities/cart";
+import { useUser } from "@/entities/session";
+import { getCartPricingSignature, usePromocode } from "@/features/promocode";
+
 import { useCheckoutCalculation } from "../../model";
 import {
   checkoutFormValidationSchema,
@@ -31,6 +35,7 @@ import {
 } from "./checkout.context";
 
 type CheckoutProviderProps = {
+  cart: Cart;
   children: ReactNode;
   customerDefaults?: CheckoutCustomerDefaults;
   isEmailLocked?: boolean;
@@ -48,6 +53,7 @@ function scrollViewportToTop() {
 }
 
 export function CheckoutProvider({
+  cart,
   children,
   customerDefaults,
   isEmailLocked = false,
@@ -55,9 +61,44 @@ export function CheckoutProvider({
   onSubmit,
   requiresAuth,
 }: CheckoutProviderProps) {
+  const user = useUser();
+  const promoCode = usePromocode();
+  const { selectedCode } = promoCode;
   const [step, setStep] = useState<CheckoutStep>("delivery");
   const [selectedDelivery, setSelectedDeliveryState] = useState<CheckoutDeliverySelection>();
-  const checkoutCalculation = useCheckoutCalculation(selectedDelivery);
+  const isPromoCodeReady =
+    !promoCode.isHydrating &&
+    (!selectedCode || (Boolean(promoCode.preview) && !promoCode.isPending && !promoCode.isError));
+  const serverCheckoutCalculation = useCheckoutCalculation(selectedDelivery, {
+    accountIdentity: user?.id ?? "guest",
+    cartSignature: getCartPricingSignature(cart),
+    enabled: isPromoCodeReady,
+    promoCode: selectedCode,
+  });
+  const checkoutCalculation = useMemo(
+    () =>
+      isPromoCodeReady
+        ? serverCheckoutCalculation
+        : {
+            calculation: undefined,
+            error: promoCode.error,
+            isError: promoCode.isError,
+            isPaused: Boolean(selectedDelivery) && promoCode.isPaused,
+            isPending: Boolean(selectedDelivery) && (promoCode.isHydrating || promoCode.isPending),
+            retry: promoCode.retry,
+          },
+    [
+      isPromoCodeReady,
+      promoCode.error,
+      promoCode.isError,
+      promoCode.isHydrating,
+      promoCode.isPaused,
+      promoCode.isPending,
+      promoCode.retry,
+      selectedDelivery,
+      serverCheckoutCalculation,
+    ],
+  );
   const defaultValues = useMemo(
     () => getDefaultCheckoutFormValues(customerDefaults),
     [customerDefaults],
@@ -73,7 +114,10 @@ export function CheckoutProvider({
   } = form;
   const activeStepIndex = checkoutSteps.indexOf(step);
   const canContinueDelivery =
-    Boolean(selectedDelivery) && !checkoutCalculation.isPending && !checkoutCalculation.isError;
+    Boolean(selectedDelivery) &&
+    Boolean(checkoutCalculation.calculation) &&
+    !checkoutCalculation.isPending &&
+    !checkoutCalculation.isError;
   const submitLabel = getCheckoutSubmitLabel({
     hasDelivery: Boolean(selectedDelivery),
     isDeliveryPending: checkoutCalculation.isPending,
@@ -135,15 +179,28 @@ export function CheckoutProvider({
   const submitOrder = useCallback<FormEventHandler<HTMLFormElement>>(
     (event) => {
       void form.handleSubmit(async (values) => {
-        if (!selectedDelivery || checkoutCalculation.isPending) {
+        if (
+          !selectedDelivery ||
+          !checkoutCalculation.calculation ||
+          checkoutCalculation.isPending ||
+          checkoutCalculation.isError
+        ) {
           setStep("delivery");
           return;
         }
 
-        await onSubmit(toCreateOrderInput(values, selectedDelivery));
+        await onSubmit(toCreateOrderInput(values, selectedDelivery, selectedCode));
       })(event);
     },
-    [checkoutCalculation.isPending, form, onSubmit, selectedDelivery],
+    [
+      checkoutCalculation.calculation,
+      checkoutCalculation.isError,
+      checkoutCalculation.isPending,
+      form,
+      onSubmit,
+      selectedCode,
+      selectedDelivery,
+    ],
   );
 
   const value = useMemo<CheckoutContextValue>(

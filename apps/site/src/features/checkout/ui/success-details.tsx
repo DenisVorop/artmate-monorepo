@@ -132,6 +132,12 @@ export function CheckoutSuccessDetails({
               <span className="text-muted-foreground">Доставка</span>
               <span className="font-medium">{formatMoney(order.deliveryPrice)}</span>
             </div>
+            {order.discount > 0 ? (
+              <div className="flex items-center justify-between gap-4 text-emerald-700">
+                <span>Скидка{order.promoCode ? ` (${order.promoCode})` : ""}</span>
+                <span className="font-medium">-{formatMoney(order.discount)}</span>
+              </div>
+            ) : null}
             <div className="flex items-center justify-between gap-4 text-lg font-semibold">
               <span>Итого</span>
               <span>{formatMoney(order.total)}</span>

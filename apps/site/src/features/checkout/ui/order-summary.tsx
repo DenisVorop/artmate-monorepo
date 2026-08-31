@@ -1,9 +1,18 @@
 import Image from "next/image";
-import { LoaderCircle, Truck } from "lucide-react";
+import { LoaderCircle, RefreshCw, Truck } from "lucide-react";
 
 import type { Cart } from "@/entities/cart";
+import { PromoCodeForm } from "@/features/promocode";
 import { cn, shouldBypassNextImageOptimization } from "@/shared/lib";
-import { Card, CardContent, CardDescription, CardHeader, CardTitle, Separator } from "@/shared/ui";
+import {
+  Button,
+  Card,
+  CardContent,
+  CardDescription,
+  CardHeader,
+  CardTitle,
+  Separator,
+} from "@/shared/ui";
 
 import { formatEstimatedDeliveryDateRange, formatMoney, useCheckout } from "../lib";
 
@@ -25,7 +34,6 @@ export function OrderSummary({ cart, compact = false }: OrderSummaryProps) {
   const estimatedDeliveryDate = formatEstimatedDeliveryDateRange(
     calculation?.estimatedDeliveryDateRange,
   );
-  const total = calculation?.total ?? cart.subtotal;
   const hasDelivery = Boolean(selectedDelivery);
   const visibleItems = compact ? cart.items.slice(0, 2) : cart.items;
   const hiddenItemsCount = cart.items.length - visibleItems.length;
@@ -68,6 +76,10 @@ export function OrderSummary({ cart, compact = false }: OrderSummaryProps) {
 
         <Separator />
 
+        <PromoCodeForm />
+
+        <Separator />
+
         <div
           className={cn(
             "rounded-lg border bg-muted/30 p-3 text-sm",
@@ -75,7 +87,7 @@ export function OrderSummary({ cart, compact = false }: OrderSummaryProps) {
           )}
         >
           <div className="flex items-start gap-2">
-            {checkoutCalculation.isPending ? (
+            {checkoutCalculation.isPending && !checkoutCalculation.isPaused ? (
               <LoaderCircle className="mt-0.5 size-4 shrink-0 animate-spin text-muted-foreground" />
             ) : (
               <Truck
@@ -94,11 +106,13 @@ export function OrderSummary({ cart, compact = false }: OrderSummaryProps) {
                     : "Доставка не выбрана"}
               </p>
               <p className="text-xs text-muted-foreground">
-                {calculation
-                  ? "Стоимость доставки уже учтена в итоговой сумме."
-                  : hasDelivery
-                    ? "Обновляем стоимость доставки."
-                    : "Выберите город и ПВЗ в блоке доставки."}
+                {checkoutCalculation.isPaused
+                  ? "Нет сети. Повторите расчет стоимости заказа."
+                  : calculation
+                    ? "Стоимость доставки уже учтена в итоговой сумме."
+                    : hasDelivery
+                      ? "Обновляем стоимость доставки."
+                      : "Выберите город и ПВЗ в блоке доставки."}
               </p>
               {calculation?.delivery.pickupPoint ? (
                 <div className="space-y-0.5 text-xs text-muted-foreground">
@@ -115,14 +129,22 @@ export function OrderSummary({ cart, compact = false }: OrderSummaryProps) {
             <span className="text-muted-foreground">Товары</span>
             <span className="font-medium">{formatMoney(cart.subtotal)}</span>
           </div>
+          {calculation && calculation.discount > 0 ? (
+            <div className="flex items-center justify-between gap-4 text-emerald-700">
+              <span>Скидка{calculation.promoCode ? ` (${calculation.promoCode})` : ""}</span>
+              <span className="font-medium">-{formatMoney(calculation.discount)}</span>
+            </div>
+          ) : null}
           <div className="flex items-center justify-between gap-4">
             <span className="text-muted-foreground">Доставка</span>
             <span className="font-medium">
-              {checkoutCalculation.isPending
-                ? "Считаем"
-                : deliveryPrice === undefined
-                  ? "Выберите ПВЗ"
-                  : formatMoney(deliveryPrice)}
+              {checkoutCalculation.isPaused
+                ? "Нет сети"
+                : checkoutCalculation.isPending
+                  ? "Считаем"
+                  : deliveryPrice === undefined
+                    ? "Выберите ПВЗ"
+                    : formatMoney(deliveryPrice)}
             </span>
           </div>
           {estimatedDeliveryDate ? (
@@ -135,9 +157,41 @@ export function OrderSummary({ cart, compact = false }: OrderSummaryProps) {
 
         <Separator />
 
+        {checkoutCalculation.isError ? (
+          <div className="space-y-2 rounded-lg border border-destructive/30 bg-destructive/5 p-3 text-sm">
+            <p className="text-destructive" role="alert">
+              {checkoutCalculation.error?.message ||
+                "Не удалось пересчитать итоговую сумму заказа."}
+            </p>
+            <Button type="button" size="sm" variant="outline" onClick={checkoutCalculation.retry}>
+              <RefreshCw data-icon="inline-start" />
+              Повторить расчет
+            </Button>
+          </div>
+        ) : null}
+        {checkoutCalculation.isPaused ? (
+          <div className="space-y-2 rounded-lg border bg-muted/30 p-3 text-sm">
+            <p className="text-muted-foreground" role="status">
+              Нет сети. Итоговая сумма недоступна до повторного расчета.
+            </p>
+            <Button type="button" size="sm" variant="outline" onClick={checkoutCalculation.retry}>
+              <RefreshCw data-icon="inline-start" />
+              Повторить расчет
+            </Button>
+          </div>
+        ) : null}
+
         <div className="flex items-center justify-between text-lg font-semibold">
           <span>Итого</span>
-          <span>{formatMoney(total)}</span>
+          <span>
+            {checkoutCalculation.isPaused
+              ? "Нет сети"
+              : checkoutCalculation.isPending
+                ? "Пересчитываем"
+                : checkoutCalculation.isError || !calculation
+                  ? "Недоступно"
+                  : formatMoney(calculation.total)}
+          </span>
         </div>
       </CardContent>
     </Card>
