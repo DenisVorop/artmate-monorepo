@@ -1,6 +1,6 @@
 "use client";
 
-import { ArrowRight } from "lucide-react";
+import { ArrowRight, RefreshCw } from "lucide-react";
 
 import { Button, DataState } from "@/shared/ui";
 
@@ -30,17 +30,30 @@ export function CheckoutDeliveryStep({ isOzonDeliveryAvailable }: CheckoutDelive
       />
 
       {checkoutCalculation.isError ? (
-        <DataState
-          variant="error"
-          title="Не удалось рассчитать доставку"
-          description="Попробуйте выбрать другой пункт выдачи или обновить страницу."
-          className="max-w-none"
-        />
+        <div className="space-y-3">
+          <DataState
+            variant="error"
+            title="Не удалось рассчитать заказ"
+            description={
+              checkoutCalculation.error?.message ||
+              "Попробуйте проверить промокод, выбрать другой пункт выдачи или обновить страницу."
+            }
+            className="max-w-none"
+          />
+          <Button type="button" variant="outline" onClick={checkoutCalculation.retry}>
+            <RefreshCw data-icon="inline-start" />
+            Повторить расчет
+          </Button>
+        </div>
       ) : null}
 
       <div className="flex flex-col items-stretch gap-2 sm:flex-row sm:items-center sm:justify-end">
         {!selectedDelivery ? (
           <p className="text-sm text-muted-foreground">Выберите службу доставки и пункт выдачи.</p>
+        ) : checkoutCalculation.isPaused ? (
+          <p className="text-sm text-muted-foreground">
+            Нет сети. Повторите расчет перед продолжением.
+          </p>
         ) : checkoutCalculation.isPending ? (
           <p className="text-sm text-muted-foreground">Дождитесь расчета стоимости доставки.</p>
         ) : null}

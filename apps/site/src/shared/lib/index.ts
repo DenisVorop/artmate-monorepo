@@ -7,4 +7,5 @@ export {
   getBrowserQueryClient,
   makeQueryClient,
 } from "./query-client";
-export { createQueryKey, type QueryKeyPart } from "./query-keys";
+export { cartPricingQueryKey, createQueryKey, type QueryKeyPart } from "./query-keys";
+export { getFreshQueryData } from "./query-freshness";

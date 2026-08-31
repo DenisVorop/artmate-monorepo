@@ -18,7 +18,9 @@ export type CheckoutCalculationState = {
   calculation?: CheckoutCalculationDTO;
   error: Error | null;
   isError: boolean;
+  isPaused: boolean;
   isPending: boolean;
+  retry: () => void;
 };
 
 export type CheckoutContextValue = {

@@ -27,6 +27,10 @@ const legalDocs = [
     label: "Правила возврата",
     href: routes.legal.returnPolicy,
   },
+  {
+    label: "Правила промокодов",
+    href: routes.legal.promocodes,
+  },
 ];
 
 export function LegalDocs() {
@@ -39,7 +43,7 @@ export function LegalDocs() {
           Правовые документы
         </h4>
 
-        <div className="grid grid-cols-2 gap-2.5 sm:grid-cols-3 sm:gap-3 lg:grid-cols-6">
+        <div className="grid grid-cols-2 gap-2.5 sm:grid-cols-3 sm:gap-3 lg:grid-cols-7">
           {legalDocs.map((doc) => (
             <Link
               key={doc.href}

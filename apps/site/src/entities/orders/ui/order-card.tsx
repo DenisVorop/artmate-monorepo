@@ -104,6 +104,11 @@ export function OrderCard({ order }: OrderCardProps) {
           <div className="space-y-1 sm:text-right">
             <p className="text-sm text-muted-foreground">Итого</p>
             <p className="text-2xl font-semibold">{formatMoney(order.total)}</p>
+            {order.discount > 0 ? (
+              <p className="text-sm font-medium text-emerald-700">
+                Скидка{order.promoCode ? ` ${order.promoCode}` : ""}: -{formatMoney(order.discount)}
+              </p>
+            ) : null}
           </div>
           {paymentUrl && (
             <Button
@@ -256,10 +261,7 @@ function getOrderPaymentUrl(order: Order) {
 }
 
 function isOnlineAcquiringOrder(order: Order) {
-  return (
-    order.payment.method === "ozon_acquiring" ||
-    order.payment.method === "tbank_acquiring"
-  );
+  return order.payment.method === "ozon_acquiring" || order.payment.method === "tbank_acquiring";
 }
 
 function getItemsWord(count: number) {

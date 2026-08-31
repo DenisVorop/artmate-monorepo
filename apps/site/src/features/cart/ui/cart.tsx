@@ -1,8 +1,11 @@
 "use client";
 
 import { ArrowLeft } from "lucide-react";
+import { useRouter } from "next/navigation";
 
+import type { Cart as CartModel } from "@/entities/cart";
 import { useCartData } from "@/entities/cart";
+import { withPromocode } from "@/features/promocode";
 import { routes } from "@/shared/constants";
 import { Button, DataState } from "@/shared/ui";
 import { Link } from "@/shared/ui/link";
@@ -16,18 +19,20 @@ import {
 import { getItemsWord } from "../lib/cart-format";
 
 import { CartLine } from "./cart-line";
-import { CartLineSkeleton } from "./cart-line-skeleton";
 import { CartSummary } from "./cart-summary";
 import { EmptyCartLine } from "./empty-cart-line";
 
 export function Cart() {
+  const router = useRouter();
   const cart = useCartData();
-  const { mutate: updateCartItemQuantity, isPending: isUpdatingItemQuantity } =
-    useUpdateCartItemQuantityMutation();
-  const { mutate: removeCartItem, isPending: isRemovingItem } = useRemoveCartItemMutation();
-  const { mutate: clearCart, isPending: isClearingCart } = useClearCartMutation();
-  const isLoading = cart.isPending;
-  const isMutating = isUpdatingItemQuantity || isRemovingItem || isClearingCart;
+
+  if (cart.isPending) {
+    return (
+      <section className="container py-10">
+        <DataState title="Загружаем корзину" description="Проверяем выбранные товары и цены." />
+      </section>
+    );
+  }
 
   if (cart.isError) {
     return (
@@ -41,11 +46,31 @@ export function Cart() {
     );
   }
 
-  const isEmpty = !isLoading && (!cart.data || cart.data.items.length === 0);
+  if (!cart.data || cart.data.items.length === 0) {
+    return (
+      <section className="container py-8 md:py-12">
+        <EmptyCartLine />
+      </section>
+    );
+  }
 
-  const itemsLabel = cart.data
-    ? `${cart.data.itemsCount} ${getItemsWord(cart.data.itemsCount)}`
-    : "Проверяем товары";
+  return (
+    <LoadedCart
+      cart={cart.data}
+      onPromocodeLoginRequested={() =>
+        router.push(`${routes.auth}?next=${encodeURIComponent(routes.cart)}`)
+      }
+    />
+  );
+}
+
+function BaseLoadedCart({ cart }: { cart: CartModel }) {
+  const { mutate: updateCartItemQuantity, isPending: isUpdatingItemQuantity } =
+    useUpdateCartItemQuantityMutation();
+  const { mutate: removeCartItem, isPending: isRemovingItem } = useRemoveCartItemMutation();
+  const { mutate: clearCart, isPending: isClearingCart } = useClearCartMutation();
+  const isMutating = isUpdatingItemQuantity || isRemovingItem || isClearingCart;
+  const itemsLabel = `${cart.itemsCount} ${getItemsWord(cart.itemsCount)}`;
 
   return (
     <section className="container py-8 md:py-12">
@@ -65,42 +90,24 @@ export function Cart() {
       </div>
 
       <div className="grid gap-6 lg:grid-cols-[minmax(0,1fr)_22rem] lg:items-start">
-        <ul className="space-y-4" aria-busy={isLoading}>
-          {isLoading &&
-            Array.from({ length: 3 }, (_, index) => (
-              <li key={index}>
-                <CartLineSkeleton />
-              </li>
-            ))}
-
-          {isEmpty && (
-            <li>
-              <EmptyCartLine />
+        <ul className="space-y-4" aria-busy={isMutating}>
+          {cart.items.map((item) => (
+            <li key={item.id}>
+              <CartLine
+                item={item}
+                disabled={isMutating}
+                onUpdateQuantity={(quantity) =>
+                  updateCartItemQuantity({ productId: item.id, quantity })
+                }
+                onRemove={() => removeCartItem({ productId: item.id })}
+              />
             </li>
-          )}
-
-          {!isLoading &&
-            !isEmpty &&
-            cart.data?.items.map((item) => (
-              <li key={item.id}>
-                <CartLine
-                  item={item}
-                  disabled={isMutating}
-                  onUpdateQuantity={(quantity) =>
-                    updateCartItemQuantity({ productId: item.id, quantity })
-                  }
-                  onRemove={() => removeCartItem({ productId: item.id })}
-                />
-              </li>
-            ))}
+          ))}
         </ul>
 
         <CartSummary
           itemsLabel={itemsLabel}
-          subtotal={cart.data?.subtotal ?? 0}
-          total={cart.data?.total ?? 0}
-          isLoading={isLoading}
-          isEmpty={isEmpty}
+          subtotal={cart.subtotal}
           isMutating={isMutating}
           isClearingCart={isClearingCart}
           onClear={() => clearCart()}
@@ -109,3 +116,5 @@ export function Cart() {
     </section>
   );
 }
+
+const LoadedCart = withPromocode(BaseLoadedCart);

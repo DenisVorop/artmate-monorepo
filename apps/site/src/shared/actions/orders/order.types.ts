@@ -8,10 +8,7 @@ export type OrderStatusDTO =
   | "delivering"
   | "completed"
   | "cancelled";
-export type OrderPaymentMethodDTO =
-  | "bank_card_mock"
-  | "ozon_acquiring"
-  | "tbank_acquiring";
+export type OrderPaymentMethodDTO = "bank_card_mock" | "ozon_acquiring" | "tbank_acquiring";
 export type OrderPaymentStatusDTO = "pending" | "paid" | "failed";
 export type OrderDeliveryProviderDTO = "ozon" | "cdek";
 
@@ -82,6 +79,8 @@ export type OrderDTO = {
   shipments: OrderShipmentDTO[];
   itemsCount: number;
   subtotal: number;
+  discount: number;
+  promoCode?: string | null;
   deliveryPrice: number;
   total: number;
   currency: "RUB";
@@ -94,6 +93,8 @@ export type CheckoutCalculationDTO = {
   cartId: string;
   itemsCount: number;
   subtotal: number;
+  discount: number;
+  promoCode?: string | null;
   deliveryPrice: number;
   total: number;
   currency: "RUB";
@@ -110,10 +111,12 @@ export type CreateOrderInputDTO = {
   comment?: string;
   acceptedLegal: boolean;
   acceptedPersonalDataConsent: boolean;
+  promoCode?: string;
 };
 
 export type CalculateCheckoutInputDTO = {
   delivery: CreateOrderDeliveryInputDTO;
+  promoCode?: string;
 };
 
 export type ConfirmOrderPaymentInputDTO = {

@@ -46,7 +46,12 @@ export function CheckoutConfirmationStep() {
   const estimatedDeliveryDate = formatEstimatedDeliveryDateRange(
     checkoutCalculation.calculation?.estimatedDeliveryDateRange,
   );
-  const isSubmitDisabled = isSubmitting || checkoutCalculation.isPending || !selectedDelivery;
+  const isSubmitDisabled =
+    isSubmitting ||
+    checkoutCalculation.isPending ||
+    checkoutCalculation.isError ||
+    !checkoutCalculation.calculation ||
+    !selectedDelivery;
 
   return (
     <form id={checkoutOrderFormId} onSubmit={submitOrder}>

@@ -83,6 +83,11 @@ const staticRoutes = [
     changeFrequency: "monthly",
     priority: 0.45,
   },
+  {
+    path: routes.legal.promocodes,
+    changeFrequency: "monthly",
+    priority: 0.45,
+  },
 ] satisfies SitemapEntry[];
 
 export default async function sitemap(): Promise<MetadataRoute.Sitemap> {

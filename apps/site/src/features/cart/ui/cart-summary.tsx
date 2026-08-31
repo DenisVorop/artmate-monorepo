@@ -2,6 +2,7 @@
 
 import { CreditCard, LoaderCircle, ShoppingBag } from "lucide-react";
 
+import { PromoCodeForm, usePromocode } from "@/features/promocode";
 import { routes } from "@/shared/constants";
 import { cn } from "@/shared/lib";
 import {
@@ -22,9 +23,6 @@ import { formatMoney } from "../lib/cart-format";
 type CartSummaryProps = {
   itemsLabel: string;
   subtotal: number;
-  total: number;
-  isLoading: boolean;
-  isEmpty: boolean;
   isMutating: boolean;
   isClearingCart: boolean;
   onClear: () => void;
@@ -33,13 +31,20 @@ type CartSummaryProps = {
 export function CartSummary({
   itemsLabel,
   subtotal,
-  total,
-  isLoading,
-  isEmpty,
   isMutating,
   isClearingCart,
   onClear,
 }: CartSummaryProps) {
+  const {
+    isError: isPromoError,
+    isHydrating,
+    isPending: isPromoPending,
+    preview,
+    selectedCode,
+  } = usePromocode();
+  const isPromoUnavailable = Boolean(selectedCode) && (isPromoError || !preview);
+  const isTotalUnavailable = isHydrating || isPromoPending || isPromoUnavailable || isMutating;
+
   return (
     <Card className="lg:sticky lg:top-24">
       <CardHeader>
@@ -47,18 +52,28 @@ export function CartSummary({
         <CardDescription>{itemsLabel}</CardDescription>
       </CardHeader>
       <CardContent className="space-y-4">
+        <PromoCodeForm />
+        <Separator />
         <div className="flex items-center justify-between text-sm">
           <span className="text-muted-foreground">Товары</span>
-          {isLoading ? (
-            <AmountSkeleton className="h-5 w-20" />
-          ) : (
-            <span className="font-medium">{formatMoney(subtotal)}</span>
-          )}
+          <span className="font-medium">{formatMoney(subtotal)}</span>
         </div>
+        {preview && !isPromoPending ? (
+          <div className="flex items-center justify-between gap-4 text-sm text-emerald-700">
+            <span>Скидка ({preview.code})</span>
+            <span className="font-medium">-{formatMoney(preview.discount)}</span>
+          </div>
+        ) : null}
         <Separator />
         <div className="flex items-center justify-between text-lg font-semibold">
           <span>К оплате</span>
-          {isLoading ? <AmountSkeleton className="h-6 w-24" /> : <span>{formatMoney(total)}</span>}
+          {isPromoUnavailable && !isPromoPending ? (
+            <span className="text-sm text-destructive">Недоступно</span>
+          ) : isTotalUnavailable ? (
+            <AmountSkeleton className="h-6 w-24" />
+          ) : (
+            <span>{formatMoney(preview?.total ?? subtotal)}</span>
+          )}
         </div>
       </CardContent>
       <CardFooter className="flex-col items-stretch gap-2">
@@ -66,7 +81,7 @@ export function CartSummary({
           Службу доставки и ПВЗ СДЭК или Ozon выберете на следующем шаге. Доступность Ozon зависит
           от товаров в корзине.
         </p>
-        <CheckoutButton disabled={isLoading || isEmpty} />
+        <CheckoutButton disabled={isTotalUnavailable} />
         <Button asChild variant="outline" className="w-full">
           <Link href={routes.catalog}>
             <ShoppingBag data-icon="inline-start" />
@@ -76,7 +91,7 @@ export function CartSummary({
         <Button
           type="button"
           variant="outline"
-          disabled={isLoading || isEmpty || isMutating}
+          disabled={isMutating}
           onClick={onClear}
           className="w-full"
         >

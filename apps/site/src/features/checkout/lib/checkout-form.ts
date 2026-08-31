@@ -6,10 +6,7 @@ export const checkoutPhonePlaceholder = "+7 (999) 999-99-99";
 export const checkoutPhonePattern = /^\+7 \(\d{3}\) \d{3}-\d{2}-\d{2}$/;
 export const checkoutOrderFormId = "checkout-order-form";
 const checkoutRussianNamePattern = /^[А-ЯЁа-яё]+(?:[ -][А-ЯЁа-яё]+)*$/;
-export const checkoutPaymentMethods = [
-  "ozon_acquiring",
-  "tbank_acquiring",
-] as const;
+export const checkoutPaymentMethods = ["ozon_acquiring", "tbank_acquiring"] as const;
 
 export const checkoutFormValidationSchema = z.object({
   name: z
@@ -103,6 +100,7 @@ export function formatCheckoutPhone(value: string) {
 export function toCreateOrderInput(
   values: CheckoutFormValues,
   delivery: CheckoutDeliverySelection,
+  promoCode?: string,
 ): CreateOrderInputDTO {
   const comment = values.comment.trim();
 
@@ -119,6 +117,7 @@ export function toCreateOrderInput(
     comment: comment || undefined,
     acceptedLegal: values.acceptedLegal,
     acceptedPersonalDataConsent: values.acceptedPersonalDataConsent,
+    promoCode,
   };
 }
 

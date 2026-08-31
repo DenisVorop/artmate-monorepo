@@ -2,12 +2,15 @@
 
 import type { ComponentType } from "react";
 
+import type { Cart } from "@/entities/cart";
+
 import type { CheckoutCustomerDefaults } from "../checkout-form";
 
 import { CheckoutProvider } from "./checkout-provider";
 import type { CheckoutProviderSubmit } from "./checkout.context";
 
 type WithCheckoutProps = {
+  cart: Cart;
   customerDefaults?: CheckoutCustomerDefaults;
   isEmailLocked?: boolean;
   isSubmitting: boolean;
@@ -26,6 +29,7 @@ export function withCheckout<P extends object>(Component: ComponentType<P>) {
   }: P & WithCheckoutProps) {
     return (
       <CheckoutProvider
+        cart={(props as P & { cart: Cart }).cart}
         customerDefaults={customerDefaults}
         isEmailLocked={isEmailLocked}
         isSubmitting={isSubmitting}

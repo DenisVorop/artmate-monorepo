@@ -51,5 +51,6 @@ export const routes = {
     personalDataConsent: "/legal/personal-data-consent",
     cookiePolicy: "/legal/cookie-policy",
     returnPolicy: "/legal/return-policy",
+    promocodes: "/legal/promocodes",
   },
 } as const;

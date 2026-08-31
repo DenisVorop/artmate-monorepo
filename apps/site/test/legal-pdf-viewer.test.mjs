@@ -38,19 +38,11 @@ test("legal PDF viewer is client-only and renders every page with local PDF.js",
 
 test("legal PDF main runtime uses the legacy compatibility build", async () => {
   const nextConfigSource = await readSource("next.config.js");
-  const mainBuildSpecifier = nextConfigSource.match(
-    /const legacyPdfJsBuild = "([^"]+)"/,
-  )?.[1];
+  const mainBuildSpecifier = nextConfigSource.match(/const legacyPdfJsBuild = "([^"]+)"/)?.[1];
 
   assert.equal(mainBuildSpecifier, "pdfjs-dist/legacy/build/pdf.mjs");
-  assert.match(
-    nextConfigSource,
-    /resolveAlias:\s*\{[\s\S]*"pdfjs-dist":\s*legacyPdfJsBuild/,
-  );
-  assert.match(
-    nextConfigSource,
-    /alias\["pdfjs-dist\$"\]\s*=\s*legacyPdfJsBuild/,
-  );
+  assert.match(nextConfigSource, /resolveAlias:\s*\{[\s\S]*"pdfjs-dist":\s*legacyPdfJsBuild/);
+  assert.match(nextConfigSource, /alias\["pdfjs-dist\$"\]\s*=\s*legacyPdfJsBuild/);
 
   const mainBuildUrl = import.meta.resolve(mainBuildSpecifier);
   const stdout = await runWithoutPromiseWithResolvers(`
@@ -120,7 +112,13 @@ test("legal registry uses configured repository PDFs as its only PDF document so
     ["publicOffer", "/documents/legal/public-offer-2026-07-24.pdf"],
   ]);
   const pdfDocumentIds = [...expectedPdfFileHrefs.keys()].sort();
-  const htmlDocumentIds = ["cookiePolicy", "privacyPolicy", "returnPolicy", "userAgreement"];
+  const htmlDocumentIds = [
+    "cookiePolicy",
+    "privacyPolicy",
+    "promocodes",
+    "returnPolicy",
+    "userAgreement",
+  ];
   const pdfMetadataKeys = ["contentType", "description", "fileHref", "href", "title", "updatedAt"];
 
   assert.deepEqual([...sourceEntries.keys()].sort(), pdfDocumentIds);

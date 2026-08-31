@@ -26,3 +26,8 @@ export {
 } from "./checkout-provider";
 export type { CheckoutCreateOrderInput, CheckoutOrder } from "./checkout-types";
 export { formatMoney } from "./format-money";
+export {
+  transitionCheckoutAuthConfirmation,
+  type CheckoutAuthConfirmationEvent,
+  type CheckoutAuthConfirmationState,
+} from "./auth-confirmation-state";

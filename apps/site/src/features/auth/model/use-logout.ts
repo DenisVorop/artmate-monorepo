@@ -5,6 +5,7 @@ import { useMutation, useQueryClient } from "@tanstack/react-query";
 import { sessionQuery } from "@/entities/session";
 import { logout } from "@/shared/actions/auth";
 import { ApiResult } from "@/shared/lib/api-result";
+import { cartPricingQueryKey } from "@/shared/lib/query-keys";
 
 type UseLogoutMutationOptions = {
   onSuccess?: () => void;
@@ -16,6 +17,7 @@ export function useLogoutMutation(options: UseLogoutMutationOptions = {}) {
     mutationFn: async () => ApiResult.fromDTO(await logout()).unwrap(),
     onSuccess: () => {
       queryClient.setQueryData(sessionQuery.getSession().queryKey, { user: null });
+      void queryClient.invalidateQueries({ queryKey: cartPricingQueryKey });
       options.onSuccess?.();
     },
   });
