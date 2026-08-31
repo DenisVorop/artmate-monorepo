@@ -1,5 +1,25 @@
 # Changelog
 
+## [0.35.0](https://github.com/DenisVorop/artmate-monorepo/compare/v0.34.0...v0.35.0) (2026-08-31)
+
+
+### Features
+
+* **admin:** generate branded promo codes ([d399c80](https://github.com/DenisVorop/artmate-monorepo/commit/d399c80294492310cf4c16107deb74e4516fa98e))
+* **admin:** manage promo codes ([ac3b2d1](https://github.com/DenisVorop/artmate-monorepo/commit/ac3b2d1ef6ee1ee4081fa7f2d1dc13b86af23399))
+* **api:** add promo codes and payment discounts ([2225297](https://github.com/DenisVorop/artmate-monorepo/commit/2225297b375f245def22eea493c0363e445aeaf0))
+* **promocodes:** add welcome campaigns ([5b816d3](https://github.com/DenisVorop/artmate-monorepo/commit/5b816d32afba283f47e9d4991315cf2e7c5e6dc8))
+* **site:** add daily welcome bonus ([5dbc3fc](https://github.com/DenisVorop/artmate-monorepo/commit/5dbc3fc6564848f8fd4d066ac58f75a2f229a7cc))
+* **site:** apply promo codes at checkout ([58fc73e](https://github.com/DenisVorop/artmate-monorepo/commit/58fc73e1dfb32c9729931b103a48fda9851dbf0c))
+
+
+### Bug Fixes
+
+* **auth:** remove duplicate Telegram consent ([874e51f](https://github.com/DenisVorop/artmate-monorepo/commit/874e51f1492525cfcb398c5bd5d090381b7c22c6))
+* **site:** allow checkout with invalid promo ([370d205](https://github.com/DenisVorop/artmate-monorepo/commit/370d20586bf66db38605f8a6adfe308c7455c6e6))
+* **site:** simplify promo code controls ([4c9b5a5](https://github.com/DenisVorop/artmate-monorepo/commit/4c9b5a5cd115b6117c6439edee96433fc586b1f0))
+* **site:** stabilize delivery and collapse text ([fe22b48](https://github.com/DenisVorop/artmate-monorepo/commit/fe22b489437765eb7b168b65e29460bff5b98297))
+
 ## [0.34.0](https://github.com/DenisVorop/artmate-monorepo/compare/v0.33.0...v0.34.0) (2026-08-30)
 
 
