@@ -1,7 +1,7 @@
 "use client";
 
 import { zodResolver } from "@hookform/resolvers/zod";
-import { LoaderCircle, LogIn, RefreshCw, Tag, X } from "lucide-react";
+import { LoaderCircle, LogIn, Tag } from "lucide-react";
 import { useEffect } from "react";
 import { useForm } from "react-hook-form";
 
@@ -26,7 +26,6 @@ export function PromoCodeForm() {
     isPending,
     onLoginRequested,
     preview,
-    retry,
     selectedCode,
   } = usePromocode();
   const {
@@ -38,6 +37,7 @@ export function PromoCodeForm() {
     defaultValues: { code: selectedCode ?? "" },
     resolver: zodResolver(promoCodeFormSchema),
   });
+  const codeField = register("code");
 
   useEffect(() => {
     reset({ code: selectedCode ?? "" });
@@ -58,7 +58,14 @@ export function PromoCodeForm() {
             aria-describedby="promo-code-status"
             placeholder="Введите код"
             disabled={isHydrating}
-            {...register("code")}
+            {...codeField}
+            onChange={(event) => {
+              codeField.onChange(event);
+
+              if (selectedCode && !event.target.value.trim()) {
+                clearCode();
+              }
+            }}
           />
           <Button
             type="submit"
@@ -88,15 +95,9 @@ export function PromoCodeForm() {
           <p className="text-muted-foreground">Проверяем промокод и сумму скидки...</p>
         ) : null}
         {isPaused ? (
-          <div className="space-y-2" role="status">
-            <p className="text-muted-foreground">
-              Нет сети. Скидка будет доступна после повторной проверки.
-            </p>
-            <Button type="button" size="sm" variant="outline" onClick={retry}>
-              <RefreshCw data-icon="inline-start" />
-              Повторить проверку
-            </Button>
-          </div>
+          <p className="text-muted-foreground" role="status">
+            Нет сети. Скидка будет доступна после повторной проверки.
+          </p>
         ) : null}
         {preview && !isPending ? (
           <p className="font-medium text-emerald-700">
@@ -106,28 +107,15 @@ export function PromoCodeForm() {
         {isError ? (
           <div className="space-y-2" role="alert">
             <p className="text-destructive">{error?.message || "Не удалось проверить промокод."}</p>
-            <div className="flex flex-wrap gap-2">
-              <Button type="button" size="sm" variant="outline" onClick={retry}>
-                <RefreshCw data-icon="inline-start" />
-                Повторить проверку
+            {isGuest && onLoginRequested ? (
+              <Button type="button" size="sm" variant="outline" onClick={onLoginRequested}>
+                <LogIn data-icon="inline-start" />
+                Войти и проверить
               </Button>
-              {isGuest && onLoginRequested ? (
-                <Button type="button" size="sm" variant="outline" onClick={onLoginRequested}>
-                  <LogIn data-icon="inline-start" />
-                  Войти и проверить
-                </Button>
-              ) : null}
-            </div>
+            ) : null}
           </div>
         ) : null}
       </div>
-
-      {selectedCode ? (
-        <Button type="button" size="sm" variant="ghost" onClick={clearCode}>
-          <X data-icon="inline-start" />
-          Удалить промокод
-        </Button>
-      ) : null}
     </div>
   );
 }
