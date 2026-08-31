@@ -12,6 +12,7 @@ import {
   BreadcrumbSeparator,
   Button,
   CtaGradientLink,
+  ExpandableText,
 } from "@/shared/ui";
 import { Link } from "@/shared/ui/link";
 import { PageTitle, SectionSubtitle } from "@/shared/ui/typography";
@@ -61,7 +62,11 @@ export function Hero({ collection, description, title }: HeroProps) {
             Цифровая версия в палитре Artmate
           </Badge>
           <PageTitle>{title}</PageTitle>
-          <SectionSubtitle>{description}</SectionSubtitle>
+          {description && (
+            <ExpandableText collapsible={description.length > 700}>
+              <SectionSubtitle>{description}</SectionSubtitle>
+            </ExpandableText>
+          )}
         </div>
         <Button
           asChild

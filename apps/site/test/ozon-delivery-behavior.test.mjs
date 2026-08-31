@@ -126,6 +126,84 @@ async function loadMapHelpers() {
   );
 }
 
+async function renderOzonDeliverySelector(ozonPickupPoints) {
+  const source = await readSource(
+    "src/features/checkout/ui/delivery-selector/delivery-selector.tsx",
+  );
+  const jsx = (type, props, key) => ({ key, props, type });
+  const component = (name) => name;
+  const { DeliverySelector } = evaluateTypeScript(source, {
+    "../../lib": {
+      filterPickupPoints: (points) => points,
+      formatPickupPointCount: (count) => `${count} ПВЗ`,
+    },
+    "../../model": {
+      useCdekCities: () => ({ cities: [], isError: false, isPending: false }),
+      useCdekPickupPoints: () => ({ isError: false, isPending: false, pickupPoints: [] }),
+      useOzonPickupPoints: () => ozonPickupPoints,
+    },
+    "./combobox-field": { ComboboxField: component("ComboboxField") },
+    "./combobox-option": { ComboboxOption: component("ComboboxOption") },
+    "./delivery-company-selector": {
+      DeliveryCompanySelector: component("DeliveryCompanySelector"),
+    },
+    "./delivery-options": { defaultDeliveryCompany: "cdek" },
+    "./map-placeholder": { MapPlaceholder: component("MapPlaceholder") },
+    "./pickup-points-map": { PickupPointsMap: component("PickupPointsMap") },
+    "@/shared/lib": { cn: (...classes) => classes.filter(Boolean).join(" ") },
+    "@/shared/ui": {
+      Card: component("Card"),
+      CardContent: component("CardContent"),
+      CardDescription: component("CardDescription"),
+      CardHeader: component("CardHeader"),
+      CardTitle: component("CardTitle"),
+    },
+    "lucide-react": {
+      CheckCircle2: component("CheckCircle2"),
+      CircleAlert: component("CircleAlert"),
+      LoaderCircle: component("LoaderCircle"),
+      MapPin: component("MapPin"),
+    },
+    react: {
+      useEffect: () => undefined,
+      useMemo: (factory) => factory(),
+      useState: (initialValue) => [
+        typeof initialValue === "function" ? initialValue() : initialValue,
+        () => undefined,
+      ],
+    },
+    "react/jsx-runtime": { Fragment: Symbol("Fragment"), jsx, jsxs: jsx },
+  });
+
+  return DeliverySelector({
+    isOzonDeliveryAvailable: true,
+    onChange: () => undefined,
+    selectedDelivery: { pickupPointId: "selected", provider: "ozon" },
+  });
+}
+
+function findRenderedNode(node, predicate) {
+  if (!node || typeof node !== "object") {
+    return undefined;
+  }
+
+  if (predicate(node)) {
+    return node;
+  }
+
+  const children = Array.isArray(node) ? node : node.props?.children;
+
+  for (const child of Array.isArray(children) ? children : [children]) {
+    const match = findRenderedNode(child, predicate);
+
+    if (match) {
+      return match;
+    }
+  }
+
+  return undefined;
+}
+
 function createMarkerActivationHarness() {
   const attributes = new Map();
   const elementListeners = new Map();
@@ -248,6 +326,85 @@ test("clusters without a usable viewport resolve terminal point details", async 
       mapPointIds: ["terminal-a", "terminal-b", "terminal-c"],
     },
   );
+});
+
+test("rendered Ozon statuses stay distinct within identical fixed one-line geometry", async () => {
+  const states = [
+    {
+      expected: "Загружаем ПВЗ на карте.",
+      value: { aggregateClusters: [], isError: false, isPending: true, pickupPoints: [] },
+    },
+    {
+      expected: "Не удалось загрузить ПВЗ. Попробуйте позже.",
+      value: { aggregateClusters: [], isError: true, isPending: false, pickupPoints: [] },
+    },
+    {
+      expected: "Доступно 2 ПВЗ и группы ПВЗ.",
+      value: {
+        aggregateClusters: [{ id: "cluster" }],
+        isError: false,
+        isPending: false,
+        pickupPoints: [{ id: "one" }, { id: "two" }],
+      },
+    },
+    {
+      expected: "В области 2 ПВЗ.",
+      value: {
+        aggregateClusters: [],
+        isError: false,
+        isPending: false,
+        pickupPoints: [{ id: "one" }, { id: "two" }],
+      },
+    },
+    {
+      expected: "На карте есть группы ПВЗ - приблизьте их.",
+      value: {
+        aggregateClusters: [{ id: "cluster" }],
+        isError: false,
+        isPending: false,
+        pickupPoints: [],
+      },
+    },
+    {
+      expected: "ПВЗ не найдены - измените область карты.",
+      value: { aggregateClusters: [], isError: false, isPending: false, pickupPoints: [] },
+    },
+  ];
+  const statusClassNames = [];
+
+  for (const { expected, value } of states) {
+    const rendered = await renderOzonDeliverySelector(value);
+    const status = findRenderedNode(
+      rendered,
+      (node) => node.type === "p" && node.props?.["aria-live"] === "polite",
+    );
+    const statusColumn = findRenderedNode(
+      rendered,
+      (node) =>
+        node.type === "div" &&
+        node.props?.className?.split(" ").includes("space-y-4") &&
+        findRenderedNode(
+          node,
+          (child) => child.type === "p" && child.props?.["aria-live"] === "polite",
+        ),
+    );
+
+    assert.ok(status);
+    assert.equal(status.props.children, expected);
+    assert.equal(status.props.title, expected);
+    assert.deepEqual(status.props.className.split(" "), [
+      "h-5",
+      "min-w-0",
+      "truncate",
+      "text-sm",
+      "leading-5",
+      "text-muted-foreground",
+    ]);
+    assert.equal(statusColumn.props.className.split(" ").includes("min-w-0"), true);
+    statusClassNames.push(status.props.className);
+  }
+
+  assert.equal(new Set(statusClassNames).size, 1);
 });
 
 test("Ozon hook fetches point-info for aggregate IDs when viewport is unavailable", async () => {

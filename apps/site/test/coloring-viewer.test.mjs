@@ -774,11 +774,13 @@ test("details compose hero, full-width viewer, and palette in semantic DOM order
 test("hero stacks title, description and purchase CTA vertically at every breakpoint", async () => {
   const hero = await readSource("src/features/coloring-details/ui/hero.tsx");
   const [title] = getJsxElements(hero, "PageTitle");
-  const [description] = getJsxElements(hero, "SectionSubtitle");
+  const [description] = getJsxElements(hero, "ExpandableText");
+  const [subtitle] = getJsxElements(hero, "SectionSubtitle");
   const [cta] = getJsxElements(hero, "Button");
 
   assert.ok(title);
   assert.ok(description);
+  assert.ok(subtitle);
   assert.ok(cta);
   assert.ok(title.pos < description.pos && description.pos < cta.pos);
   assert.equal(getJsxAttribute(getJsxAncestors(title)[0], "className"), "space-y-3");
@@ -787,7 +789,12 @@ test("hero stacks title, description and purchase CTA vertically at every breakp
   assert.equal(getJsxAttribute(getJsxAncestors(cta)[0], "className"), "max-w-3xl space-y-5");
   assert.match(getJsxAttribute(cta, "className"), /min-h-11 w-full.*sm:w-auto/);
   assert.match(hero, /<PageTitle>\{title\}<\/PageTitle>/);
-  assert.match(hero, /<SectionSubtitle>\{description\}<\/SectionSubtitle>/);
+  assert.equal(getJsxAttribute(description, "collapsible"), "description.length > 700");
+  assert.match(
+    hero,
+    /<ExpandableText[\s\S]*?<SectionSubtitle>\{description\}<\/SectionSubtitle>[\s\S]*?<\/ExpandableText>/,
+  );
+  assert.doesNotMatch(hero, /dangerouslySetInnerHTML/);
   assert.doesNotMatch(hero, /grid-cols|flex-row|float-(?:left|right)|lg:justify-self-end/);
 });
 
