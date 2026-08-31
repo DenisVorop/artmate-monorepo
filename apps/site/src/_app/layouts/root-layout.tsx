@@ -9,6 +9,7 @@ import { GoogleAnalytics, YandexMetrika } from "@/shared/lib/analytics";
 import { dehydrateQueryClient } from "@/shared/lib/dehydrate-query-client";
 import { getServerDeviceInfo } from "@/shared/lib/device/server";
 import { getQueryClient } from "@/shared/lib/query-client";
+import { getQueryOwner } from "@/shared/lib/query-keys";
 import { RootStructuredData } from "@/shared/lib/seo";
 
 import { AppProviders } from "../providers/app-providers";
@@ -37,7 +38,7 @@ export async function RootLayout({ children }: RootLayoutProps) {
     getInitialAuthSession(),
   ]);
   const queryClient = getQueryClient();
-  await queryClient.prefetchQuery(featureBannersQuery.list());
+  await queryClient.prefetchQuery(featureBannersQuery.list(getQueryOwner(initialSession.user?.id)));
 
   return (
     <html lang="ru" className={`${comfortaa.variable} ${nunito.variable}`}>

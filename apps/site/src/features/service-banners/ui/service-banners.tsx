@@ -8,13 +8,21 @@ import {
   type FeatureBanner,
   useFeatureBanners,
 } from "@/entities/feature-banners";
+import { useSession } from "@/entities/session";
+import { getQueryOwner } from "@/shared/lib/query-keys";
 import { cn } from "@/shared/lib/utils";
 import { Link } from "@/shared/ui/link";
 
 export function ServiceBanners() {
-  const { banners, isError, isPending } = useFeatureBanners();
+  const { isPending: isSessionPending, user } = useSession();
+  const { banners, isError, isPending } = useFeatureBanners({
+    enabled: !isSessionPending,
+    owner: getQueryOwner(user?.id),
+  });
   const visibleBanners = banners.filter(
-    (banner) => banner.slug !== featureBannerSlugs.siteDevelopment,
+    (banner) =>
+      banner.slug !== featureBannerSlugs.siteDevelopment &&
+      banner.slug !== featureBannerSlugs.welcomeBonus,
   );
 
   if (isPending || isError || visibleBanners.length === 0) {

@@ -5,7 +5,12 @@ import { cookies, headers } from "next/headers";
 import { ApiResult, type ApiResultDTO } from "@/shared/lib/api-result";
 import { apiCsrfHeader, getForwardedIpHeaders } from "@/shared/lib/api-security";
 
-import type { PromoCodeInputDTO, PromoPreviewDTO } from "./promocode.types";
+import type {
+  PromoCodeInputDTO,
+  PromoPreviewDTO,
+  WelcomeOfferResponseDTO,
+  WelcomePromoResponseDTO,
+} from "./promocode.types";
 
 const cartCookieName = "cart_id";
 const authAccessTokenCookieName = "artmate_access_token";
@@ -17,6 +22,58 @@ export async function previewPromoCode(
   const result = await ApiResult.prepareApi(async () => requestPromoCodePreview(input))();
 
   return result.toDTO() as ApiResultDTO<PromoPreviewDTO>;
+}
+
+export async function getWelcomePromoCode(): Promise<ApiResultDTO<WelcomePromoResponseDTO>> {
+  const result = await ApiResult.prepareApi(requestWelcomePromoCode)();
+
+  return result.toDTO() as ApiResultDTO<WelcomePromoResponseDTO>;
+}
+
+export async function getWelcomeOffer(): Promise<ApiResultDTO<WelcomeOfferResponseDTO>> {
+  const result = await ApiResult.prepareApi(requestWelcomeOffer)();
+
+  return result.toDTO() as ApiResultDTO<WelcomeOfferResponseDTO>;
+}
+
+async function requestWelcomeOffer() {
+  const cookieStore = await cookies();
+  const cookieHeader = getRequestCookieHeader([
+    [authAccessTokenCookieName, cookieStore.get(authAccessTokenCookieName)?.value],
+  ]);
+  const response = await fetch(
+    `${process.env.API_BASE_URL ?? defaultApiBaseUrl}/promocodes/welcome-offer`,
+    {
+      cache: "no-store",
+      headers: cookieHeader ? { cookie: cookieHeader } : undefined,
+    },
+  );
+
+  if (!response.ok) {
+    throw new Error(await getErrorMessage(response));
+  }
+
+  return (await response.json()) as WelcomeOfferResponseDTO;
+}
+
+async function requestWelcomePromoCode() {
+  const cookieStore = await cookies();
+  const cookieHeader = getRequestCookieHeader([
+    [authAccessTokenCookieName, cookieStore.get(authAccessTokenCookieName)?.value],
+  ]);
+  const response = await fetch(
+    `${process.env.API_BASE_URL ?? defaultApiBaseUrl}/promocodes/welcome`,
+    {
+      cache: "no-store",
+      headers: cookieHeader ? { cookie: cookieHeader } : undefined,
+    },
+  );
+
+  if (!response.ok) {
+    throw new Error(await getErrorMessage(response));
+  }
+
+  return (await response.json()) as WelcomePromoResponseDTO;
 }
 
 async function requestPromoCodePreview(input: PromoCodeInputDTO) {

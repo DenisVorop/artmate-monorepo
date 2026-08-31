@@ -2,6 +2,7 @@ import type { ReactNode } from "react";
 
 import { CookieConsentBanner } from "@/features/cookie-consent";
 import { ServiceBanners } from "@/features/service-banners";
+import { WelcomeBonus } from "@/features/welcome-bonus";
 import { Footer } from "@/widgets/footer";
 import { Header } from "@/widgets/header";
 
@@ -16,6 +17,7 @@ export function SiteLayout({ children }: SiteShellProps) {
       <Header />
       {children}
       <Footer />
+      <WelcomeBonus />
       <CookieConsentBanner />
     </div>
   );

@@ -1,7 +1,9 @@
 "use client";
 
 import { useDevelopmentBanner } from "@/entities/feature-banners";
+import { useSession } from "@/entities/session";
 import { SessionMenu } from "@/features/auth";
+import { getQueryOwner } from "@/shared/lib/query-keys";
 import { cn } from "@/shared/lib/utils";
 
 import { Logo } from "./ui/logo";
@@ -10,7 +12,11 @@ import { DevelopmentBanner } from "./ui/development-banner";
 import { Menu, MobileMenu } from "./ui/menu";
 
 export function Header() {
-  const { hasDevelopmentBanner } = useDevelopmentBanner();
+  const { isPending, user } = useSession();
+  const { hasDevelopmentBanner } = useDevelopmentBanner({
+    enabled: !isPending,
+    owner: getQueryOwner(user?.id),
+  });
 
   return (
     <header

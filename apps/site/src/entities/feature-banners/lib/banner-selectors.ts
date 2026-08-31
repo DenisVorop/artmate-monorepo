@@ -3,6 +3,7 @@ import type { FeatureBanner } from "../model";
 export const featureBannerSlugs = {
   siteDevelopment: "site-development",
   telegramLink: "telegram-link",
+  welcomeBonus: "welcome-bonus",
 } as const;
 
 export function getFeatureBannerCta(banner: FeatureBanner) {
