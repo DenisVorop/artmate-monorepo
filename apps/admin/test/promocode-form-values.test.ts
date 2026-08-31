@@ -110,6 +110,7 @@ test("unchanged date fields preserve original seconds, milliseconds and ISO repr
     createdAt: "2026-08-01T00:00:00.000Z",
     endsAt: "2026-08-31T21:00:59.999Z",
     id: "promo-with-precise-dates",
+    kind: "standard" as const,
     reservedCount: 0,
     startsAt: "2026-08-31T09:30:59.999+00:00",
     updatedAt: "2026-08-01T00:00:00.000Z",
@@ -205,6 +206,7 @@ test("toggle mapper sends the full editable payload and preserves nullable setti
       ...getCreatePromoCodeInput(validValues),
       createdAt: "2026-08-01T00:00:00.000Z",
       id: "promo-id",
+      kind: "standard",
       reservedCount: 2,
       updatedAt: "2026-08-01T00:00:00.000Z",
       usedCount: 4,
@@ -217,5 +219,29 @@ test("toggle mapper sends the full editable payload and preserves nullable setti
   assert.equal(input.amountKopecks, null);
   assert.equal(input.description, null);
   assert.equal("code" in input, false);
+  assert.equal("kind" in input, false);
   assert.equal(Object.keys(input).length, 12);
+});
+
+test("mutation payloads never expose kind and keep welcome usage at one", () => {
+  const welcomePromoCode = {
+    ...getCreatePromoCodeInput(validValues),
+    createdAt: "2026-08-01T00:00:00.000Z",
+    id: "welcome-promo-id",
+    kind: "welcome" as const,
+    reservedCount: 0,
+    updatedAt: "2026-08-01T00:00:00.000Z",
+    usedCount: 0,
+  };
+  const updateInput = getUpdatePromoCodeInput(
+    { ...validValues, maxUsesPerUser: "25" },
+    welcomePromoCode,
+  );
+  const toggleInput = getTogglePromoCodeInput(welcomePromoCode, false);
+
+  assert.equal("kind" in getCreatePromoCodeInput(validValues), false);
+  assert.equal("kind" in updateInput, false);
+  assert.equal("kind" in toggleInput, false);
+  assert.equal(updateInput.maxUsesPerUser, 1);
+  assert.equal(toggleInput.maxUsesPerUser, 1);
 });

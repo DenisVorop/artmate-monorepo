@@ -21,6 +21,7 @@ import type {
   FeatureBannerAudience,
   FeatureBannerTone,
 } from "./feature-banners.types";
+import { featureBannerAudiences } from "./feature-banners.types";
 
 type StoredFeatureBanner = Prisma.FeatureBannerGetPayload<object>;
 
@@ -38,7 +39,9 @@ export class FeatureBannersService {
     });
     const needsTelegramStatus = banners.some(
       (banner) =>
-        banner.audience === PrismaFeatureBannerAudience.TELEGRAM_UNLINKED,
+        banner.audiences.includes(
+          PrismaFeatureBannerAudience.TELEGRAM_UNLINKED,
+        ),
     );
     const hasTelegramAccount =
       user && needsTelegramStatus
@@ -52,7 +55,13 @@ export class FeatureBannersService {
 
     return banners
       .filter((banner) =>
-        this.isVisibleForAudience(banner.audience, Boolean(user), hasTelegramAccount),
+        banner.audiences.some((audience) =>
+          this.isVisibleForAudience(
+            audience,
+            Boolean(user),
+            hasTelegramAccount,
+          ),
+        ),
       )
       .map((banner) => this.mapBanner(banner));
   }
@@ -134,7 +143,9 @@ export class FeatureBannersService {
       description: this.normalizeRequiredString(input.description, "description"),
       ctaLabel: cta.label,
       ctaHref: cta.href,
-      audience: this.toPrismaAudience(input.audience ?? "all"),
+      audiences: this.toPrismaAudiences(
+        input.audiences === undefined ? ["all"] : input.audiences,
+      ),
       tone: this.toPrismaTone(input.tone ?? "info"),
       enabled: input.enabled ?? false,
       sortOrder: input.sortOrder ?? 0,
@@ -165,8 +176,8 @@ export class FeatureBannersService {
       data.ctaHref = cta.href;
     }
 
-    if (input.audience !== undefined) {
-      data.audience = this.toPrismaAudience(input.audience);
+    if (input.audiences !== undefined) {
+      data.audiences = this.toPrismaAudiences(input.audiences);
     }
 
     if (input.tone !== undefined) {
@@ -250,6 +261,24 @@ export class FeatureBannersService {
     }
   }
 
+  private toPrismaAudiences(audiences: unknown) {
+    if (
+      !Array.isArray(audiences) ||
+      audiences.length === 0 ||
+      new Set(audiences).size !== audiences.length ||
+      !audiences.every((audience): audience is FeatureBannerAudience =>
+        featureBannerAudiences.includes(audience as FeatureBannerAudience),
+      ) ||
+      (audiences.includes("all") && audiences.length !== 1)
+    ) {
+      throw new BadRequestException(
+        "audiences must be nonempty, unique and contain all only by itself",
+      );
+    }
+
+    return audiences.map((audience) => this.toPrismaAudience(audience));
+  }
+
   private toPrismaTone(tone: FeatureBannerTone) {
     switch (tone) {
       case "info":
@@ -293,7 +322,7 @@ export class FeatureBannersService {
       description: banner.description,
       ...(banner.ctaLabel ? { ctaLabel: banner.ctaLabel } : {}),
       ...(banner.ctaHref ? { ctaHref: banner.ctaHref } : {}),
-      audience: this.mapAudience(banner.audience),
+      audiences: banner.audiences.map((audience) => this.mapAudience(audience)),
       tone: this.mapTone(banner.tone),
       enabled: banner.enabled,
       sortOrder: banner.sortOrder,

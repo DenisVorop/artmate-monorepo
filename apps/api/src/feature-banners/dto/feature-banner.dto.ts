@@ -1,4 +1,14 @@
-import { IsBoolean, IsIn, IsInt, IsISO8601, IsOptional, IsString } from "class-validator";
+import {
+  ArrayNotEmpty,
+  ArrayUnique,
+  IsArray,
+  IsBoolean,
+  IsIn,
+  IsInt,
+  IsISO8601,
+  IsOptional,
+  IsString,
+} from "class-validator";
 
 import {
   featureBannerAudiences,
@@ -6,6 +16,7 @@ import {
   type FeatureBannerAudience,
   type FeatureBannerTone,
 } from "../feature-banners.types";
+import { IsFeatureBannerAudienceSelection } from "./audiences-validation";
 
 export class FeatureBannerDTO {
   @IsString()
@@ -28,8 +39,12 @@ export class FeatureBannerDTO {
   @IsString()
   ctaHref?: string;
 
-  @IsIn(featureBannerAudiences)
-  audience!: FeatureBannerAudience;
+  @IsArray()
+  @ArrayNotEmpty()
+  @ArrayUnique()
+  @IsIn(featureBannerAudiences, { each: true })
+  @IsFeatureBannerAudienceSelection()
+  audiences!: FeatureBannerAudience[];
 
   @IsIn(featureBannerTones)
   tone!: FeatureBannerTone;

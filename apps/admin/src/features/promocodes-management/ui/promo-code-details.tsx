@@ -81,13 +81,19 @@ export function PromoCodeDetails({
     <div className="grid gap-4">
       <Card>
         <CardHeader>
-          <CardTitle>{promoCode.code}</CardTitle>
+          <CardTitle className="flex flex-wrap items-center gap-2">
+            {promoCode.code}
+            {promoCode.kind === "welcome" ? (
+              <Badge variant="outline">Приветственный</Badge>
+            ) : null}
+          </CardTitle>
         </CardHeader>
         <CardContent>
           <PromoCodeForm
             codeImmutable
             form={form}
             formId={`promo-code-${promoCode.id}`}
+            kind={promoCode.kind}
             onSubmit={form.handleSubmit((values) =>
               updatePromoCode({
                 input: getUpdatePromoCodeInput(values, promoCode),

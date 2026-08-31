@@ -1,4 +1,7 @@
 import {
+  ArrayNotEmpty,
+  ArrayUnique,
+  IsArray,
   IsBoolean,
   IsIn,
   IsInt,
@@ -6,6 +9,7 @@ import {
   IsString,
   MaxLength,
   Min,
+  ValidateIf,
 } from "class-validator";
 
 import {
@@ -14,6 +18,7 @@ import {
   type FeatureBannerAudience,
   type FeatureBannerTone,
 } from "../feature-banners.types";
+import { IsFeatureBannerAudienceSelection } from "./audiences-validation";
 
 export class UpdateFeatureBannerRequestDTO {
   @IsOptional()
@@ -41,9 +46,13 @@ export class UpdateFeatureBannerRequestDTO {
   @MaxLength(2048)
   ctaHref?: string | null;
 
-  @IsOptional()
-  @IsIn(featureBannerAudiences)
-  audience?: FeatureBannerAudience;
+  @ValidateIf((_object, value) => value !== undefined)
+  @IsArray()
+  @ArrayNotEmpty()
+  @ArrayUnique()
+  @IsIn(featureBannerAudiences, { each: true })
+  @IsFeatureBannerAudienceSelection()
+  audiences?: FeatureBannerAudience[];
 
   @IsOptional()
   @IsIn(featureBannerTones)

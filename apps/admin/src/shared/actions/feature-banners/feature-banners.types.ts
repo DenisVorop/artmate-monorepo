@@ -13,7 +13,7 @@ export type FeatureBannerDTO = {
   description: string;
   ctaLabel?: string;
   ctaHref?: string;
-  audience: FeatureBannerAudience;
+  audiences: FeatureBannerAudience[];
   tone: FeatureBannerTone;
   enabled: boolean;
   sortOrder: number;
@@ -28,7 +28,7 @@ export type CreateFeatureBannerInputDTO = {
   description: string;
   ctaLabel?: string | null;
   ctaHref?: string | null;
-  audience?: FeatureBannerAudience;
+  audiences?: FeatureBannerAudience[];
   tone?: FeatureBannerTone;
   enabled?: boolean;
   sortOrder?: number;

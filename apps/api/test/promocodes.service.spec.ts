@@ -8,6 +8,7 @@ import {
 } from "@nestjs/common";
 
 import {
+  PromoCodeKind,
   PromoCodeType,
   PromoRedemptionStatus,
 } from "../src/generated/prisma/client";
@@ -18,6 +19,7 @@ function promo(overrides: Record<string, unknown> = {}) {
   return {
     id: "promo-1",
     code: "SALE10",
+    kind: PromoCodeKind.STANDARD,
     name: "Sale",
     description: null,
     type: PromoCodeType.PERCENTAGE,
@@ -197,6 +199,10 @@ describe("PromocodesService", () => {
       (calls[1]?.data?.promoTermsSnapshot as { rulesVersion: string })
         .rulesVersion,
       "2026-08-31",
+    );
+    assert.equal(
+      (calls[1]?.data?.promoTermsSnapshot as { kind: string }).kind,
+      "standard",
     );
     assert.equal(calls[2]?.data?.discountKopecksSnapshot, 1_000n);
     assert.equal(result.pricingSnapshot.totalKopecks, 9_000);

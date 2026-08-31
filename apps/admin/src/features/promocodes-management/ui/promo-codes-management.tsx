@@ -86,6 +86,11 @@ export function PromoCodesManagement() {
                     <p className="text-xs text-muted-foreground">
                       {promoCode.name}
                     </p>
+                    {promoCode.kind === "welcome" ? (
+                      <Badge className="mt-1" variant="outline">
+                        Приветственный
+                      </Badge>
+                    ) : null}
                   </TableCell>
                   <TableCell>
                     <Badge variant={status.variant}>{status.label}</Badge>

@@ -5,6 +5,13 @@ enum PromoCodeType {
   @@map("promo_code_type")
 }
 
+enum PromoCodeKind {
+  STANDARD @map("standard")
+  WELCOME  @map("welcome")
+
+  @@map("promo_code_kind")
+}
+
 enum PromoRedemptionStatus {
   RESERVED @map("reserved")
   USED     @map("used")
@@ -16,6 +23,7 @@ enum PromoRedemptionStatus {
 model PromoCode {
   id                   String        @id @default(cuid())
   code                 String        @unique(map: "promo_codes_code_key") @db.VarChar(40)
+  kind                 PromoCodeKind @default(STANDARD)
   name                 String        @db.VarChar(160)
   description          String?       @db.Text
   type                 PromoCodeType

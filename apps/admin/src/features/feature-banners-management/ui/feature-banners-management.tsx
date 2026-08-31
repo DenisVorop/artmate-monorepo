@@ -1,9 +1,9 @@
 "use client";
 
-import { Archive, Megaphone, Plus, Power, PowerOff } from "lucide-react";
+import { Archive, Megaphone, Plus, Power, PowerOff, Users } from "lucide-react";
 import { zodResolver } from "@hookform/resolvers/zod";
-import type { ReactNode } from "react";
-import { useForm } from "react-hook-form";
+import { useId, useState, type ReactNode } from "react";
+import { Controller, useForm } from "react-hook-form";
 
 import {
   featureBannerAudiences,
@@ -12,6 +12,7 @@ import {
   getFeatureBannerStatusLabel,
   getFeatureBannerToneLabel,
   type FeatureBanner,
+  type FeatureBannerAudience,
   useFeatureBanners,
 } from "@/entities/feature-banners";
 import {
@@ -23,6 +24,15 @@ import {
   CardDescription,
   CardHeader,
   CardTitle,
+  Checkbox,
+  Dialog,
+  DialogClose,
+  DialogContent,
+  DialogDescription,
+  DialogFooter,
+  DialogHeader,
+  DialogTitle,
+  DialogTrigger,
   Input,
   Table,
   TableBody,
@@ -35,8 +45,11 @@ import {
 
 import {
   defaultFeatureBannerFormValues,
+  featureBannerAudiencesFormSchema,
   featureBannerFormSchema,
+  getNextFeatureBannerAudiences,
   toCreateFeatureBannerInput,
+  type FeatureBannerAudiencesFormValues,
   type FeatureBannerFormValues,
 } from "../lib";
 import {
@@ -82,7 +95,13 @@ export function FeatureBannersManagement() {
 }
 
 function CreateBannerCard() {
-  const { handleSubmit, register, reset } = useForm<FeatureBannerFormValues>({
+  const {
+    control,
+    formState: { errors },
+    handleSubmit,
+    register,
+    reset,
+  } = useForm<FeatureBannerFormValues>({
     defaultValues: defaultFeatureBannerFormValues,
     resolver: zodResolver(featureBannerFormSchema),
   });
@@ -96,17 +115,17 @@ function CreateBannerCard() {
     <Card className="xl:sticky xl:top-8 xl:self-start">
       <CardHeader>
         <CardTitle>Новый баннер</CardTitle>
-        <CardDescription>Создайте флаг, который сайт покажет над хедером.</CardDescription>
+        <CardDescription>Создайте флаг с условиями показа на сайте.</CardDescription>
       </CardHeader>
       <CardContent>
         <form className="grid gap-3" onSubmit={submitForm}>
-          <LabeledField label="Slug">
+          <LabeledField error={errors.slug?.message} label="Slug">
             <Input placeholder="telegram-link" {...register("slug")} />
           </LabeledField>
-          <LabeledField label="Заголовок">
+          <LabeledField error={errors.title?.message} label="Заголовок">
             <Input placeholder="Подключите Telegram" {...register("title")} />
           </LabeledField>
-          <LabeledField label="Описание">
+          <LabeledField error={errors.description?.message} label="Описание">
             <Textarea
               placeholder="Будем присылать обновления по заказам в удобный чат."
               rows={4}
@@ -114,24 +133,26 @@ function CreateBannerCard() {
             />
           </LabeledField>
           <div className="grid gap-3 sm:grid-cols-2">
-            <LabeledField label="Кнопка">
+            <LabeledField error={errors.ctaLabel?.message} label="Кнопка">
               <Input placeholder="Подключить" {...register("ctaLabel")} />
             </LabeledField>
-            <LabeledField label="Ссылка">
+            <LabeledField error={errors.ctaHref?.message} label="Ссылка">
               <Input placeholder="/account" {...register("ctaHref")} />
             </LabeledField>
           </div>
+          <Controller
+            control={control}
+            name="audiences"
+            render={({ field, fieldState }) => (
+              <AudienceCheckboxGroup
+                audiences={field.value}
+                error={fieldState.error?.message}
+                onChange={field.onChange}
+              />
+            )}
+          />
           <div className="grid gap-3 sm:grid-cols-2">
-            <LabeledField label="Аудитория">
-              <select className={fieldClassName} {...register("audience")}>
-                {featureBannerAudiences.map((audience) => (
-                  <option key={audience} value={audience}>
-                    {getFeatureBannerAudienceLabel(audience)}
-                  </option>
-                ))}
-              </select>
-            </LabeledField>
-            <LabeledField label="Тон">
+            <LabeledField error={errors.tone?.message} label="Тон">
               <select className={fieldClassName} {...register("tone")}>
                 {featureBannerTones.map((tone) => (
                   <option key={tone} value={tone}>
@@ -142,7 +163,7 @@ function CreateBannerCard() {
             </LabeledField>
           </div>
           <div className="grid gap-3 sm:grid-cols-[1fr_auto]">
-            <LabeledField label="Порядок">
+            <LabeledField error={errors.sortOrder?.message} label="Порядок">
               <Input type="number" min={0} {...register("sortOrder")} />
             </LabeledField>
             <label className="grid content-end gap-1.5">
@@ -212,7 +233,7 @@ function BannerTableRow({ banner }: { readonly banner: FeatureBanner }) {
 
   return (
     <TableRow>
-      <TableCell className="min-w-80 whitespace-normal">
+      <TableCell className="min-w-64 whitespace-normal">
         <div className="grid gap-1">
           <div className="flex flex-wrap items-center gap-2">
             <span className="font-medium">{banner.title}</span>
@@ -226,7 +247,15 @@ function BannerTableRow({ banner }: { readonly banner: FeatureBanner }) {
           ) : null}
         </div>
       </TableCell>
-      <TableCell>{getFeatureBannerAudienceLabel(banner.audience)}</TableCell>
+      <TableCell className="min-w-48 whitespace-normal">
+        <div className="flex flex-wrap gap-1">
+          {banner.audiences.map((audience) => (
+            <Badge key={audience} variant="secondary">
+              {getFeatureBannerAudienceLabel(audience)}
+            </Badge>
+          ))}
+        </div>
+      </TableCell>
       <TableCell>{getFeatureBannerToneLabel(banner.tone)}</TableCell>
       <TableCell>
         <Badge variant={isArchived ? "outline" : banner.enabled ? "default" : "secondary"}>
@@ -235,6 +264,7 @@ function BannerTableRow({ banner }: { readonly banner: FeatureBanner }) {
       </TableCell>
       <TableCell className="text-right">
         <div className="flex justify-end gap-2">
+          <EditBannerAudiencesDialog banner={banner} />
           <Button
             size="sm"
             type="button"
@@ -270,17 +300,163 @@ function BannerTableRow({ banner }: { readonly banner: FeatureBanner }) {
   );
 }
 
+function EditBannerAudiencesDialog({
+  banner,
+}: {
+  readonly banner: FeatureBanner;
+}) {
+  const [open, setOpen] = useState(false);
+  const {
+    control,
+    handleSubmit,
+    reset,
+  } = useForm<FeatureBannerAudiencesFormValues>({
+    defaultValues: { audiences: banner.audiences },
+    resolver: zodResolver(featureBannerAudiencesFormSchema),
+  });
+  const updateBanner = useUpdateFeatureBanner({
+    onSuccess: () => setOpen(false),
+  });
+  const isArchived = Boolean(banner.archivedAt);
+  const submitForm = handleSubmit((values) =>
+    updateBanner.mutate({
+      bannerId: banner.id,
+      input: { audiences: values.audiences },
+    }),
+  );
+
+  return (
+    <Dialog
+      open={open}
+      onOpenChange={(nextOpen) => {
+        setOpen(nextOpen);
+        if (nextOpen) {
+          reset({ audiences: banner.audiences });
+        }
+      }}
+    >
+      <DialogTrigger asChild>
+        <Button
+          aria-label={`Изменить аудитории баннера ${banner.title}`}
+          disabled={isArchived}
+          size="icon-sm"
+          type="button"
+          variant="outline"
+        >
+          <Users aria-hidden="true" />
+        </Button>
+      </DialogTrigger>
+      <DialogContent className="max-h-[calc(100dvh-2rem)] overflow-y-auto sm:max-w-md">
+        <DialogHeader>
+          <DialogTitle>Аудитории баннера</DialogTitle>
+          <DialogDescription>
+            {banner.title}. Достаточно совпадения с одной аудиторией.
+          </DialogDescription>
+        </DialogHeader>
+        <form className="grid gap-4" onSubmit={submitForm}>
+          <Controller
+            control={control}
+            name="audiences"
+            render={({ field, fieldState }) => (
+              <AudienceCheckboxGroup
+                audiences={field.value}
+                error={fieldState.error?.message}
+                onChange={field.onChange}
+                showDescription={false}
+              />
+            )}
+          />
+          <DialogFooter>
+            <DialogClose asChild>
+              <Button
+                disabled={updateBanner.isPending}
+                type="button"
+                variant="outline"
+              >
+                Отмена
+              </Button>
+            </DialogClose>
+            <Button disabled={updateBanner.isPending} type="submit">
+              Сохранить
+            </Button>
+          </DialogFooter>
+        </form>
+      </DialogContent>
+    </Dialog>
+  );
+}
+
+function AudienceCheckboxGroup({
+  audiences,
+  error,
+  onChange,
+  showDescription = true,
+}: {
+  readonly audiences: readonly FeatureBannerAudience[];
+  readonly error?: string;
+  readonly onChange: (audiences: FeatureBannerAudience[]) => void;
+  readonly showDescription?: boolean;
+}) {
+  const idPrefix = useId();
+
+  return (
+    <fieldset className="grid min-w-0 gap-2 rounded-lg border border-input p-3">
+      <legend className="px-1 text-xs font-medium text-muted-foreground">Аудитории</legend>
+      <div className="grid gap-2 sm:grid-cols-2">
+        {featureBannerAudiences.map((audience) => {
+          const id = `${idPrefix}-${audience}`;
+
+          return (
+            <label
+              className="flex min-w-0 items-start gap-2 text-sm"
+              htmlFor={id}
+              key={audience}
+            >
+              <Checkbox
+                aria-invalid={Boolean(error)}
+                checked={audiences.includes(audience)}
+                id={id}
+                onCheckedChange={(checked) =>
+                  onChange(
+                    getNextFeatureBannerAudiences(
+                      audiences,
+                      audience,
+                      checked === true,
+                    ),
+                  )
+                }
+              />
+              <span className="min-w-0 leading-4">
+                {getFeatureBannerAudienceLabel(audience)}
+              </span>
+            </label>
+          );
+        })}
+      </div>
+      {showDescription ? (
+        <p className="text-xs text-muted-foreground">
+          Достаточно совпадения с одной аудиторией.
+        </p>
+      ) : null}
+      {error ? <p className="text-xs text-destructive">{error}</p> : null}
+    </fieldset>
+  );
+}
+
 function LabeledField({
   children,
+  error,
   label,
 }: {
   readonly children: ReactNode;
+  readonly error?: string;
   readonly label: string;
 }) {
   return (
     <label className="grid gap-1.5">
       <span className="text-xs font-medium text-muted-foreground">{label}</span>
       {children}
+      {error ? <span className="text-xs text-destructive">{error}</span> : null}
     </label>
   );
 }

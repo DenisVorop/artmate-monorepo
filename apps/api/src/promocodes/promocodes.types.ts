@@ -1,6 +1,9 @@
 export const promoCodeTypes = ["percentage", "fixed"] as const;
 export type PromoCodeType = (typeof promoCodeTypes)[number];
 
+export const promoCodeKinds = ["standard", "welcome"] as const;
+export type PromoCodeKind = (typeof promoCodeKinds)[number];
+
 export const promoRedemptionStatuses = [
   "reserved",
   "used",
@@ -10,6 +13,7 @@ export type PromoRedemptionStatus = (typeof promoRedemptionStatuses)[number];
 
 export type PromoTerms = {
   code: string;
+  kind: PromoCodeKind;
   type: PromoCodeType;
   basisPoints: number | null;
   amountKopecks: number | null;
