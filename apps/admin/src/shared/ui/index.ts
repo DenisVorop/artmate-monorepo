@@ -1,6 +1,7 @@
 export { Avatar, AvatarBadge, AvatarFallback, AvatarImage } from "./avatar";
 export { Badge, badgeVariants } from "./badge";
 export { Button, buttonVariants } from "./button";
+export { Checkbox } from "./checkbox";
 export {
   Card,
   CardAction,
@@ -54,6 +55,11 @@ export {
   InputGroupText,
   InputGroupTextarea,
 } from "./input-group";
+export {
+  NativeSelect,
+  NativeSelectOptGroup,
+  NativeSelectOption,
+} from "./native-select";
 export {
   Popover,
   PopoverAnchor,

@@ -298,6 +298,23 @@ function OrderCard({
           <Metric label="Итого" value={formatMoney(order.total)} />
         </div>
 
+        {order.promoCode || order.discount > 0 ? (
+          <div className="flex items-center justify-between gap-3 rounded-lg border bg-muted/30 p-2 text-xs">
+            <div className="min-w-0">
+              <p className="text-muted-foreground">Промокод</p>
+              <p className="truncate font-mono font-medium">
+                {order.promoCode ?? "Скидка заказа"}
+              </p>
+            </div>
+            <div className="shrink-0 text-right">
+              <p className="text-muted-foreground">Скидка</p>
+              <p className="font-medium text-emerald-700">
+                − {formatMoney(order.discount)}
+              </p>
+            </div>
+          </div>
+        ) : null}
+
         {order.delivery.provider === "cdek" ? (
           <ShipmentBadge order={order} />
         ) : null}
@@ -599,11 +616,22 @@ function getHistoryEventText(event: AdminOrder["history"][number]) {
     return "Комментарий добавлен";
   }
 
+  if (event.eventType === "promo_reservation_released") {
+    return "Резерв промокода снят оператором";
+  }
+
+  if (event.eventType === "promo_used_after_release") {
+    return "Внимание: оплата после снятия резерва, применение учтено";
+  }
+
   return event.eventType;
 }
 
 function getHistoryAuthorLabel(eventType: string) {
-  return eventType === "status_changed" ? "Система" : "Администратор";
+  return eventType === "status_changed" ||
+    eventType === "promo_used_after_release"
+    ? "Система"
+    : "Администратор";
 }
 
 function getStatusLabel(value: unknown) {

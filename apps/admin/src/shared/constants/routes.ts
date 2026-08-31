@@ -23,6 +23,9 @@ export const routes = {
   productCategories: "/products/categories",
   productTags: "/products/tags",
   products: "/products",
+  promoCode: (promoCodeId: string) => `/promocodes/${promoCodeId}`,
+  promoCodeCreate: "/promocodes/new",
+  promoCodes: "/promocodes",
   seo: "/seo",
   users: "/users",
 } as const;
