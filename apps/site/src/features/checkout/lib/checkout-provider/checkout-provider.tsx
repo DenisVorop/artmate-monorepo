@@ -13,7 +13,7 @@ import { FormProvider, useForm } from "react-hook-form";
 
 import type { Cart } from "@/entities/cart";
 import { useUser } from "@/entities/session";
-import { getCartPricingSignature, usePromocode } from "@/features/promocode";
+import { getCartPricingSignature, getPromoPricingState, usePromocode } from "@/features/promocode";
 
 import { useCheckoutCalculation } from "../../model";
 import {
@@ -63,21 +63,18 @@ export function CheckoutProvider({
 }: CheckoutProviderProps) {
   const user = useUser();
   const promoCode = usePromocode();
-  const { selectedCode } = promoCode;
+  const promoPricing = getPromoPricingState(promoCode);
   const [step, setStep] = useState<CheckoutStep>("delivery");
   const [selectedDelivery, setSelectedDeliveryState] = useState<CheckoutDeliverySelection>();
-  const isPromoCodeReady =
-    !promoCode.isHydrating &&
-    (!selectedCode || (Boolean(promoCode.preview) && !promoCode.isPending && !promoCode.isError));
   const serverCheckoutCalculation = useCheckoutCalculation(selectedDelivery, {
     accountIdentity: user?.id ?? "guest",
     cartSignature: getCartPricingSignature(cart),
-    enabled: isPromoCodeReady,
-    promoCode: selectedCode,
+    enabled: promoPricing.isReady,
+    promoCode: promoPricing.code,
   });
   const checkoutCalculation = useMemo(
     () =>
-      isPromoCodeReady
+      promoPricing.isReady
         ? serverCheckoutCalculation
         : {
             calculation: undefined,
@@ -88,7 +85,7 @@ export function CheckoutProvider({
             retry: promoCode.retry,
           },
     [
-      isPromoCodeReady,
+      promoPricing.isReady,
       promoCode.error,
       promoCode.isError,
       promoCode.isHydrating,
@@ -189,7 +186,7 @@ export function CheckoutProvider({
           return;
         }
 
-        await onSubmit(toCreateOrderInput(values, selectedDelivery, selectedCode));
+        await onSubmit(toCreateOrderInput(values, selectedDelivery, promoPricing.code));
       })(event);
     },
     [
@@ -198,7 +195,7 @@ export function CheckoutProvider({
       checkoutCalculation.isPending,
       form,
       onSubmit,
-      selectedCode,
+      promoPricing.code,
       selectedDelivery,
     ],
   );
