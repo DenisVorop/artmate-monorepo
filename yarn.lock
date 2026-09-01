@@ -2990,10 +2990,10 @@
   dependencies:
     "@tanstack/query-core" "5.100.14"
 
-"@tiptap/core@^3.22.5", "@tiptap/core@^3.23.1":
-  version "3.23.1"
-  resolved "https://registry.npmjs.org/@tiptap/core/-/core-3.23.1.tgz#294fad1a727d3692b86990d0c608ab56a5601569"
-  integrity sha512-8YvSGiJTeU5wPuGiYIIYgyiyaaT1CAx+kJL0bju0w871OvbJJj0T/ywhcmxGXW6pOal2T8X2xt9ZqE+vib0VJw==
+"@tiptap/core@^3.23.1", "@tiptap/core@^3.26.0":
+  version "3.26.0"
+  resolved "https://registry.npmjs.org/@tiptap/core/-/core-3.26.0.tgz#7e1989377c851bcc89d8c7c8f893d65cdc378434"
+  integrity sha512-7jTed/RirIVsp+lLdLvGzGqF3EBGpnGHGYKOwz6t28V2BIJLAFdUhfEVdWie7xPxQNWK0TP+fPlsqZS0vxfHBg==
 
 "@tiptap/extension-blockquote@^3.23.1":
   version "3.23.1"
