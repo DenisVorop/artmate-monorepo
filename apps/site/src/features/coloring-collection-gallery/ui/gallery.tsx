@@ -1,5 +1,6 @@
 "use client";
 
+import type { ReactNode } from "react";
 import Image from "next/image";
 
 import { useColoringCollectionData } from "@/entities/coloring-collection";
@@ -24,9 +25,13 @@ import { PageTitle, SectionSubtitle } from "@/shared/ui/typography";
 
 type ColoringCollectionGalleryProps = {
   slug: string;
+  workshopAction?: ReactNode;
 };
 
-export function ColoringCollectionGallery({ slug }: ColoringCollectionGalleryProps) {
+export function ColoringCollectionGallery({
+  slug,
+  workshopAction,
+}: ColoringCollectionGalleryProps) {
   const { collection, isError, isPending, refetch } = useColoringCollectionData(slug);
 
   if (isPending) {
@@ -90,6 +95,7 @@ export function ColoringCollectionGallery({ slug }: ColoringCollectionGalleryPro
               <SectionSubtitle>{collection.description}</SectionSubtitle>
             </ExpandableText>
           ) : null}
+          {workshopAction}
         </div>
       </section>
 

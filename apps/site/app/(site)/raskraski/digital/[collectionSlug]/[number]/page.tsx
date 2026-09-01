@@ -3,6 +3,7 @@ import type { Metadata } from "next";
 import { notFound } from "next/navigation";
 
 import { ColoringDataBuilder } from "@/app/lib/coloring-data-builder";
+import { CommunityDataBuilder } from "@/app/lib/community-data-builder";
 import { ColoringPage } from "@/pages/coloring";
 import { parseColoringNumber } from "@/shared/constants";
 import { dehydrateQueryClient } from "@/shared/lib/dehydrate-query-client";
@@ -47,6 +48,10 @@ export default async function Page({ params }: ColoringRouteProps) {
   if (coloring === null) {
     notFound();
   }
+
+  await new CommunityDataBuilder(undefined, undefined, queryClient)
+    .withRelatedWorks(collectionSlug, number)
+    .build();
 
   return (
     <>

@@ -1,7 +1,7 @@
 "use client";
 
 import { useRouter } from "next/navigation";
-import { LoaderCircle, LogIn, LogOut, UserRound } from "lucide-react";
+import { LoaderCircle, LogIn, LogOut, Palette, UserRound } from "lucide-react";
 
 import { getSessionUserDisplayName, useSession } from "@/entities/session";
 import { routes } from "@/shared/constants";
@@ -71,6 +71,12 @@ export function SessionMenu() {
           <Link href={routes.account}>
             <UserRound data-icon="inline-start" />
             Личный кабинет
+          </Link>
+        </DropdownMenuItem>
+        <DropdownMenuItem asChild>
+          <Link href={routes.workshop}>
+            <Palette data-icon="inline-start" />
+            Моя мастерская
           </Link>
         </DropdownMenuItem>
         <DropdownMenuItem

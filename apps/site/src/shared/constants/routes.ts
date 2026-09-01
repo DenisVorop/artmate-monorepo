@@ -22,6 +22,12 @@ export const routes = {
   authOAuth: (provider: string) => `/auth/oauth/${provider}`,
   authResetPassword: "/auth/reset-password",
   account: "/account",
+  workshop: "/account/workshop",
+  workshopCollection: (collectionSlug: string) => `/account/workshop/${collectionSlug}`,
+  workshopColoring: (collectionSlug: string, number: number) =>
+    `/account/workshop/${collectionSlug}/${formatColoringNumber(number)}`,
+  publicWorkshop: (handle: string) => `/club/${handle}`,
+  publicWork: (publicId: string) => `/club/works/${publicId}`,
   cart: "/cart",
   catalog: "/catalog",
   colorings: "/raskraski",
