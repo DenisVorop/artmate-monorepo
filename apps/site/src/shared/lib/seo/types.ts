@@ -31,6 +31,7 @@ export type SeoPageKey =
   | "contacts"
   | "faq"
   | "home"
+  | "partners"
   | "paymentAndDelivery"
   | "product";
 

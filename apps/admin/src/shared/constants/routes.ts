@@ -19,6 +19,7 @@ export const routes = {
   mailings: "/mailings",
   order: (orderId: string) => `/orders/${orderId}`,
   orders: "/orders",
+  partnerApplications: "/partner-applications",
   product: (productId: string) => `/products/${productId}`,
   productCategories: "/products/categories",
   productTags: "/products/tags",

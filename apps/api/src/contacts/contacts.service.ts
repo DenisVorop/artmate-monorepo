@@ -8,6 +8,7 @@ import {
   getTelegramBotMethodUrl,
   getTelegramRequestHeaders,
 } from "../telegram/telegram-api";
+import { NotificationQueueService } from "../notifications/notification-queue.service";
 
 import type { CreateContactMessageRequestDTO } from "./dto";
 
@@ -19,13 +20,17 @@ type TelegramSendMessageResponse = {
 
 @Injectable()
 export class ContactsService {
+  constructor(
+    private readonly notificationQueueService: NotificationQueueService,
+  ) {}
+
   async createMessage(request: CreateContactMessageRequestDTO) {
-    await this.sendTelegramMessage(this.formatTelegramMessage(request));
+    await this.sendTelegramNotification(this.formatTelegramMessage(request));
 
     return { sent: true };
   }
 
-  private async sendTelegramMessage(text: string) {
+  async sendTelegramNotification(text: string) {
     const response = await this.requestTelegram(text);
     const responseBody = (await this.parseTelegramResponseBody(
       response,
@@ -41,6 +46,16 @@ export class ContactsService {
     }
   }
 
+  async enqueueTelegramNotification(text: string) {
+    await this.notificationQueueService.enqueueTelegram({
+      bot: "orders",
+      chatId: this.getTelegramContactsChatId(),
+      disableWebPagePreview: true,
+      parseMode: "HTML",
+      text,
+    });
+  }
+
   private async requestTelegram(text: string) {
     try {
       const botToken = this.getTelegramBotToken();
@@ -54,6 +69,7 @@ export class ContactsService {
           parse_mode: "HTML",
           text,
         }),
+        signal: AbortSignal.timeout(10_000),
       });
     } catch (error) {
       throw new BadGatewayException({
@@ -69,7 +85,9 @@ export class ContactsService {
       "",
       `<b>Имя:</b> ${this.formatText(request.name)}`,
       `<b>Email:</b> <code>${this.formatText(request.email)}</code>`,
-      request.topic ? `<b>Тема:</b> ${this.formatText(request.topic)}` : undefined,
+      request.topic
+        ? `<b>Тема:</b> ${this.formatText(request.topic)}`
+        : undefined,
       request.order
         ? `<b>Номер заказа:</b> <code>${this.formatText(request.order)}</code>`
         : undefined,
@@ -101,7 +119,9 @@ export class ContactsService {
     const token = process.env.TELEGRAM_BOT_TOKEN?.trim();
 
     if (!token) {
-      throw new InternalServerErrorException("TELEGRAM_BOT_TOKEN is not configured");
+      throw new InternalServerErrorException(
+        "TELEGRAM_BOT_TOKEN is not configured",
+      );
     }
 
     return token;
@@ -111,7 +131,9 @@ export class ContactsService {
     const chatId = process.env.TELEGRAM_CONTACTS_CHAT_ID?.trim();
 
     if (!chatId) {
-      throw new InternalServerErrorException("TELEGRAM_CONTACTS_CHAT_ID is not configured");
+      throw new InternalServerErrorException(
+        "TELEGRAM_CONTACTS_CHAT_ID is not configured",
+      );
     }
 
     return chatId;

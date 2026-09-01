@@ -1,0 +1,60 @@
+enum PartnerApplicationStatus {
+  NEW       @map("new")
+  CONTACTED @map("contacted")
+  APPROVED  @map("approved")
+  REJECTED  @map("rejected")
+
+  @@map("partner_application_status")
+}
+
+enum PartnerApplicationPreferredContact {
+  EMAIL    @map("email")
+  TELEGRAM @map("telegram")
+
+  @@map("partner_application_preferred_contact")
+}
+
+enum PartnerApplicationType {
+  CREATOR  @map("creator")
+  ARTIST   @map("artist")
+  EDUCATOR @map("educator")
+  STUDIO   @map("studio")
+  RETAILER @map("retailer")
+  OTHER    @map("other")
+
+  @@map("partner_application_type")
+}
+
+enum PartnerApplicationAudienceSize {
+  UP_TO_1000     @map("up_to_1000")
+  FROM_1000      @map("1000_10000")
+  FROM_10000     @map("10000_50000")
+  FROM_50000     @map("50000_plus")
+
+  @@map("partner_application_audience_size")
+}
+
+model PartnerApplication {
+  id               String                              @id @default(cuid()) @db.VarChar(32)
+  name             String                              @db.VarChar(120)
+  email            String                              @db.VarChar(254)
+  preferredContact PartnerApplicationPreferredContact @map("preferred_contact")
+  contactHandle    String?                             @map("contact_handle") @db.VarChar(120)
+  channelUrl       String                              @map("channel_url") @db.Text
+  partnerType      PartnerApplicationType              @map("partner_type")
+  audienceSize     PartnerApplicationAudienceSize      @map("audience_size")
+  comment          String?                             @db.Text
+  consent          Boolean
+  utmSource        String?                             @map("utm_source") @db.VarChar(200)
+  utmMedium        String?                             @map("utm_medium") @db.VarChar(200)
+  utmCampaign      String?                             @map("utm_campaign") @db.VarChar(200)
+  utmContent       String?                             @map("utm_content") @db.VarChar(200)
+  utmTerm          String?                             @map("utm_term") @db.VarChar(200)
+  status           PartnerApplicationStatus            @default(NEW)
+  createdAt        DateTime                            @default(now()) @map("created_at")
+  updatedAt        DateTime                            @default(now()) @updatedAt @map("updated_at")
+
+  @@index([status, createdAt])
+  @@index([createdAt])
+  @@map("partner_applications")
+}

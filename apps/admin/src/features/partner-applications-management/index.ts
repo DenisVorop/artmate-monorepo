@@ -1,0 +1,1 @@
+export { PartnerApplicationsManagement } from "./ui";

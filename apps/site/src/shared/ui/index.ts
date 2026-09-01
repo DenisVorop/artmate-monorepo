@@ -84,6 +84,18 @@ export { PersonalDataConsentCheckbox } from "./personal-data-consent-checkbox";
 export { Progress } from "./progress";
 export { ResponsiveMediaViewer } from "./responsive-media-viewer";
 export { Separator } from "./separator";
+export {
+  Select,
+  SelectContent,
+  SelectGroup,
+  SelectItem,
+  SelectLabel,
+  SelectScrollDownButton,
+  SelectScrollUpButton,
+  SelectSeparator,
+  SelectTrigger,
+  SelectValue,
+} from "./select";
 export { Slider } from "./slider";
 export { Tabs, TabsContent, TabsList, TabsTrigger, tabsListVariants } from "./tabs";
 export { Textarea } from "./textarea";

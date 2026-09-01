@@ -54,6 +54,11 @@ const staticRoutes = [
     priority: 0.65,
   },
   {
+    path: routes.partners,
+    changeFrequency: "monthly",
+    priority: 0.7,
+  },
+  {
     path: routes.legal.publicOffer,
     changeFrequency: "monthly",
     priority: 0.45,

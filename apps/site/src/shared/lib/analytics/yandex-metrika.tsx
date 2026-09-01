@@ -14,6 +14,7 @@ export function YandexMetrika() {
     <>
       <Script
         id="yandex-metrika"
+        data-counter-id={counterId}
         strategy="afterInteractive"
         dangerouslySetInnerHTML={{
           __html: `

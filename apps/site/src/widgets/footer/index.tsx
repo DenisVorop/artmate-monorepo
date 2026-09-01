@@ -105,7 +105,10 @@ export function Footer() {
                 </h4>
               </div>
               <ul className="space-y-3">
-                {[{ label: "Написать нам", to: routes.contacts }].map((l) => (
+                {[
+                  { label: "Партнёрам", to: routes.partners },
+                  { label: "Написать нам", to: routes.contacts },
+                ].map((l) => (
                   <li key={l.label}>
                     <Link
                       href={l.to}
