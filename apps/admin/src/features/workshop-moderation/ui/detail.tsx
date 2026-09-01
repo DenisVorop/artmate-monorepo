@@ -219,14 +219,16 @@ function AuthorDescription({
             Рекламное согласие
           </CardTitle>
         </CardHeader>
-        <CardContent>
+        <CardContent className="grid justify-items-start gap-3">
           <Badge variant={detail.advertisingConsent ? "default" : "outline"}>
-            {detail.advertisingConsent ? "Получено" : "Не получено"}
+            {detail.advertisingConsent ? "Согласие получено" : "Не получено"}
           </Badge>
-          <p className="mt-3 text-sm text-muted-foreground">
-            Этот признак показан отдельно и не влияет на решение о качестве
-            работы.
-          </p>
+          {detail.advertisingConsent && detail.advertisingConsentAt ? (
+            <p className="text-sm text-muted-foreground">
+              Зафиксировано сервером:{" "}
+              {formatWorkshopModerationDate(detail.advertisingConsentAt)}
+            </p>
+          ) : null}
         </CardContent>
       </Card>
     </div>
@@ -306,6 +308,7 @@ function SymbolMappings({
               <TableRow>
                 <TableHead>Символ</TableHead>
                 <TableHead>Указано автором</TableHead>
+                <TableHead>Материал</TableHead>
                 <TableHead>Официальное значение</TableHead>
               </TableRow>
             </TableHeader>
@@ -315,7 +318,10 @@ function SymbolMappings({
                   <TableCell className="font-mono text-base font-semibold">
                     {mapping.symbol}
                   </TableCell>
-                  <TableCell>{mapping.markerNumber}</TableCell>
+                  <TableCell>{mapping.markerNumber || "Не указан"}</TableCell>
+                  <TableCell>
+                    {getMappingMaterialLabel(detail, mapping.materialPosition)}
+                  </TableCell>
                   <TableCell>
                     {mapping.officialColor ? (
                       <div className="flex flex-wrap items-center gap-2">
@@ -408,10 +414,12 @@ function DecisionActions({
 }: {
   readonly detail: WorkshopModerationDetailModel;
 }) {
-  if (
-    detail.status !== "PENDING" &&
-    !(detail.status === "APPROVED" && detail.isPublishedRevision)
-  ) {
+  const canHide =
+    detail.status === "PENDING" ||
+    detail.status === "CHANGES_REQUESTED" ||
+    (detail.status === "APPROVED" && detail.isPublishedRevision);
+
+  if (detail.status !== "PENDING" && !canHide) {
     return null;
   }
 
@@ -432,12 +440,22 @@ function DecisionActions({
             <ApproveDialog revisionId={detail.revisionId} />
             <RequestChangesDialog revisionId={detail.revisionId} />
           </>
-        ) : (
-          <HideRevisionDialog revisionId={detail.revisionId} />
-        )}
+        ) : null}
+        {canHide ? <HideRevisionDialog revisionId={detail.revisionId} /> : null}
       </CardContent>
     </Card>
   );
+}
+
+function getMappingMaterialLabel(
+  detail: WorkshopModerationDetailModel,
+  materialPosition?: number,
+) {
+  const material = detail.materials.find(
+    (item) => item.position === materialPosition,
+  );
+
+  return material ? `${material.brand} · ${material.line}` : "Не указан";
 }
 
 function SuspectedCopyWarning() {

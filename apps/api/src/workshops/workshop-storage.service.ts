@@ -120,6 +120,18 @@ export class WorkshopStorageService {
     );
   }
 
+  async deleteAsset(key: string) {
+    try {
+      const path = this.resolveKey(key);
+      await this.assertSafePath(path);
+      await unlink(path);
+    } catch (error) {
+      if (!(error instanceof Error && "code" in error && error.code === "ENOENT")) {
+        throw error;
+      }
+    }
+  }
+
   private resolveKey(key: string) {
     if (
       !/^[0-9a-f]{32}\/[0-9a-f]{32}\/(?:normalized|web|thumb)-[0-9a-f]{64}\.webp$/.test(

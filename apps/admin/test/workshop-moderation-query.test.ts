@@ -25,7 +25,7 @@ test("decision cache updates exact detail and invalidates every queue", () => {
 });
 
 test("status filters are exhaustive, typed and default to pending", () => {
-  for (const status of ["DRAFT", "PENDING", "APPROVED", "CHANGES_REQUESTED", "HIDDEN"]) {
+  for (const status of ["PENDING", "APPROVED", "CHANGES_REQUESTED", "HIDDEN"]) {
     assert.match(filters, new RegExp(`"${status}"`));
   }
 

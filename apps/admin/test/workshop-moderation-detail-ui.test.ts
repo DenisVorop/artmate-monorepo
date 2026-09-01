@@ -18,6 +18,9 @@ test("detail renders comparison, consent, materials, mappings and history", () =
   assert.match(detail, /Фото автора/);
   assert.match(detail, /Официальная цветная версия Artmate/);
   assert.match(detail, /Рекламное согласие/);
+  assert.match(detail, /Согласие получено/);
+  assert.match(detail, /Зафиксировано сервером/);
+  assert.doesNotMatch(detail, /не влияет на решение/);
   assert.match(detail, /Материалы, указанные автором/);
   assert.match(detail, /Соответствие символов и маркеров/);
   assert.match(detail, /Официальная палитра Artmate/);
@@ -29,6 +32,14 @@ test("detail shows suspected-copy warning and required admin links", () => {
   assert.match(detail, /routes\.users\}\?userId=/);
   assert.match(detail, /routes\.digitalVersionColoring\(/);
   assert.match(detail, /detail\.isPublishedRevision/);
+});
+
+test("pending and changes-requested revisions can be hidden", () => {
+  assert.match(detail, /detail\.status === "PENDING" \|\|/);
+  assert.match(detail, /detail\.status === "CHANGES_REQUESTED"/);
+  assert.match(detail, /<HideRevisionDialog revisionId=\{detail\.revisionId\}/);
+  assert.match(reasonDialog, /Скрыть эту ревизию\?/);
+  assert.doesNotMatch(reasonDialog, /Скрыть опубликованную работу\?/);
 });
 
 test("reason form resets after success and when a cancelled dialog closes", () => {

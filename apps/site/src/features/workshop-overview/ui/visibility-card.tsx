@@ -89,7 +89,7 @@ export function WorkshopVisibilityCard({ workshop }: { workshop: OwnerWorkshop }
             <DialogTitle>{isPublic ? "Закрыть мастерскую?" : "Открыть мастерскую?"}</DialogTitle>
             <DialogDescription>
               {isPublic
-                ? "Публичная страница станет недоступна. Ваши работы и черновики сохранятся."
+                ? "Публичная страница станет недоступна. Одобренные работы сохранятся в мастерской."
                 : "Появится публичная страница. На ней будут видны только отдельно опубликованные работы."}
             </DialogDescription>
           </DialogHeader>

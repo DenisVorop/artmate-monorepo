@@ -42,6 +42,12 @@ test("workshop moderation queue schema is strict and bounded", () => {
     false,
   );
   assert.equal(
+    workshopModerationQueueSchema.safeParse([
+      { ...queueItem, submittedAt: undefined },
+    ]).success,
+    false,
+  );
+  assert.equal(
     workshopModerationQueueSchema.safeParse(
       Array.from({ length: 501 }, (_, index) => ({
         ...queueItem,
@@ -118,6 +124,56 @@ test("moderation detail accepts the exact backend response shape", () => {
   };
 
   assert.equal(workshopModerationDetailSchema.safeParse(detail).success, true);
+  assert.equal(
+    workshopModerationDetailSchema.safeParse({
+      ...detail,
+      advertisingConsent: true,
+    }).success,
+    false,
+  );
+  assert.equal(
+    workshopModerationDetailSchema.safeParse({
+      ...detail,
+      advertisingConsentAt: "2026-09-01T10:00:00.000Z",
+    }).success,
+    false,
+  );
+  assert.equal(
+    workshopModerationDetailSchema.safeParse({
+      ...detail,
+      advertisingConsent: true,
+      advertisingConsentAt: "2026-09-01T10:00:00.000Z",
+    }).success,
+    true,
+  );
+  assert.equal(
+    workshopModerationDetailSchema.safeParse({
+      ...detail,
+      materials: [{ ...detail.materials[0], position: 19 }],
+      symbolMappings: [{ ...detail.symbolMappings[0], materialPosition: 19 }],
+    }).success,
+    true,
+  );
+  assert.equal(
+    workshopModerationDetailSchema.safeParse({
+      ...detail,
+      symbolMappings: [
+        {
+          symbol: "1",
+          markerNumber: "",
+          materialPosition: 1,
+        },
+      ],
+    }).success,
+    true,
+  );
+  assert.equal(
+    workshopModerationDetailSchema.safeParse({
+      ...detail,
+      materials: [{ ...detail.materials[0], position: 20 }],
+    }).success,
+    false,
+  );
   assert.equal(
     workshopModerationDetailSchema.safeParse({
       ...detail,

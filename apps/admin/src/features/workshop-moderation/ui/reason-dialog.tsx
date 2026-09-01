@@ -127,13 +127,13 @@ function ReasonDialogView({
           type="button"
           variant={isHide ? "destructive" : "outline"}
         >
-          {isHide ? "Скрыть работу" : "Запросить изменения"}
+          {isHide ? "Скрыть ревизию" : "Запросить изменения"}
         </Button>
       </DialogTrigger>
       <DialogContent className="max-h-[calc(100dvh-2rem)] overflow-y-auto sm:max-w-lg">
         <DialogHeader>
           <DialogTitle>
-            {isHide ? "Скрыть опубликованную работу?" : "Запросить изменения?"}
+            {isHide ? "Скрыть эту ревизию?" : "Запросить изменения?"}
           </DialogTitle>
           <DialogDescription>
             Причина сохранится в истории модерации и должна точно объяснять
@@ -148,7 +148,7 @@ function ReasonDialogView({
           />
           <p>
             {isHide
-              ? "Работа перестанет быть публичной после подтверждения перехода backend."
+              ? "Ревизия получит статус «Скрыта» и не будет доступна на публичных страницах."
               : "Автору потребуется подготовить новую ревизию с учетом причины."}
           </p>
         </div>

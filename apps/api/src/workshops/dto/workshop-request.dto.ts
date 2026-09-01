@@ -23,7 +23,7 @@ import {
 const idPattern = /^[0-9a-f]{32}$/;
 const slugPattern = /^[a-z0-9]+(?:-[a-z0-9]+)*$/;
 const symbolPattern = /^[1-9A-J]$/;
-const markerNumberPattern = /^[A-Za-z0-9][A-Za-z0-9._-]{0,11}$/;
+const markerNumberPattern = /^(?:[A-Za-z0-9][A-Za-z0-9._-]{0,11})?$/;
 const plainTextPattern = /^(?![\s\S]*(?:https?:\/\/|www\.|<|>))[\s\S]*$/i;
 
 function trim({ value }: { value: unknown }) {
@@ -102,10 +102,10 @@ export class WorkshopSymbolMappingInputDTO {
   @Matches(symbolPattern)
   symbol!: string;
 
-  @ApiProperty({ minimum: 1, maximum: 10 })
+  @ApiProperty({ minimum: 1, maximum: 19 })
   @IsInt()
   @Min(1)
-  @Max(10)
+  @Max(19)
   materialPosition!: number;
 
   @ApiProperty({ pattern: markerNumberPattern.source, maxLength: 12 })
@@ -120,10 +120,6 @@ export class WorkshopSymbolMappingInputDTO {
 }
 
 export class WorkshopRevisionPayloadDTO {
-  @ApiProperty({ enum: ["DRAFT", "SUBMIT"] })
-  @IsIn(["DRAFT", "SUBMIT"])
-  intent!: "DRAFT" | "SUBMIT";
-
   @ApiPropertyOptional({ maxLength: 500 })
   @Transform(trimOptional)
   @IsOptional()
@@ -132,10 +128,10 @@ export class WorkshopRevisionPayloadDTO {
   @Matches(plainTextPattern)
   caption?: string;
 
-  @ApiPropertyOptional({ nullable: true })
-  @IsOptional()
+  @ApiProperty()
+  @IsDefined()
   @IsBoolean()
-  advertisingConsent?: boolean;
+  advertisingConsent!: boolean;
 
   @ApiProperty({ type: () => WorkshopCropDTO })
   @IsDefined()
@@ -144,10 +140,10 @@ export class WorkshopRevisionPayloadDTO {
   @Type(() => WorkshopCropDTO)
   crop!: WorkshopCropDTO;
 
-  @ApiProperty({ type: () => [WorkshopRevisionMaterialInputDTO], maxItems: 10 })
+  @ApiProperty({ type: () => [WorkshopRevisionMaterialInputDTO], maxItems: 19 })
   @IsArray()
   @ArrayMinSize(1)
-  @ArrayMaxSize(10)
+  @ArrayMaxSize(19)
   @IsObject({ each: true })
   @ValidateNested({ each: true })
   @Type(() => WorkshopRevisionMaterialInputDTO)

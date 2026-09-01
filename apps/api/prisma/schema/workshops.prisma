@@ -7,7 +7,6 @@ enum WorkshopCollectionSource {
 }
 
 enum WorkshopRevisionStatus {
-  DRAFT             @map("draft")
   PENDING           @map("pending")
   APPROVED          @map("approved")
   CHANGES_REQUESTED @map("changes_requested")
@@ -126,9 +125,10 @@ model WorkshopWorkRevision {
   coloringId            String                 @map("coloring_id") @db.VarChar(32)
   sequence              Int
   officialRevisionId    String                 @map("official_revision_id") @db.VarChar(32)
-  status                WorkshopRevisionStatus @default(DRAFT)
+  status                WorkshopRevisionStatus @default(PENDING)
   caption               String?                @db.VarChar(500)
   advertisingConsent    Boolean                @default(false) @map("advertising_consent")
+  advertisingConsentAt  DateTime?              @map("advertising_consent_at")
   cropRotation          Int                    @map("crop_rotation")
   cropZoom              Float                  @map("crop_zoom")
   cropX                 Float                  @map("crop_x")
@@ -265,4 +265,18 @@ model WorkshopWorkReport {
   @@index([status, createdAt])
   @@index([reporterId])
   @@map("workshop_work_reports")
+}
+
+model WorkshopAssetDeletionJob {
+  id            String    @id @db.VarChar(32)
+  storageKey    String    @unique @map("storage_key") @db.Text
+  attempts      Int       @default(0)
+  nextAttemptAt DateTime  @default(now()) @map("next_attempt_at")
+  lockedAt      DateTime? @map("locked_at")
+  lastError     String?   @map("last_error") @db.Text
+  createdAt     DateTime  @default(now()) @map("created_at")
+  updatedAt     DateTime  @default(now()) @updatedAt @map("updated_at")
+
+  @@index([nextAttemptAt, createdAt])
+  @@map("workshop_asset_deletion_jobs")
 }

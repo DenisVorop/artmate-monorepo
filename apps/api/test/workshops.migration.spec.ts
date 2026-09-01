@@ -5,9 +5,13 @@ import { describe, it } from "node:test";
 
 import { PGlite } from "@electric-sql/pglite";
 
-const migrationPath = resolve(
+const baseMigrationPath = resolve(
   __dirname,
   "../prisma/migrations/20260901150000_add_workshops/migration.sql",
+);
+const moderationMigrationPath = resolve(
+  __dirname,
+  "../prisma/migrations/20260901160000_enforce_workshop_moderation/migration.sql",
 );
 
 describe("Workshops migration", () => {
@@ -50,13 +54,7 @@ describe("Workshops migration", () => {
         },
         {
           name: "workshop_revision_status",
-          labels: [
-            "draft",
-            "pending",
-            "approved",
-            "changes_requested",
-            "hidden",
-          ],
+          labels: ["pending", "approved", "changes_requested", "hidden"],
         },
         { name: "workshop_tool_type", labels: ["artmate_168", "custom"] },
       ]);
@@ -289,9 +287,168 @@ describe("Workshops migration", () => {
       await db.close();
     }
   });
+
+  it("binds advertising consent to submission time and permits 19 materials", async () => {
+    const db = await createDatabase();
+    const workId = "b".repeat(32);
+    const revisionId = "d".repeat(32);
+
+    try {
+      await seedOfficialData(db);
+      await db.exec(`
+        INSERT INTO "workshops" ("id", "owner_id", "handle")
+        VALUES ('${"a".repeat(32)}', 'user-1', '0123456789abcdefabcd');
+        INSERT INTO "workshop_collections" ("workshop_id", "collection_id")
+        VALUES ('${"a".repeat(32)}', 'collection-1');
+        INSERT INTO "workshop_works" (
+          "id", "public_id", "workshop_id", "collection_id", "coloring_id"
+        ) VALUES (
+          '${workId}', '0123456789abcdef01234567', '${"a".repeat(32)}',
+          'collection-1', 'coloring-1'
+        );
+      `);
+      await insertRevision(db, revisionId, workId, "coloring-1", undefined, 1, {
+        advertisingConsent: true,
+      });
+      await db.exec(`
+        INSERT INTO "revision_materials" (
+          "revision_id", "position", "tool_type", "brand", "line"
+        ) VALUES ('${revisionId}', 19, 'custom', 'Copic', 'Sketch');
+        INSERT INTO "revision_symbol_mappings" (
+          "revision_id", "symbol", "material_position", "marker_number"
+        ) VALUES
+          ('${revisionId}', 'I', 19, ''),
+          ('${revisionId}', 'J', 19, 'C5');
+      `);
+
+      const consent = await db.query<{
+        consentAt: Date;
+        submittedAt: Date;
+      }>(`
+        SELECT "advertising_consent_at" AS "consentAt", "submitted_at" AS "submittedAt"
+        FROM "workshop_work_revisions" WHERE "id" = '${revisionId}'
+      `);
+      assert.equal(
+        consent.rows[0]?.consentAt.toISOString(),
+        consent.rows[0]?.submittedAt.toISOString(),
+      );
+      await assert.rejects(
+        db.exec(`
+          INSERT INTO "revision_materials" (
+            "revision_id", "position", "tool_type", "brand", "line"
+          ) VALUES ('${revisionId}', 20, 'custom', 'Copic', 'Sketch')
+        `),
+      );
+      await assert.rejects(
+        insertRevision(db, "e".repeat(32), workId, "coloring-1", undefined, 2, {
+          advertisingConsent: true,
+          advertisingConsentAt: "2026-09-01T10:00:01.000Z",
+        }),
+      );
+    } finally {
+      await db.close();
+    }
+  });
+
+  it("removes only an unreferenced draft which reuses moderated assets", async () => {
+    const db = await createBaseDatabase();
+    const workId = "b".repeat(32);
+    const moderatedId = "d".repeat(32);
+    const draftId = "e".repeat(32);
+
+    try {
+      await seedOfficialData(db);
+      await db.exec(`
+        INSERT INTO "workshops" ("id", "owner_id", "handle")
+        VALUES ('${"a".repeat(32)}', 'user-1', '0123456789abcdefabcd');
+        INSERT INTO "workshop_collections" ("workshop_id", "collection_id")
+        VALUES ('${"a".repeat(32)}', 'collection-1');
+        INSERT INTO "workshop_works" (
+          "id", "public_id", "workshop_id", "collection_id", "coloring_id"
+        ) VALUES (
+          '${workId}', '0123456789abcdef01234567', '${"a".repeat(32)}',
+          'collection-1', 'coloring-1'
+        );
+      `);
+      await insertBaseRevision(db, moderatedId, workId, {
+        sequence: 1,
+        status: "approved",
+      });
+      await insertBaseRevision(db, draftId, workId, {
+        mediaRevisionId: moderatedId,
+        sequence: 2,
+        status: "draft",
+      });
+      await db.exec(`
+        INSERT INTO "revision_materials" (
+          "revision_id", "position", "tool_type", "brand", "line"
+        ) VALUES ('${draftId}', 1, 'custom', 'Copic', 'Sketch');
+        INSERT INTO "revision_symbol_mappings" (
+          "revision_id", "symbol", "material_position", "marker_number"
+        ) VALUES ('${draftId}', '1', 1, 'C5');
+      `);
+      await db.exec(
+        `UPDATE "workshop_works" SET "current_revision_id" = '${moderatedId}', "published_revision_id" = '${moderatedId}' WHERE "id" = '${workId}'`,
+      );
+
+      await db.exec(await readFile(moderationMigrationPath, "utf8"));
+
+      const revisions = await db.query<{ id: string; status: string }>(`
+        SELECT "id", "status"::text AS "status"
+        FROM "workshop_work_revisions" ORDER BY "sequence"
+      `);
+      assert.deepEqual(revisions.rows, [
+        { id: moderatedId, status: "approved" },
+      ]);
+    } finally {
+      await db.close();
+    }
+  });
+
+  it("aborts when an unmoderated draft is still current", async () => {
+    const db = await createBaseDatabase();
+    const workId = "b".repeat(32);
+    const draftId = "d".repeat(32);
+
+    try {
+      await seedOfficialData(db);
+      await db.exec(`
+        INSERT INTO "workshops" ("id", "owner_id", "handle")
+        VALUES ('${"a".repeat(32)}', 'user-1', '0123456789abcdefabcd');
+        INSERT INTO "workshop_collections" ("workshop_id", "collection_id")
+        VALUES ('${"a".repeat(32)}', 'collection-1');
+        INSERT INTO "workshop_works" (
+          "id", "public_id", "workshop_id", "collection_id", "coloring_id"
+        ) VALUES (
+          '${workId}', '0123456789abcdef01234567', '${"a".repeat(32)}',
+          'collection-1', 'coloring-1'
+        );
+      `);
+      await insertBaseRevision(db, draftId, workId, {
+        sequence: 1,
+        status: "draft",
+      });
+      await db.exec(
+        `UPDATE "workshop_works" SET "current_revision_id" = '${draftId}' WHERE "id" = '${workId}'`,
+      );
+
+      await assert.rejects(
+        db.exec(await readFile(moderationMigrationPath, "utf8")),
+        /unsafe workshop draft exists/,
+      );
+    } finally {
+      await db.close();
+    }
+  });
 });
 
 async function createDatabase() {
+  const db = await createBaseDatabase();
+  await db.exec(await readFile(moderationMigrationPath, "utf8"));
+  return db;
+}
+
+async function createBaseDatabase() {
   const db = new PGlite();
   await db.exec(`
     CREATE TYPE "user_status" AS ENUM ('active', 'blocked', 'deleted');
@@ -308,7 +465,7 @@ async function createDatabase() {
       UNIQUE ("coloring_id", "id")
     );
   `);
-  await db.exec(await readFile(migrationPath, "utf8"));
+  await db.exec(await readFile(baseMigrationPath, "utf8"));
   return db;
 }
 
@@ -328,9 +485,57 @@ async function insertRevision(
   coloringId: string,
   officialRevisionId = "official-revision-1",
   sequence = 1,
+  options: {
+    advertisingConsent?: boolean;
+    advertisingConsentAt?: string;
+  } = {},
 ) {
   const checksum = "1".repeat(64);
   const source = "2".repeat(64);
+  const advertisingConsent = options.advertisingConsent ?? false;
+  const submittedAt = "2026-09-01T10:00:00.000Z";
+  const advertisingConsentAt = advertisingConsent
+    ? (options.advertisingConsentAt ?? submittedAt)
+    : null;
+  await db.exec(`
+    INSERT INTO "workshop_work_revisions" (
+      "id", "work_id", "coloring_id", "sequence", "official_revision_id",
+      "status", "advertising_consent", "advertising_consent_at",
+      "crop_rotation", "crop_zoom", "crop_x", "crop_y",
+      "source_mime", "source_checksum", "normalized_storage_key",
+      "normalized_checksum", "normalized_byte_size", "normalized_width", "normalized_height",
+      "web_storage_key", "web_checksum", "web_byte_size", "web_width", "web_height",
+      "thumb_storage_key", "thumb_checksum", "thumb_byte_size", "thumb_width", "thumb_height",
+      "submitted_at"
+    ) VALUES (
+      '${revisionId}', '${workId}', '${coloringId}', ${sequence}, '${officialRevisionId}',
+      'pending', ${advertisingConsent}, ${advertisingConsentAt ? `'${advertisingConsentAt}'` : "NULL"},
+      0, 1, 0, 0, 'image/jpeg', '${source}',
+      '${workId}/${revisionId}/normalized-${checksum}.webp', '${checksum}', 10, 800, 1000,
+      '${workId}/${revisionId}/web-${checksum}.webp', '${checksum}', 10, 800, 1000,
+      '${workId}/${revisionId}/thumb-${checksum}.webp', '${checksum}', 10, 320, 400,
+      '${submittedAt}'
+    )
+  `);
+}
+
+async function insertBaseRevision(
+  db: PGlite,
+  revisionId: string,
+  workId: string,
+  options: {
+    mediaRevisionId?: string;
+    sequence: number;
+    status: "draft" | "approved";
+  },
+) {
+  const checksum = "1".repeat(64);
+  const source = "2".repeat(64);
+  const mediaRevisionId = options.mediaRevisionId ?? revisionId;
+  const submittedAt =
+    options.status === "draft" ? "NULL" : "'2026-09-01T10:00:00Z'";
+  const moderatedAt =
+    options.status === "draft" ? "NULL" : "'2026-09-01T11:00:00Z'";
   await db.exec(`
     INSERT INTO "workshop_work_revisions" (
       "id", "work_id", "coloring_id", "sequence", "official_revision_id",
@@ -338,13 +543,15 @@ async function insertRevision(
       "source_mime", "source_checksum", "normalized_storage_key",
       "normalized_checksum", "normalized_byte_size", "normalized_width", "normalized_height",
       "web_storage_key", "web_checksum", "web_byte_size", "web_width", "web_height",
-      "thumb_storage_key", "thumb_checksum", "thumb_byte_size", "thumb_width", "thumb_height"
+      "thumb_storage_key", "thumb_checksum", "thumb_byte_size", "thumb_width", "thumb_height",
+      "submitted_at", "moderated_at"
     ) VALUES (
-      '${revisionId}', '${workId}', '${coloringId}', ${sequence}, '${officialRevisionId}',
-      'draft', 0, 1, 0, 0, 'image/jpeg', '${source}',
-      '${workId}/${revisionId}/normalized-${checksum}.webp', '${checksum}', 10, 800, 1000,
-      '${workId}/${revisionId}/web-${checksum}.webp', '${checksum}', 10, 800, 1000,
-      '${workId}/${revisionId}/thumb-${checksum}.webp', '${checksum}', 10, 320, 400
+      '${revisionId}', '${workId}', 'coloring-1', ${options.sequence}, 'official-revision-1',
+      '${options.status}', 0, 1, 0, 0, 'image/jpeg', '${source}',
+      '${workId}/${mediaRevisionId}/normalized-${checksum}.webp', '${checksum}', 10, 800, 1000,
+      '${workId}/${mediaRevisionId}/web-${checksum}.webp', '${checksum}', 10, 800, 1000,
+      '${workId}/${mediaRevisionId}/thumb-${checksum}.webp', '${checksum}', 10, 320, 400,
+      ${submittedAt}, ${moderatedAt}
     )
   `);
 }

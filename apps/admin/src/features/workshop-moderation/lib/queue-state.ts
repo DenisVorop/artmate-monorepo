@@ -5,7 +5,6 @@ import { useState } from "react";
 import type { WorkshopModerationStatus } from "@/entities/workshop-moderation";
 
 export const workshopModerationStatusFilters = [
-  "DRAFT",
   "PENDING",
   "APPROVED",
   "CHANGES_REQUESTED",
