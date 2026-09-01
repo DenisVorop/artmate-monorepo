@@ -40,6 +40,6 @@ import { MarkerColorsService } from "./marker-colors.service";
     PublicColoringsService,
     PublicColoringCollectionsService,
   ],
-  exports: [ColoringCollectionsService, ColoringsService],
+  exports: [ColoringCollectionsService, ColoringStorageService, ColoringsService],
 })
 export class ColoringsModule {}

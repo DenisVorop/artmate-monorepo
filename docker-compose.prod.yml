@@ -134,6 +134,7 @@ services:
     volumes:
       - api-uploads:/app/apps/api/uploads
       - api-private-colorings:/app/apps/api/private/colorings
+      - api-private-workshops:/app/apps/api/private/workshops
     depends_on:
       postgres:
         condition: service_healthy
@@ -208,6 +209,7 @@ volumes:
   postgres-data:
   api-uploads:
   api-private-colorings:
+  api-private-workshops:
   caddy-data:
   caddy-config:
 

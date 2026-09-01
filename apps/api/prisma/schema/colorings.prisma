@@ -29,6 +29,7 @@ model MarkerColor {
   catalogPosition     Int                            @unique @map("catalog_position")
   markerNumber        String                         @unique @map("marker_number") @db.VarChar(3)
   revisionAssignments ColoringRevisionPaletteColor[]
+  workshopSymbolMappings RevisionSymbolMapping[]
 
   @@map("marker_colors")
 }
@@ -53,9 +54,11 @@ model Coloring {
   revisions         ColoringRevision[]        @relation("ColoringRevisions")
   publishedRevision ColoringRevision?         @relation("PublishedColoringRevision", fields: [id, publishedRevisionId], references: [coloringId, id], onDelete: NoAction)
   publishedBy       User?                     @relation("ColoringPublisher", fields: [publishedById], references: [id], onDelete: SetNull)
+  workshopWorks     WorkshopWork[]
 
   @@unique([collectionId, position])
   @@unique([collectionId, number])
+  @@unique([collectionId, id])
   @@unique([id, publishedRevisionId])
   @@index([publishedById])
   @@map("colorings")
@@ -80,6 +83,7 @@ model ColoringCollection {
 
   product   Product    @relation(fields: [productId], references: [id], onDelete: Restrict)
   colorings Coloring[]
+  workshops WorkshopCollection[]
 
   @@index([status, position])
   @@map("coloring_collections")
@@ -135,6 +139,7 @@ model ColoringRevision {
   review        ColoringRevisionReview?
   createdBy     User?                          @relation("ColoringRevisionCreator", fields: [createdById], references: [id], onDelete: SetNull)
   publishedFor  Coloring?                      @relation("PublishedColoringRevision")
+  workshopRevisions WorkshopWorkRevision[]
 
   @@unique([coloringId, version])
   @@unique([coloringId, id])

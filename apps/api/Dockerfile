@@ -70,6 +70,7 @@ COPY --from=builder --chown=node:node /app/apps/api/prisma.config.ts ./apps/api/
 RUN mkdir -p \
       /app/apps/api/uploads/colorings \
       /app/apps/api/private/colorings \
+      /app/apps/api/private/workshops \
   && chown -R node:node \
       /app/apps/api/uploads \
       /app/apps/api/private

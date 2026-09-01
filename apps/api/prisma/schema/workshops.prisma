@@ -1,0 +1,268 @@
+enum WorkshopCollectionSource {
+  MANUAL          @map("manual")
+  PURCHASE        @map("purchase")
+  ACTIVATION_CODE @map("activation_code")
+
+  @@map("workshop_collection_source")
+}
+
+enum WorkshopRevisionStatus {
+  DRAFT             @map("draft")
+  PENDING           @map("pending")
+  APPROVED          @map("approved")
+  CHANGES_REQUESTED @map("changes_requested")
+  HIDDEN            @map("hidden")
+
+  @@map("workshop_revision_status")
+}
+
+enum WorkshopToolType {
+  ARTMATE_168 @map("artmate_168")
+  CUSTOM      @map("custom")
+
+  @@map("workshop_tool_type")
+}
+
+enum WorkshopModerationDecision {
+  SUBMITTED         @map("submitted")
+  APPROVED          @map("approved")
+  CHANGES_REQUESTED @map("changes_requested")
+  HIDDEN            @map("hidden")
+
+  @@map("workshop_moderation_decision")
+}
+
+enum WorkshopReportReason {
+  COPYRIGHT     @map("copyright")
+  OFFICIAL_COPY @map("official_copy")
+  INAPPROPRIATE @map("inappropriate")
+  SPAM          @map("spam")
+  PERSONAL_DATA @map("personal_data")
+  OTHER         @map("other")
+
+  @@map("workshop_report_reason")
+}
+
+enum WorkshopReportStatus {
+  OPEN      @map("open")
+  REVIEWED  @map("reviewed")
+  DISMISSED @map("dismissed")
+  ACTIONED  @map("actioned")
+
+  @@map("workshop_report_status")
+}
+
+model Workshop {
+  id          String   @id @db.VarChar(32)
+  ownerId     String   @unique @map("owner_id")
+  handle      String   @unique @db.VarChar(32)
+  isPublic    Boolean  @default(false) @map("is_public")
+  isIndexable Boolean  @default(false) @map("is_indexable")
+  createdAt   DateTime @default(now()) @map("created_at")
+  updatedAt   DateTime @default(now()) @updatedAt @map("updated_at")
+
+  owner       User                 @relation(fields: [ownerId], references: [id], onDelete: Restrict)
+  collections WorkshopCollection[]
+  works       WorkshopWork[]
+
+  @@index([isPublic, handle])
+  @@map("workshops")
+}
+
+model WorkshopCollection {
+  workshopId   String                   @map("workshop_id") @db.VarChar(32)
+  collectionId String                   @map("collection_id") @db.VarChar(32)
+  source       WorkshopCollectionSource @default(MANUAL)
+  addedAt      DateTime                 @default(now()) @map("added_at")
+
+  workshop   Workshop           @relation(fields: [workshopId], references: [id], onDelete: Cascade)
+  collection ColoringCollection @relation(fields: [collectionId], references: [id], onDelete: Restrict)
+  works      WorkshopWork[]
+
+  @@id([workshopId, collectionId])
+  @@index([collectionId])
+  @@map("workshop_collections")
+}
+
+model WorkshopWork {
+  id                   String    @id @db.VarChar(32)
+  publicId             String    @unique @map("public_id") @db.VarChar(32)
+  workshopId           String    @map("workshop_id") @db.VarChar(32)
+  collectionId         String    @map("collection_id") @db.VarChar(32)
+  coloringId           String    @map("coloring_id") @db.VarChar(32)
+  attemptNumber        Int       @default(1) @map("attempt_number")
+  revisionSequence     Int       @default(0) @map("revision_sequence")
+  currentRevisionId    String?   @unique @map("current_revision_id") @db.VarChar(32)
+  publishedRevisionId  String?   @unique @map("published_revision_id") @db.VarChar(32)
+  isPublicationEnabled Boolean   @default(false) @map("is_publication_enabled")
+  isIndexable          Boolean   @default(false) @map("is_indexable")
+  publishedAt          DateTime? @map("published_at")
+  deletedAt            DateTime? @map("deleted_at")
+  createdAt            DateTime  @default(now()) @map("created_at")
+  updatedAt            DateTime  @default(now()) @updatedAt @map("updated_at")
+
+  workshop          Workshop                  @relation(fields: [workshopId], references: [id], onDelete: Cascade)
+  membership        WorkshopCollection        @relation(fields: [workshopId, collectionId], references: [workshopId, collectionId], onDelete: Restrict)
+  coloring          Coloring                  @relation(fields: [collectionId, coloringId], references: [collectionId, id], onDelete: Restrict)
+  revisions         WorkshopWorkRevision[]    @relation("WorkshopWorkRevisions")
+  currentRevision   WorkshopWorkRevision?     @relation("WorkshopCurrentRevision", fields: [id, currentRevisionId], references: [workId, id], onDelete: NoAction)
+  publishedRevision WorkshopWorkRevision?     @relation("WorkshopPublishedRevision", fields: [id, publishedRevisionId], references: [workId, id], onDelete: NoAction)
+  moderationEvents  WorkshopModerationEvent[]
+  reports           WorkshopWorkReport[]
+
+  @@unique([workshopId, coloringId, attemptNumber])
+  @@unique([id, coloringId])
+  @@unique([id, currentRevisionId])
+  @@unique([id, publishedRevisionId])
+  @@index([workshopId, collectionId])
+  @@index([collectionId, coloringId])
+  @@index([coloringId, deletedAt, isPublicationEnabled])
+  @@map("workshop_works")
+}
+
+model WorkshopWorkRevision {
+  id                    String                 @id @db.VarChar(32)
+  workId                String                 @map("work_id") @db.VarChar(32)
+  coloringId            String                 @map("coloring_id") @db.VarChar(32)
+  sequence              Int
+  officialRevisionId    String                 @map("official_revision_id") @db.VarChar(32)
+  status                WorkshopRevisionStatus @default(DRAFT)
+  caption               String?                @db.VarChar(500)
+  advertisingConsent    Boolean                @default(false) @map("advertising_consent")
+  cropRotation          Int                    @map("crop_rotation")
+  cropZoom              Float                  @map("crop_zoom")
+  cropX                 Float                  @map("crop_x")
+  cropY                 Float                  @map("crop_y")
+  sourceMime            String                 @map("source_mime") @db.VarChar(20)
+  sourceChecksum        String                 @map("source_checksum") @db.Char(64)
+  perceptualHash        String?                @map("perceptual_hash") @db.Char(16)
+  normalizedStorageKey  String                 @map("normalized_storage_key") @db.Text
+  normalizedChecksum    String                 @map("normalized_checksum") @db.Char(64)
+  normalizedByteSize    Int                    @map("normalized_byte_size")
+  normalizedWidth       Int                    @map("normalized_width")
+  normalizedHeight      Int                    @map("normalized_height")
+  webStorageKey         String                 @map("web_storage_key") @db.Text
+  webChecksum           String                 @map("web_checksum") @db.Char(64)
+  webByteSize           Int                    @map("web_byte_size")
+  webWidth              Int                    @map("web_width")
+  webHeight             Int                    @map("web_height")
+  thumbStorageKey       String                 @map("thumb_storage_key") @db.Text
+  thumbChecksum         String                 @map("thumb_checksum") @db.Char(64)
+  thumbByteSize         Int                    @map("thumb_byte_size")
+  thumbWidth            Int                    @map("thumb_width")
+  thumbHeight           Int                    @map("thumb_height")
+  suspectedOfficialCopy Boolean                @default(false) @map("suspected_official_copy")
+  submittedAt           DateTime?              @map("submitted_at")
+  moderatedAt           DateTime?              @map("moderated_at")
+  createdAt             DateTime               @default(now()) @map("created_at")
+
+  work             WorkshopWork              @relation("WorkshopWorkRevisions", fields: [workId, coloringId], references: [id, coloringId], onDelete: Cascade)
+  officialRevision ColoringRevision          @relation(fields: [coloringId, officialRevisionId], references: [coloringId, id], onDelete: Restrict)
+  materials        RevisionMaterial[]
+  symbolMappings   RevisionSymbolMapping[]
+  moderationEvents WorkshopModerationEvent[]
+  reports          WorkshopWorkReport[]
+  currentFor       WorkshopWork?             @relation("WorkshopCurrentRevision")
+  publishedFor     WorkshopWork?             @relation("WorkshopPublishedRevision")
+
+  @@unique([workId, sequence])
+  @@unique([workId, id])
+  @@index([coloringId, officialRevisionId])
+  @@index([status, submittedAt])
+  @@map("workshop_work_revisions")
+}
+
+model WorkshopTool {
+  id        String           @id @db.VarChar(32)
+  userId    String           @map("user_id")
+  type      WorkshopToolType
+  brand     String           @db.VarChar(80)
+  line      String           @db.VarChar(80)
+  createdAt DateTime         @default(now()) @map("created_at")
+  updatedAt DateTime         @default(now()) @updatedAt @map("updated_at")
+
+  user      User               @relation(fields: [userId], references: [id], onDelete: Cascade)
+  materials RevisionMaterial[]
+
+  @@unique([userId, type, brand, line])
+  @@index([userId, createdAt])
+  @@map("workshop_tools")
+}
+
+model RevisionMaterial {
+  revisionId String           @map("revision_id") @db.VarChar(32)
+  position   Int
+  toolId     String?          @map("tool_id") @db.VarChar(32)
+  toolType   WorkshopToolType @map("tool_type")
+  brand      String           @db.VarChar(80)
+  line       String           @db.VarChar(80)
+
+  revision WorkshopWorkRevision @relation(fields: [revisionId], references: [id], onDelete: Cascade)
+  tool     WorkshopTool?        @relation(fields: [toolId], references: [id], onDelete: Restrict)
+  symbolMappings RevisionSymbolMapping[]
+
+  @@id([revisionId, position])
+  @@index([toolId])
+  @@map("revision_materials")
+}
+
+model RevisionSymbolMapping {
+  revisionId            String  @map("revision_id") @db.VarChar(32)
+  symbol                String  @db.VarChar(1)
+  materialPosition      Int     @map("material_position")
+  markerNumber          String  @map("marker_number") @db.VarChar(12)
+  officialMarkerColorId String? @map("official_marker_color_id") @db.VarChar(32)
+  officialColorNumber   Int?    @map("official_color_number")
+  officialPantone       String? @map("official_pantone") @db.VarChar(40)
+  officialHex           String? @map("official_hex") @db.VarChar(7)
+  officialMarkerNumber  String? @map("official_marker_number") @db.VarChar(3)
+
+  revision            WorkshopWorkRevision @relation(fields: [revisionId], references: [id], onDelete: Cascade)
+  material            RevisionMaterial     @relation(fields: [revisionId, materialPosition], references: [revisionId, position], onDelete: Restrict)
+  officialMarkerColor MarkerColor?         @relation(fields: [officialMarkerColorId], references: [id], onDelete: Restrict)
+
+  @@id([revisionId, symbol])
+  @@index([officialMarkerColorId])
+  @@map("revision_symbol_mappings")
+}
+
+model WorkshopModerationEvent {
+  id         String                     @id @db.VarChar(32)
+  workId     String                     @map("work_id") @db.VarChar(32)
+  revisionId String                     @map("revision_id") @db.VarChar(32)
+  actorId    String                     @map("actor_id")
+  decision   WorkshopModerationDecision
+  reason     String?                    @db.VarChar(1000)
+  createdAt  DateTime                   @default(now()) @map("created_at")
+
+  work     WorkshopWork         @relation(fields: [workId], references: [id], onDelete: Cascade)
+  revision WorkshopWorkRevision @relation(fields: [workId, revisionId], references: [workId, id], onDelete: Cascade)
+  actor    User                 @relation("WorkshopModerationActor", fields: [actorId], references: [id], onDelete: Restrict)
+
+  @@index([revisionId, createdAt])
+  @@index([workId, createdAt])
+  @@index([actorId])
+  @@map("workshop_moderation_events")
+}
+
+model WorkshopWorkReport {
+  id         String               @id @db.VarChar(32)
+  workId     String               @map("work_id") @db.VarChar(32)
+  revisionId String               @map("revision_id") @db.VarChar(32)
+  reporterId String               @map("reporter_id")
+  reason     WorkshopReportReason
+  details    String?              @db.VarChar(500)
+  status     WorkshopReportStatus @default(OPEN)
+  createdAt  DateTime             @default(now()) @map("created_at")
+  updatedAt  DateTime             @default(now()) @updatedAt @map("updated_at")
+
+  work     WorkshopWork @relation(fields: [workId], references: [id], onDelete: Cascade)
+  revision WorkshopWorkRevision @relation(fields: [workId, revisionId], references: [workId, id], onDelete: Cascade)
+  reporter User         @relation("WorkshopReportReporter", fields: [reporterId], references: [id], onDelete: Restrict)
+
+  @@unique([revisionId, reporterId])
+  @@index([workId])
+  @@index([status, createdAt])
+  @@index([reporterId])
+  @@map("workshop_work_reports")
+}
