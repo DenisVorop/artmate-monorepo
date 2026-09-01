@@ -313,6 +313,7 @@ test("digital collection descriptions always use the shared disclosure without c
       PageTitle: "PageTitle",
       SectionSubtitle: "SectionSubtitle",
     },
+    "../lib/use-track-open": { useTrackOpen() {} },
   });
 
   function getElements(node) {
