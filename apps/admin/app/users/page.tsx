@@ -10,7 +10,14 @@ import { getQueryClient } from "@/shared/lib/query-client";
 
 export { metadata } from "@/pages/users/metadata";
 
-export default async function Page() {
+type Props = {
+  readonly searchParams: Promise<{ userId?: string }>;
+};
+
+export default async function Page({ searchParams }: Props) {
+  const { userId } = await searchParams;
+  const selectedUserId =
+    typeof userId === "string" && userId.length <= 128 ? userId : undefined;
   const session = await getAdminSession();
 
   if (!session.user) {
@@ -23,7 +30,7 @@ export default async function Page() {
 
   return (
     <HydrationBoundary state={dehydrateQueryClient(queryClient)}>
-      <UsersPage currentUser={session.user} />
+      <UsersPage currentUser={session.user} selectedUserId={selectedUserId} />
     </HydrationBoundary>
   );
 }

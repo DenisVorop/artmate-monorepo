@@ -7,9 +7,10 @@ import { Badge } from "@/shared/ui";
 
 type UsersPageProps = {
   readonly currentUser: AuthUser;
+  readonly selectedUserId?: string;
 };
 
-export function UsersPage({ currentUser }: UsersPageProps) {
+export function UsersPage({ currentUser, selectedUserId }: UsersPageProps) {
   return (
     <AdminShell activePath={routes.users}>
       <section className="min-w-0 p-4 sm:p-6 lg:p-8">
@@ -26,7 +27,10 @@ export function UsersPage({ currentUser }: UsersPageProps) {
           </div>
         </header>
 
-        <UsersManagement currentUserId={currentUser.id} />
+        <UsersManagement
+          currentUserId={currentUser.id}
+          selectedUserId={selectedUserId}
+        />
       </section>
     </AdminShell>
   );
