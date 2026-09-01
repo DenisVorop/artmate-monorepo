@@ -10,7 +10,7 @@ export type HeroMetrics = {
 
 export const heroMetrics = {
   ratingLabel: "4.95 из 5",
-  paintedCountLabel: "33 000+ человек",
+  paintedCountLabel: "44 000+ человек",
   progressValue: 80,
 } satisfies HeroMetrics;
 
