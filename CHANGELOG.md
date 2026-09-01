@@ -1,5 +1,25 @@
 # Changelog
 
+## [0.36.0](https://github.com/DenisVorop/artmate-monorepo/compare/v0.35.1...v0.36.0) (2026-09-01)
+
+
+### Features
+
+* **admin:** add workshop moderation ([144c0af](https://github.com/DenisVorop/artmate-monorepo/commit/144c0af8e08b9b9f05154ffe860cd621301c7ed8))
+* **api:** add personal workshop ([96c5517](https://github.com/DenisVorop/artmate-monorepo/commit/96c551711accab0d73aec28655d2ce88b89a9cd3))
+* **partners:** add partner program landing ([5560431](https://github.com/DenisVorop/artmate-monorepo/commit/55604313fd89d3cc9bcf81dd02c992732c5fd4d8))
+* **site:** add personal workshop ([67e0ba8](https://github.com/DenisVorop/artmate-monorepo/commit/67e0ba8a7a3a32af9fb8c01a34532e8a90098311))
+* **site:** add storefront analytics ([5b2386a](https://github.com/DenisVorop/artmate-monorepo/commit/5b2386a2dfd3e914f6c5dac4c3cebabbc72503f0))
+
+
+### Bug Fixes
+
+* **admin:** align workshop moderation ([9bf4688](https://github.com/DenisVorop/artmate-monorepo/commit/9bf46882f31b9e767a706ef841edcf0621dc49be))
+* **api:** validate workshop multipart payload ([07b95e5](https://github.com/DenisVorop/artmate-monorepo/commit/07b95e5944dadab2466bde16aef1db2bea003ee0))
+* **partners:** refine mobile section layout ([f915599](https://github.com/DenisVorop/artmate-monorepo/commit/f915599e1ab19a4deeb01154ea18ee6bf05fc8c2))
+* **site:** wrap workshop publication notice ([8e6eeb4](https://github.com/DenisVorop/artmate-monorepo/commit/8e6eeb41649dd5179ca37ea74bdc49ae77bdb277))
+* **workshop:** require image moderation ([702d7fa](https://github.com/DenisVorop/artmate-monorepo/commit/702d7fad0de234e61b9ad1bbf1a835d4b757041f))
+
 ## [0.35.1](https://github.com/DenisVorop/artmate-monorepo/compare/v0.35.0...v0.35.1) (2026-08-31)
 
 
