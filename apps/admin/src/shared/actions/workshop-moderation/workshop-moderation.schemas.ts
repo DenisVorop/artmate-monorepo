@@ -25,7 +25,7 @@ const boundedIdSchema = z.string().trim().min(1).max(128);
 const revisionIdSchema = z.string().regex(/^[0-9a-f]{32}$/);
 const boundedLabelSchema = z.string().trim().min(1).max(300);
 const dateSchema = z.string().datetime({ offset: true });
-const plainTextPattern = /^(?!.*(?:https?:\/\/|www\.|<|>))[\s\S]*$/i;
+const plainTextPattern = /^(?![\s\S]*(?:https?:\/\/|www\.|<|>))[\s\S]*$/i;
 const symbolSchema = z.string().regex(/^(?:[1-9]|[A-J])$/);
 const markerNumberSchema = z
   .string()
@@ -85,6 +85,7 @@ export const workshopModerationQueueItemSchema = z
     collection: collectionIdentitySchema,
     coloring: coloringIdentitySchema,
     suspectedOfficialCopy: z.boolean(),
+    isPublishedRevision: z.boolean(),
   })
   .strict();
 
@@ -153,6 +154,7 @@ export const workshopModerationDetailSchema = workshopModerationQueueItemSchema
         z
           .object({
             id: revisionIdSchema,
+            revisionId: revisionIdSchema,
             decision: z.enum(workshopModerationHistoryDecisions),
             actor: z
               .object({
@@ -164,8 +166,7 @@ export const workshopModerationDetailSchema = workshopModerationQueueItemSchema
             reason: z.string().trim().max(1000).optional(),
           })
           .strict(),
-      )
-      .max(1000),
+      ),
   })
   .strict();
 

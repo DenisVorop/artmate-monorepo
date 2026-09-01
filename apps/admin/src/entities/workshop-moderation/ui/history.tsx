@@ -46,6 +46,9 @@ export function WorkshopModerationHistory({
                 <p className="text-sm text-muted-foreground">
                   {entry.decision === "SUBMITTED" ? "Автор" : "Модератор"}: {entry.actor.name}
                 </p>
+                <p className="text-xs text-muted-foreground">
+                  Ревизия {entry.revisionId}
+                </p>
                 {entry.reason ? (
                   <p className="mt-1 whitespace-pre-wrap text-sm">
                     {entry.reason}
