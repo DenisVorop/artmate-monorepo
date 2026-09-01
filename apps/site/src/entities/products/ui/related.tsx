@@ -6,7 +6,7 @@ import { ProductCard } from "./product-card";
 
 type RelatedProps = {
   products: Product[];
-  renderProductCard?: (_product: Product) => ReactNode;
+  renderProductCard?: (_product: Product, _index: number) => ReactNode;
 };
 
 export function Related({ products, renderProductCard }: RelatedProps) {
@@ -24,13 +24,17 @@ export function Related({ products, renderProductCard }: RelatedProps) {
       </div>
 
       <div className="relative right-[50%] left-[50%] -mr-[50vw] -ml-[50vw] w-screen sm:right-auto sm:left-auto sm:mr-0 sm:ml-0 sm:w-auto">
-        <ul className="flex snap-x snap-mandatory scroll-px-4 gap-4 overflow-x-auto overscroll-x-contain px-4 pb-4 [scrollbar-width:thin] sm:grid sm:grid-cols-2 sm:gap-5 sm:overflow-visible sm:px-0 sm:pb-0 sm:[scrollbar-width:auto] lg:grid-cols-3 xl:grid-cols-4 xl:gap-6">
-          {products.map((product) => (
+        <ul className="flex snap-x snap-mandatory scroll-px-4 [scrollbar-width:thin] gap-4 overflow-x-auto overscroll-x-contain px-4 pb-4 sm:grid sm:[scrollbar-width:auto] sm:grid-cols-2 sm:gap-5 sm:overflow-visible sm:px-0 sm:pb-0 lg:grid-cols-3 xl:grid-cols-4 xl:gap-6">
+          {products.map((product, index) => (
             <li
               key={product.id}
               className="w-[min(82vw,20rem)] flex-none snap-start sm:w-auto sm:flex-auto"
             >
-              {renderProductCard ? renderProductCard(product) : <ProductCard product={product} />}
+              {renderProductCard ? (
+                renderProductCard(product, index)
+              ) : (
+                <ProductCard product={product} />
+              )}
             </li>
           ))}
         </ul>

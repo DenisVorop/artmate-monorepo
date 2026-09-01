@@ -4,12 +4,18 @@ import { createContext, type ReactNode } from "react";
 import type { Product, ProductCategory } from "@/entities/products";
 import type { SortValue } from "../catalog-state";
 
+export type CatalogProductPlacement = "catalog" | "catalog_search_suggestions";
+
 export type CatalogContextValue = {
   categories: readonly ProductCategory[];
   products: readonly Product[];
   filteredProducts: Product[];
   suggestedProducts: Product[];
-  renderProductCard?: (_product: Product, _index: number) => ReactNode;
+  renderProductCard?: (
+    _product: Product,
+    _index: number,
+    _placement: CatalogProductPlacement,
+  ) => ReactNode;
   activeCategory?: ProductCategory;
   categoryId?: string;
   query: string;

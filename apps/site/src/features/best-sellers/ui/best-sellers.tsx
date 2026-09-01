@@ -35,7 +35,9 @@ export function Bestsellers({ className }: BestsellersProps) {
     <BaseBestsellers
       products={products.data.products}
       className={className}
-      renderProductCard={(product) => <CartProductCard product={product} />}
+      renderProductCard={(product, index) => (
+        <CartProductCard product={product} list="best_sellers" position={index + 1} />
+      )}
     />
   );
 }

@@ -39,7 +39,11 @@ import { Link } from "@/shared/ui/link";
 
 import {
   confirmPasswordResetFormSchema,
+  createLoginVerificationFlow,
+  createSignupAttempt,
+  createSignupVerificationFlow,
   emailVerificationFormSchema,
+  getSignupAttempt,
   getAuthErrorMessage,
   getSafeAuthRedirectPath,
   loginFormSchema,
@@ -50,11 +54,15 @@ import {
   toLoginInput,
   toPasswordResetRequestInput,
   toRegisterInput,
+  updateEmailVerificationFlow,
+  useAnalytics,
   type ConfirmPasswordResetFormValues,
   type EmailVerificationFormValues,
+  type EmailVerificationFlow,
   type LoginFormValues,
   type PasswordResetRequestFormValues,
   type RegisterFormValues,
+  type SignupAttempt,
 } from "../lib";
 import {
   useConfirmEmailVerificationMutation,
@@ -85,22 +93,27 @@ export function AuthForm({
   onAuthenticated,
 }: AuthFormProps = {}) {
   const [mode, setMode] = useState<AuthMode>("login");
-  const [verificationState, setVerificationState] = useState<AuthEmailVerificationStateDTO>();
+  const [verificationFlow, setVerificationFlow] = useState<EmailVerificationFlow>();
   const [isPasswordResetRequested, setIsPasswordResetRequested] = useState(false);
   const lockedEmail = isEmailLocked && initialEmail?.trim() ? initialEmail.trim() : undefined;
   const description = isPasswordResetRequested
     ? lockedEmail
       ? "Отправим ссылку для смены пароля на почту из формы заказа."
       : "Укажите email, и мы отправим ссылку для смены пароля."
-    : verificationState
+    : verificationFlow
       ? "Введите код из письма, чтобы завершить вход."
       : "Войдите или создайте аккаунт, чтобы сохранять заказы и персональные данные.";
-  const content = verificationState ? (
+  const content = verificationFlow ? (
     <EmailVerificationForm
       onAuthenticated={onAuthenticated}
-      onBack={() => setVerificationState(undefined)}
-      onVerificationChange={setVerificationState}
-      verification={verificationState}
+      onBack={() => setVerificationFlow(undefined)}
+      onVerificationChange={(verification) =>
+        setVerificationFlow((flow) =>
+          flow ? updateEmailVerificationFlow(flow, verification) : flow,
+        )
+      }
+      signupAttempt={getSignupAttempt(verificationFlow)}
+      verification={verificationFlow.verification}
     />
   ) : isPasswordResetRequested ? (
     <PasswordResetRequestForm
@@ -122,7 +135,9 @@ export function AuthForm({
           lockedEmail={lockedEmail}
           onAuthenticated={onAuthenticated}
           onPasswordReset={() => setIsPasswordResetRequested(true)}
-          onVerificationRequired={setVerificationState}
+          onVerificationRequired={(verification) =>
+            setVerificationFlow(createLoginVerificationFlow(verification))
+          }
         />
       </TabsContent>
 
@@ -133,7 +148,9 @@ export function AuthForm({
           initialName={initialName}
           lockedEmail={lockedEmail}
           showNameOptionalHint={showNameOptionalHint}
-          onVerificationRequired={setVerificationState}
+          onVerificationRequired={(verification, signupAttempt) =>
+            setVerificationFlow(createSignupVerificationFlow(verification, signupAttempt))
+          }
         />
       </TabsContent>
     </Tabs>
@@ -525,7 +542,10 @@ function RegisterForm({
   readonly initialName?: string;
   readonly lockedEmail?: string;
   readonly showNameOptionalHint: boolean;
-  readonly onVerificationRequired: (_verification: AuthEmailVerificationStateDTO) => void;
+  readonly onVerificationRequired: (
+    _verification: AuthEmailVerificationStateDTO,
+    _signupAttempt: SignupAttempt,
+  ) => void;
 }) {
   const [submitError, setSubmitError] = useState<string>();
   const { mutate: registerUser, isPending } = useRegisterMutation();
@@ -548,6 +568,7 @@ function RegisterForm({
 
   const submitForm = handleSubmit((values) => {
     setSubmitError(undefined);
+    const signupAttempt = createSignupAttempt();
 
     registerUser(toRegisterInput({ ...values, email: lockedEmail ?? values.email }), {
       onSuccess: (response) => {
@@ -556,7 +577,7 @@ function RegisterForm({
           return;
         }
 
-        onVerificationRequired(response.verification);
+        onVerificationRequired(response.verification, signupAttempt);
       },
       onError: (error) => setSubmitError(getAuthErrorMessage(error)),
     });
@@ -653,11 +674,13 @@ function EmailVerificationForm({
   onAuthenticated,
   onBack,
   onVerificationChange,
+  signupAttempt,
   verification,
 }: {
   readonly onAuthenticated?: () => void;
   readonly onBack: () => void;
   readonly onVerificationChange: (_verification: AuthEmailVerificationStateDTO) => void;
+  readonly signupAttempt?: SignupAttempt;
   readonly verification: AuthEmailVerificationStateDTO;
 }) {
   const router = useRouter();
@@ -665,6 +688,7 @@ function EmailVerificationForm({
   const [submitError, setSubmitError] = useState<string>();
   const [submitMessage, setSubmitMessage] = useState<string>();
   const [now, setNow] = useState(() => Date.now());
+  const analytics = useAnalytics();
   const { mutate: resendEmailVerification, isPending: isResending } =
     useResendEmailVerificationMutation();
   const {
@@ -684,6 +708,7 @@ function EmailVerificationForm({
   );
   const { mutate: confirmEmailVerification, isPending: isConfirming } =
     useConfirmEmailVerificationMutation({
+      onSignupConfirmed: () => analytics.signupCompleted(signupAttempt),
       onSuccess: completeAuthentication,
     });
   const resendWaitSeconds = getWaitSeconds(verification.resendAvailableAt, now);

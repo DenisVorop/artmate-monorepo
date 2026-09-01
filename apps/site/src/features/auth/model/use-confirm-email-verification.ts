@@ -16,6 +16,7 @@ import {
 } from "@/shared/lib/query-keys";
 
 type UseConfirmEmailVerificationMutationOptions = {
+  onSignupConfirmed?: () => void;
   onSuccess?: (_session: AuthSessionDTO | undefined) => void;
 };
 
@@ -27,6 +28,10 @@ export function useConfirmEmailVerificationMutation(
     mutationFn: async (input: ConfirmEmailVerificationInputDTO) =>
       ApiResult.fromDTO(await confirmEmailVerification(input)).unwrap(),
     onSuccess: (session) => {
+      if (session?.user) {
+        options.onSignupConfirmed?.();
+      }
+
       void queryClient.cancelQueries({ queryKey: featureBannersQueryKey });
       void queryClient.cancelQueries({ queryKey: welcomeOfferQueryKey });
       queryClient.removeQueries({ queryKey: featureBannersQueryKey });

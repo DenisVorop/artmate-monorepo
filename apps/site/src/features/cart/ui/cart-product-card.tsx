@@ -14,11 +14,14 @@ import {
   useRemoveCartItemMutation,
   useUpdateCartItemQuantityMutation,
 } from "../model";
+import { useAnalytics, type ProductListPlacement } from "../lib/analytics";
 
 const maxCartItemQuantity = 99;
 
 type CartProductCardProps = {
   readonly eagerImage?: boolean;
+  readonly list: ProductListPlacement;
+  readonly position?: number;
   readonly product: Product;
 };
 
@@ -31,9 +34,15 @@ type CartQuantityControlsProps = {
   readonly quantity: number;
 };
 
-export function CartProductCard({ eagerImage = false, product }: CartProductCardProps) {
+export function CartProductCard({
+  eagerImage = false,
+  list,
+  position,
+  product,
+}: CartProductCardProps) {
   const [addErrorLabel, setAddErrorLabel] = useState<string>();
   const cart = useCartData();
+  const analytics = useAnalytics();
   const { mutate: addCartItem, isPending: isAdding } = useAddCartItemMutation();
   const { mutate: updateCartItemQuantity, isPending: isUpdatingQuantity } =
     useUpdateCartItemQuantityMutation();
@@ -43,6 +52,7 @@ export function CartProductCard({ eagerImage = false, product }: CartProductCard
   const isInCart = quantity > 0;
   const isMutating = isAdding || isUpdatingQuantity || isRemovingItem;
   const isOutOfStock = product.isOutOfStock;
+  const handleProductOpen = () => analytics.productClicked(product, { list, position });
 
   const handleAdd = async (event: MouseEvent<HTMLButtonElement>) => {
     event.preventDefault();
@@ -136,6 +146,7 @@ export function CartProductCard({ eagerImage = false, product }: CartProductCard
       mediaAction={renderCartAction()}
       mediaActionViewport="desktop"
       mediaActionVisibility={isInCart ? "always" : "hover"}
+      onOpen={handleProductOpen}
     />
   );
 }

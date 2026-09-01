@@ -16,6 +16,7 @@ import {
 import { ReviewRatingSummary, useReviewsData } from "@/entities/reviews";
 import { DataState, Separator } from "@/shared/ui";
 
+import { useTrackProductView } from "../lib/use-track-product-view";
 import { Breadcrumbs } from "./breadcrumbs";
 import { MarketplaceLinks } from "./marketplace-links";
 
@@ -27,6 +28,11 @@ export function ProductDetails({ productId }: ProductDetailsProps) {
   const products = useProductsData();
   const reviews = useReviewsData();
   const addProductToCart = useAddProductToCart();
+  const product =
+    !products.isError && products.data
+      ? getProductById(products.data.products, productId)
+      : undefined;
+  useTrackProductView(product);
 
   if (products.isError) {
     return (
@@ -55,9 +61,6 @@ export function ProductDetails({ productId }: ProductDetailsProps) {
     );
   }
 
-  const productsData = products.data;
-  const product = getProductById(productsData.products, productId);
-
   if (!product) {
     return (
       <main className="container py-10">
@@ -69,6 +72,7 @@ export function ProductDetails({ productId }: ProductDetailsProps) {
     );
   }
 
+  const productsData = products.data;
   const relatedProducts = getRelatedProducts(productsData.products, product);
   const reviewsStats = !reviews.isError && reviews.data ? reviews.data.stats : undefined;
 
@@ -101,7 +105,13 @@ export function ProductDetails({ productId }: ProductDetailsProps) {
 
         <Related
           products={relatedProducts}
-          renderProductCard={(relatedProduct) => <CartProductCard product={relatedProduct} />}
+          renderProductCard={(relatedProduct, index) => (
+            <CartProductCard
+              product={relatedProduct}
+              list="related_products"
+              position={index + 1}
+            />
+          )}
         />
       </div>
     </main>

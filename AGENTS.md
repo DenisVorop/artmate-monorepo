@@ -123,6 +123,10 @@ Frontend workspaces: `apps/site`, `apps/admin`. Все frontend-приложен
 - React Hook Form для форм. Не добавляй новые формы на raw `FormData`, `useActionState` или ручном `useState`-парсинге без сильной причины.
 - `zod` используй для схем форм, `@hookform/resolvers` - для подключения этих схем к React Hook Form.
 
+### Аналитика сайта
+
+Перед изменением Яндекс Метрики, ecommerce, целей, page views или feature analytics обязательно прочитай [`apps/site/src/shared/lib/analytics/AGENTS.md`](apps/site/src/shared/lib/analytics/AGENTS.md). Аналитика использует shared typed transport и feature-local adapters; прямые вызовы `window.dataLayer`/`window.ym` из UI и business hooks запрещены.
+
 Алиасы frontend-приложений:
 
 ```text
