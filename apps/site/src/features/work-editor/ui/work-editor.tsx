@@ -267,7 +267,7 @@ function EditorForm({
           только подготовить фотографию и описать использованные материалы.
         </p>
         {data.work?.publishedRevision ? (
-          <Badge className="bg-emerald-100 text-emerald-800">
+          <Badge className="h-auto max-w-full justify-start bg-emerald-100 py-1 text-left leading-snug whitespace-normal text-emerald-800">
             Опубликованная версия останется видимой, пока новая проходит проверку
           </Badge>
         ) : null}
