@@ -21,6 +21,7 @@ import { ProductsModule } from "./products/products.module";
 import { PromocodesModule } from "./promocodes/promocodes.module";
 import { SeoModule } from "./seo/seo.module";
 import { UsersModule } from "./users/users.module";
+import { WorkshopsModule } from "./workshops/workshops.module";
 
 @Module({
   imports: [
@@ -41,6 +42,7 @@ import { UsersModule } from "./users/users.module";
     SeoModule,
     ContentAssistantModule,
     FeatureBannersModule,
+    WorkshopsModule,
   ],
   controllers: [AppController],
   providers: [AppService],

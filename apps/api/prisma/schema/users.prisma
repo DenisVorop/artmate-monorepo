@@ -40,6 +40,10 @@ model User {
   createdColoringRevisions ColoringRevision[]          @relation("ColoringRevisionCreator")
   coloringRevisionReviews  ColoringRevisionReview[]    @relation("ColoringRevisionReviewer")
   publishedColorings       Coloring[]                  @relation("ColoringPublisher")
+  workshop                 Workshop?
+  workshopTools            WorkshopTool[]
+  workshopModerationEvents WorkshopModerationEvent[]   @relation("WorkshopModerationActor")
+  workshopWorkReports      WorkshopWorkReport[]        @relation("WorkshopReportReporter")
 
   @@index([status])
   @@map("users")
