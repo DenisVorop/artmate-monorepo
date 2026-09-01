@@ -1,13 +1,15 @@
-import { Transform, Type } from "class-transformer";
+import { plainToInstance, Transform, Type } from "class-transformer";
 import { ApiProperty, ApiPropertyOptional } from "@nestjs/swagger";
 import {
   ArrayMaxSize,
   ArrayMinSize,
   IsArray,
   IsBoolean,
+  IsDefined,
   IsIn,
   IsInt,
   IsNumber,
+  IsObject,
   IsOptional,
   IsString,
   Matches,
@@ -136,6 +138,8 @@ export class WorkshopRevisionPayloadDTO {
   advertisingConsent?: boolean;
 
   @ApiProperty({ type: () => WorkshopCropDTO })
+  @IsDefined()
+  @IsObject()
   @ValidateNested()
   @Type(() => WorkshopCropDTO)
   crop!: WorkshopCropDTO;
@@ -144,6 +148,7 @@ export class WorkshopRevisionPayloadDTO {
   @IsArray()
   @ArrayMinSize(1)
   @ArrayMaxSize(10)
+  @IsObject({ each: true })
   @ValidateNested({ each: true })
   @Type(() => WorkshopRevisionMaterialInputDTO)
   materials!: WorkshopRevisionMaterialInputDTO[];
@@ -151,16 +156,31 @@ export class WorkshopRevisionPayloadDTO {
   @ApiProperty({ type: () => [WorkshopSymbolMappingInputDTO], maxItems: 19 })
   @IsArray()
   @ArrayMaxSize(19)
+  @IsObject({ each: true })
   @ValidateNested({ each: true })
   @Type(() => WorkshopSymbolMappingInputDTO)
   symbolMappings!: WorkshopSymbolMappingInputDTO[];
 }
 
+function parseWorkshopRevisionPayload({ value }: { value: unknown }) {
+  const parsed = parseMultipartJson({ value });
+
+  if (!parsed || typeof parsed !== "object" || Array.isArray(parsed)) {
+    return parsed;
+  }
+
+  return plainToInstance(WorkshopRevisionPayloadDTO, parsed);
+}
+
 export class CreateWorkshopRevisionMultipartDTO {
-  @ApiProperty({ type: "string", description: "JSON WorkshopRevisionPayloadDTO" })
-  @Transform(parseMultipartJson)
+  @ApiProperty({
+    type: "string",
+    description: "JSON WorkshopRevisionPayloadDTO",
+  })
+  @Transform(parseWorkshopRevisionPayload)
+  @IsDefined()
+  @IsObject()
   @ValidateNested()
-  @Type(() => WorkshopRevisionPayloadDTO)
   payload!: WorkshopRevisionPayloadDTO;
 }
 
