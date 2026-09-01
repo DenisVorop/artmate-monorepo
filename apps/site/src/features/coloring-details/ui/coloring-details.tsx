@@ -1,5 +1,7 @@
 "use client";
 
+import type { ReactNode } from "react";
+
 import { useColoringData } from "@/entities/coloring";
 import { Button, DataState } from "@/shared/ui";
 
@@ -11,12 +13,14 @@ type ColoringDetailsProps = {
   collectionSlug: string;
   number: number;
   publishedRevisionId: string;
+  communityWorks?: ReactNode;
 };
 
 export function ColoringDetails({
   collectionSlug,
   number,
   publishedRevisionId,
+  communityWorks,
 }: ColoringDetailsProps) {
   const { coloring, isError, isPending, refetch } = useColoringData(
     collectionSlug,
@@ -78,6 +82,8 @@ export function ColoringDetails({
 
       <div className="container space-y-6 pb-12 md:space-y-8 md:pb-16">
         <PaletteSection palette={coloring.palette} themes={coloring.themes} />
+
+        {communityWorks}
 
         <aside className="max-w-3xl rounded-2xl border border-amber-200 bg-amber-50 p-5 text-sm leading-6 text-amber-950 sm:p-6">
           <h2 className="mb-2 text-base font-bold">О передаче цвета</h2>

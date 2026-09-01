@@ -14,6 +14,11 @@ const nextConfig = {
   output: "standalone",
   outputFileTracingRoot: repoRoot,
   htmlLimitedBots: /.*/,
+  experimental: {
+    serverActions: {
+      bodySizeLimit: "12mb",
+    },
+  },
   images: {
     dangerouslyAllowLocalIP: process.env.NODE_ENV !== "production",
     remotePatterns: [

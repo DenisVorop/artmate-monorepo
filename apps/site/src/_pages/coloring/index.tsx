@@ -1,4 +1,5 @@
 import { ColoringDetails } from "@/features/coloring-details";
+import { CommunityWorks } from "@/features/community-works";
 
 type ColoringPageProps = {
   collectionSlug: string;
@@ -12,6 +13,7 @@ export function ColoringPage({ collectionSlug, number, publishedRevisionId }: Co
       collectionSlug={collectionSlug}
       number={number}
       publishedRevisionId={publishedRevisionId}
+      communityWorks={<CommunityWorks slug={collectionSlug} number={number} />}
     />
   );
 }
