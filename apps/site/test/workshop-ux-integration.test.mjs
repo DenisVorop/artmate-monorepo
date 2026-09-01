@@ -11,10 +11,8 @@ test("workshop cards expose every required state and mobile-visible actions", as
 
   for (const text of [
     "Добавить работу",
-    "Черновик",
-    "Продолжить",
     "На проверке",
-    "Видно только вам",
+    "Одобрено, не опубликовано",
     "Опубликовано",
     "Модератор запросил изменения",
     "Исправить",
@@ -31,6 +29,7 @@ test("workshop cards expose every required state and mobile-visible actions", as
   assert.match(card, /currentRevision\?\.moderationReason/);
   assert.match(card, /currentStatus === "PENDING"/);
   assert.match(card, /currentStatus === "APPROVED"/);
+  assert.doesNotMatch(card, /DRAFT|Черновик|Продолжить/);
   assert.doesNotMatch(card, /group-hover:(?:block|flex|visible)|hidden.*group-hover/);
 });
 

@@ -25,6 +25,7 @@ import type {
   UpdateWorkshopVisibilityDTO,
   WorkshopRevisionPayloadDTO,
 } from "./dto";
+import { WorkshopAssetDeletionQueueService } from "./workshop-asset-deletion-queue.service";
 import {
   WorkshopMediaService,
   type ProcessedWorkshopPhoto,
@@ -58,6 +59,7 @@ export class WorkshopService {
     private readonly media: WorkshopMediaService,
     private readonly storage: WorkshopStorageService,
     private readonly coloringStorage: ColoringStorageService,
+    private readonly deletionQueue: WorkshopAssetDeletionQueueService,
   ) {}
 
   async getMine(userId: string) {
@@ -140,7 +142,9 @@ export class WorkshopService {
             workshopId: workshop.id,
             deletedAt: null,
             isPublicationEnabled: true,
-            publishedRevision: { is: { status: WorkshopRevisionStatus.APPROVED } },
+            publishedRevision: {
+              is: { status: WorkshopRevisionStatus.APPROVED },
+            },
           },
           data: { publishedAt: new Date() },
         });
@@ -153,7 +157,10 @@ export class WorkshopService {
   async addCollection(userId: string, input: AddWorkshopCollectionDTO) {
     const workshop = await this.getOrCreateWorkshop(userId);
     const collection = await this.prisma.coloringCollection.findUnique({
-      where: { slug: input.collectionSlug, status: ColoringCollectionStatus.PUBLISHED },
+      where: {
+        slug: input.collectionSlug,
+        status: ColoringCollectionStatus.PUBLISHED,
+      },
       select: { id: true },
     });
 
@@ -184,7 +191,10 @@ export class WorkshopService {
       where: {
         workshop: { is: { ownerId: userId } },
         collection: {
-          is: { slug: collectionSlug, status: ColoringCollectionStatus.PUBLISHED },
+          is: {
+            slug: collectionSlug,
+            status: ColoringCollectionStatus.PUBLISHED,
+          },
         },
       },
       include: {
@@ -231,7 +241,9 @@ export class WorkshopService {
     }
 
     const paidProductIds = await this.getPaidProductIds(userId);
-    const works = new Map(membership.works.map((work) => [work.coloringId, work]));
+    const works = new Map(
+      membership.works.map((work) => [work.coloringId, work]),
+    );
 
     return {
       ...this.mapCollectionSummary(membership, paidProductIds),
@@ -262,7 +274,10 @@ export class WorkshopService {
       where: {
         workshop: { is: { ownerId: userId } },
         collection: {
-          is: { slug: collectionSlug, status: ColoringCollectionStatus.PUBLISHED },
+          is: {
+            slug: collectionSlug,
+            status: ColoringCollectionStatus.PUBLISHED,
+          },
         },
       },
       select: {
@@ -356,21 +371,36 @@ export class WorkshopService {
     input: WorkshopRevisionPayloadDTO,
     photo: WorkshopUploadedFile | undefined,
   ) {
-    const context = await this.getRevisionContext(userId, collectionSlug, number);
+    const context = await this.getRevisionContext(
+      userId,
+      collectionSlug,
+      number,
+    );
     const workId = context.work?.id ?? this.randomId();
     const revisionId = this.randomId();
     const current = context.work?.currentRevision;
 
     if (current?.status === WorkshopRevisionStatus.PENDING) {
-      throw new ConflictException("A pending revision must be moderated before editing");
+      throw new ConflictException(
+        "A pending revision must be moderated before editing",
+      );
     }
 
     if (!photo && !current) {
       throw new BadRequestException("Photo is required for the first revision");
     }
 
+    if (!photo && current?.status === WorkshopRevisionStatus.HIDDEN) {
+      throw new BadRequestException(
+        "A new photo is required after a policy rejection",
+      );
+    }
+
     const materials = await this.getMaterialSnapshots(userId, input.materials);
-    const mappings = await this.getMappingSnapshots(input.symbolMappings, materials);
+    const mappings = await this.getMappingSnapshots(
+      input.symbolMappings,
+      materials,
+    );
     let processed: ProcessedWorkshopPhoto | undefined;
     let storedKeys: string[] = [];
 
@@ -384,7 +414,11 @@ export class WorkshopService {
           height: official.height,
         },
       );
-      processed = await this.media.processPhoto(photo, input.crop, officialBuffer);
+      processed = await this.media.processPhoto(
+        photo,
+        input.crop,
+        officialBuffer,
+      );
 
       if (
         [
@@ -393,12 +427,16 @@ export class WorkshopService {
           official.cardChecksum,
         ].includes(processed.sourceChecksum)
       ) {
-        throw new BadRequestException("Official colored image cannot be uploaded");
+        throw new BadRequestException(
+          "Official colored image cannot be uploaded",
+        );
       }
 
       const entries = this.storageEntries(workId, revisionId, processed);
       const stored = await this.storage.writeAssets(entries);
-      storedKeys = stored.filter(({ created }) => created).map(({ key }) => key);
+      storedKeys = stored
+        .filter(({ created }) => created)
+        .map(({ key }) => key);
     }
 
     const media = processed
@@ -420,12 +458,25 @@ export class WorkshopService {
             Prisma.sql`SELECT "id" FROM "workshop_works" WHERE "id" = ${workId} FOR UPDATE`,
           );
           const locked = await tx.workshopWork.findFirst({
-            where: { id: workId, workshop: { is: { ownerId: userId } }, deletedAt: null },
+            where: {
+              id: workId,
+              workshop: { is: { ownerId: userId } },
+              deletedAt: null,
+            },
             include: { currentRevision: true },
           });
 
           if (!locked || locked.currentRevisionId !== current?.id) {
             throw new ConflictException("Workshop work changed concurrently");
+          }
+
+          if (
+            !photo &&
+            locked.currentRevision?.status === WorkshopRevisionStatus.HIDDEN
+          ) {
+            throw new ConflictException(
+              "A new photo is required after a policy rejection",
+            );
           }
         } else {
           await this.createNextWorkAttempt(tx, {
@@ -442,7 +493,7 @@ export class WorkshopService {
           data: { revisionSequence: { increment: 1 } },
           select: { revisionSequence: true },
         });
-        const submittedAt = input.intent === "SUBMIT" ? new Date() : null;
+        const submittedAt = new Date();
         await tx.workshopWorkRevision.create({
           data: {
             id: revisionId,
@@ -452,12 +503,10 @@ export class WorkshopService {
             officialRevisionId: processed
               ? context.coloring.publishedRevision.id
               : current!.officialRevisionId,
-            status:
-              input.intent === "SUBMIT"
-                ? WorkshopRevisionStatus.PENDING
-                : WorkshopRevisionStatus.DRAFT,
+            status: WorkshopRevisionStatus.PENDING,
             caption: input.caption ?? null,
-            advertisingConsent: input.advertisingConsent ?? false,
+            advertisingConsent: input.advertisingConsent,
+            advertisingConsentAt: input.advertisingConsent ? submittedAt : null,
             cropRotation: appliedCrop.rotation,
             cropZoom: appliedCrop.zoom,
             cropX: appliedCrop.x,
@@ -475,25 +524,23 @@ export class WorkshopService {
         });
         await tx.workshopWork.update({
           where: { id: workId },
+          data: { currentRevisionId: revisionId },
+        });
+
+        await tx.workshopModerationEvent.create({
           data: {
-            currentRevisionId: revisionId,
-            ...(input.intent === "SUBMIT" ? { isPublicationEnabled: true } : {}),
+            id: this.randomId(),
+            workId,
+            revisionId,
+            actorId: userId,
+            decision: WorkshopModerationDecision.SUBMITTED,
           },
         });
 
-        if (submittedAt) {
-          await tx.workshopModerationEvent.create({
-            data: {
-              id: this.randomId(),
-              workId,
-              revisionId,
-              actorId: userId,
-              decision: WorkshopModerationDecision.SUBMITTED,
-            },
-          });
-        }
-
-        return tx.workshopWork.findUnique({ where: { id: workId }, include: workInclude });
+        return tx.workshopWork.findUnique({
+          where: { id: workId },
+          include: workInclude,
+        });
       });
 
       if (!created) {
@@ -543,16 +590,56 @@ export class WorkshopService {
   }
 
   async deleteWork(userId: string, workId: string) {
-    const work = await this.findOwnedWork(userId, workId);
+    await this.prisma.$transaction(async (tx) => {
+      await tx.$queryRaw(
+        Prisma.sql`SELECT "id" FROM "workshop_works" WHERE "id" = ${workId} FOR UPDATE`,
+      );
+      const work = await tx.workshopWork.findFirst({
+        where: {
+          id: workId,
+          workshop: { is: { ownerId: userId } },
+          deletedAt: null,
+        },
+        include: {
+          currentRevision: { select: { status: true } },
+          revisions: {
+            select: {
+              normalizedStorageKey: true,
+              webStorageKey: true,
+              thumbStorageKey: true,
+            },
+          },
+        },
+      });
 
-    await this.prisma.workshopWork.update({
-      where: { id: work.id },
-      data: {
-        deletedAt: new Date(),
-        isPublicationEnabled: false,
-        isIndexable: false,
-        publishedAt: null,
-      },
+      if (!work) {
+        throw this.notFound();
+      }
+
+      if (work.currentRevision?.status === WorkshopRevisionStatus.PENDING) {
+        throw new ConflictException(
+          "A pending revision cannot be deleted before moderation",
+        );
+      }
+
+      await this.deletionQueue.enqueue(
+        tx,
+        work.revisions.flatMap((revision) => [
+          revision.normalizedStorageKey,
+          revision.webStorageKey,
+          revision.thumbStorageKey,
+        ]),
+      );
+
+      await tx.workshopWork.update({
+        where: { id: work.id },
+        data: {
+          deletedAt: new Date(),
+          isPublicationEnabled: false,
+          isIndexable: false,
+          publishedAt: null,
+        },
+      });
     });
   }
 
@@ -606,14 +693,17 @@ export class WorkshopService {
   async createTool(userId: string, input: CreateWorkshopToolDTO) {
     const type = WorkshopToolType[input.type];
     const claimsCanonicalArtmateSet =
-      input.brand.toLocaleLowerCase("en-US") === "artmate" && input.line === "168";
+      input.brand.toLocaleLowerCase("en-US") === "artmate" &&
+      input.line === "168";
 
     if (
       (type === WorkshopToolType.ARTMATE_168 &&
         (input.brand !== "Artmate" || input.line !== "168")) ||
       (type === WorkshopToolType.CUSTOM && claimsCanonicalArtmateSet)
     ) {
-      throw new BadRequestException("Artmate 168 identity is reserved for its official catalog");
+      throw new BadRequestException(
+        "Artmate 168 identity is reserved for its official catalog",
+      );
     }
 
     try {
@@ -630,13 +720,15 @@ export class WorkshopService {
       const tools = await this.getTools(userId);
       return tools.find((tool) => tool.id === created.id)!;
     } catch (error) {
-      if (error instanceof Prisma.PrismaClientKnownRequestError && error.code === "P2002") {
+      if (
+        error instanceof Prisma.PrismaClientKnownRequestError &&
+        error.code === "P2002"
+      ) {
         throw new ConflictException("Workshop tool already exists");
       }
 
       throw error;
     }
-
   }
 
   async getOwnerAsset(userId: string, revisionId: string, variant: string) {
@@ -644,6 +736,7 @@ export class WorkshopService {
     const revision = await this.prisma.workshopWorkRevision.findFirst({
       where: {
         id: revisionId,
+        status: { not: WorkshopRevisionStatus.HIDDEN },
         work: {
           is: {
             deletedAt: null,
@@ -661,10 +754,16 @@ export class WorkshopService {
   }
 
   async getMarkerColors() {
-    return this.prisma.markerColor.findMany({ orderBy: { catalogPosition: "asc" } });
+    return this.prisma.markerColor.findMany({
+      orderBy: { catalogPosition: "asc" },
+    });
   }
 
-  private async setPublication(userId: string, workId: string, enabled: boolean) {
+  private async setPublication(
+    userId: string,
+    workId: string,
+    enabled: boolean,
+  ) {
     const work = await this.findOwnedWork(userId, workId);
 
     const updated = await this.prisma.$transaction(async (tx) => {
@@ -672,7 +771,11 @@ export class WorkshopService {
         Prisma.sql`SELECT "id" FROM "workshop_works" WHERE "id" = ${work.id} FOR UPDATE`,
       );
       const current = await tx.workshopWork.findFirst({
-        where: { id: work.id, workshop: { is: { ownerId: userId } }, deletedAt: null },
+        where: {
+          id: work.id,
+          workshop: { is: { ownerId: userId } },
+          deletedAt: null,
+        },
         include: { workshop: true, publishedRevision: true },
       });
 
@@ -706,7 +809,11 @@ export class WorkshopService {
 
   private async findOwnedWork(userId: string, workId: string) {
     const work = await this.prisma.workshopWork.findFirst({
-      where: { id: workId, workshop: { is: { ownerId: userId } }, deletedAt: null },
+      where: {
+        id: workId,
+        workshop: { is: { ownerId: userId } },
+        deletedAt: null,
+      },
       include: workInclude,
     });
 
@@ -717,11 +824,17 @@ export class WorkshopService {
     return work;
   }
 
-  private async getRevisionContext(userId: string, slug: string, number: number) {
+  private async getRevisionContext(
+    userId: string,
+    slug: string,
+    number: number,
+  ) {
     const membership = await this.prisma.workshopCollection.findFirst({
       where: {
         workshop: { is: { ownerId: userId } },
-        collection: { is: { slug, status: ColoringCollectionStatus.PUBLISHED } },
+        collection: {
+          is: { slug, status: ColoringCollectionStatus.PUBLISHED },
+        },
       },
       select: { workshopId: true, collectionId: true },
     });
@@ -844,7 +957,9 @@ export class WorkshopService {
     const byId = new Map(tools.map((tool) => [tool.id, tool]));
 
     if (byId.size !== ids.length) {
-      throw new BadRequestException("Revision material contains an unknown tool");
+      throw new BadRequestException(
+        "Revision material contains an unknown tool",
+      );
     }
 
     return ids.map((id, index) => {
@@ -884,7 +999,9 @@ export class WorkshopService {
     const byId = new Map(colors.map((color) => [color.id, color]));
 
     if (byId.size !== new Set(officialIds).size) {
-      throw new BadRequestException("Revision mapping contains an unknown official color");
+      throw new BadRequestException(
+        "Revision mapping contains an unknown official color",
+      );
     }
 
     const materialsByPosition = new Map(
@@ -895,19 +1012,29 @@ export class WorkshopService {
       const material = materialsByPosition.get(mapping.materialPosition);
 
       if (!material) {
-        throw new BadRequestException("Revision mapping references an unknown material");
+        throw new BadRequestException(
+          "Revision mapping references an unknown material",
+        );
       }
 
       const official = mapping.officialMarkerColorId
         ? byId.get(mapping.officialMarkerColorId)
         : undefined;
 
-      if (material.toolType === WorkshopToolType.ARTMATE_168 && !official) {
-        throw new BadRequestException("Artmate 168 mappings require an official color");
+      if (
+        material.toolType === WorkshopToolType.ARTMATE_168 &&
+        mapping.markerNumber.length > 0 &&
+        !official
+      ) {
+        throw new BadRequestException(
+          "Known Artmate 168 marker numbers require an official color",
+        );
       }
 
       if (material.toolType === WorkshopToolType.CUSTOM && official) {
-        throw new BadRequestException("Custom material mappings cannot claim official colors");
+        throw new BadRequestException(
+          "Custom material mappings cannot claim official colors",
+        );
       }
 
       return {
@@ -1087,7 +1214,9 @@ export class WorkshopService {
     };
   }
 
-  private mapWork(work: Prisma.WorkshopWorkGetPayload<{ include: typeof workInclude }>) {
+  private mapWork(
+    work: Prisma.WorkshopWorkGetPayload<{ include: typeof workInclude }>,
+  ) {
     return {
       id: work.id,
       publicId: work.publicId,
@@ -1106,6 +1235,18 @@ export class WorkshopService {
   }
 
   private mapRevision(revision: StoredRevision, owner: boolean) {
+    if (!revision.submittedAt) {
+      throw new ConflictException(
+        "Workshop revision submission timestamp is missing",
+      );
+    }
+
+    if (revision.advertisingConsent && !revision.advertisingConsentAt) {
+      throw new ConflictException(
+        "Workshop advertising consent timestamp is missing",
+      );
+    }
+
     return {
       id: revision.id,
       sequence: revision.sequence,
@@ -1113,6 +1254,7 @@ export class WorkshopService {
       moderationReason: revision.moderationEvents[0]?.reason ?? undefined,
       caption: revision.caption ?? undefined,
       advertisingConsent: revision.advertisingConsent ?? undefined,
+      advertisingConsentAt: revision.advertisingConsentAt?.toISOString(),
       crop: {
         rotation: revision.cropRotation,
         zoom: revision.cropZoom,
@@ -1142,12 +1284,14 @@ export class WorkshopService {
           : {}),
       })),
       assets: {
-        normalized: owner ? this.ownerAssetUrl(revision.id, "normalized") : undefined,
+        normalized: owner
+          ? this.ownerAssetUrl(revision.id, "normalized")
+          : undefined,
         web: this.ownerAssetUrl(revision.id, "web"),
         thumb: this.ownerAssetUrl(revision.id, "thumb"),
       },
       suspectedOfficialCopy: revision.suspectedOfficialCopy,
-      submittedAt: revision.submittedAt?.toISOString(),
+      submittedAt: revision.submittedAt.toISOString(),
       moderatedAt: revision.moderatedAt?.toISOString(),
       createdAt: revision.createdAt.toISOString(),
     };
@@ -1196,7 +1340,9 @@ export class WorkshopService {
   }
 
   private async getOrCreateWorkshop(userId: string) {
-    const existing = await this.prisma.workshop.findUnique({ where: { ownerId: userId } });
+    const existing = await this.prisma.workshop.findUnique({
+      where: { ownerId: userId },
+    });
 
     if (existing) {
       return existing;
@@ -1205,14 +1351,23 @@ export class WorkshopService {
     for (let attempt = 0; attempt < 4; attempt += 1) {
       try {
         return await this.prisma.workshop.create({
-          data: { id: this.randomId(), ownerId: userId, handle: randomBytes(10).toString("hex") },
+          data: {
+            id: this.randomId(),
+            ownerId: userId,
+            handle: randomBytes(10).toString("hex"),
+          },
         });
       } catch (error) {
-        if (!(error instanceof Prisma.PrismaClientKnownRequestError) || error.code !== "P2002") {
+        if (
+          !(error instanceof Prisma.PrismaClientKnownRequestError) ||
+          error.code !== "P2002"
+        ) {
           throw error;
         }
 
-        const concurrent = await this.prisma.workshop.findUnique({ where: { ownerId: userId } });
+        const concurrent = await this.prisma.workshop.findUnique({
+          where: { ownerId: userId },
+        });
         if (concurrent) {
           return concurrent;
         }
@@ -1246,11 +1401,16 @@ export class WorkshopService {
   }
 
   private symbol(position: number) {
-    return position <= 9 ? String(position) : String.fromCharCode(55 + position);
+    return position <= 9
+      ? String(position)
+      : String.fromCharCode(55 + position);
   }
 
   private apiUrl() {
-    return (process.env.API_PUBLIC_URL ?? "http://localhost:3002").replace(/\/+$/, "");
+    return (process.env.API_PUBLIC_URL ?? "http://localhost:3002").replace(
+      /\/+$/,
+      "",
+    );
   }
 
   private randomId() {

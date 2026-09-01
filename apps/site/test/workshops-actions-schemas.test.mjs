@@ -101,7 +101,6 @@ test("workshop actions forward auth/IP, use no-store and add CSRF only to unsafe
     await actions.updateMyWorkshopVisibility({ isPublic: true });
     await actions.createMyWorkshopRevision("forest", 1, {
       photo: new File(["photo"], "work.webp", { type: "image/webp" }),
-      intent: "SUBMIT",
       caption: "Готовая работа",
       advertisingConsent: false,
       crop: { rotation: 90, zoom: 1.2, x: 0.1, y: -0.2 },
@@ -148,7 +147,7 @@ test("workshop actions forward auth/IP, use no-store and add CSRF only to unsafe
         officialMarkerColorId: "marker-color-023",
       },
     ]);
-    assert.equal(payload.intent, "SUBMIT");
+    assert.equal(payload.intent, undefined);
     assert.equal(payload.tool, undefined);
     assert.equal(payload.mappings, undefined);
 
@@ -247,11 +246,55 @@ test("bounded workshop read schemas accept needed fields and reject private stor
   );
   assert.equal(
     schemas.workshopMappingSchema.safeParse({
+      symbol: "J",
+      markerNumber: "",
+      materialPosition: 1,
+    }).success,
+    true,
+  );
+  assert.equal(
+    schemas.workshopMappingSchema.safeParse({
       symbol: "K",
       markerNumber: "023",
       materialPosition: 1,
     }).success,
     false,
+  );
+
+  const revision = {
+    id: "a".repeat(32),
+    sequence: 1,
+    status: "PENDING",
+    crop: { rotation: 0, zoom: 1, x: 0, y: 0 },
+    materials: [{ position: 19, type: "CUSTOM", brand: "Copic", line: "Sketch" }],
+    symbolMappings: [{ symbol: "1", markerNumber: "023", materialPosition: 19 }],
+    advertisingConsent: true,
+    advertisingConsentAt: "2026-09-01T12:00:00.000Z",
+    assets: {
+      normalized: "https://api.test/normalized",
+      web: "https://api.test/web",
+      thumb: "https://api.test/thumb",
+    },
+    suspectedOfficialCopy: false,
+    submittedAt: "2026-09-01T12:00:00.000Z",
+    createdAt: "2026-09-01T12:00:00.000Z",
+  };
+
+  assert.equal(schemas.workshopRevisionSchema.safeParse(revision).success, true);
+  assert.equal(
+    schemas.workshopRevisionSchema.safeParse({
+      ...revision,
+      advertisingConsentAt: undefined,
+    }).success,
+    false,
+  );
+  assert.equal(
+    schemas.workshopRevisionSchema.safeParse({
+      ...revision,
+      advertisingConsent: false,
+      advertisingConsentAt: undefined,
+    }).success,
+    true,
   );
 });
 
@@ -280,6 +323,23 @@ test("public work schema matches nested moderated API payload and rejects privat
   };
 
   assert.equal(schemas.publicCommunityWorkSchema.safeParse(work).success, true);
+  assert.equal(
+    schemas.publicCommunityWorkSchema.safeParse({
+      ...work,
+      submission: {
+        ...work.submission,
+        symbolMappings: [{ symbol: "1", markerNumber: "", materialPosition: 1 }],
+      },
+    }).success,
+    true,
+  );
+  assert.equal(
+    schemas.publicCommunityWorkSchema.safeParse({
+      ...work,
+      submission: { ...work.submission, advertisingConsentAt: "2026-09-01T12:00:00.000Z" },
+    }).success,
+    false,
+  );
   assert.equal(
     schemas.publicCommunityWorkSchema.safeParse({ ...work, storageKey: "private/key" }).success,
     false,

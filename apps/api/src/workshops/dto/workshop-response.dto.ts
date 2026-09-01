@@ -229,8 +229,8 @@ export class WorkshopModerationListItemDTO {
   @Matches(idPattern)
   workId!: string;
 
-  @ApiProperty({ enum: ["DRAFT", "PENDING", "APPROVED", "CHANGES_REQUESTED", "HIDDEN"] })
-  @IsIn(["DRAFT", "PENDING", "APPROVED", "CHANGES_REQUESTED", "HIDDEN"])
+  @ApiProperty({ enum: ["PENDING", "APPROVED", "CHANGES_REQUESTED", "HIDDEN"] })
+  @IsIn(["PENDING", "APPROVED", "CHANGES_REQUESTED", "HIDDEN"])
   status!: string;
 
   @ApiProperty()
@@ -257,10 +257,9 @@ export class WorkshopModerationListItemDTO {
   @IsBoolean()
   suspectedOfficialCopy!: boolean;
 
-  @ApiPropertyOptional({ format: "date-time" })
-  @IsOptional()
+  @ApiProperty({ format: "date-time" })
   @IsISO8601()
-  submittedAt?: string;
+  submittedAt!: string;
 
   @ApiProperty({ format: "date-time" })
   @IsISO8601()
@@ -273,18 +272,22 @@ export class WorkshopModerationDetailDTO extends WorkshopModerationListItemDTO {
   @IsString()
   caption?: string;
 
-  @ApiPropertyOptional({ nullable: true })
-  @IsOptional()
+  @ApiProperty()
   @IsBoolean()
-  advertisingConsent?: boolean;
+  advertisingConsent!: boolean;
+
+  @ApiPropertyOptional({ format: "date-time" })
+  @IsOptional()
+  @IsISO8601()
+  advertisingConsentAt?: string;
 
   @ApiProperty()
   @IsObject()
   officialComparison!: object;
 
-  @ApiProperty({ type: "array", maxItems: 10 })
+  @ApiProperty({ type: "array", maxItems: 19 })
   @IsArray()
-  @ArrayMaxSize(10)
+  @ArrayMaxSize(19)
   materials!: unknown[];
 
   @ApiProperty({ type: "array", maxItems: 19 })

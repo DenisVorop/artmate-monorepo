@@ -15,10 +15,13 @@ import {
 import { ColoringStorageService } from "../colorings/coloring-storage.service";
 import { PrismaService } from "../prisma/prisma.service";
 import type { WorkshopModerationDecisionDTO } from "./dto";
+import { WorkshopAssetDeletionQueueService } from "./workshop-asset-deletion-queue.service";
 import { WorkshopStorageService } from "./workshop-storage.service";
 
 const moderationWorkInclude = {
-  workshop: { include: { owner: { select: { id: true, name: true, image: true } } } },
+  workshop: {
+    include: { owner: { select: { id: true, name: true, image: true } } },
+  },
   coloring: { include: { collection: true } },
 } satisfies Prisma.WorkshopWorkInclude;
 
@@ -59,6 +62,7 @@ export class WorkshopModerationService {
     private readonly prisma: PrismaService,
     private readonly storage: WorkshopStorageService,
     private readonly coloringStorage: ColoringStorageService,
+    private readonly deletionQueue: WorkshopAssetDeletionQueueService,
   ) {}
 
   async list(status?: string) {
@@ -92,23 +96,20 @@ export class WorkshopModerationService {
     }
 
     await this.prisma.$transaction(async (tx) => {
-      await tx.$queryRaw(
-        Prisma.sql`SELECT "id" FROM "workshop_work_revisions" WHERE "id" = ${revisionId} FOR UPDATE`,
-      );
-      const revision = await tx.workshopWorkRevision.findUnique({
+      const seed = await tx.workshopWorkRevision.findUnique({
         where: { id: revisionId },
-        include: { work: { include: { workshop: true } } },
+        select: { workId: true },
       });
 
-      if (!revision) {
+      if (!seed) {
         throw this.notFound();
       }
 
       await tx.$queryRaw(
-        Prisma.sql`SELECT "id" FROM "workshop_works" WHERE "id" = ${revision.workId} FOR UPDATE`,
+        Prisma.sql`SELECT "id" FROM "workshop_works" WHERE "id" = ${seed.workId} FOR UPDATE`,
       );
       const lockedWork = await tx.workshopWork.findUnique({
-        where: { id: revision.workId },
+        where: { id: seed.workId },
         include: { workshop: true },
       });
 
@@ -116,21 +117,33 @@ export class WorkshopModerationService {
         throw this.notFound();
       }
 
+      await tx.$queryRaw(
+        Prisma.sql`SELECT "id" FROM "workshop_work_revisions" WHERE "work_id" = ${seed.workId} ORDER BY "id" FOR UPDATE`,
+      );
+      const revisions = await tx.workshopWorkRevision.findMany({
+        where: { workId: seed.workId },
+      });
+      const revision = revisions.find(({ id }) => id === revisionId);
+
+      if (!revision) {
+        throw this.notFound();
+      }
+
       const now = new Date();
-      let status: WorkshopRevisionStatus;
-      let decision: WorkshopModerationDecision;
 
       if (input.decision === "APPROVE") {
         if (revision.status !== WorkshopRevisionStatus.PENDING) {
-          throw new ConflictException("Only the exact pending revision can be approved");
+          throw new ConflictException(
+            "Only the exact pending revision can be approved",
+          );
         }
 
         if (lockedWork.currentRevisionId !== revision.id) {
-          throw new ConflictException("Only the current pending revision can be approved");
+          throw new ConflictException(
+            "Only the current pending revision can be approved",
+          );
         }
 
-        status = WorkshopRevisionStatus.APPROVED;
-        decision = WorkshopModerationDecision.APPROVED;
         await tx.workshopWork.update({
           where: { id: revision.workId },
           data: {
@@ -141,27 +154,88 @@ export class WorkshopModerationService {
                 : null,
           },
         });
+        const changed = await tx.workshopWorkRevision.updateMany({
+          where: { id: revision.id, status: revision.status },
+          data: { status: WorkshopRevisionStatus.APPROVED, moderatedAt: now },
+        });
+
+        if (changed.count !== 1) {
+          throw new ConflictException("Revision changed concurrently");
+        }
+
+        await tx.workshopModerationEvent.create({
+          data: {
+            id: randomBytes(16).toString("hex"),
+            workId: revision.workId,
+            revisionId: revision.id,
+            actorId: adminId,
+            decision: WorkshopModerationDecision.APPROVED,
+            reason,
+          },
+        });
+        return;
       } else if (input.decision === "REQUEST_CHANGES") {
         if (revision.status !== WorkshopRevisionStatus.PENDING) {
-          throw new ConflictException("Only a pending revision can request changes");
+          throw new ConflictException(
+            "Only a pending revision can request changes",
+          );
         }
         if (lockedWork.currentRevisionId !== revision.id) {
-          throw new ConflictException("Only the current pending revision can request changes");
+          throw new ConflictException(
+            "Only the current pending revision can request changes",
+          );
         }
 
-        status = WorkshopRevisionStatus.CHANGES_REQUESTED;
-        decision = WorkshopModerationDecision.CHANGES_REQUESTED;
-      } else {
-        if (
-          revision.status !== WorkshopRevisionStatus.APPROVED ||
-          lockedWork.publishedRevisionId !== revision.id
-        ) {
-          throw new ConflictException("Only the currently published revision can be hidden");
+        const changed = await tx.workshopWorkRevision.updateMany({
+          where: { id: revision.id, status: revision.status },
+          data: {
+            status: WorkshopRevisionStatus.CHANGES_REQUESTED,
+            moderatedAt: now,
+          },
+        });
+
+        if (changed.count !== 1) {
+          throw new ConflictException("Revision changed concurrently");
         }
 
-        status = WorkshopRevisionStatus.HIDDEN;
-        decision = WorkshopModerationDecision.HIDDEN;
+        await tx.workshopModerationEvent.create({
+          data: {
+            id: randomBytes(16).toString("hex"),
+            workId: revision.workId,
+            revisionId: revision.id,
+            actorId: adminId,
+            decision: WorkshopModerationDecision.CHANGES_REQUESTED,
+            reason,
+          },
+        });
+        return;
+      }
 
+      const isCurrentPolicyRejection =
+        lockedWork.currentRevisionId === revision.id &&
+        (revision.status === WorkshopRevisionStatus.PENDING ||
+          revision.status === WorkshopRevisionStatus.CHANGES_REQUESTED);
+      const isPublishedPolicyRemoval =
+        revision.status === WorkshopRevisionStatus.APPROVED &&
+        lockedWork.publishedRevisionId === revision.id;
+
+      if (!isCurrentPolicyRejection && !isPublishedPolicyRemoval) {
+        throw new ConflictException(
+          "Only the current review candidate or published revision can be hidden",
+        );
+      }
+
+      const closure = this.assetClosure(revision, revisions);
+      const closureIds = closure.map(({ id }) => id);
+      const affected = closure.filter(
+        ({ status }) => status !== WorkshopRevisionStatus.HIDDEN,
+      );
+      const affectedIds = affected.map(({ id }) => id);
+
+      if (
+        lockedWork.publishedRevisionId &&
+        closureIds.includes(lockedWork.publishedRevisionId)
+      ) {
         await tx.workshopWork.update({
           where: { id: revision.workId },
           data: {
@@ -174,24 +248,39 @@ export class WorkshopModerationService {
       }
 
       const changed = await tx.workshopWorkRevision.updateMany({
-        where: { id: revision.id, status: revision.status },
-        data: { status, moderatedAt: now },
+        where: {
+          id: { in: affectedIds },
+          status: { not: WorkshopRevisionStatus.HIDDEN },
+        },
+        data: { status: WorkshopRevisionStatus.HIDDEN, moderatedAt: now },
       });
 
-      if (changed.count !== 1) {
+      if (changed.count !== affected.length) {
         throw new ConflictException("Revision changed concurrently");
       }
 
-      await tx.workshopModerationEvent.create({
-        data: {
+      await tx.workshopModerationEvent.createMany({
+        data: affected.map((item) => ({
           id: randomBytes(16).toString("hex"),
-          workId: revision.workId,
-          revisionId: revision.id,
+          workId: item.workId,
+          revisionId: item.id,
           actorId: adminId,
-          decision,
+          decision: WorkshopModerationDecision.HIDDEN,
           reason,
-        },
+        })),
       });
+      await this.deletionQueue.enqueue(
+        tx,
+        [
+          ...new Set(
+            closure.flatMap((item) => [
+              item.normalizedStorageKey,
+              item.webStorageKey,
+              item.thumbStorageKey,
+            ]),
+          ),
+        ],
+      );
     });
 
     return this.get(revisionId);
@@ -240,6 +329,12 @@ export class WorkshopModerationService {
   }
 
   private mapList(revision: ModerationListRevision) {
+    if (!revision.submittedAt) {
+      throw new ConflictException(
+        "Workshop revision submission timestamp is missing",
+      );
+    }
+
     return {
       revisionId: revision.id,
       workId: revision.workId,
@@ -262,7 +357,7 @@ export class WorkshopModerationService {
         title: revision.work.coloring.title,
       },
       suspectedOfficialCopy: revision.suspectedOfficialCopy,
-      submittedAt: revision.submittedAt?.toISOString(),
+      submittedAt: revision.submittedAt.toISOString(),
       createdAt: revision.createdAt.toISOString(),
     };
   }
@@ -270,10 +365,17 @@ export class WorkshopModerationService {
   private mapDetail(revision: ModerationRevision) {
     const base = this.mapList(revision);
 
+    if (revision.advertisingConsent && !revision.advertisingConsentAt) {
+      throw new ConflictException(
+        "Workshop advertising consent timestamp is missing",
+      );
+    }
+
     return {
       ...base,
       caption: revision.caption ?? undefined,
       advertisingConsent: revision.advertisingConsent,
+      advertisingConsentAt: revision.advertisingConsentAt?.toISOString(),
       officialComparison: {
         revisionId: revision.officialRevisionId,
         version: revision.officialRevision.version,
@@ -340,13 +442,61 @@ export class WorkshopModerationService {
   }
 
   private parseStatus(value: string) {
-    const status = WorkshopRevisionStatus[value as keyof typeof WorkshopRevisionStatus];
+    const status =
+      WorkshopRevisionStatus[value as keyof typeof WorkshopRevisionStatus];
 
     if (!status) {
       throw new BadRequestException("Moderation status is invalid");
     }
 
     return status;
+  }
+
+  private assetClosure<
+    T extends {
+      id: string;
+      normalizedStorageKey: string;
+      webStorageKey: string;
+      thumbStorageKey: string;
+    },
+  >(seed: T, revisions: T[]) {
+    const revisionIds = new Set([seed.id]);
+    const storageKeys = new Set(this.assetKeys(seed));
+    let foundSharedRevision = true;
+
+    while (foundSharedRevision) {
+      foundSharedRevision = false;
+
+      for (const revision of revisions) {
+        if (revisionIds.has(revision.id)) {
+          continue;
+        }
+
+        const revisionKeys = this.assetKeys(revision);
+
+        if (!revisionKeys.some((key) => storageKeys.has(key))) {
+          continue;
+        }
+
+        revisionIds.add(revision.id);
+        revisionKeys.forEach((key) => storageKeys.add(key));
+        foundSharedRevision = true;
+      }
+    }
+
+    return revisions.filter(({ id }) => revisionIds.has(id));
+  }
+
+  private assetKeys(revision: {
+    normalizedStorageKey: string;
+    webStorageKey: string;
+    thumbStorageKey: string;
+  }) {
+    return [
+      revision.normalizedStorageKey,
+      revision.webStorageKey,
+      revision.thumbStorageKey,
+    ];
   }
 
   private parseVariant(value: string) {
@@ -363,11 +513,16 @@ export class WorkshopModerationService {
   }
 
   private symbol(position: number) {
-    return position <= 9 ? String(position) : String.fromCharCode(55 + position);
+    return position <= 9
+      ? String(position)
+      : String.fromCharCode(55 + position);
   }
 
   private apiUrl() {
-    return (process.env.API_PUBLIC_URL ?? "http://localhost:3002").replace(/\/+$/, "");
+    return (process.env.API_PUBLIC_URL ?? "http://localhost:3002").replace(
+      /\/+$/,
+      "",
+    );
   }
 
   private notFound() {

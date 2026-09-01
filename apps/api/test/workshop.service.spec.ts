@@ -15,6 +15,7 @@ import {
 } from "../src/generated/prisma/client";
 import type { PrismaService } from "../src/prisma/prisma.service";
 import { PublicWorkshopService } from "../src/workshops/public-workshop.service";
+import type { WorkshopAssetDeletionQueueService } from "../src/workshops/workshop-asset-deletion-queue.service";
 import type {
   ProcessedWorkshopPhoto,
   WorkshopMediaService,
@@ -119,6 +120,95 @@ describe("WorkshopService", () => {
     assert.equal(storageRead, false);
   });
 
+  it("denies owner access to an asset after a policy rejection", async () => {
+    let where: unknown;
+    let storageRead = false;
+    const service = createWorkshopService(
+      {
+        workshopWorkRevision: {
+          findFirst: async (args: { where: unknown }) => {
+            where = args.where;
+            return null;
+          },
+        },
+      },
+      {},
+      {
+        read: async () => {
+          storageRead = true;
+          return Buffer.alloc(0);
+        },
+      },
+    );
+
+    await assert.rejects(
+      service.getOwnerAsset("user-1", "b".repeat(32), "web"),
+      NotFoundException,
+    );
+
+    assert.deepEqual(where, {
+      id: "b".repeat(32),
+      status: { not: WorkshopRevisionStatus.HIDDEN },
+      work: {
+        is: {
+          deletedAt: null,
+          workshop: { is: { ownerId: "user-1" } },
+        },
+      },
+    });
+    assert.equal(storageRead, false);
+  });
+
+  it("requires a new photo after the current revision is hidden", async () => {
+    const prisma = {
+      workshopCollection: {
+        findFirst: async () => ({
+          workshopId: "a".repeat(32),
+          collectionId: "collection-1",
+        }),
+      },
+      coloring: {
+        findUnique: async () => ({
+          id: "coloring-1",
+          publishedRevision: {
+            id: "official-revision-1",
+            width: 800,
+            height: 1000,
+            coloredSourceChecksum: "1".repeat(64),
+            coloredStorageKey: "official",
+            coloredChecksum: "2".repeat(64),
+            cardChecksum: "3".repeat(64),
+          },
+        }),
+      },
+      workshopWork: {
+        findFirst: async () => ({
+          id: "b".repeat(32),
+          currentRevision: { status: WorkshopRevisionStatus.HIDDEN },
+        }),
+      },
+    };
+    const service = createWorkshopService(prisma);
+
+    await assert.rejects(
+      service.createRevision(
+        "user-1",
+        "forest",
+        1,
+        {
+          advertisingConsent: false,
+          crop: { rotation: 0, zoom: 1, x: 0, y: 0 },
+          materials: [{ toolId: "e".repeat(32) }],
+          symbolMappings: [],
+        },
+        undefined,
+      ),
+      (error: unknown) =>
+        error instanceof BadRequestException &&
+        error.message === "A new photo is required after a policy rejection",
+    );
+  });
+
   it("hard rejects an exact official source checksum before workshop storage", async () => {
     let stored = false;
     const officialChecksum = "1".repeat(64);
@@ -173,7 +263,7 @@ describe("WorkshopService", () => {
         "forest",
         1,
         {
-          intent: "DRAFT",
+          advertisingConsent: false,
           crop: { rotation: 0, zoom: 1, x: 0, y: 0 },
           materials: [{ toolId: tool.id }],
           symbolMappings: [],
@@ -277,7 +367,7 @@ describe("WorkshopService", () => {
       "forest",
       1,
       {
-        intent: "SUBMIT",
+        advertisingConsent: true,
         crop: { rotation: 90, zoom: 2, x: 1, y: 1 },
         materials: [{ toolId: tool.id }],
         symbolMappings: [],
@@ -296,13 +386,24 @@ describe("WorkshopService", () => {
     );
     assert.deepEqual(workUpdates[1]?.data, {
       currentRevisionId: revisionCreates[0]?.data.id,
-      isPublicationEnabled: true,
     });
+    assert.equal(revisionCreates[0]?.data.advertisingConsent, true);
+    assert.equal(
+      revisionCreates[0]?.data.advertisingConsentAt,
+      revisionCreates[0]?.data.submittedAt,
+    );
+    assert.ok(revisionCreates[0]?.data.submittedAt instanceof Date);
     assert.equal("publishedRevisionId" in (workUpdates[1]?.data ?? {}), false);
     assert.equal(work.publishedRevisionId, oldPublished.id);
   });
 
   it("unpublishes and soft deletes only an owned active work", async () => {
+    const revisionId = "c".repeat(32);
+    const assetKeys = [
+      `${"b".repeat(32)}/${revisionId}/normalized-${"1".repeat(64)}.webp`,
+      `${"b".repeat(32)}/${revisionId}/web-${"2".repeat(64)}.webp`,
+      `${"b".repeat(32)}/${revisionId}/thumb-${"3".repeat(64)}.webp`,
+    ];
     const work = {
       id: "b".repeat(32),
       publicId: "0123456789abcdef01234567",
@@ -315,39 +416,57 @@ describe("WorkshopService", () => {
       currentRevision: null,
       publishedRevision: null,
     };
-    const updates: unknown[] = [];
+    const updates: Array<{
+      data: Record<string, unknown>;
+      where: { id: string };
+    }> = [];
     const tx = {
       $queryRaw: async () => [{ id: work.id }],
       workshopWork: {
         findFirst: async () => ({
           ...work,
           workshop: { isPublic: true },
+          currentRevision: { status: WorkshopRevisionStatus.APPROVED },
           publishedRevision: null,
+          revisions: [
+            {
+              normalizedStorageKey: assetKeys[0],
+              webStorageKey: assetKeys[1],
+              thumbStorageKey: assetKeys[2],
+            },
+          ],
         }),
-        update: async (args: { data: { isPublicationEnabled: boolean } }) => ({
-          ...work,
-          isPublicationEnabled: args.data.isPublicationEnabled,
-        }),
+        update: async (args: {
+          data: Record<string, unknown>;
+          where: { id: string };
+        }) => {
+          updates.push(args);
+          return {
+            ...work,
+            isPublicationEnabled:
+              (args.data.isPublicationEnabled as boolean | undefined) ??
+              work.isPublicationEnabled,
+          };
+        },
       },
     };
     const prisma = {
-      workshopWork: {
-        findFirst: async () => work,
-        update: async (args: unknown) => {
-          updates.push(args);
-          return work;
-        },
-      },
+      workshopWork: { findFirst: async () => work },
       $transaction: async <T>(callback: (client: typeof tx) => Promise<T>) =>
         callback(tx),
     };
-    const service = createWorkshopService(prisma);
+    const queued: string[][] = [];
+    const service = createWorkshopService(prisma, {}, {}, {}, {
+      enqueue: async (_tx: unknown, keys: string[]) => {
+        queued.push(keys);
+      },
+    });
 
     const unpublished = await service.unpublish("user-1", work.id);
     await service.deleteWork("user-1", work.id);
 
     assert.equal(unpublished.isPublicationEnabled, false);
-    const deletion = updates[0] as {
+    const deletion = updates[1] as {
       where: { id: string };
       data: {
         deletedAt: unknown;
@@ -361,6 +480,40 @@ describe("WorkshopService", () => {
     assert.equal(deletion.data.isIndexable, false);
     assert.equal(deletion.data.publishedAt, null);
     assert.ok(deletion.data.deletedAt instanceof Date);
+    assert.deepEqual(queued, [assetKeys]);
+  });
+
+  it("locks and rejects deletion while the current revision is pending", async () => {
+    const workId = "b".repeat(32);
+    let updated = false;
+    let lockSql = "";
+    const tx = {
+      $queryRaw: async (query: { sql: string }) => {
+        lockSql = query.sql;
+        return [{ id: workId }];
+      },
+      workshopWork: {
+        findFirst: async () => ({
+          id: workId,
+          currentRevision: { status: WorkshopRevisionStatus.PENDING },
+        }),
+        update: async () => {
+          updated = true;
+        },
+      },
+    };
+    const service = createWorkshopService({
+      $transaction: async <T>(callback: (client: typeof tx) => Promise<T>) =>
+        callback(tx),
+    });
+
+    await assert.rejects(
+      service.deleteWork("user-1", workId),
+      ConflictException,
+    );
+
+    assert.match(lockSql, /FROM "workshop_works"[\s\S]*FOR UPDATE/);
+    assert.equal(updated, false);
   });
 
   it("allocates the next attempt under a membership lock and rejects a parallel active attempt", async () => {
@@ -421,7 +574,10 @@ describe("WorkshopService", () => {
     };
 
     await assert.rejects(
-      internals.createNextWorkAttempt(parallelTx, { ...input, id: "d".repeat(32) }),
+      internals.createNextWorkAttempt(parallelTx, {
+        ...input,
+        id: "d".repeat(32),
+      }),
       ConflictException,
     );
     assert.equal(parallelCreateCalled, false);
@@ -448,7 +604,10 @@ describe("WorkshopService", () => {
     };
     const service = createWorkshopService({
       workshopTool: { findMany: async () => [custom, artmate] },
-      markerColor: { findMany: async () => [officialColor] },
+      markerColor: {
+        findMany: async (args: { where: { id: { in: string[] } } }) =>
+          args.where.id.in.length > 0 ? [officialColor] : [],
+      },
     });
     type MaterialSnapshot = {
       position: number;
@@ -486,6 +645,7 @@ describe("WorkshopService", () => {
           officialMarkerColorId: officialColor.id,
         },
         { symbol: "2", materialPosition: 2, markerNumber: "C5" },
+        { symbol: "3", materialPosition: 1, markerNumber: "" },
       ],
       materials,
     );
@@ -527,7 +687,27 @@ describe("WorkshopService", () => {
         officialHex: null,
         officialMarkerNumber: null,
       },
+      {
+        symbol: "3",
+        materialPosition: 1,
+        markerNumber: "",
+        officialMarkerColorId: null,
+        officialColorNumber: null,
+        officialPantone: null,
+        officialHex: null,
+        officialMarkerNumber: null,
+      },
     ]);
+    await assert.rejects(
+      internals.getMappingSnapshots(
+        [{ symbol: "4", materialPosition: 1, markerNumber: "027" }],
+        materials,
+      ),
+      (error: unknown) =>
+        error instanceof BadRequestException &&
+        error.message ===
+          "Known Artmate 168 marker numbers require an official color",
+    );
   });
 
   it("reserves the Artmate 168 identity for the official catalog", async () => {
@@ -610,7 +790,7 @@ describe("WorkshopService", () => {
         "forest",
         1,
         {
-          intent: "DRAFT",
+          advertisingConsent: false,
           crop: { rotation: 0, zoom: 1, x: 0, y: 0 },
           materials: [{ toolId: tool.id }],
           symbolMappings: [],
@@ -692,6 +872,7 @@ describe("PublicWorkshopService", () => {
             id: "d".repeat(32),
             caption: "My work",
             advertisingConsent: true,
+            advertisingConsentAt: new Date("2026-09-01T09:30:00Z"),
             materials: [],
             symbolMappings: [],
             officialRevision: {
@@ -712,6 +893,7 @@ describe("PublicWorkshopService", () => {
     const response = await service.getWork("public-work");
 
     assert.equal("advertisingConsent" in response.submission, false);
+    assert.equal("advertisingConsentAt" in response.submission, false);
   });
 });
 
@@ -739,6 +921,7 @@ describe("WorkshopModerationService", () => {
       prisma as unknown as PrismaService,
       {} as WorkshopStorageService,
       {} as ColoringStorageService,
+      {} as WorkshopAssetDeletionQueueService,
     );
 
     const list = await service.list("APPROVED");
@@ -786,6 +969,7 @@ describe("WorkshopModerationService", () => {
       prisma as unknown as PrismaService,
       {} as WorkshopStorageService,
       {} as ColoringStorageService,
+      {} as WorkshopAssetDeletionQueueService,
     );
 
     const detail = await service.get(revisionId);
@@ -835,11 +1019,18 @@ describe("WorkshopModerationService", () => {
           officialRead = true;
         },
       } as unknown as ColoringStorageService,
+      {} as WorkshopAssetDeletionQueueService,
     );
 
     await assert.rejects(service.get(revisionId), NotFoundException);
-    await assert.rejects(service.getAsset(revisionId, "web"), NotFoundException);
-    await assert.rejects(service.getAsset(revisionId, "official"), NotFoundException);
+    await assert.rejects(
+      service.getAsset(revisionId, "web"),
+      NotFoundException,
+    );
+    await assert.rejects(
+      service.getAsset(revisionId, "official"),
+      NotFoundException,
+    );
 
     assert.deepEqual(lookups, [
       { id: revisionId, work: { is: { deletedAt: null } } },
@@ -954,6 +1145,108 @@ describe("WorkshopModerationService", () => {
     });
   });
 
+  it("allows hiding the current pending revision as a policy rejection", async () => {
+    const revision = pendingRevision();
+    const updates: unknown[] = [];
+    const events: unknown[] = [];
+    const service = createModerationService(
+      moderationTx(revision, updates, events),
+    );
+
+    await service.decide(revision.id, "admin-1", {
+      decision: "HIDE",
+      reason: "Policy violation",
+    });
+
+    assert.deepEqual(updates, []);
+    assert.equal(
+      (
+        events[0] as {
+          data: Array<{ decision: WorkshopModerationDecision }>;
+        }
+      ).data[0]?.decision,
+      WorkshopModerationDecision.HIDDEN,
+    );
+  });
+
+  it("hides the transitive shared-asset closure and queues every key", async () => {
+    const pending = pendingRevision();
+    const published = pendingRevision({
+      id: "c".repeat(32),
+      status: WorkshopRevisionStatus.APPROVED,
+      normalizedStorageKey: pending.normalizedStorageKey,
+      webStorageKey: `${pending.workId}/${"c".repeat(32)}/web-${"4".repeat(64)}.webp`,
+      thumbStorageKey: `${pending.workId}/${"c".repeat(32)}/thumb-${"5".repeat(64)}.webp`,
+    });
+    const alreadyHidden = pendingRevision({
+      id: "a".repeat(32),
+      status: WorkshopRevisionStatus.HIDDEN,
+      normalizedStorageKey: `${pending.workId}/${"a".repeat(32)}/normalized-${"6".repeat(64)}.webp`,
+      webStorageKey: published.webStorageKey,
+      thumbStorageKey: `${pending.workId}/${"a".repeat(32)}/thumb-${"7".repeat(64)}.webp`,
+    });
+    pending.work.publishedRevisionId = published.id;
+    pending.work.isPublicationEnabled = true;
+    const updates: unknown[] = [];
+    const events: unknown[] = [];
+    const revisionUpdates: unknown[] = [];
+    const queued: string[][] = [];
+    const tx = moderationTx(
+      pending,
+      updates,
+      events,
+      [published, alreadyHidden],
+      revisionUpdates,
+    );
+    const service = createModerationService(
+      tx,
+      {
+        enqueue: async (keys) => {
+          queued.push(keys);
+        },
+      },
+    );
+
+    await service.decide(pending.id, "admin-1", {
+      decision: "HIDE",
+      reason: "Policy violation",
+    });
+
+    assert.deepEqual(updates[0], {
+      where: { id: pending.workId },
+      data: {
+        publishedRevisionId: null,
+        isPublicationEnabled: false,
+        isIndexable: false,
+        publishedAt: null,
+      },
+    });
+    assert.deepEqual(
+      (revisionUpdates[0] as { where: { id: { in: string[] } } }).where.id.in,
+      [pending.id, published.id],
+    );
+    assert.deepEqual(
+      (events[0] as { data: Array<{ revisionId: string }> }).data.map(
+        ({ revisionId }) => revisionId,
+      ),
+      [pending.id, published.id],
+    );
+    assert.deepEqual(
+      queued[0],
+      [...new Set([
+        pending.normalizedStorageKey,
+        pending.webStorageKey,
+        pending.thumbStorageKey,
+        published.normalizedStorageKey,
+        published.webStorageKey,
+        published.thumbStorageKey,
+        alreadyHidden.normalizedStorageKey,
+        alreadyHidden.webStorageKey,
+        alreadyHidden.thumbStorageKey,
+      ])],
+    );
+  });
+
   it("rejects hiding an approved revision which is no longer published", async () => {
     const revision = pendingRevision({
       status: WorkshopRevisionStatus.APPROVED,
@@ -981,12 +1274,14 @@ function createWorkshopService(
   media: object = {},
   storage: object = {},
   coloringStorage: object = {},
+  deletionQueue: object = { enqueue: async () => undefined },
 ) {
   return new WorkshopService(
     prisma as PrismaService,
     media as WorkshopMediaService,
     storage as WorkshopStorageService,
     coloringStorage as ColoringStorageService,
+    deletionQueue as WorkshopAssetDeletionQueueService,
   );
 }
 
@@ -997,6 +1292,9 @@ function pendingRevision(overrides: Record<string, unknown> = {}) {
     id: revisionId,
     workId,
     status: WorkshopRevisionStatus.PENDING,
+    normalizedStorageKey: `${workId}/${revisionId}/normalized-${"1".repeat(64)}.webp`,
+    webStorageKey: `${workId}/${revisionId}/web-${"2".repeat(64)}.webp`,
+    thumbStorageKey: `${workId}/${revisionId}/thumb-${"3".repeat(64)}.webp`,
     work: {
       id: workId,
       currentRevisionId: revisionId,
@@ -1060,12 +1358,23 @@ function moderationTx(
   revision: ReturnType<typeof pendingRevision>,
   workUpdates: unknown[],
   events: unknown[],
+  references: Array<ReturnType<typeof pendingRevision>> = [],
+  revisionUpdates: unknown[] = [],
 ) {
   return {
     $queryRaw: async () => [{ id: revision.id }],
     workshopWorkRevision: {
-      findUnique: async () => revision,
-      updateMany: async () => ({ count: 1 }),
+      findUnique: async () => ({ workId: revision.workId }),
+      findMany: async () => [revision, ...references],
+      updateMany: async (args: {
+        where: { id: string | { in: string[] } };
+      }) => {
+        revisionUpdates.push(args);
+        return {
+          count:
+            typeof args.where.id === "string" ? 1 : args.where.id.in.length,
+        };
+      },
     },
     workshopWork: {
       findUnique: async () => revision.work,
@@ -1077,11 +1386,19 @@ function moderationTx(
       create: async (args: unknown) => {
         events.push(args);
       },
+      createMany: async (args: unknown) => {
+        events.push(args);
+      },
     },
   };
 }
 
-function createModerationService(tx: ReturnType<typeof moderationTx>) {
+function createModerationService(
+  tx: ReturnType<typeof moderationTx>,
+  options: {
+    enqueue?: (keys: string[]) => Promise<void>;
+  } = {},
+) {
   const prisma = {
     $transaction: async <T>(callback: (client: typeof tx) => Promise<T>) =>
       callback(tx),
@@ -1090,6 +1407,11 @@ function createModerationService(tx: ReturnType<typeof moderationTx>) {
     prisma as unknown as PrismaService,
     {} as WorkshopStorageService,
     {} as ColoringStorageService,
+    {
+      enqueue: async (_tx: unknown, keys: string[]) => {
+        await options.enqueue?.(keys);
+      },
+    } as WorkshopAssetDeletionQueueService,
   );
   service.get = async () => ({}) as never;
   return service;
@@ -1104,9 +1426,10 @@ function revisionRecord(overrides: Record<string, unknown> = {}) {
     coloringId: "coloring-1",
     sequence: 1,
     officialRevisionId: "official-revision-1",
-    status: WorkshopRevisionStatus.DRAFT,
+    status: WorkshopRevisionStatus.PENDING,
     caption: null,
     advertisingConsent: false,
+    advertisingConsentAt: null,
     cropRotation: 0,
     cropZoom: 1,
     cropX: 0,
@@ -1130,7 +1453,7 @@ function revisionRecord(overrides: Record<string, unknown> = {}) {
     thumbWidth: 320,
     thumbHeight: 400,
     suspectedOfficialCopy: false,
-    submittedAt: null,
+    submittedAt: new Date("2026-09-01T10:00:00Z"),
     moderatedAt: null,
     createdAt: new Date("2026-09-01T10:00:00Z"),
     materials: [],

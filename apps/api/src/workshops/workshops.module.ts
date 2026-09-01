@@ -5,6 +5,7 @@ import { ColoringsModule } from "../colorings/colorings.module";
 import { UsersModule } from "../users/users.module";
 import { PublicWorkshopService } from "./public-workshop.service";
 import { WorkshopAdminGuard } from "./workshop-admin.guard";
+import { WorkshopAssetDeletionQueueService } from "./workshop-asset-deletion-queue.service";
 import {
   PublicWorkshopController,
   WorkshopController,
@@ -26,6 +27,7 @@ import { WorkshopService } from "./workshop.service";
     WorkshopAdminGuard,
     WorkshopMediaService,
     WorkshopStorageService,
+    WorkshopAssetDeletionQueueService,
     WorkshopService,
     PublicWorkshopService,
     WorkshopModerationService,

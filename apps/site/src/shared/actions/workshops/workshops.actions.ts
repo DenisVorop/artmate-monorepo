@@ -84,7 +84,6 @@ export async function createMyWorkshopRevision(
   formData.append(
     "payload",
     JSON.stringify({
-      intent: input.intent,
       caption: input.caption,
       advertisingConsent: input.advertisingConsent,
       crop: input.crop,

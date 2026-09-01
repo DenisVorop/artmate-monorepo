@@ -1,5 +1,4 @@
 export type WorkshopToolType = "ARTMATE_168" | "CUSTOM";
-export type WorkshopSubmissionIntent = "DRAFT" | "SUBMIT";
 
 export type UpdateWorkshopVisibilityInput = {
   isPublic: boolean;
@@ -31,9 +30,8 @@ export type WorkshopMarkerMappingInput = {
 
 export type CreateWorkshopRevisionInput = {
   photo?: File;
-  intent: WorkshopSubmissionIntent;
   caption?: string;
-  advertisingConsent?: boolean;
+  advertisingConsent: boolean;
   crop: WorkshopCropInput;
   materials: Array<{ toolId: string }>;
   symbolMappings: WorkshopMarkerMappingInput[];

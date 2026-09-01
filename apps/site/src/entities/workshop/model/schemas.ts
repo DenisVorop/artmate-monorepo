@@ -59,7 +59,7 @@ export const workshopToolSchema = z
 
 const workshopMaterialSchema = z
   .object({
-    position: z.number().int().min(1).max(10),
+    position: z.number().int().min(1).max(19),
     type: z.enum(["ARTMATE_168", "CUSTOM"]),
     brand: z.string().min(1).max(80),
     line: z.string().min(1).max(80),
@@ -69,8 +69,10 @@ const workshopMaterialSchema = z
 export const workshopMappingSchema = z
   .object({
     symbol: z.string().regex(workshopSymbolPattern),
-    markerNumber: z.string().regex(workshopMarkerNumberPattern),
-    materialPosition: z.number().int().min(1).max(10),
+    markerNumber: z
+      .string()
+      .refine((value) => value === "" || workshopMarkerNumberPattern.test(value)),
+    materialPosition: z.number().int().min(1).max(19),
     officialColor: officialMarkerColorSchema.optional(),
   })
   .strict();
@@ -88,12 +90,13 @@ export const workshopRevisionSchema = z
   .object({
     id: internalId,
     sequence: z.number().int().positive(),
-    status: z.enum(["DRAFT", "PENDING", "APPROVED", "CHANGES_REQUESTED", "HIDDEN"]),
+    status: z.enum(["PENDING", "APPROVED", "CHANGES_REQUESTED", "HIDDEN"]),
     crop: workshopCropSchema,
-    materials: z.array(workshopMaterialSchema).min(1).max(10),
+    materials: z.array(workshopMaterialSchema).min(1).max(19),
     symbolMappings: z.array(workshopMappingSchema).max(19),
     caption: z.string().max(500).optional(),
     advertisingConsent: z.boolean(),
+    advertisingConsentAt: isoDate.optional(),
     assets: z
       .object({
         normalized: boundedUrl.optional(),
@@ -103,11 +106,20 @@ export const workshopRevisionSchema = z
       .strict(),
     suspectedOfficialCopy: z.boolean(),
     moderationReason: z.string().max(1_000).optional(),
-    submittedAt: isoDate.optional(),
+    submittedAt: isoDate,
     moderatedAt: isoDate.optional(),
     createdAt: isoDate,
   })
-  .strict();
+  .strict()
+  .superRefine((revision, context) => {
+    if (revision.advertisingConsent !== Boolean(revision.advertisingConsentAt)) {
+      context.addIssue({
+        code: z.ZodIssueCode.custom,
+        message: "Дата рекламного согласия не соответствует его значению",
+        path: ["advertisingConsentAt"],
+      });
+    }
+  });
 
 export const workshopWorkSchema = z
   .object({

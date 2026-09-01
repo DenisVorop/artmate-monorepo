@@ -157,8 +157,8 @@ describe("Workshop HTTP security contract", () => {
     body.set(
       "payload",
       JSON.stringify({
-        intent: "DRAFT",
         caption: "My work\nhttps://spam.example",
+        advertisingConsent: false,
         crop: { rotation: 0, zoom: 1, x: 0, y: 0 },
         materials: [{ toolId: "a".repeat(32) }],
         symbolMappings: [],
@@ -191,28 +191,33 @@ describe("Workshop HTTP security contract", () => {
     const bodies = [
       new FormData(),
       formDataWithPayload({
-        intent: "DRAFT",
+        advertisingConsent: false,
         materials: [{ toolId: "a".repeat(32) }],
         symbolMappings: [],
       }),
       formDataWithPayload([]),
       formDataWithPayload({
-        intent: "DRAFT",
+        advertisingConsent: false,
         crop: [],
         materials: [{ toolId: "a".repeat(32) }],
         symbolMappings: [],
       }),
       formDataWithPayload({
-        intent: "DRAFT",
+        advertisingConsent: false,
         crop: { rotation: 0, zoom: 1, x: 0, y: 0 },
         materials: [[]],
         symbolMappings: [],
       }),
       formDataWithPayload({
-        intent: "DRAFT",
+        advertisingConsent: false,
         crop: { rotation: 0, zoom: 1, x: 0, y: 0 },
         materials: [{ toolId: "a".repeat(32) }],
         symbolMappings: [[]],
+      }),
+      formDataWithPayload({
+        crop: { rotation: 0, zoom: 1, x: 0, y: 0 },
+        materials: [{ toolId: "a".repeat(32) }],
+        symbolMappings: [],
       }),
     ];
 
@@ -241,7 +246,6 @@ describe("Workshop HTTP security contract", () => {
     body.set(
       "payload",
       JSON.stringify({
-        intent: "DRAFT",
         caption: "  My finished work  ",
         advertisingConsent: false,
         crop: { rotation: 90, zoom: 1.25, x: -0.5, y: 0.5 },
@@ -250,8 +254,7 @@ describe("Workshop HTTP security contract", () => {
           {
             symbol: " A ",
             materialPosition: 1,
-            markerNumber: " 001-A ",
-            officialMarkerColorId: "marker-color-001",
+            markerNumber: "   ",
           },
         ],
       }),
@@ -275,7 +278,6 @@ describe("Workshop HTTP security contract", () => {
     assert.equal(latestRevisionArguments[1], "forest");
     assert.equal(latestRevisionArguments[2], 1);
     assert.deepEqual(JSON.parse(JSON.stringify(latestRevisionArguments[3])), {
-      intent: "DRAFT",
       caption: "My finished work",
       advertisingConsent: false,
       crop: { rotation: 90, zoom: 1.25, x: -0.5, y: 0.5 },
@@ -284,12 +286,41 @@ describe("Workshop HTTP security contract", () => {
         {
           symbol: "A",
           materialPosition: 1,
-          markerNumber: "001-A",
-          officialMarkerColorId: "marker-color-001",
+          markerNumber: "",
         },
       ],
     });
     assert.equal(latestRevisionArguments[4], undefined);
+  });
+
+  it("rejects the removed revision intent contract", async () => {
+    const callsBefore = revisionCalls;
+    const body = new FormData();
+    body.set(
+      "payload",
+      JSON.stringify({
+        intent: "SUBMIT",
+        advertisingConsent: false,
+        crop: { rotation: 0, zoom: 1, x: 0, y: 0 },
+        materials: [{ toolId: "a".repeat(32) }],
+        symbolMappings: [],
+      }),
+    );
+
+    const response = await fetch(
+      `${baseUrl}/workshops/me/collections/forest/colorings/01/revisions`,
+      {
+        method: "POST",
+        headers: {
+          authorization: "Bearer customer-token",
+          "x-artmate-csrf": "1",
+        },
+        body,
+      },
+    );
+
+    assert.equal(response.status, 400);
+    assert.equal(revisionCalls, callsBefore);
   });
 
   it("enforces admin role and CSRF before moderation transitions", async () => {
@@ -428,6 +459,8 @@ function moderationListResponse(isPublishedRevision: boolean) {
 function moderationResponse(isPublishedRevision: boolean) {
   return {
     ...moderationListResponse(isPublishedRevision),
+    advertisingConsent: true,
+    advertisingConsentAt: "2026-09-01T10:00:00.000Z",
     officialComparison: { revisionId: "official-1", coloredUrl: "/official" },
     materials: [],
     symbolMappings: [],

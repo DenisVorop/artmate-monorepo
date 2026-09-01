@@ -11,3 +11,10 @@ export {
   workEditorFormSchema,
   type WorkEditorFormValues,
 } from "./editor-form";
+export {
+  canAppendWorkshopMaterial,
+  changeMaterialTypeAssignments,
+  maxWorkshopMaterials,
+  removeMaterialAssignments,
+  selectMappingMaterial,
+} from "./material-state";

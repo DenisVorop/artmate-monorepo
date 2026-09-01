@@ -35,7 +35,11 @@ export function WorkshopColoringCard({
   const currentStatus = work?.currentRevision?.status;
   const isPublished = state === "PUBLISHED";
   const publicHref = isPublished && work ? routes.publicWork(work.publicId) : undefined;
-  const displayedRevision = isPublished ? work?.publishedRevision : work?.currentRevision;
+  const displayedRevision = isPublished
+    ? work?.publishedRevision
+    : currentStatus === "HIDDEN"
+      ? undefined
+      : work?.currentRevision;
   const cardHref = getCardHref(work, editorHref, publicHref);
 
   const image = (
@@ -122,13 +126,11 @@ export function WorkshopColoringCard({
           </Button>
         ) : (
           <>
-            {(currentStatus === "DRAFT" ||
-              currentStatus === "CHANGES_REQUESTED" ||
-              currentStatus === "HIDDEN") && (
+            {(currentStatus === "CHANGES_REQUESTED" || currentStatus === "HIDDEN") && (
               <Button asChild className="min-h-11 flex-1">
                 <Link href={editorHref}>
                   <Pencil data-icon="inline-start" />
-                  {currentStatus === "DRAFT" ? "Продолжить" : "Исправить"}
+                  Исправить
                 </Link>
               </Button>
             )}
@@ -195,8 +197,6 @@ export function WorkshopColoringCard({
 
 function WorkStatusBadge({ work }: { work: WorkshopWork }) {
   switch (getWorkState(work)) {
-    case "DRAFT":
-      return <Badge variant="secondary">Черновик</Badge>;
     case "PENDING":
       return <Badge className="bg-amber-100 text-amber-900">На проверке</Badge>;
     case "CHANGES_REQUESTED":
@@ -205,7 +205,7 @@ function WorkStatusBadge({ work }: { work: WorkshopWork }) {
       return (
         <Badge variant="secondary" className="gap-1">
           <Lock aria-hidden="true" />
-          Видно только вам
+          Одобрено, не опубликовано
         </Badge>
       );
     case "PUBLISHED":
@@ -234,22 +234,15 @@ function getCardHref(
 function getCardLabel(work: WorkshopWork | undefined, number: number) {
   if (!work) return `Добавить работу для картины ${number}`;
   const state = getWorkState(work);
-  if (state === "DRAFT") return `Продолжить черновик картины ${number}`;
   if (state === "CHANGES_REQUESTED" || state === "HIDDEN") {
     return `Исправить работу для картины ${number}`;
   }
   if (state === "PENDING") return `Открыть работу на проверке для картины ${number}`;
-  if (state === "APPROVED_PRIVATE") return `Открыть приватную работу для картины ${number}`;
+  if (state === "APPROVED_PRIVATE") return `Открыть одобренную работу для картины ${number}`;
   return `Открыть опубликованную работу для картины ${number}`;
 }
 
-type WorkState =
-  | "DRAFT"
-  | "PENDING"
-  | "CHANGES_REQUESTED"
-  | "APPROVED_PRIVATE"
-  | "PUBLISHED"
-  | "HIDDEN";
+type WorkState = "PENDING" | "CHANGES_REQUESTED" | "APPROVED_PRIVATE" | "PUBLISHED" | "HIDDEN";
 
 function getWorkState(work: WorkshopWork | undefined): WorkState | undefined {
   if (!work?.currentRevision) return undefined;
@@ -262,6 +255,7 @@ function hasUnpublishedChanges(work: WorkshopWork | undefined) {
   return Boolean(
     work?.isPublicationEnabled &&
     work.currentRevision &&
+    work.currentRevision.status !== "HIDDEN" &&
     work.publishedRevision &&
     work.currentRevision.id !== work.publishedRevision.id,
   );

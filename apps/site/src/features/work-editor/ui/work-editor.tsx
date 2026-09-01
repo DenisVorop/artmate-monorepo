@@ -2,9 +2,17 @@
 
 import { useEffect, useState } from "react";
 import { zodResolver } from "@hookform/resolvers/zod";
-import { Camera, ChevronLeft, ChevronRight, RotateCw, ShieldCheck } from "lucide-react";
+import {
+  Camera,
+  ChevronLeft,
+  ChevronRight,
+  Plus,
+  RotateCw,
+  ShieldCheck,
+  Trash2,
+} from "lucide-react";
 import { useRouter } from "next/navigation";
-import { Controller, type FieldErrors, useForm, useWatch } from "react-hook-form";
+import { Controller, type FieldErrors, useFieldArray, useForm, useWatch } from "react-hook-form";
 
 import {
   type WorkshopMarkerColor,
@@ -12,7 +20,6 @@ import {
   useWorkshopColoringData,
   useWorkshopTools,
 } from "@/entities/workshop";
-import type { WorkshopSubmissionIntent } from "@/shared/actions/workshops";
 import { routes } from "@/shared/constants";
 import {
   Badge,
@@ -35,7 +42,11 @@ import { PageTitle } from "@/shared/ui/typography";
 
 import {
   acceptedWorkshopPhotoTypes,
+  canAppendWorkshopMaterial,
+  changeMaterialTypeAssignments,
   getEditorDefaultValues,
+  removeMaterialAssignments,
+  selectMappingMaterial,
   toCreateRevisionInput,
   workEditorFormSchema,
   type WorkEditorFormValues,
@@ -50,7 +61,7 @@ export function WorkEditor({ slug, number }: { slug: string; number: number }) {
 
   if (query.isPending) {
     return (
-      <DataState title="Открываем редактор" description="Загружаем картину и черновик работы." />
+      <DataState title="Открываем редактор" description="Загружаем картину и данные работы." />
     );
   }
 
@@ -110,13 +121,13 @@ function EditorForm({
   onSuccess: () => void;
 }) {
   const [currentStep, setCurrentStep] = useState(0);
-  const [submissionIntent, setSubmissionIntent] = useState<WorkshopSubmissionIntent>("DRAFT");
   const [objectUrl, setObjectUrl] = useState<string>();
   const [serverError, setServerError] = useState<string>();
   const defaultValues = getEditorDefaultValues(data);
   const {
     control,
     formState: { errors },
+    getValues,
     handleSubmit,
     register,
     reset,
@@ -126,12 +137,19 @@ function EditorForm({
     resolver: zodResolver(workEditorFormSchema),
     defaultValues,
   });
+  const {
+    append: appendMaterial,
+    fields: materialFields,
+    remove: removeMaterial,
+  } = useFieldArray({ control, name: "materials" });
   const values = useWatch({ control });
   const selectedPhoto = useWatch({ control, name: "photo" });
-  const toolType = useWatch({ control, name: "toolType" });
+  const materials = useWatch({ control, name: "materials" });
   const crop = useWatch({ control, name: "crop" });
   const toolsQuery = useWorkshopTools();
-  const markerColorsQuery = useMarkerColors(toolType === "ARTMATE_168");
+  const markerColorsQuery = useMarkerColors(
+    materials.some((material) => material.type === "ARTMATE_168"),
+  );
   const officialMarkerOptions =
     markerColorsQuery.colors.length > 0
       ? markerColorsQuery.colors
@@ -145,6 +163,8 @@ function EditorForm({
   });
   const saveTool = useSaveWorkshopTool();
   const isSaving = createRevision.isPending || saveTool.isPending || toolsQuery.isPending;
+  const needsNewPhoto =
+    !data.work?.currentRevision || data.work.currentRevision.status === "HIDDEN";
 
   useEffect(() => {
     if (!selectedPhoto) {
@@ -158,82 +178,130 @@ function EditorForm({
     return () => URL.revokeObjectURL(nextUrl);
   }, [selectedPhoto]);
 
-  function selectTool(type: "ARTMATE_168" | "CUSTOM") {
-    setValue("toolType", type, { shouldDirty: true, shouldValidate: true });
+  function addSavedMaterial(toolId: string) {
+    const tool = toolsQuery.tools.find((item) => item.id === toolId);
+    const currentMaterials = getValues("materials");
 
-    if (type === "ARTMATE_168") {
-      setValue("brand", "Artmate", { shouldDirty: true, shouldValidate: true });
-      setValue("line", "168", { shouldDirty: true, shouldValidate: true });
-      setValue(
-        "mappings",
-        data.coloring.officialRevision.palette.colors.map((color) => ({
-          symbol: color.symbol,
-          markerNumber: color.markerNumber,
-        })),
-        { shouldDirty: true, shouldValidate: true },
-      );
-    } else {
-      setValue("brand", "", { shouldDirty: true, shouldValidate: true });
-      setValue("line", "", { shouldDirty: true, shouldValidate: true });
-      setValue(
-        "mappings",
-        data.coloring.officialRevision.palette.colors.map((color) => ({
-          symbol: color.symbol,
-          markerNumber: "",
-        })),
-        { shouldDirty: true },
-      );
+    if (
+      !tool ||
+      !canAppendWorkshopMaterial(currentMaterials.length) ||
+      hasMaterial(currentMaterials, tool)
+    ) {
+      return;
     }
+
+    appendMaterial({ type: tool.type, brand: tool.brand, line: tool.line });
+  }
+
+  function addCustomMaterial() {
+    if (!canAppendWorkshopMaterial(materialFields.length)) {
+      return;
+    }
+
+    appendMaterial({ type: "CUSTOM", brand: "", line: "" });
+  }
+
+  function changeMaterialType(index: number, type: "ARTMATE_168" | "CUSTOM") {
+    const currentMaterial = getValues(`materials.${index}`);
+
+    if (!currentMaterial || currentMaterial.type === type) {
+      return;
+    }
+
+    setValue(`materials.${index}.type`, type, { shouldDirty: true, shouldValidate: true });
+    setValue(`materials.${index}.brand`, type === "ARTMATE_168" ? "Artmate" : "", {
+      shouldDirty: true,
+      shouldValidate: true,
+    });
+    setValue(`materials.${index}.line`, type === "ARTMATE_168" ? "168" : "", {
+      shouldDirty: true,
+      shouldValidate: true,
+    });
+
+    setValue(
+      "mappings",
+      changeMaterialTypeAssignments(
+        getValues("mappings"),
+        index,
+        currentMaterial.type,
+        type,
+        data.coloring.officialRevision.palette.colors,
+      ),
+      { shouldDirty: true, shouldValidate: true },
+    );
+  }
+
+  function deleteMaterial(index: number) {
+    setValue("mappings", removeMaterialAssignments(getValues("mappings"), index), {
+      shouldDirty: true,
+      shouldValidate: true,
+    });
+    removeMaterial(index);
+  }
+
+  function changeMappingMaterial(mappingIndex: number, materialIndex: number | null) {
+    const material = materialIndex === null ? undefined : getValues(`materials.${materialIndex}`);
+    const color = data.coloring.officialRevision.palette.colors[mappingIndex];
+    const mapping = getValues(`mappings.${mappingIndex}`);
+
+    setValue(
+      `mappings.${mappingIndex}`,
+      selectMappingMaterial(mapping, materialIndex, material?.type, color?.markerNumber),
+      { shouldDirty: true, shouldValidate: true },
+    );
   }
 
   async function onSubmit(formValues: WorkEditorFormValues) {
     setServerError(undefined);
 
-    if (!formValues.photo && !data.work?.currentRevision) {
+    if (!formValues.photo && needsNewPhoto) {
       setError("photo", { message: "Добавьте фотографию готовой работы" });
       setCurrentStep(0);
       return;
     }
 
     try {
-      const savedTool = toolsQuery.tools.find(
-        (tool) =>
-          tool.type === formValues.toolType &&
-          tool.brand === formValues.brand &&
-          tool.line === formValues.line,
-      );
-      const officialColors =
-        officialMarkerOptions.length > 0
-          ? officialMarkerOptions
-          : (savedTool?.officialPalette ?? []);
+      const officialColors = officialMarkerOptions;
+      const invalidMappingIndex = formValues.mappings.findIndex((mapping) => {
+        const material =
+          mapping.materialIndex === null ? undefined : formValues.materials[mapping.materialIndex];
 
-      if (formValues.toolType === "ARTMATE_168") {
-        const invalidMappingIndex = formValues.mappings.findIndex(
-          (mapping) =>
-            mapping.markerNumber.trim().length > 0 &&
-            !officialColors.some((color) => color.markerNumber === mapping.markerNumber.trim()),
+        return (
+          material?.type === "ARTMATE_168" &&
+          mapping.markerNumber.trim().length > 0 &&
+          !officialColors.some((color) => color.markerNumber === mapping.markerNumber.trim())
         );
+      });
 
-        if (invalidMappingIndex >= 0) {
-          setError(`mappings.${invalidMappingIndex}.markerNumber`, {
-            message: "Выберите номер из официального каталога Artmate",
-          });
-          setCurrentStep(3);
-          return;
-        }
+      if (invalidMappingIndex >= 0) {
+        setError(`mappings.${invalidMappingIndex}.markerNumber`, {
+          message: "Выберите номер из официального каталога Artmate",
+        });
+        setCurrentStep(3);
+        return;
       }
 
-      const tool =
-        savedTool ??
-        (await saveTool.mutate({
-          type: formValues.toolType,
-          brand: formValues.brand,
-          line: formValues.line,
-        }));
+      const resolvedTools = [];
 
-      await createRevision.mutate(
-        toCreateRevisionInput(formValues, submissionIntent, tool.id, officialColors),
-      );
+      for (const material of formValues.materials) {
+        const savedTool = toolsQuery.tools.find(
+          (tool) =>
+            tool.type === material.type &&
+            tool.brand === material.brand &&
+            tool.line === material.line,
+        );
+
+        resolvedTools.push(
+          savedTool ??
+            (await saveTool.mutate({
+              type: material.type,
+              brand: material.brand,
+              line: material.line,
+            })),
+        );
+      }
+
+      await createRevision.mutate(toCreateRevisionInput(formValues, resolvedTools, officialColors));
     } catch (error) {
       setServerError(error instanceof Error ? error.message : "Не удалось сохранить работу");
     }
@@ -244,7 +312,7 @@ function EditorForm({
       setCurrentStep(0);
     } else if (formErrors.crop) {
       setCurrentStep(1);
-    } else if (formErrors.toolType || formErrors.brand || formErrors.line) {
+    } else if (formErrors.materials) {
       setCurrentStep(2);
     } else if (formErrors.mappings) {
       setCurrentStep(3);
@@ -315,7 +383,11 @@ function EditorForm({
                 </div>
                 <PhotoPreview
                   objectUrl={objectUrl}
-                  revisionId={data.work?.currentRevision?.id}
+                  revisionId={
+                    data.work?.currentRevision?.status === "HIDDEN"
+                      ? undefined
+                      : data.work?.currentRevision?.id
+                  }
                   alt={`Предпросмотр работы ${data.coloring.number}`}
                 />
               </section>
@@ -325,16 +397,22 @@ function EditorForm({
               <section className="grid gap-6 lg:grid-cols-[minmax(18rem,28rem)_minmax(0,1fr)] lg:items-start">
                 <PhotoPreview
                   objectUrl={objectUrl}
-                  revisionId={data.work?.currentRevision?.id}
+                  revisionId={
+                    data.work?.currentRevision?.status === "HIDDEN"
+                      ? undefined
+                      : data.work?.currentRevision?.id
+                  }
                   alt={`Кадрирование работы ${data.coloring.number}`}
                   crop={objectUrl ? crop : undefined}
                 />
                 <div className="space-y-6">
                   {!canAdjustCrop ? (
                     <p className="rounded-xl border border-amber-200 bg-amber-50 p-4 text-sm text-amber-950">
-                      {data.work?.currentRevision
-                        ? "Без нового фото сервер сохранит прежний кадр без изменений. Чтобы изменить кадрирование, вернитесь на шаг «Фото» и выберите замену."
-                        : "Сначала выберите фотографию на шаге «Фото», затем настройте кадрирование."}
+                      {data.work?.currentRevision?.status === "HIDDEN"
+                        ? "Эта версия скрыта модератором. Вернитесь на шаг «Фото» и загрузите новую фотографию."
+                        : data.work?.currentRevision
+                          ? "Без нового фото сервер сохранит прежний кадр без изменений. Чтобы изменить кадрирование, вернитесь на шаг «Фото» и выберите замену."
+                          : "Сначала выберите фотографию на шаге «Фото», затем настройте кадрирование."}
                     </p>
                   ) : null}
                   <CropSlider
@@ -394,42 +472,31 @@ function EditorForm({
                 <div>
                   <h2 className="text-xl font-bold">Материалы</h2>
                   <p className="mt-1 text-sm text-stone-600">
-                    Выберите Artmate 168 или сохраните свою комбинацию бренда и линейки.
+                    Добавьте все наборы, которые использовали. На следующем шаге материал выбирается
+                    отдельно для каждого цвета.
                   </p>
-                </div>
-                <div className="grid gap-3 sm:grid-cols-2">
-                  <ToolChoice
-                    active={toolType === "ARTMATE_168"}
-                    title="Artmate 168"
-                    description="Официальный каталог маркеров и точная палитра картины"
-                    onClick={() => selectTool("ARTMATE_168")}
-                  />
-                  <ToolChoice
-                    active={toolType === "CUSTOM"}
-                    title="Другие материалы"
-                    description="Ваш бренд и линейка; данные будут показаны как авторские"
-                    onClick={() => selectTool("CUSTOM")}
-                  />
                 </div>
 
                 {toolsQuery.tools.length > 0 ? (
                   <div className="space-y-2">
-                    <Label htmlFor="saved-tool">Сохранённые материалы</Label>
+                    <Label htmlFor="saved-tool">Добавить из сохранённых</Label>
                     <Select
-                      onValueChange={(id) => {
-                        const tool = toolsQuery.tools.find((item) => item.id === id);
-                        if (!tool) return;
-                        selectTool(tool.type);
-                        setValue("brand", tool.brand, { shouldDirty: true });
-                        setValue("line", tool.line, { shouldDirty: true });
-                      }}
+                      disabled={!canAppendWorkshopMaterial(materialFields.length)}
+                      onValueChange={addSavedMaterial}
                     >
                       <SelectTrigger id="saved-tool" size="lg" className="w-full sm:max-w-md">
-                        <SelectValue placeholder="Выбрать сохранённый набор" />
+                        <SelectValue placeholder="Выберите бренд и линейку" />
                       </SelectTrigger>
                       <SelectContent>
                         {toolsQuery.tools.map((tool) => (
-                          <SelectItem key={tool.id} value={tool.id}>
+                          <SelectItem
+                            key={tool.id}
+                            value={tool.id}
+                            disabled={
+                              !canAppendWorkshopMaterial(materialFields.length) ||
+                              hasMaterial(materials, tool)
+                            }
+                          >
                             {tool.brand} · {tool.line}
                           </SelectItem>
                         ))}
@@ -438,34 +505,95 @@ function EditorForm({
                   </div>
                 ) : null}
 
-                <div className="grid gap-4 sm:grid-cols-2">
-                  <div className="space-y-2">
-                    <Label htmlFor="material-brand">Бренд</Label>
-                    <Input
-                      id="material-brand"
-                      className="min-h-11"
-                      readOnly={toolType === "ARTMATE_168"}
-                      aria-invalid={Boolean(errors.brand)}
-                      {...register("brand")}
-                    />
-                    {errors.brand?.message ? (
-                      <p className="text-sm text-destructive">{errors.brand.message}</p>
-                    ) : null}
+                {materialFields.length === 0 ? (
+                  <div className="rounded-2xl border border-dashed p-5 text-sm leading-6 text-stone-600">
+                    Материалы пока не добавлены. Выберите сохранённый набор или добавьте новый — ни
+                    один бренд не назначается всем цветам автоматически.
                   </div>
-                  <div className="space-y-2">
-                    <Label htmlFor="material-line">Линейка</Label>
-                    <Input
-                      id="material-line"
-                      className="min-h-11"
-                      readOnly={toolType === "ARTMATE_168"}
-                      aria-invalid={Boolean(errors.line)}
-                      {...register("line")}
-                    />
-                    {errors.line?.message ? (
-                      <p className="text-sm text-destructive">{errors.line.message}</p>
-                    ) : null}
-                  </div>
+                ) : null}
+
+                <div className="grid gap-4 lg:grid-cols-2">
+                  {materialFields.map((field, index) => {
+                    const material = materials[index];
+                    const materialErrors = errors.materials?.[index];
+
+                    return (
+                      <div key={field.id} className="space-y-4 rounded-2xl border p-4">
+                        <div className="flex items-center justify-between gap-3">
+                          <p className="font-heading text-lg font-bold">Материал {index + 1}</p>
+                          <Button
+                            type="button"
+                            variant="ghost"
+                            size="icon-lg"
+                            aria-label={`Удалить материал ${index + 1}`}
+                            onClick={() => deleteMaterial(index)}
+                          >
+                            <Trash2 aria-hidden="true" />
+                          </Button>
+                        </div>
+                        <div className="grid gap-2 sm:grid-cols-2">
+                          <ToolChoice
+                            active={material?.type === "ARTMATE_168"}
+                            title="Artmate 168"
+                            description="Официальный каталог"
+                            onClick={() => changeMaterialType(index, "ARTMATE_168")}
+                          />
+                          <ToolChoice
+                            active={material?.type === "CUSTOM"}
+                            title="Другой набор"
+                            description="Свой бренд и линейка"
+                            onClick={() => changeMaterialType(index, "CUSTOM")}
+                          />
+                        </div>
+                        <div className="grid gap-4 sm:grid-cols-2">
+                          <div className="space-y-2">
+                            <Label htmlFor={`material-${index}-brand`}>Бренд</Label>
+                            <Input
+                              id={`material-${index}-brand`}
+                              className="min-h-11"
+                              readOnly={material?.type === "ARTMATE_168"}
+                              aria-invalid={Boolean(materialErrors?.brand)}
+                              {...register(`materials.${index}.brand`)}
+                            />
+                            {materialErrors?.brand?.message ? (
+                              <p className="text-sm text-destructive">
+                                {materialErrors.brand.message}
+                              </p>
+                            ) : null}
+                          </div>
+                          <div className="space-y-2">
+                            <Label htmlFor={`material-${index}-line`}>Линейка</Label>
+                            <Input
+                              id={`material-${index}-line`}
+                              className="min-h-11"
+                              readOnly={material?.type === "ARTMATE_168"}
+                              aria-invalid={Boolean(materialErrors?.line)}
+                              {...register(`materials.${index}.line`)}
+                            />
+                            {materialErrors?.line?.message ? (
+                              <p className="text-sm text-destructive">
+                                {materialErrors.line.message}
+                              </p>
+                            ) : null}
+                          </div>
+                        </div>
+                      </div>
+                    );
+                  })}
                 </div>
+                <Button
+                  type="button"
+                  variant="outline"
+                  className="min-h-11"
+                  disabled={!canAppendWorkshopMaterial(materialFields.length)}
+                  onClick={addCustomMaterial}
+                >
+                  <Plus data-icon="inline-start" />
+                  Добавить материал
+                </Button>
+                {typeof errors.materials?.message === "string" ? (
+                  <p className="text-sm text-destructive">{errors.materials.message}</p>
+                ) : null}
               </section>
             ) : null}
 
@@ -478,99 +606,159 @@ function EditorForm({
                     нескольких символов; ведущие нули и буквенные суффиксы сохраняются.
                   </p>
                 </div>
-                {toolType === "ARTMATE_168" ? (
+                {materials.some((material) => material.type === "ARTMATE_168") ? (
                   <div className="rounded-xl border border-rose-200 bg-rose-50 p-4">
-                    <p className="font-bold text-rose-950">Палитра Artmate для этой картины</p>
+                    <p className="font-bold text-rose-950">Каталог Artmate для выбранных цветов</p>
                     <p className="mt-1 text-sm text-rose-900">
                       {markerColorsQuery.isPending
                         ? "Загружаем официальный каталог маркеров…"
                         : markerColorsQuery.isError
-                          ? "Каталог временно недоступен; точные номера картины уже подставлены."
+                          ? "Каталог временно недоступен; номера картины уже подставлены."
                           : `Загружено ${markerColorsQuery.colors.length} цветов официального каталога.`}
                     </p>
                   </div>
-                ) : (
-                  <p className="rounded-xl bg-stone-100 p-4 text-sm text-stone-700">
-                    Номера ниже указаны вами и будут показаны как авторские, не как официальная
-                    палитра.
+                ) : null}
+                {materials.length === 0 ? (
+                  <p className="rounded-xl border border-amber-200 bg-amber-50 p-4 text-sm text-amber-950">
+                    Сначала добавьте хотя бы один материал на предыдущем шаге.
                   </p>
-                )}
+                ) : null}
                 <div className="grid gap-3 sm:grid-cols-2 lg:grid-cols-3">
-                  {data.coloring.officialRevision.palette.colors.map((color, index) => (
-                    <div key={color.symbol} className="rounded-xl border p-3">
-                      <div className="mb-3 flex items-center gap-3">
-                        <span
-                          className="size-9 rounded-full border border-black/10"
-                          style={{ backgroundColor: color.hex }}
-                          aria-label={`Цвет ${color.hex}`}
-                        />
-                        <div>
-                          <p className="font-bold">Символ {color.symbol}</p>
-                          <p className="text-xs text-stone-500">
-                            {color.hex}
-                            {color.pantone ? ` · Pantone ${color.pantone}` : ""}
-                          </p>
+                  {data.coloring.officialRevision.palette.colors.map((color, index) => {
+                    const mapping = values.mappings?.[index];
+                    const selectedMaterial =
+                      mapping?.materialIndex === null || mapping?.materialIndex === undefined
+                        ? undefined
+                        : materials[mapping.materialIndex];
+
+                    return (
+                      <div key={color.symbol} className="space-y-3 rounded-xl border p-3">
+                        <div className="mb-3 flex items-center gap-3">
+                          <span
+                            className="size-9 rounded-full border border-black/10"
+                            style={{ backgroundColor: color.hex }}
+                            aria-label={`Цвет ${color.hex}`}
+                          />
+                          <div>
+                            <p className="font-bold">Символ {color.symbol}</p>
+                            <p className="text-xs text-stone-500">
+                              {color.hex}
+                              {color.pantone ? ` · Pantone ${color.pantone}` : ""}
+                            </p>
+                          </div>
                         </div>
-                      </div>
-                      <input type="hidden" {...register(`mappings.${index}.symbol`)} />
-                      <Label htmlFor={`mapping-${color.symbol}`}>
-                        {toolType === "ARTMATE_168" ? "Номер маркера Artmate" : "Номер автора"}
-                      </Label>
-                      {toolType === "ARTMATE_168" ? (
-                        <Controller
-                          name={`mappings.${index}.markerNumber`}
-                          control={control}
-                          render={({ field }) => (
-                            <Select
-                              value={field.value || "__none__"}
-                              onValueChange={(value) =>
-                                field.onChange(value === "__none__" ? "" : value)
-                              }
-                              disabled={officialMarkerOptions.length === 0}
-                            >
-                              <SelectTrigger
-                                id={`mapping-${color.symbol}`}
-                                size="lg"
-                                className="mt-2 w-full font-mono"
-                                aria-invalid={Boolean(errors.mappings?.[index]?.markerNumber)}
+                        <input type="hidden" {...register(`mappings.${index}.symbol`)} />
+                        <div className="space-y-2">
+                          <Label htmlFor={`mapping-${color.symbol}-material`}>Материал цвета</Label>
+                          <Controller
+                            name={`mappings.${index}.materialIndex`}
+                            control={control}
+                            render={({ field }) => (
+                              <Select
+                                value={field.value === null ? "__none__" : String(field.value)}
+                                disabled={materials.length === 0}
+                                onValueChange={(value) =>
+                                  changeMappingMaterial(
+                                    index,
+                                    value === "__none__" ? null : Number(value),
+                                  )
+                                }
                               >
-                                <SelectValue placeholder="Выберите номер" />
-                              </SelectTrigger>
-                              <SelectContent>
-                                <SelectItem value="__none__">Не указывать</SelectItem>
-                                {officialMarkerOptions.map((marker) => (
-                                  <SelectItem key={marker.id} value={marker.markerNumber}>
-                                    {marker.markerNumber} · Pantone {marker.pantone}
-                                  </SelectItem>
-                                ))}
-                              </SelectContent>
-                            </Select>
-                          )}
-                        />
-                      ) : (
-                        <Input
-                          id={`mapping-${color.symbol}`}
-                          className="mt-2 min-h-11 font-mono"
-                          placeholder="Например, 023 или 27A"
-                          aria-invalid={Boolean(errors.mappings?.[index]?.markerNumber)}
-                          {...register(`mappings.${index}.markerNumber`)}
-                        />
-                      )}
-                      {toolType === "ARTMATE_168" ? (
-                        <p className="mt-2 text-xs text-stone-500">
-                          {getOfficialMarkerLabel(
-                            officialMarkerOptions,
-                            values.mappings?.[index]?.markerNumber,
-                          )}
-                        </p>
-                      ) : null}
-                      {errors.mappings?.[index]?.markerNumber?.message ? (
-                        <p className="mt-1 text-sm text-destructive">
-                          {errors.mappings[index]?.markerNumber?.message}
-                        </p>
-                      ) : null}
-                    </div>
-                  ))}
+                                <SelectTrigger
+                                  id={`mapping-${color.symbol}-material`}
+                                  size="lg"
+                                  className="w-full"
+                                  aria-invalid={Boolean(errors.mappings?.[index]?.materialIndex)}
+                                >
+                                  <SelectValue placeholder="Выберите материал" />
+                                </SelectTrigger>
+                                <SelectContent>
+                                  <SelectItem value="__none__">Материал не выбран</SelectItem>
+                                  {materials.map((material, materialIndex) => (
+                                    <SelectItem
+                                      key={`${material.type}-${material.brand}-${material.line}-${materialIndex}`}
+                                      value={String(materialIndex)}
+                                    >
+                                      {material.brand || "Без бренда"} ·{" "}
+                                      {material.line || "Без линейки"}
+                                    </SelectItem>
+                                  ))}
+                                </SelectContent>
+                              </Select>
+                            )}
+                          />
+                        </div>
+                        <Label htmlFor={`mapping-${color.symbol}`}>
+                          {selectedMaterial?.type === "ARTMATE_168"
+                            ? "Номер маркера Artmate"
+                            : "Номер маркера"}
+                        </Label>
+                        {selectedMaterial?.type === "ARTMATE_168" ? (
+                          <Controller
+                            name={`mappings.${index}.markerNumber`}
+                            control={control}
+                            render={({ field }) => (
+                              <Select
+                                value={field.value || "__none__"}
+                                onValueChange={(value) =>
+                                  field.onChange(value === "__none__" ? "" : value)
+                                }
+                                disabled={officialMarkerOptions.length === 0}
+                              >
+                                <SelectTrigger
+                                  id={`mapping-${color.symbol}`}
+                                  size="lg"
+                                  className="mt-2 w-full font-mono"
+                                  aria-invalid={Boolean(errors.mappings?.[index]?.markerNumber)}
+                                >
+                                  <SelectValue placeholder="Выберите номер" />
+                                </SelectTrigger>
+                                <SelectContent>
+                                  <SelectItem value="__none__">Не указывать</SelectItem>
+                                  {officialMarkerOptions.map((marker) => (
+                                    <SelectItem key={marker.id} value={marker.markerNumber}>
+                                      {marker.markerNumber} · Pantone {marker.pantone}
+                                    </SelectItem>
+                                  ))}
+                                </SelectContent>
+                              </Select>
+                            )}
+                          />
+                        ) : (
+                          <Input
+                            id={`mapping-${color.symbol}`}
+                            className="mt-2 min-h-11 font-mono"
+                            placeholder={
+                              selectedMaterial
+                                ? "Например, 023 или 27A"
+                                : "Сначала выберите материал"
+                            }
+                            disabled={!selectedMaterial}
+                            aria-invalid={Boolean(errors.mappings?.[index]?.markerNumber)}
+                            {...register(`mappings.${index}.markerNumber`)}
+                          />
+                        )}
+                        {selectedMaterial?.type === "ARTMATE_168" ? (
+                          <p className="mt-2 text-xs text-stone-500">
+                            {getOfficialMarkerLabel(
+                              officialMarkerOptions,
+                              values.mappings?.[index]?.markerNumber,
+                            )}
+                          </p>
+                        ) : null}
+                        {errors.mappings?.[index]?.materialIndex?.message ? (
+                          <p className="mt-1 text-sm text-destructive">
+                            {errors.mappings[index]?.materialIndex?.message}
+                          </p>
+                        ) : null}
+                        {errors.mappings?.[index]?.markerNumber?.message ? (
+                          <p className="mt-1 text-sm text-destructive">
+                            {errors.mappings[index]?.markerNumber?.message}
+                          </p>
+                        ) : null}
+                      </div>
+                    );
+                  })}
                 </div>
               </section>
             ) : null}
@@ -597,35 +785,21 @@ function EditorForm({
             {currentStep === 5 ? (
               <section className="mx-auto max-w-3xl space-y-5">
                 <div>
-                  <h2 className="text-xl font-bold">Как сохранить работу?</h2>
+                  <h2 className="text-xl font-bold">Отправка на модерацию</h2>
                   <p className="mt-1 text-sm text-stone-600">
-                    Публикация всегда проходит модерацию. Рекламное согласие не влияет на
-                    публикацию.
+                    Все фотографии проверяет модератор. После одобрения вы сможете опубликовать
+                    работу в открытой мастерской.
                   </p>
                 </div>
-                <div className="grid gap-4 sm:grid-cols-2">
-                  <SubmissionChoice
-                    active={submissionIntent === "DRAFT"}
-                    title="Оставить только себе"
-                    description="Сохранить DRAFT без отправки на модерацию"
-                    onClick={() => setSubmissionIntent("DRAFT")}
-                  />
-                  <SubmissionChoice
-                    active={submissionIntent === "SUBMIT"}
-                    title="Опубликовать после модерации"
-                    description="Отправить новую ревизию на проверку"
-                    onClick={() => setSubmissionIntent("SUBMIT")}
-                  />
-                </div>
-                <label className="flex min-h-11 items-start gap-3 rounded-xl border p-4 text-sm">
+                <label className="flex min-h-11 items-start gap-3 rounded-xl border border-rose-200 bg-rose-50 p-4 text-sm leading-6 text-rose-950">
                   <input
                     type="checkbox"
                     className="mt-0.5 size-5 accent-rose-500"
                     {...register("advertisingConsent")}
                   />
                   <span>
-                    Разрешаю Artmate отдельно использовать фото в рекламных материалах. Это
-                    необязательное согласие и не является условием публикации.
+                    Хочу, чтобы моя работа вдохновляла других. Разрешаю Artmate использовать это
+                    фото на сайте, в социальных сетях, рекламе и материалах бренда.
                   </span>
                 </label>
               </section>
@@ -635,7 +809,11 @@ function EditorForm({
               <section className="grid gap-6 lg:grid-cols-[minmax(18rem,26rem)_minmax(0,1fr)] lg:items-start">
                 <PhotoPreview
                   objectUrl={objectUrl}
-                  revisionId={data.work?.currentRevision?.id}
+                  revisionId={
+                    data.work?.currentRevision?.status === "HIDDEN"
+                      ? undefined
+                      : data.work?.currentRevision?.id
+                  }
                   alt={`Предпросмотр работы ${data.coloring.number}`}
                   crop={objectUrl ? crop : undefined}
                 />
@@ -643,20 +821,29 @@ function EditorForm({
                   <div>
                     <h2 className="text-xl font-bold">Проверьте данные</h2>
                     <p className="mt-1 text-sm text-stone-600">
-                      {submissionIntent === "DRAFT"
-                        ? "Работа останется приватным черновиком."
-                        : "Новая ревизия будет отправлена на модерацию."}
+                      Новая ревизия будет отправлена на модерацию.
                     </p>
                   </div>
                   <dl className="grid gap-3 rounded-2xl bg-stone-50 p-4 sm:grid-cols-2">
                     <div>
                       <dt className="text-sm text-stone-500">Материалы</dt>
-                      <dd className="font-bold">
-                        {values.brand} · {values.line}
+                      <dd className="space-y-1 font-bold">
+                        {values.materials?.map((material, index) => (
+                          <span key={`${material?.type}-${index}`} className="block">
+                            {material?.brand} · {material?.line}
+                          </span>
+                        ))}
                       </dd>
                     </div>
                     <div>
-                      <dt className="text-sm text-stone-500">Заполнено соответствий</dt>
+                      <dt className="text-sm text-stone-500">Материал назначен</dt>
+                      <dd className="font-bold">
+                        {values.mappings?.filter((item) => item.materialIndex !== null).length ?? 0}{" "}
+                        из {data.coloring.officialRevision.palette.colors.length}
+                      </dd>
+                    </div>
+                    <div>
+                      <dt className="text-sm text-stone-500">Номер указан</dt>
                       <dd className="font-bold">
                         {values.mappings?.filter((item) => item.markerNumber?.trim()).length ?? 0}{" "}
                         из {data.coloring.officialRevision.palette.colors.length}
@@ -673,9 +860,7 @@ function EditorForm({
                   ) : null}
                   <Button type="submit" size="lg" className="min-h-11 w-full" disabled={isSaving}>
                     <ShieldCheck data-icon="inline-start" />
-                    {submissionIntent === "DRAFT"
-                      ? "Оставить только себе"
-                      : "Опубликовать после модерации"}
+                    Отправить на модерацию
                   </Button>
                 </div>
               </section>
@@ -774,10 +959,6 @@ function ToolChoice({
   );
 }
 
-function SubmissionChoice(props: Parameters<typeof ToolChoice>[0]) {
-  return <ToolChoice {...props} />;
-}
-
 function getOfficialMarkerLabel(
   colors: Array<Pick<WorkshopMarkerColor, "markerNumber" | "pantone">>,
   markerNumber?: string,
@@ -789,4 +970,18 @@ function getOfficialMarkerLabel(
   }
 
   return `Каталог Artmate: ${color.markerNumber} · Pantone ${color.pantone}`;
+}
+
+function hasMaterial(
+  materials: Array<{ type: string; brand: string; line: string }>,
+  candidate: { type: string; brand: string; line: string },
+) {
+  return materials.some(
+    (material) =>
+      material.type === candidate.type &&
+      material.brand.trim().toLocaleLowerCase("ru-RU") ===
+        candidate.brand.trim().toLocaleLowerCase("ru-RU") &&
+      material.line.trim().toLocaleLowerCase("ru-RU") ===
+        candidate.line.trim().toLocaleLowerCase("ru-RU"),
+  );
 }

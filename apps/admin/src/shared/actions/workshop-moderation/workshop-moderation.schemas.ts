@@ -1,7 +1,6 @@
 import { z } from "zod";
 
 export const workshopModerationStatuses = [
-  "DRAFT",
   "PENDING",
   "APPROVED",
   "CHANGES_REQUESTED",
@@ -30,7 +29,9 @@ const symbolSchema = z.string().regex(/^(?:[1-9]|[A-J])$/);
 const markerNumberSchema = z
   .string()
   .trim()
-  .regex(/^[A-Za-z0-9][A-Za-z0-9._-]{0,11}$/);
+  .refine(
+    (value) => value === "" || /^[A-Za-z0-9][A-Za-z0-9._-]{0,11}$/.test(value),
+  );
 
 export const workshopModerationAssetVariantSchema = z.enum([
   "normalized",
@@ -78,7 +79,7 @@ export const workshopModerationQueueItemSchema = z
     revisionId: revisionIdSchema,
     workId: revisionIdSchema,
     status: z.enum(workshopModerationStatuses),
-    submittedAt: dateSchema.optional(),
+    submittedAt: dateSchema,
     createdAt: dateSchema,
     author: safeAuthorSchema,
     workshopHandle: z.string().trim().min(1).max(100),
@@ -97,6 +98,7 @@ export const workshopModerationDetailSchema = workshopModerationQueueItemSchema
   .extend({
     caption: z.string().trim().max(500).optional(),
     advertisingConsent: z.boolean(),
+    advertisingConsentAt: dateSchema.optional(),
     officialComparison: z
       .object({
         revisionId: revisionIdSchema,
@@ -122,21 +124,21 @@ export const workshopModerationDetailSchema = workshopModerationQueueItemSchema
       .array(
         z
           .object({
-            position: z.number().int().positive().max(10),
+            position: z.number().int().positive().max(19),
             type: z.enum(["ARTMATE_168", "CUSTOM"]),
             brand: z.string().trim().min(1).max(80),
             line: z.string().trim().min(1).max(80),
           })
           .strict(),
       )
-      .max(10),
+      .max(19),
     symbolMappings: z
       .array(
         z
           .object({
             symbol: symbolSchema,
             markerNumber: markerNumberSchema,
-            materialPosition: z.number().int().positive().max(10).optional(),
+            materialPosition: z.number().int().positive().max(19).optional(),
             officialColor: officialColorSchema.optional(),
           })
           .strict(),
@@ -149,26 +151,34 @@ export const workshopModerationDetailSchema = workshopModerationQueueItemSchema
         thumb: z.string().url().max(2048),
       })
       .strict(),
-    decisionHistory: z
-      .array(
-        z
-          .object({
-            id: revisionIdSchema,
-            revisionId: revisionIdSchema,
-            decision: z.enum(workshopModerationHistoryDecisions),
-            actor: z
-              .object({
-                id: boundedIdSchema,
-                name: z.string().trim().min(1).max(200),
-              })
-              .strict(),
-            createdAt: dateSchema,
-            reason: z.string().trim().max(1000).optional(),
-          })
-          .strict(),
-      ),
+    decisionHistory: z.array(
+      z
+        .object({
+          id: revisionIdSchema,
+          revisionId: revisionIdSchema,
+          decision: z.enum(workshopModerationHistoryDecisions),
+          actor: z
+            .object({
+              id: boundedIdSchema,
+              name: z.string().trim().min(1).max(200),
+            })
+            .strict(),
+          createdAt: dateSchema,
+          reason: z.string().trim().max(1000).optional(),
+        })
+        .strict(),
+    ),
   })
-  .strict();
+  .strict()
+  .superRefine((detail, context) => {
+    if (detail.advertisingConsent !== Boolean(detail.advertisingConsentAt)) {
+      context.addIssue({
+        code: z.ZodIssueCode.custom,
+        message: "Время согласия должно соответствовать признаку согласия",
+        path: ["advertisingConsentAt"],
+      });
+    }
+  });
 
 export const workshopModerationDecisionSchema = z
   .object({

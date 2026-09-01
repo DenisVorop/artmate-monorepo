@@ -29,7 +29,7 @@ function evaluateTypeScript(source, mocks) {
   return testModule.exports;
 }
 
-test("editor RHF+Zod contract preserves marker strings, duplicates and partial mappings", async () => {
+test("editor RHF+Zod contract maps a separate material for every color", async () => {
   const originalFile = globalThis.File;
   globalThis.File = File;
   const form = evaluateTypeScript(await readSource("src/features/work-editor/lib/editor-form.ts"), {
@@ -42,14 +42,16 @@ test("editor RHF+Zod contract preserves marker strings, duplicates and partial m
   const values = {
     photo: new File([new Uint8Array(64)], "photo.jpg", { type: "image/jpeg" }),
     crop: { rotation: 270, zoom: 1.5, x: -0.25, y: 0.25 },
-    toolType: "CUSTOM",
-    brand: "Copic",
-    line: "Sketch",
+    materials: [
+      { type: "ARTMATE_168", brand: "Artmate", line: "168" },
+      { type: "CUSTOM", brand: "Copic", line: "Sketch" },
+      { type: "CUSTOM", brand: "Winsor & Newton", line: "Promarker" },
+    ],
     mappings: [
-      { symbol: "1", markerNumber: "023" },
-      { symbol: "2", markerNumber: "023" },
-      { symbol: "A", markerNumber: "27A" },
-      { symbol: "J", markerNumber: "" },
+      { symbol: "1", materialIndex: 1, markerNumber: "023" },
+      { symbol: "2", materialIndex: 1, markerNumber: "023" },
+      { symbol: "A", materialIndex: 0, markerNumber: "027" },
+      { symbol: "J", materialIndex: 2, markerNumber: "" },
     ],
     caption: "Готовая работа",
     advertisingConsent: false,
@@ -57,25 +59,34 @@ test("editor RHF+Zod contract preserves marker strings, duplicates and partial m
 
   try {
     const parsed = form.workEditorFormSchema.parse(values);
-    const dto = form.toCreateRevisionInput(parsed, "SUBMIT", "a".repeat(32), []);
+    const tools = [
+      { id: "a".repeat(32), ...values.materials[0] },
+      { id: "b".repeat(32), ...values.materials[1] },
+      { id: "c".repeat(32), ...values.materials[2] },
+    ];
+    const dto = form.toCreateRevisionInput(parsed, tools, [
+      { id: "marker-color-027", markerNumber: "027" },
+    ]);
 
     assert.deepEqual(dto.symbolMappings, [
-      { symbol: "1", markerNumber: "023", materialPosition: 1 },
-      { symbol: "2", markerNumber: "023", materialPosition: 1 },
-      { symbol: "A", markerNumber: "27A", materialPosition: 1 },
+      { symbol: "1", markerNumber: "023", materialPosition: 2 },
+      { symbol: "2", markerNumber: "023", materialPosition: 2 },
+      {
+        symbol: "A",
+        markerNumber: "027",
+        materialPosition: 1,
+        officialMarkerColorId: "marker-color-027",
+      },
+      { symbol: "J", markerNumber: "", materialPosition: 3 },
     ]);
-    assert.deepEqual(dto.materials, [{ toolId: "a".repeat(32) }]);
+    assert.deepEqual(dto.materials, [
+      { toolId: "a".repeat(32) },
+      { toolId: "b".repeat(32) },
+      { toolId: "c".repeat(32) },
+    ]);
     assert.equal(dto.advertisingConsent, false);
-    assert.equal(dto.intent, "SUBMIT");
+    assert.equal("intent" in dto, false);
     assert.equal(dto.crop.rotation, 270);
-
-    const artmateDto = form.toCreateRevisionInput(
-      { ...parsed, toolType: "ARTMATE_168", brand: "Artmate", line: "168" },
-      "SUBMIT",
-      "b".repeat(32),
-      [{ id: "marker-color-023", markerNumber: "023" }],
-    );
-    assert.equal(artmateDto.symbolMappings[0].officialMarkerColorId, "marker-color-023");
 
     assert.equal(
       form.workEditorFormSchema.safeParse({
@@ -87,7 +98,21 @@ test("editor RHF+Zod contract preserves marker strings, duplicates and partial m
     assert.equal(
       form.workEditorFormSchema.safeParse({
         ...values,
-        mappings: [{ symbol: "K", markerNumber: "001" }],
+        mappings: [{ symbol: "K", materialIndex: 0, markerNumber: "001" }],
+      }).success,
+      false,
+    );
+    assert.equal(
+      form.workEditorFormSchema.safeParse({
+        ...values,
+        materials: [...values.materials, values.materials[1]],
+      }).success,
+      false,
+    );
+    assert.equal(
+      form.workEditorFormSchema.safeParse({
+        ...values,
+        mappings: [{ symbol: "1", materialIndex: null, markerNumber: "001" }],
       }).success,
       false,
     );
@@ -96,7 +121,110 @@ test("editor RHF+Zod contract preserves marker strings, duplicates and partial m
   }
 });
 
-test("editor UI is a photo workflow with accessible crop and explicit publication choices", async () => {
+test("editor defaults restore mixed material positions from an existing revision", async () => {
+  const defaults = evaluateTypeScript(
+    await readSource("src/features/work-editor/lib/default-values.ts"),
+    {},
+  );
+  const data = {
+    coloring: {
+      officialRevision: {
+        palette: {
+          colors: [
+            { symbol: "1", markerNumber: "001" },
+            { symbol: "2", markerNumber: "002" },
+            { symbol: "A", markerNumber: "010" },
+          ],
+        },
+      },
+    },
+    work: {
+      currentRevision: {
+        crop: { rotation: 0, zoom: 1, x: 0, y: 0 },
+        materials: [
+          { position: 1, type: "ARTMATE_168", brand: "Artmate", line: "168" },
+          { position: 2, type: "CUSTOM", brand: "Copic", line: "Sketch" },
+        ],
+        symbolMappings: [
+          { symbol: "1", materialPosition: 2, markerNumber: "C5" },
+          { symbol: "A", materialPosition: 1, markerNumber: "010" },
+        ],
+        caption: "Смешанная техника",
+        advertisingConsent: true,
+      },
+    },
+  };
+
+  const values = defaults.getEditorDefaultValues(data);
+
+  assert.deepEqual(values.materials, [
+    { type: "ARTMATE_168", brand: "Artmate", line: "168" },
+    { type: "CUSTOM", brand: "Copic", line: "Sketch" },
+  ]);
+  assert.deepEqual(values.mappings, [
+    { symbol: "1", materialIndex: 1, markerNumber: "C5" },
+    { symbol: "2", materialIndex: null, markerNumber: "" },
+    { symbol: "A", materialIndex: 0, markerNumber: "010" },
+  ]);
+  assert.equal(values.advertisingConsent, false);
+});
+
+test("new editor starts without a global brand or inherited advertising consent", async () => {
+  const defaults = evaluateTypeScript(
+    await readSource("src/features/work-editor/lib/default-values.ts"),
+    {},
+  );
+  const values = defaults.getEditorDefaultValues({
+    coloring: {
+      officialRevision: {
+        palette: {
+          colors: [
+            { symbol: "1", markerNumber: "001" },
+            { symbol: "A", markerNumber: "010" },
+          ],
+        },
+      },
+    },
+  });
+
+  assert.deepEqual(values.materials, []);
+  assert.deepEqual(values.mappings, [
+    { symbol: "1", materialIndex: null, markerNumber: "" },
+    { symbol: "A", materialIndex: null, markerNumber: "" },
+  ]);
+  assert.equal(values.advertisingConsent, false);
+});
+
+test("material helpers preserve per-color choices and enforce the 19 item limit", async () => {
+  const state = evaluateTypeScript(
+    await readSource("src/features/work-editor/lib/material-state.ts"),
+    {},
+  );
+  const mappings = [
+    { symbol: "1", materialIndex: 0, markerNumber: "001" },
+    { symbol: "2", materialIndex: 1, markerNumber: "C5" },
+    { symbol: "A", materialIndex: null, markerNumber: "" },
+  ];
+  const palette = [
+    { symbol: "1", markerNumber: "001" },
+    { symbol: "2", markerNumber: "002" },
+    { symbol: "A", markerNumber: "010" },
+  ];
+
+  assert.equal(state.canAppendWorkshopMaterial(18), true);
+  assert.equal(state.canAppendWorkshopMaterial(19), false);
+  assert.equal(
+    state.changeMaterialTypeAssignments(mappings, 0, "ARTMATE_168", "ARTMATE_168", palette),
+    mappings,
+  );
+  assert.deepEqual(state.removeMaterialAssignments(mappings, 0), [
+    { symbol: "1", materialIndex: null, markerNumber: "" },
+    { symbol: "2", materialIndex: 0, markerNumber: "C5" },
+    { symbol: "A", materialIndex: null, markerNumber: "" },
+  ]);
+});
+
+test("editor UI is a moderated photo workflow with material selection per color", async () => {
   const editor = await readSource("src/features/work-editor/ui/work-editor.tsx");
   const preview = await readSource("src/features/work-editor/ui/photo-preview.tsx");
   const stepper = await readSource("src/features/work-editor/ui/stepper.tsx");
@@ -106,14 +234,21 @@ test("editor UI is a photo workflow with accessible crop and explicit publicatio
   assert.match(editor, /URL\.revokeObjectURL\(nextUrl\)/);
   assert.match(editor, /accept=\{acceptedWorkshopPhotoTypes\.join/);
   assert.match(editor, /Повернуть на 90°/);
-  assert.match(editor, /Палитра Artmate для этой картины/);
-  assert.match(editor, /SelectItem value="__none__"/);
+  assert.match(editor, /материал[\s\S]*отдельно для каждого цвета/i);
+  assert.match(editor, /Материал цвета/);
+  assert.match(editor, /mappings\.\$\{index\}\.materialIndex/);
+  assert.match(editor, /Добавить материал/);
+  assert.match(editor, /Материал не выбран/);
+  assert.match(editor, /canAppendWorkshopMaterial/);
+  assert.match(editor, /currentMaterial\.type === type/);
+  assert.doesNotMatch(editor, /assignFirstArtmateMaterial/);
   assert.match(editor, /officialMarkerOptions\.map/);
-  assert.match(editor, /Оставить только себе/);
-  assert.match(editor, /Опубликовать после модерации/);
+  assert.match(editor, /Отправить на модерацию/);
+  assert.doesNotMatch(editor, /Оставить только себе|DRAFT|необязательное согласие/);
   assert.match(editor, /advertisingConsent/);
+  assert.match(editor, /Хочу, чтобы моя работа вдохновляла других/);
   assert.match(editor, /Все введённые данные сохранены в форме/);
-  assert.match(editor, /toCreateRevisionInput\(formValues, submissionIntent, tool\.id/);
+  assert.match(editor, /toCreateRevisionInput\(formValues, resolvedTools, officialColors\)/);
   assert.match(editor, /officialColors/);
   assert.match(editor, /handleSubmit\(onSubmit, onInvalid\)/);
   assert.match(editor, /disabled=\{!canAdjustCrop\}/);

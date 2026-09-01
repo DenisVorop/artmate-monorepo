@@ -4,7 +4,6 @@ import type {
 } from "../model";
 
 const statusLabels: Record<WorkshopModerationStatus, string> = {
-  DRAFT: "Черновик",
   PENDING: "Ожидает проверки",
   APPROVED: "Одобрена",
   CHANGES_REQUESTED: "Нужны изменения",
@@ -39,8 +38,6 @@ export function getWorkshopModerationStatusBadgeVariant(
       return "outline";
     case "PENDING":
       return "secondary";
-    case "DRAFT":
-      return "outline";
   }
 }
 

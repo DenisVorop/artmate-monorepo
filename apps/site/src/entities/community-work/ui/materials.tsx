@@ -56,17 +56,32 @@ export function CommunityWorkMaterials({ work }: { work: PublicCommunityWork }) 
         <h2 className="text-xl font-bold">Соответствие символов</h2>
         {work.submission.symbolMappings.length > 0 ? (
           <dl className="mt-4 grid grid-cols-2 gap-2 sm:grid-cols-3 md:grid-cols-4">
-            {work.submission.symbolMappings.map((mapping) => (
-              <div
-                key={mapping.symbol}
-                className="flex min-h-12 items-center justify-between rounded-xl border bg-white px-3"
-              >
-                <dt className="flex size-7 items-center justify-center rounded-full bg-rose-100 font-bold text-rose-700">
-                  {mapping.symbol}
-                </dt>
-                <dd className="font-mono font-bold">{mapping.markerNumber}</dd>
-              </div>
-            ))}
+            {work.submission.symbolMappings.map((mapping) => {
+              const material = work.submission.materials.find(
+                (item) => item.position === mapping.materialPosition,
+              );
+
+              return (
+                <div
+                  key={mapping.symbol}
+                  className="flex min-h-14 items-center justify-between gap-3 rounded-xl border bg-white px-3"
+                >
+                  <dt className="flex size-7 shrink-0 items-center justify-center rounded-full bg-rose-100 font-bold text-rose-700">
+                    {mapping.symbol}
+                  </dt>
+                  <dd className="min-w-0 text-right">
+                    <span className="block font-mono font-bold">
+                      {mapping.markerNumber || "Номер не указан"}
+                    </span>
+                    {material ? (
+                      <span className="block truncate text-xs text-stone-500">
+                        {material.brand} · {material.line}
+                      </span>
+                    ) : null}
+                  </dd>
+                </div>
+              );
+            })}
           </dl>
         ) : (
           <p className="mt-3 text-sm text-stone-500">Автор не указал соответствия цветов.</p>

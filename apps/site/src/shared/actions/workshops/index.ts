@@ -26,6 +26,5 @@ export type {
   UpdateWorkshopVisibilityInput,
   WorkshopCropInput,
   WorkshopMarkerMappingInput,
-  WorkshopSubmissionIntent,
   WorkshopToolType,
 } from "./workshops.types";

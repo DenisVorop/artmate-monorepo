@@ -19,7 +19,7 @@ export const communityAuthorSchema = z
 
 const publicMaterialSchema = z
   .object({
-    position: z.number().int().min(1).max(10),
+    position: z.number().int().min(1).max(19),
     type: z.enum(["ARTMATE_168", "CUSTOM"]),
     brand: z.string().min(1).max(80),
     line: z.string().min(1).max(80),
@@ -29,8 +29,11 @@ const publicMaterialSchema = z
 const publicMappingSchema = z
   .object({
     symbol: z.string().regex(/^(?:[1-9]|[A-J])$/),
-    markerNumber: z.string().min(1).max(12),
-    materialPosition: z.number().int().min(1).max(10),
+    markerNumber: z
+      .string()
+      .max(12)
+      .refine((value) => value === "" || /^[A-Za-z0-9][A-Za-z0-9._-]{0,11}$/.test(value)),
+    materialPosition: z.number().int().min(1).max(19),
     officialColor: z
       .object({
         colorNumber: z.number().int().positive(),
@@ -83,7 +86,7 @@ export const publicCommunityWorkSchema = z
     submission: z
       .object({
         caption: z.string().max(500).optional(),
-        materials: z.array(publicMaterialSchema).min(1).max(10),
+        materials: z.array(publicMaterialSchema).min(1).max(19),
         symbolMappings: z.array(publicMappingSchema).max(19),
         assets: z.object({ web: boundedUrl, thumb: boundedUrl }).strict(),
         publishedAt: isoDate,
