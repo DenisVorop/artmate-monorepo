@@ -9,12 +9,15 @@ import { Button, Card, CardContent, Separator } from "@/shared/ui";
 import { Link } from "@/shared/ui/link";
 import { cn } from "@/shared/lib";
 
+import { useAnalytics } from "../lib/analytics";
+
 type PurchasePanelProps = {
   product: Product;
   onAddToCart?: (_product: Product, _quantity?: number) => Promise<void> | void;
 };
 
 export function ProductPurchase({ product, onAddToCart }: PurchasePanelProps) {
+  const analytics = useAnalytics();
   const [quantity, setQuantity] = useState(1);
   const [added, setAdded] = useState(false);
   const [isAdding, setIsAdding] = useState(false);
@@ -151,6 +154,9 @@ export function ProductPurchase({ product, onAddToCart }: PurchasePanelProps) {
               <Link
                 aria-label={`Смотреть цифровую версию «${product.digitalCollection.title}»`}
                 href={routes.digitalCollection(product.digitalCollection.slug)}
+                onClick={() =>
+                  analytics.digitalOpened(product.id, product.digitalCollection?.slug ?? "")
+                }
               >
                 <Palette data-icon="inline-start" aria-hidden="true" />
                 Смотреть цифровую версию

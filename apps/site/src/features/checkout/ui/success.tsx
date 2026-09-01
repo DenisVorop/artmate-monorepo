@@ -6,6 +6,7 @@ import { useQueryClient } from "@tanstack/react-query";
 import { ordersQuery, useOrderData, useOrderStatusData } from "@/entities/orders";
 
 import { getOrderLoadErrorMessage } from "../lib/checkout-success";
+import { useTrackPaidOrder } from "../lib/use-track-paid-order";
 
 import { CheckoutSuccessDetails } from "./success-details";
 import { CheckoutSuccessState } from "./success-state";
@@ -13,6 +14,8 @@ import { CheckoutSuccessState } from "./success-state";
 type CheckoutSuccessProps = {
   orderId?: string;
 };
+
+const paidOrderRefreshIntervalMs = 3000;
 
 export function CheckoutSuccess({ orderId }: CheckoutSuccessProps) {
   const queryClient = useQueryClient();
@@ -24,14 +27,31 @@ export function CheckoutSuccess({ orderId }: CheckoutSuccessProps) {
     orderId,
     pollWhilePending: true,
   });
+  useTrackPaidOrder(order);
 
   useEffect(() => {
-    if (orderId && orderStatus.data?.paymentStatus === "paid") {
-      void queryClient.invalidateQueries({
-        queryKey: ordersQuery.getOrder(orderId).queryKey,
-      });
+    if (
+      !orderId ||
+      orderStatus.data?.paymentStatus !== "paid" ||
+      order?.payment.status === "paid"
+    ) {
+      return;
     }
-  }, [orderId, orderStatus.data?.paymentStatus, queryClient]);
+
+    const refreshOrder = () => {
+      void queryClient.invalidateQueries(
+        {
+          queryKey: ordersQuery.getOrder(orderId).queryKey,
+        },
+        { cancelRefetch: false },
+      );
+    };
+
+    refreshOrder();
+    const intervalId = window.setInterval(refreshOrder, paidOrderRefreshIntervalMs);
+
+    return () => window.clearInterval(intervalId);
+  }, [order?.payment.status, orderId, orderStatus.data?.paymentStatus, queryClient]);
 
   if (!orderId) {
     return (

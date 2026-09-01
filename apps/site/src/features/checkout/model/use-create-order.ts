@@ -7,12 +7,15 @@ import { createOrder, type CreateOrderInputDTO, type OrderDTO } from "@/shared/a
 import { ApiResult } from "@/shared/lib/api-result";
 import { cartPricingQueryKey } from "@/shared/lib/query-keys";
 
+import { useAnalytics } from "../lib/analytics";
+
 type UseCreateOrderMutationOptions = {
   onSuccess?: (_order: OrderDTO | undefined) => void;
 };
 
 export function useCreateOrderMutation(options: UseCreateOrderMutationOptions = {}) {
   const queryClient = useQueryClient();
+  const analytics = useAnalytics();
   const {
     mutate: createOrderMutation,
     mutateAsync: createOrderMutationAsync,
@@ -22,6 +25,7 @@ export function useCreateOrderMutation(options: UseCreateOrderMutationOptions = 
     mutationFn: async (input: CreateOrderInputDTO) =>
       ApiResult.fromDTO(await createOrder(input)).unwrap(),
     onSuccess: (order) => {
+      analytics.orderCreated(order);
       queryClient.setQueryData(cartQuery.getCart().queryKey, null);
       void queryClient.invalidateQueries({ queryKey: cartPricingQueryKey });
       options.onSuccess?.(order);

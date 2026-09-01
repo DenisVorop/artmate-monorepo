@@ -4,8 +4,20 @@ import { useQuery } from "@tanstack/react-query";
 
 import { cartQuery } from "./query";
 
-export function useCartData() {
-  const { data, isError, isPending } = useQuery(cartQuery.getCart());
+type UseCartDataOptions = {
+  refreshOnMount?: boolean;
+};
 
-  return { data, isError, isPending };
+export function useCartData({ refreshOnMount = false }: UseCartDataOptions = {}) {
+  const { data, isError, isFetchedAfterMount, isPending, isSuccess } = useQuery({
+    ...cartQuery.getCart(),
+    ...(refreshOnMount
+      ? {
+          refetchOnMount: "always" as const,
+          retryOnMount: true,
+        }
+      : {}),
+  });
+
+  return { data, isError, isFetchedAfterMount, isPending, isSuccess };
 }

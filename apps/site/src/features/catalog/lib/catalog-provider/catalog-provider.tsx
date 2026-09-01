@@ -10,13 +10,21 @@ import {
   normalizeCategoryId,
   type SortValue,
 } from "../catalog-state";
-import { CatalogContext, type CatalogContextValue } from "./catalog.context";
+import {
+  CatalogContext,
+  type CatalogContextValue,
+  type CatalogProductPlacement,
+} from "./catalog.context";
 
 type CatalogProviderProps = {
   categories: ProductCategory[];
   products: Product[];
   initialCategoryId?: string;
-  renderProductCard?: (_product: Product, _index: number) => ReactNode;
+  renderProductCard?: (
+    _product: Product,
+    _index: number,
+    _placement: CatalogProductPlacement,
+  ) => ReactNode;
   children: ReactNode;
 };
 

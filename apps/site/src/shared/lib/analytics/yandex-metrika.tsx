@@ -1,6 +1,7 @@
 import { Suspense } from "react";
 import Script from "next/script";
 
+import { YandexMetrikaInitializer } from "./yandex-metrika-initializer";
 import { YandexMetrikaPageView } from "./yandex-metrika-page-view";
 
 export function YandexMetrika() {
@@ -27,17 +28,6 @@ export function YandexMetrika() {
               }
               k=e.createElement(t),a=e.getElementsByTagName(t)[0],k.async=1,k.src=r,a.parentNode.insertBefore(k,a)
             })(window, document, 'script', 'https://mc.yandex.ru/metrika/tag.js?id=${counterId}', 'ym');
-
-            ym(${counterId}, 'init', {
-              ssr: true,
-              webvisor: true,
-              clickmap: true,
-              ecommerce: 'dataLayer',
-              referrer: document.referrer,
-              url: location.href,
-              accurateTrackBounce: true,
-              trackLinks: true
-            });
           `,
         }}
       />
@@ -51,6 +41,7 @@ export function YandexMetrika() {
           />
         </div>
       </noscript>
+      <YandexMetrikaInitializer counterId={counterId} />
       <Suspense fallback={null}>
         <YandexMetrikaPageView counterId={counterId} />
       </Suspense>

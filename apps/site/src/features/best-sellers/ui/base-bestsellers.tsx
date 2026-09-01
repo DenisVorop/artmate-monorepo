@@ -10,14 +10,10 @@ import { SectionLabel, SectionTitle } from "@/shared/ui/typography";
 type BaseBestsellersProps = {
   products: Product[];
   className?: string;
-  renderProductCard?: (_product: Product) => ReactNode;
+  renderProductCard?: (_product: Product, _index: number) => ReactNode;
 };
 
-export function BaseBestsellers({
-  products,
-  className,
-  renderProductCard,
-}: BaseBestsellersProps) {
+export function BaseBestsellers({ products, className, renderProductCard }: BaseBestsellersProps) {
   const bestsellers = products.filter((product) => product.isHit).slice(0, 4);
 
   return (
@@ -48,11 +44,7 @@ export function BaseBestsellers({
             <SectionTitle id="best-sellers-title">Хиты продаж</SectionTitle>
           </div>
 
-          <Button
-            asChild
-            size="lg"
-            className={catalogButtonClassName}
-          >
+          <Button asChild size="lg" className={catalogButtonClassName}>
             <CtaGradientLink href={routes.catalog}>
               Весь каталог
               <ArrowRight
@@ -65,9 +57,13 @@ export function BaseBestsellers({
 
         {bestsellers.length > 0 ? (
           <ul className="grid gap-5 sm:grid-cols-2 lg:grid-cols-3 xl:grid-cols-4">
-            {bestsellers.map((product) => (
+            {bestsellers.map((product, index) => (
               <li key={product.id} className="h-full">
-                {renderProductCard ? renderProductCard(product) : <ProductCard product={product} />}
+                {renderProductCard ? (
+                  renderProductCard(product, index)
+                ) : (
+                  <ProductCard product={product} />
+                )}
               </li>
             ))}
           </ul>

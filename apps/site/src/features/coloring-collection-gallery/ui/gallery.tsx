@@ -23,6 +23,8 @@ import {
 import { Link } from "@/shared/ui/link";
 import { PageTitle, SectionSubtitle } from "@/shared/ui/typography";
 
+import { useTrackOpen } from "../lib/use-track-open";
+
 type ColoringCollectionGalleryProps = {
   slug: string;
   workshopAction?: ReactNode;
@@ -33,6 +35,7 @@ export function ColoringCollectionGallery({
   workshopAction,
 }: ColoringCollectionGalleryProps) {
   const { collection, isError, isPending, refetch } = useColoringCollectionData(slug);
+  useTrackOpen(!isPending && !isError ? collection?.slug : undefined);
 
   if (isPending) {
     return (

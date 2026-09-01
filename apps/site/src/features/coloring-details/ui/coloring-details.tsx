@@ -5,6 +5,7 @@ import type { ReactNode } from "react";
 import { useColoringData } from "@/entities/coloring";
 import { Button, DataState } from "@/shared/ui";
 
+import { useTrackOpen } from "../lib/use-track-open";
 import { ComparisonViewer } from "./comparison-viewer";
 import { Hero } from "./hero";
 import { PaletteSection } from "./palette-section";
@@ -26,6 +27,10 @@ export function ColoringDetails({
     collectionSlug,
     number,
     publishedRevisionId,
+  );
+  useTrackOpen(
+    !isPending && !isError ? coloring?.collection.slug : undefined,
+    !isPending && !isError ? coloring?.number : undefined,
   );
 
   if (isPending) {

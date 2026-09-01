@@ -3,12 +3,11 @@
 import { useEffect, useRef } from "react";
 import { usePathname, useSearchParams } from "next/navigation";
 
+import type { AnalyticsWindow } from "./types";
+import { sanitizeAnalyticsUrl } from "./sanitize-analytics-url";
+
 type YandexMetrikaPageViewProps = {
   readonly counterId: number;
-};
-
-type YandexMetrikaWindow = Window & {
-  ym?: (..._args: unknown[]) => void;
 };
 
 export function YandexMetrikaPageView({ counterId }: YandexMetrikaPageViewProps) {
@@ -17,7 +16,11 @@ export function YandexMetrikaPageView({ counterId }: YandexMetrikaPageViewProps)
   const currentUrlRef = useRef<string | null>(null);
 
   useEffect(() => {
-    const currentUrl = window.location.href;
+    const currentUrl = sanitizeAnalyticsUrl(window.location.href);
+
+    if (!currentUrl) {
+      return;
+    }
 
     if (currentUrlRef.current === null) {
       currentUrlRef.current = currentUrl;
@@ -28,8 +31,16 @@ export function YandexMetrikaPageView({ counterId }: YandexMetrikaPageViewProps)
       return;
     }
 
+    const previousUrl = currentUrlRef.current;
     currentUrlRef.current = currentUrl;
-    (window as YandexMetrikaWindow).ym?.(counterId, "hit", currentUrl);
+
+    try {
+      (window as AnalyticsWindow).ym?.(counterId, "hit", currentUrl, {
+        referer: previousUrl,
+      });
+    } catch {
+      // Third-party analytics must not interrupt SPA navigation.
+    }
   }, [counterId, pathname, searchParams]);
 
   return null;

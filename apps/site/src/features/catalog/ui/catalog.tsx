@@ -45,8 +45,13 @@ export function Catalog({ initialCategoryId }: CatalogProps) {
       categories={data.categories}
       products={data.products}
       initialCategoryId={initialCategoryId}
-      renderProductCard={(product, index) => (
-        <CartProductCard product={product} eagerImage={index === 0} />
+      renderProductCard={(product, index, placement) => (
+        <CartProductCard
+          product={product}
+          eagerImage={index === 0}
+          list={placement}
+          position={index + 1}
+        />
       )}
     />
   );

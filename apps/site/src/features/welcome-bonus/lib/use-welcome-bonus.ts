@@ -14,6 +14,7 @@ import { useCookieConsent } from "@/shared/lib/cookie-consent";
 import { getQueryOwner } from "@/shared/lib/query-keys";
 
 import { isWelcomeBonusPathEligible } from "./eligibility";
+import { useAnalytics } from "./analytics";
 import { createMoscowDayRollover } from "./moscow-day-rollover";
 import { getMoscowDayKey } from "./moscow-day";
 import {
@@ -36,14 +37,11 @@ const getClientSnapshot = () => true;
 const getServerSnapshot = () => false;
 
 export function useWelcomeBonus() {
+  const analytics = useAnalytics();
   const pathname = usePathname();
   const { isPending: isSessionPending, user } = useSession();
   const { isAccepted: isCookieConsentAccepted } = useCookieConsent();
-  const isClient = useSyncExternalStore(
-    subscribeHydration,
-    getClientSnapshot,
-    getServerSnapshot,
-  );
+  const isClient = useSyncExternalStore(subscribeHydration, getClientSnapshot, getServerSnapshot);
   const [state, setState] = useState<WelcomeBonusLifecycleState>("idle");
   const [moscowDayKey, setMoscowDayKey] = useState<string>();
   const [expiryCheckVersion, rerenderAtExpiry] = useState(0);
@@ -59,15 +57,12 @@ export function useWelcomeBonus() {
   const hasWelcomeBonusFlag = Boolean(bannersBySlug[featureBannerSlugs.welcomeBonus]);
   const canStart = Boolean(
     isClient &&
-      moscowDayKey &&
-      !wasWelcomeBonusShownToday(moscowDayKey) &&
-      !wasWelcomeBonusDismissedToday(moscowDayKey),
+    moscowDayKey &&
+    !wasWelcomeBonusShownToday(moscowDayKey) &&
+    !wasWelcomeBonusDismissedToday(moscowDayKey),
   );
   const isBaseEligible =
-    !isSessionPending &&
-    isCookieConsentAccepted &&
-    isPathEligible &&
-    hasWelcomeBonusFlag;
+    !isSessionPending && isCookieConsentAccepted && isPathEligible && hasWelcomeBonusFlag;
   const shouldRequestOffer = shouldRequestWelcomeOffer({
     canStart,
     isBaseEligible,
@@ -78,7 +73,16 @@ export function useWelcomeBonus() {
     owner,
   });
   const isAuthoritativelyEligible = isBaseEligible && Boolean(offer);
+  const isPresented = state === "presented" && isAuthoritativelyEligible;
   isAuthoritativelyEligibleRef.current = isAuthoritativelyEligible;
+
+  useEffect(() => {
+    if (!isPresented || !moscowDayKey || !offer) {
+      return;
+    }
+
+    analytics.promotionPresented({ dayKey: moscowDayKey, offer });
+  }, [analytics, isPresented, moscowDayKey, offer]);
 
   useEffect(() => {
     const rollover = createMoscowDayRollover({
@@ -116,8 +120,7 @@ export function useWelcomeBonus() {
         canPresentWelcomeBonusNow({
           isDismissedToday: wasWelcomeBonusDismissedToday(moscowDayKey),
           isEligible:
-            getMoscowDayKey(Date.now()) === moscowDayKey &&
-            isAuthoritativelyEligibleRef.current,
+            getMoscowDayKey(Date.now()) === moscowDayKey && isAuthoritativelyEligibleRef.current,
           wasShownToday: wasWelcomeBonusShownToday(moscowDayKey),
         }),
       markShown: () => markWelcomeBonusShownToday(moscowDayKey),
@@ -175,8 +178,15 @@ export function useWelcomeBonus() {
   }, [expiryCheckVersion, offer?.endsAt]);
 
   return {
+    activate: () => {
+      if (isPresented && moscowDayKey && offer) {
+        analytics.promotionClicked({ dayKey: moscowDayKey, offer });
+      }
+
+      lifecycleRef.current?.dismiss();
+    },
     dismiss: () => lifecycleRef.current?.dismiss(),
-    isPresented: state === "presented" && isAuthoritativelyEligible,
+    isPresented,
     offer,
   };
 }

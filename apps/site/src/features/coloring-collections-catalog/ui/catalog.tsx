@@ -10,8 +10,11 @@ import { routes } from "@/shared/constants";
 import { AspectRatio, Button, DataState } from "@/shared/ui";
 import { Link } from "@/shared/ui/link";
 
+import { useTrackOpen } from "../lib/use-track-open";
+
 export function ColoringCollectionsCatalog() {
   const { collections, isError, isPending, refetch } = useColoringCollectionsData();
+  useTrackOpen(!isPending && !isError && Boolean(collections));
 
   if (isPending) {
     return (

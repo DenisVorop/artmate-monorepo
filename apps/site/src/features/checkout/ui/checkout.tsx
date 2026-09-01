@@ -1,10 +1,10 @@
 "use client";
 
 import { ArrowLeft, ShoppingBag } from "lucide-react";
-import { useMemo, useState } from "react";
+import { useEffect, useMemo, useState } from "react";
 import { useRouter } from "next/navigation";
 
-import type { Cart } from "@/entities/cart";
+import type { Cart, CartResult } from "@/entities/cart";
 import { useCartData } from "@/entities/cart";
 import { getPreferredCustomerPhone, useOrdersData } from "@/entities/orders";
 import { useUser } from "@/entities/session";
@@ -31,26 +31,23 @@ import {
   type CheckoutOrder,
   transitionCheckoutAuthConfirmation,
 } from "../lib";
+import { useTrackCheckoutStart } from "../lib/use-track-checkout-start";
 
 import { CheckoutFlow } from "./checkout-flow";
 
 type AuthDialogDefaults = Pick<CheckoutCustomerDefaults, "email" | "name">;
 
 export function Checkout() {
-  const cart = useCartData();
+  const cart = useCartData({ refreshOnMount: true });
+  const [verifiedCart, setVerifiedCart] = useState<CartResult | undefined>(undefined);
 
-  if (cart.isPending) {
-    return (
-      <section className="container py-10">
-        <DataState
-          title="Готовим оформление"
-          description="Проверяем товары в корзине перед отправкой заказа."
-        />
-      </section>
-    );
-  }
+  useEffect(() => {
+    if (cart.isFetchedAfterMount && cart.isSuccess) {
+      setVerifiedCart(cart.data ?? null);
+    }
+  }, [cart.data, cart.isFetchedAfterMount, cart.isSuccess]);
 
-  if (cart.isError) {
+  if (verifiedCart === undefined && cart.isFetchedAfterMount && cart.isError) {
     return (
       <section className="container py-10">
         <DataState
@@ -62,7 +59,18 @@ export function Checkout() {
     );
   }
 
-  if (!cart.data || cart.data.items.length === 0) {
+  if (verifiedCart === undefined) {
+    return (
+      <section className="container py-10">
+        <DataState
+          title="Готовим оформление"
+          description="Проверяем товары в корзине перед отправкой заказа."
+        />
+      </section>
+    );
+  }
+
+  if (!verifiedCart || verifiedCart.items.length === 0) {
     return (
       <section className="container py-10">
         <DataState
@@ -81,10 +89,11 @@ export function Checkout() {
     );
   }
 
-  return <LoadedCheckout cart={cart.data} />;
+  return <LoadedCheckout cart={verifiedCart} />;
 }
 
 function LoadedCheckout({ cart }: { cart: Cart }) {
+  useTrackCheckoutStart(cart);
   const [authDialogDefaults, setAuthDialogDefaults] = useState<AuthDialogDefaults>();
   const [isAuthDialogOpen, setIsAuthDialogOpen] = useState(false);
   const [authConfirmationState, setAuthConfirmationState] =

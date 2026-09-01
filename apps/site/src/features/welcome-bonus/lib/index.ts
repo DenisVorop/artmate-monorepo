@@ -1,4 +1,5 @@
 export { isWelcomeBonusPathEligible } from "./eligibility";
+export { useAnalytics } from "./analytics";
 export { createForegroundTimer } from "./foreground-timer";
 export { getMoscowDayKey, getMsUntilNextMoscowDay } from "./moscow-day";
 export { createMoscowDayRollover } from "./moscow-day-rollover";

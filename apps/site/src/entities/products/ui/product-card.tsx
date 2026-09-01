@@ -1,5 +1,5 @@
 import Image from "next/image";
-import type { ReactNode } from "react";
+import type { MouseEventHandler, ReactNode } from "react";
 
 import { Badge } from "@/shared/ui";
 import { routes } from "@/shared/constants";
@@ -16,6 +16,7 @@ interface ProductCardProps {
   mediaAction?: ReactNode;
   mediaActionViewport?: "all" | "desktop";
   mediaActionVisibility?: "always" | "hover";
+  onOpen?: MouseEventHandler<HTMLAnchorElement>;
 }
 
 export function ProductCard({
@@ -25,6 +26,7 @@ export function ProductCard({
   mediaAction,
   mediaActionViewport = "all",
   mediaActionVisibility = "hover",
+  onOpen,
 }: ProductCardProps) {
   const price = product.price.toLocaleString("ru-RU");
   const productHref = routes.product(product.categorySlug, product.slug);
@@ -33,7 +35,7 @@ export function ProductCard({
   return (
     <Card className="group/product h-full gap-0 py-0 transition-shadow duration-300 hover:shadow-md">
       <div className="relative">
-        <Link href={productHref} className="block overflow-hidden bg-muted">
+        <Link href={productHref} className="block overflow-hidden bg-muted" onClick={onOpen}>
           <AspectRatio ratio={3 / 4} className="relative">
             <Image
               fill
@@ -74,7 +76,11 @@ export function ProductCard({
           </CardDescription>
         )}
         <CardTitle role="heading" aria-level={3} className="font-display leading-snug font-bold">
-          <Link href={productHref} className="text-stone-900 transition-colors hover:text-rose-500">
+          <Link
+            href={productHref}
+            className="text-stone-900 transition-colors hover:text-rose-500"
+            onClick={onOpen}
+          >
             {product.title}
           </Link>
         </CardTitle>

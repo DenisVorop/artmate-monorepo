@@ -17,7 +17,7 @@ export function List() {
           {filteredProducts.map((product, index) => (
             <li key={product.id} className="h-full">
               {renderProductCard ? (
-                renderProductCard(product, index)
+                renderProductCard(product, index, "catalog")
               ) : (
                 <ProductCard product={product} eagerImage={index === 0} />
               )}
@@ -45,7 +45,7 @@ export function List() {
                 {suggestedProducts.map((product, index) => (
                   <li key={product.id} className="h-full">
                     {renderProductCard ? (
-                      renderProductCard(product, index)
+                      renderProductCard(product, index, "catalog_search_suggestions")
                     ) : (
                       <ProductCard product={product} />
                     )}
