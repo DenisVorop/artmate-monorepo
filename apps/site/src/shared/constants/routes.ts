@@ -40,6 +40,7 @@ export const routes = {
   paymentAndDelivery: "/payment-and-delivery",
   contacts: "/contacts",
   faq: "/faq",
+  partners: "/partners",
   product: (categorySlug: string | undefined, productSlug: string) =>
     categorySlug
       ? `/catalog/raskraski/${categorySlug}/${productSlug}`

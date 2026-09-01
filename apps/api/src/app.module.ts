@@ -15,6 +15,7 @@ import { DeliveryModule } from "./delivery/delivery.module";
 import { FeatureBannersModule } from "./feature-banners/feature-banners.module";
 import { OrdersModule } from "./orders/orders.module";
 import { OzonModule } from "./ozon/ozon.module";
+import { PartnerApplicationsModule } from "./partner-applications/partner-applications.module";
 import { PrismaModule } from "./prisma/prisma.module";
 import { ProductsModule } from "./products/products.module";
 import { PromocodesModule } from "./promocodes/promocodes.module";
@@ -36,6 +37,7 @@ import { UsersModule } from "./users/users.module";
     OzonModule,
     DeliveryModule,
     ContactsModule,
+    PartnerApplicationsModule,
     SeoModule,
     ContentAssistantModule,
     FeatureBannersModule,
