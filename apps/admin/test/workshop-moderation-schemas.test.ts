@@ -27,6 +27,7 @@ const queueItem = {
   },
   coloring: { id: "coloring-1", number: 12, title: "Лис" },
   suspectedOfficialCopy: false,
+  isPublishedRevision: false,
 };
 
 test("workshop moderation queue schema is strict and bounded", () => {
@@ -108,6 +109,7 @@ test("moderation detail accepts the exact backend response shape", () => {
     decisionHistory: [
       {
         id: "44444444444444444444444444444444",
+        revisionId: "11111111111111111111111111111111",
         decision: "SUBMITTED",
         actor: { id: "user-1", name: "Анна" },
         createdAt: "2026-09-01T10:00:00.000Z",
@@ -148,6 +150,13 @@ test("request changes and hide decisions require a bounded reason", () => {
   assert.equal(
     workshopModerationDecisionSchema.safeParse({ decision: "APPROVE" }).success,
     true,
+  );
+  assert.equal(
+    workshopModerationDecisionSchema.safeParse({
+      decision: "REQUEST_CHANGES",
+      reason: "Исправьте подпись\nhttps://spam.example",
+    }).success,
+    false,
   );
   assert.equal(
     workshopModerationReasonFormSchema.safeParse({

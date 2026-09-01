@@ -408,7 +408,10 @@ function DecisionActions({
 }: {
   readonly detail: WorkshopModerationDetailModel;
 }) {
-  if (detail.status !== "PENDING" && detail.status !== "APPROVED") {
+  if (
+    detail.status !== "PENDING" &&
+    !(detail.status === "APPROVED" && detail.isPublishedRevision)
+  ) {
     return null;
   }
 

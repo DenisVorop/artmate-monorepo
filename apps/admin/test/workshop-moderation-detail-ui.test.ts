@@ -28,6 +28,7 @@ test("detail shows suspected-copy warning and required admin links", () => {
   assert.match(detail, /Подозрение на копию официальной версии/);
   assert.match(detail, /routes\.users\}\?userId=/);
   assert.match(detail, /routes\.digitalVersionColoring\(/);
+  assert.match(detail, /detail\.isPublishedRevision/);
 });
 
 test("reason form resets after success and when a cancelled dialog closes", () => {
