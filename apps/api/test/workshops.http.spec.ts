@@ -42,9 +42,11 @@ const usersService = {
   },
 };
 let revisionCalls = 0;
+let latestRevisionArguments: unknown[] = [];
 const workshopService = {
-  createRevision: async () => {
+  createRevision: async (...arguments_: unknown[]) => {
     revisionCalls += 1;
+    latestRevisionArguments = arguments_;
     return workResponse();
   },
   getOwnerAsset: async (userId: string, revisionId: string) => {
@@ -179,6 +181,117 @@ describe("Workshop HTTP security contract", () => {
     assert.equal(revisionCalls, callsBefore);
   });
 
+  it("rejects missing or invalid required nested multipart payloads", async () => {
+    const callsBefore = revisionCalls;
+    const formDataWithPayload = (payload: unknown) => {
+      const body = new FormData();
+      body.set("payload", JSON.stringify(payload));
+      return body;
+    };
+    const bodies = [
+      new FormData(),
+      formDataWithPayload({
+        intent: "DRAFT",
+        materials: [{ toolId: "a".repeat(32) }],
+        symbolMappings: [],
+      }),
+      formDataWithPayload([]),
+      formDataWithPayload({
+        intent: "DRAFT",
+        crop: [],
+        materials: [{ toolId: "a".repeat(32) }],
+        symbolMappings: [],
+      }),
+      formDataWithPayload({
+        intent: "DRAFT",
+        crop: { rotation: 0, zoom: 1, x: 0, y: 0 },
+        materials: [[]],
+        symbolMappings: [],
+      }),
+      formDataWithPayload({
+        intent: "DRAFT",
+        crop: { rotation: 0, zoom: 1, x: 0, y: 0 },
+        materials: [{ toolId: "a".repeat(32) }],
+        symbolMappings: [[]],
+      }),
+    ];
+
+    for (const body of bodies) {
+      const response = await fetch(
+        `${baseUrl}/workshops/me/collections/forest/colorings/01/revisions`,
+        {
+          method: "POST",
+          headers: {
+            authorization: "Bearer customer-token",
+            "x-artmate-csrf": "1",
+          },
+          body,
+        },
+      );
+
+      assert.equal(response.status, 400);
+    }
+
+    assert.equal(revisionCalls, callsBefore);
+  });
+
+  it("parses and validates a valid nested multipart revision payload", async () => {
+    const callsBefore = revisionCalls;
+    const body = new FormData();
+    body.set(
+      "payload",
+      JSON.stringify({
+        intent: "DRAFT",
+        caption: "  My finished work  ",
+        advertisingConsent: false,
+        crop: { rotation: 90, zoom: 1.25, x: -0.5, y: 0.5 },
+        materials: [{ toolId: "a".repeat(32) }],
+        symbolMappings: [
+          {
+            symbol: " A ",
+            materialPosition: 1,
+            markerNumber: " 001-A ",
+            officialMarkerColorId: "marker-color-001",
+          },
+        ],
+      }),
+    );
+
+    const response = await fetch(
+      `${baseUrl}/workshops/me/collections/forest/colorings/01/revisions`,
+      {
+        method: "POST",
+        headers: {
+          authorization: "Bearer customer-token",
+          "x-artmate-csrf": "1",
+        },
+        body,
+      },
+    );
+
+    assert.equal(response.status, 201);
+    assert.equal(revisionCalls, callsBefore + 1);
+    assert.equal(latestRevisionArguments[0], "customer-1");
+    assert.equal(latestRevisionArguments[1], "forest");
+    assert.equal(latestRevisionArguments[2], 1);
+    assert.deepEqual(JSON.parse(JSON.stringify(latestRevisionArguments[3])), {
+      intent: "DRAFT",
+      caption: "My finished work",
+      advertisingConsent: false,
+      crop: { rotation: 90, zoom: 1.25, x: -0.5, y: 0.5 },
+      materials: [{ toolId: "a".repeat(32) }],
+      symbolMappings: [
+        {
+          symbol: "A",
+          materialPosition: 1,
+          markerNumber: "001-A",
+          officialMarkerColorId: "marker-color-001",
+        },
+      ],
+    });
+    assert.equal(latestRevisionArguments[4], undefined);
+  });
+
   it("enforces admin role and CSRF before moderation transitions", async () => {
     const url = `${baseUrl}/admin/workshop-moderation/${"a".repeat(32)}/decision`;
     const body = JSON.stringify({ decision: "APPROVE" });
@@ -218,7 +331,9 @@ describe("Workshop HTTP security contract", () => {
 
   it("exposes published revision state in moderation list and detail", async () => {
     const headers = { authorization: "Bearer admin-token" };
-    const list = await fetch(`${baseUrl}/admin/workshop-moderation`, { headers });
+    const list = await fetch(`${baseUrl}/admin/workshop-moderation`, {
+      headers,
+    });
     const detail = await fetch(
       `${baseUrl}/admin/workshop-moderation/${"a".repeat(32)}`,
       { headers },
