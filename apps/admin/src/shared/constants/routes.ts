@@ -29,4 +29,7 @@ export const routes = {
   promoCodes: "/promocodes",
   seo: "/seo",
   users: "/users",
+  workshopModeration: "/workshop-moderation",
+  workshopModerationRevision: (revisionId: string) =>
+    `/workshop-moderation/${revisionId}`,
 } as const;

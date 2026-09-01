@@ -53,10 +53,17 @@ import {
 
 type UsersManagementProps = {
   readonly currentUserId: string;
+  readonly selectedUserId?: string;
 };
 
-export function UsersManagement({ currentUserId }: UsersManagementProps) {
+export function UsersManagement({
+  currentUserId,
+  selectedUserId,
+}: UsersManagementProps) {
   const { isError, isPending, users } = useUsers();
+  const visibleUsers = selectedUserId
+    ? users.filter(({ id }) => id === selectedUserId)
+    : users;
 
   if (isError) {
     return (
@@ -88,12 +95,12 @@ export function UsersManagement({ currentUserId }: UsersManagementProps) {
         <CardAction>
           <Badge variant="secondary">
             <UserRound data-icon="inline-start" aria-hidden="true" />
-            {users.length}
+            {visibleUsers.length}
           </Badge>
         </CardAction>
       </CardHeader>
       <CardContent>
-        {users.length > 0 ? (
+        {visibleUsers.length > 0 ? (
           <Table>
             <TableHeader>
               <TableRow>
@@ -107,7 +114,7 @@ export function UsersManagement({ currentUserId }: UsersManagementProps) {
               </TableRow>
             </TableHeader>
             <TableBody>
-              {users.map((user) => (
+              {visibleUsers.map((user) => (
                 <UsersTableRow
                   currentUserId={currentUserId}
                   key={user.id}
