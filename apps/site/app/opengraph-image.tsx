@@ -218,7 +218,7 @@ export default async function Image() {
                 fontWeight: 700,
               }}
             >
-              5 500+ отзывов на&nbsp;Ozon и&nbsp;Wildberries
+              7 000+ отзывов на&nbsp;Ozon и&nbsp;Wildberries
             </div>
           </div>
         </div>
@@ -346,7 +346,7 @@ export default async function Image() {
               Уже раскрасили
             </span>
             <span style={{ fontSize: "30px", color: "#1c1917", fontWeight: 900 }}>
-              33 000+ человек
+              44 000+ человек
             </span>
           </div>
         </div>
