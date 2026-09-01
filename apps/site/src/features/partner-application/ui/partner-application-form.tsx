@@ -140,8 +140,11 @@ export function PartnerApplicationForm() {
   };
 
   return (
-    <section id="partner-application" className="scroll-mt-28 px-4 pb-20 sm:pb-24 lg:pb-32">
-      <div className="relative container overflow-hidden rounded-[2rem] bg-neutral-950 text-white shadow-2xl shadow-rose-950/10 sm:rounded-[2.5rem]">
+    <section
+      id="partner-application"
+      className="scroll-mt-28 px-0 pb-20 sm:px-4 sm:pb-24 lg:pb-32"
+    >
+      <div className="relative container overflow-hidden rounded-none bg-neutral-950 text-white shadow-2xl shadow-rose-950/10 sm:rounded-[2.5rem]">
         <div
           aria-hidden
           className="pointer-events-none absolute inset-0 [background-image:linear-gradient(rgba(255,255,255,0.08)_1px,transparent_1px),linear-gradient(90deg,rgba(255,255,255,0.08)_1px,transparent_1px)] [background-size:44px_44px] opacity-25"
@@ -155,7 +158,7 @@ export function PartnerApplicationForm() {
           className="pointer-events-none absolute -right-32 -bottom-44 size-[28rem] rounded-full bg-violet-500/25 blur-3xl"
         />
 
-        <div className="relative grid gap-10 px-5 py-8 sm:px-8 sm:py-10 lg:grid-cols-[0.78fr_1.22fr] lg:gap-14 lg:px-12 lg:py-14 xl:px-16 xl:py-16">
+        <div className="relative grid gap-10 px-0 py-8 sm:px-8 sm:py-10 lg:grid-cols-[0.78fr_1.22fr] lg:gap-14 lg:px-12 lg:py-14 xl:px-16 xl:py-16">
           <div className="flex flex-col justify-between gap-10 lg:py-4">
             <div className="space-y-6">
               <span className="inline-flex w-fit items-center gap-2 rounded-full border border-white/15 bg-white/8 px-3 py-1.5 text-xs font-semibold tracking-[0.16em] text-rose-100 uppercase backdrop-blur">

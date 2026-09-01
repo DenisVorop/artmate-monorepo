@@ -6,9 +6,9 @@ import { Reveal } from "./reveal";
 
 export function FinalCta() {
   return (
-    <section className="container pb-16 md:pb-24" aria-labelledby="partner-final-cta-title">
+    <section className="pb-16 sm:container md:pb-24" aria-labelledby="partner-final-cta-title">
       <Reveal>
-        <div className="relative isolate overflow-hidden rounded-[2.25rem] bg-linear-to-br from-stone-900 via-[#33232c] to-[#56283e] px-6 py-12 text-center text-white shadow-[0_30px_90px_rgba(48,31,39,0.2)] md:px-12 md:py-16">
+        <div className="relative isolate overflow-hidden rounded-none bg-linear-to-br from-stone-900 via-[#33232c] to-[#56283e] px-4 py-12 text-center text-white shadow-[0_30px_90px_rgba(48,31,39,0.2)] sm:rounded-[2.25rem] sm:px-6 md:px-12 md:py-16">
           <div
             aria-hidden
             className="absolute inset-0 [background-image:radial-gradient(circle_at_center,rgba(255,255,255,0.8)_1px,transparent_1px)] [mask-image:linear-gradient(to_right,transparent,black,transparent)] [background-size:24px_24px] opacity-20"
