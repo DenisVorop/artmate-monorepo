@@ -85,6 +85,22 @@ describe("WorkshopMediaService", () => {
     );
   });
 
+  it("accepts modern phone photos slightly above 24 megapixels", async () => {
+    const buffer = await sharp({
+      create: { width: 5712, height: 4284, channels: 3, background: "#5a79c8" },
+    })
+      .jpeg()
+      .toBuffer();
+    const result = await service.processPhoto(
+      { buffer, size: buffer.length, originalname: "iphone.jpg", mimetype: "image/jpeg" },
+      { rotation: 0, zoom: 1, x: 0, y: 0 },
+    );
+
+    assert.equal(result.sourceMime, "image/jpeg");
+    assert.equal(result.normalized.width, 1600);
+    assert.equal(result.normalized.height, 2000);
+  });
+
   it("flags a perceptually identical official image without rejecting it", async () => {
     const buffer = await sharp({
       create: { width: 800, height: 1000, channels: 3, background: "#336699" },
