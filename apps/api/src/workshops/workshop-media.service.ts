@@ -36,7 +36,8 @@ export type ProcessedWorkshopPhoto = {
 };
 
 const maxInputBytes = 10 * 1024 * 1024;
-const maxInputPixels = 24_000_000;
+const maxInputPixels = 32_000_000;
+const maxDecodePixels = 64_000_000;
 const maxInputSide = 8_000;
 const processingTimeoutSeconds = 20;
 
@@ -151,7 +152,7 @@ export class WorkshopMediaService {
     return sharp(buffer, {
       animated: true,
       failOn: "warning",
-      limitInputPixels: maxInputPixels,
+      limitInputPixels: maxDecodePixels,
       sequentialRead: true,
     }).timeout({ seconds: processingTimeoutSeconds });
   }
