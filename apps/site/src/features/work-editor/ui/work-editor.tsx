@@ -6,6 +6,7 @@ import {
   Camera,
   ChevronLeft,
   ChevronRight,
+  Info,
   Plus,
   RotateCw,
   ShieldCheck,
@@ -121,6 +122,15 @@ function EditorForm({
   onSuccess: () => void;
 }) {
   const [currentStep, setCurrentStep] = useState(0);
+  const [isMaterialsEditorOpen, setIsMaterialsEditorOpen] = useState(
+    Boolean(
+      data.work?.currentRevision?.materials.length ||
+      data.work?.currentRevision?.symbolMappings.length,
+    ),
+  );
+  const [isMappingEditorOpen, setIsMappingEditorOpen] = useState(
+    Boolean(data.work?.currentRevision?.symbolMappings.length),
+  );
   const [objectUrl, setObjectUrl] = useState<string>();
   const [serverError, setServerError] = useState<string>();
   const defaultValues = getEditorDefaultValues(data);
@@ -277,7 +287,9 @@ function EditorForm({
         setError(`mappings.${invalidMappingIndex}.markerNumber`, {
           message: "Выберите номер из официального каталога Artmate",
         });
-        setCurrentStep(3);
+        setIsMaterialsEditorOpen(true);
+        setIsMappingEditorOpen(true);
+        setCurrentStep(2);
         return;
       }
 
@@ -308,18 +320,22 @@ function EditorForm({
   }
 
   function onInvalid(formErrors: FieldErrors<WorkEditorFormValues>) {
+    if (formErrors.materials || formErrors.mappings) {
+      setIsMaterialsEditorOpen(true);
+    }
+
+    if (formErrors.mappings) {
+      setIsMappingEditorOpen(true);
+    }
+
     if (formErrors.photo) {
       setCurrentStep(0);
     } else if (formErrors.crop) {
       setCurrentStep(1);
-    } else if (formErrors.materials) {
+    } else if (formErrors.materials || formErrors.mappings || formErrors.caption) {
       setCurrentStep(2);
-    } else if (formErrors.mappings) {
+    } else if (formErrors.publicationConsent || formErrors.advertisingConsent) {
       setCurrentStep(3);
-    } else if (formErrors.caption) {
-      setCurrentStep(4);
-    } else if (formErrors.advertisingConsent) {
-      setCurrentStep(5);
     }
   }
 
@@ -332,7 +348,7 @@ function EditorForm({
         <PageTitle>{data.work ? "Обновить работу" : "Добавить работу"}</PageTitle>
         <p className="max-w-3xl text-stone-600">
           Загрузите фото уже раскрашенной физической картины. Это не редактор рисования: здесь можно
-          только подготовить фотографию и описать использованные материалы.
+          подготовить фотографию, а материалы и номера маркеров добавить по желанию.
         </p>
         {data.work?.publishedRevision ? (
           <Badge className="h-auto max-w-full justify-start bg-emerald-100 py-1 text-left leading-snug whitespace-normal text-emerald-800">
@@ -468,12 +484,45 @@ function EditorForm({
             ) : null}
 
             {currentStep === 2 ? (
-              <section className="space-y-6">
+              <section className="mx-auto max-w-2xl space-y-3">
+                <h2 className="text-xl font-bold">Подпись к работе</h2>
+                <Label htmlFor="work-caption">Необязательно</Label>
+                <Textarea
+                  id="work-caption"
+                  rows={7}
+                  maxLength={500}
+                  placeholder="Расскажите о процессе, бумаге или любимых сочетаниях…"
+                  aria-invalid={Boolean(errors.caption)}
+                  {...register("caption")}
+                />
+                <p className="text-sm text-stone-500">До 500 символов.</p>
+                {errors.caption?.message ? (
+                  <p className="text-sm text-destructive">{errors.caption.message}</p>
+                ) : null}
+                <div className="rounded-2xl border border-stone-200 bg-stone-50 p-4 text-sm leading-6 text-stone-700">
+                  <Info className="mb-2 size-5 text-rose-500" aria-hidden="true" />
+                  Материалы можно добавить по желанию. Они появятся рядом с опубликованной работой и
+                  помогут другим узнать, какими наборами вы пользовались.
+                </div>
+                <Button
+                  type="button"
+                  variant="outline"
+                  className="min-h-11"
+                  aria-expanded={isMaterialsEditorOpen}
+                  aria-controls="workshop-materials"
+                  onClick={() => setIsMaterialsEditorOpen((isOpen) => !isOpen)}
+                >
+                  {isMaterialsEditorOpen ? "Скрыть материалы" : "Добавить материалы"}
+                </Button>
+              </section>
+            ) : null}
+
+            {currentStep === 2 && isMaterialsEditorOpen ? (
+              <section id="workshop-materials" className="mt-8 space-y-6 border-t pt-8">
                 <div>
                   <h2 className="text-xl font-bold">Материалы</h2>
                   <p className="mt-1 text-sm text-stone-600">
-                    Добавьте все наборы, которые использовали. На следующем шаге материал выбирается
-                    отдельно для каждого цвета.
+                    Добавьте наборы, которые использовали в этой работе.
                   </p>
                 </div>
 
@@ -594,11 +643,31 @@ function EditorForm({
                 {typeof errors.materials?.message === "string" ? (
                   <p className="text-sm text-destructive">{errors.materials.message}</p>
                 ) : null}
+                <div className="rounded-2xl border border-blue-200 bg-blue-50 p-4 text-sm leading-6 text-blue-950">
+                  <Info className="mb-2 size-5 text-blue-600" aria-hidden="true" />
+                  <p className="font-bold">Зачем указывать номера маркеров?</p>
+                  <p className="mt-1">
+                    Они помогут другим сопоставить символы картины с использованными оттенками.
+                    Заполнять эти данные необязательно.
+                  </p>
+                </div>
+                <Button
+                  type="button"
+                  variant="outline"
+                  className="min-h-11"
+                  aria-expanded={isMappingEditorOpen}
+                  aria-controls="workshop-symbol-mappings"
+                  onClick={() => setIsMappingEditorOpen((isOpen) => !isOpen)}
+                >
+                  {isMappingEditorOpen
+                    ? "Скрыть соответствия маркеров"
+                    : "Добавить соответствия маркеров"}
+                </Button>
               </section>
             ) : null}
 
-            {currentStep === 3 ? (
-              <section className="space-y-5">
+            {currentStep === 2 && isMaterialsEditorOpen && isMappingEditorOpen ? (
+              <section id="workshop-symbol-mappings" className="mt-8 space-y-5 border-t pt-8">
                 <div>
                   <h2 className="text-xl font-bold">Соответствие символов</h2>
                   <p className="mt-1 text-sm text-stone-600">
@@ -620,7 +689,7 @@ function EditorForm({
                 ) : null}
                 {materials.length === 0 ? (
                   <p className="rounded-xl border border-amber-200 bg-amber-50 p-4 text-sm text-amber-950">
-                    Сначала добавьте хотя бы один материал на предыдущем шаге.
+                    Сначала добавьте хотя бы один материал выше.
                   </p>
                 ) : null}
                 <div className="grid gap-3 sm:grid-cols-2 lg:grid-cols-3">
@@ -763,34 +832,27 @@ function EditorForm({
               </section>
             ) : null}
 
-            {currentStep === 4 ? (
-              <section className="mx-auto max-w-2xl space-y-3">
-                <h2 className="text-xl font-bold">Подпись к работе</h2>
-                <Label htmlFor="work-caption">Необязательно</Label>
-                <Textarea
-                  id="work-caption"
-                  rows={7}
-                  maxLength={500}
-                  placeholder="Расскажите о процессе, бумаге или любимых сочетаниях…"
-                  aria-invalid={Boolean(errors.caption)}
-                  {...register("caption")}
-                />
-                <p className="text-sm text-stone-500">До 500 символов.</p>
-                {errors.caption?.message ? (
-                  <p className="text-sm text-destructive">{errors.caption.message}</p>
-                ) : null}
-              </section>
-            ) : null}
-
-            {currentStep === 5 ? (
+            {currentStep === 3 ? (
               <section className="mx-auto max-w-3xl space-y-5">
                 <div>
                   <h2 className="text-xl font-bold">Отправка на модерацию</h2>
                   <p className="mt-1 text-sm text-stone-600">
-                    Все фотографии проверяет модератор. После одобрения вы сможете опубликовать
-                    работу в открытой мастерской.
+                    Все фотографии проверяет модератор. Разрешите публикацию, чтобы после одобрения
+                    работа появилась автоматически — без отдельного действия.
                   </p>
                 </div>
+                <label className="flex min-h-11 items-start gap-3 rounded-xl border border-emerald-200 bg-emerald-50 p-4 text-sm leading-6 text-emerald-950">
+                  <input
+                    type="checkbox"
+                    className="mt-0.5 size-5 accent-emerald-600"
+                    {...register("publicationConsent")}
+                  />
+                  <span>
+                    <strong className="block">Опубликовать работу после модерации</strong>
+                    После одобрения она автоматически появится в открытой мастерской. Если
+                    мастерская закрыта, публикация дождётся её открытия.
+                  </span>
+                </label>
                 <label className="flex min-h-11 items-start gap-3 rounded-xl border border-rose-200 bg-rose-50 p-4 text-sm leading-6 text-rose-950">
                   <input
                     type="checkbox"
@@ -805,7 +867,7 @@ function EditorForm({
               </section>
             ) : null}
 
-            {currentStep === 6 ? (
+            {currentStep === 4 ? (
               <section className="grid gap-6 lg:grid-cols-[minmax(18rem,26rem)_minmax(0,1fr)] lg:items-start">
                 <PhotoPreview
                   objectUrl={objectUrl}
@@ -828,11 +890,13 @@ function EditorForm({
                     <div>
                       <dt className="text-sm text-stone-500">Материалы</dt>
                       <dd className="space-y-1 font-bold">
-                        {values.materials?.map((material, index) => (
-                          <span key={`${material?.type}-${index}`} className="block">
-                            {material?.brand} · {material?.line}
-                          </span>
-                        ))}
+                        {values.materials?.length
+                          ? values.materials.map((material, index) => (
+                              <span key={`${material?.type}-${index}`} className="block">
+                                {material?.brand} · {material?.line}
+                              </span>
+                            ))
+                          : "Не указаны"}
                       </dd>
                     </div>
                     <div>
@@ -847,6 +911,14 @@ function EditorForm({
                       <dd className="font-bold">
                         {values.mappings?.filter((item) => item.markerNumber?.trim()).length ?? 0}{" "}
                         из {data.coloring.officialRevision.palette.colors.length}
+                      </dd>
+                    </div>
+                    <div>
+                      <dt className="text-sm text-stone-500">После модерации</dt>
+                      <dd className="font-bold">
+                        {values.publicationConsent
+                          ? "Опубликовать автоматически"
+                          : "Оставить доступной только вам"}
                       </dd>
                     </div>
                   </dl>

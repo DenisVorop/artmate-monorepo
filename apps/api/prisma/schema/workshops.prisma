@@ -129,6 +129,8 @@ model WorkshopWorkRevision {
   caption               String?                @db.VarChar(500)
   advertisingConsent    Boolean                @default(false) @map("advertising_consent")
   advertisingConsentAt  DateTime?              @map("advertising_consent_at")
+  publicationConsent    Boolean                @default(false) @map("publication_consent")
+  publicationConsentAt  DateTime?              @map("publication_consent_at")
   cropRotation          Int                    @map("crop_rotation")
   cropZoom              Float                  @map("crop_zoom")
   cropX                 Float                  @map("crop_x")

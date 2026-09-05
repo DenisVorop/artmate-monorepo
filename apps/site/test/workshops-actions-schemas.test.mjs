@@ -102,6 +102,7 @@ test("workshop actions forward auth/IP, use no-store and add CSRF only to unsafe
     await actions.createMyWorkshopRevision("forest", 1, {
       photo: new File(["photo"], "work.webp", { type: "image/webp" }),
       caption: "Готовая работа",
+      publicationConsent: true,
       advertisingConsent: false,
       crop: { rotation: 90, zoom: 1.2, x: 0.1, y: -0.2 },
       materials: [{ toolId: "a".repeat(32) }],
@@ -147,6 +148,7 @@ test("workshop actions forward auth/IP, use no-store and add CSRF only to unsafe
         officialMarkerColorId: "marker-color-023",
       },
     ]);
+    assert.equal(payload.publicationConsent, true);
     assert.equal(payload.intent, undefined);
     assert.equal(payload.tool, undefined);
     assert.equal(payload.mappings, undefined);
@@ -268,6 +270,8 @@ test("bounded workshop read schemas accept needed fields and reject private stor
     crop: { rotation: 0, zoom: 1, x: 0, y: 0 },
     materials: [{ position: 19, type: "CUSTOM", brand: "Copic", line: "Sketch" }],
     symbolMappings: [{ symbol: "1", markerNumber: "023", materialPosition: 19 }],
+    publicationConsent: true,
+    publicationConsentAt: "2026-09-01T12:00:00.000Z",
     advertisingConsent: true,
     advertisingConsentAt: "2026-09-01T12:00:00.000Z",
     assets: {
@@ -281,6 +285,29 @@ test("bounded workshop read schemas accept needed fields and reject private stor
   };
 
   assert.equal(schemas.workshopRevisionSchema.safeParse(revision).success, true);
+  assert.equal(
+    schemas.workshopRevisionSchema.safeParse({
+      ...revision,
+      materials: [],
+      symbolMappings: [],
+    }).success,
+    true,
+  );
+  assert.equal(
+    schemas.workshopRevisionSchema.safeParse({
+      ...revision,
+      publicationConsentAt: undefined,
+    }).success,
+    false,
+  );
+  assert.equal(
+    schemas.workshopRevisionSchema.safeParse({
+      ...revision,
+      publicationConsent: false,
+      publicationConsentAt: undefined,
+    }).success,
+    true,
+  );
   assert.equal(
     schemas.workshopRevisionSchema.safeParse({
       ...revision,
@@ -323,6 +350,17 @@ test("public work schema matches nested moderated API payload and rejects privat
   };
 
   assert.equal(schemas.publicCommunityWorkSchema.safeParse(work).success, true);
+  assert.equal(
+    schemas.publicCommunityWorkSchema.safeParse({
+      ...work,
+      submission: {
+        ...work.submission,
+        materials: [],
+        symbolMappings: [],
+      },
+    }).success,
+    true,
+  );
   assert.equal(
     schemas.publicCommunityWorkSchema.safeParse({
       ...work,

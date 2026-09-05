@@ -92,9 +92,11 @@ export const workshopRevisionSchema = z
     sequence: z.number().int().positive(),
     status: z.enum(["PENDING", "APPROVED", "CHANGES_REQUESTED", "HIDDEN"]),
     crop: workshopCropSchema,
-    materials: z.array(workshopMaterialSchema).min(1).max(19),
+    materials: z.array(workshopMaterialSchema).max(19),
     symbolMappings: z.array(workshopMappingSchema).max(19),
     caption: z.string().max(500).optional(),
+    publicationConsent: z.boolean(),
+    publicationConsentAt: isoDate.optional(),
     advertisingConsent: z.boolean(),
     advertisingConsentAt: isoDate.optional(),
     assets: z
@@ -112,6 +114,14 @@ export const workshopRevisionSchema = z
   })
   .strict()
   .superRefine((revision, context) => {
+    if (revision.publicationConsent !== Boolean(revision.publicationConsentAt)) {
+      context.addIssue({
+        code: z.ZodIssueCode.custom,
+        message: "Дата согласия на публикацию не соответствует его значению",
+        path: ["publicationConsentAt"],
+      });
+    }
+
     if (revision.advertisingConsent !== Boolean(revision.advertisingConsentAt)) {
       context.addIssue({
         code: z.ZodIssueCode.custom,

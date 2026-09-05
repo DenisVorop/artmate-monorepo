@@ -13,6 +13,10 @@ const moderationMigrationPath = resolve(
   __dirname,
   "../prisma/migrations/20260901160000_enforce_workshop_moderation/migration.sql",
 );
+const publicationConsentMigrationPath = resolve(
+  __dirname,
+  "../prisma/migrations/20260905120000_add_workshop_publication_consent/migration.sql",
+);
 
 describe("Workshops migration", () => {
   it("enforces exact ownership, memberships, attempts and revision pointers", async () => {
@@ -288,7 +292,7 @@ describe("Workshops migration", () => {
     }
   });
 
-  it("binds advertising consent to submission time and permits 19 materials", async () => {
+  it("binds consent timestamps to submission time and permits 19 materials", async () => {
     const db = await createDatabase();
     const workId = "b".repeat(32);
     const revisionId = "d".repeat(32);
@@ -309,6 +313,7 @@ describe("Workshops migration", () => {
       `);
       await insertRevision(db, revisionId, workId, "coloring-1", undefined, 1, {
         advertisingConsent: true,
+        publicationConsent: true,
       });
       await db.exec(`
         INSERT INTO "revision_materials" (
@@ -322,14 +327,22 @@ describe("Workshops migration", () => {
       `);
 
       const consent = await db.query<{
-        consentAt: Date;
+        advertisingConsentAt: Date;
+        publicationConsentAt: Date;
         submittedAt: Date;
       }>(`
-        SELECT "advertising_consent_at" AS "consentAt", "submitted_at" AS "submittedAt"
+        SELECT
+          "advertising_consent_at" AS "advertisingConsentAt",
+          "publication_consent_at" AS "publicationConsentAt",
+          "submitted_at" AS "submittedAt"
         FROM "workshop_work_revisions" WHERE "id" = '${revisionId}'
       `);
       assert.equal(
-        consent.rows[0]?.consentAt.toISOString(),
+        consent.rows[0]?.advertisingConsentAt.toISOString(),
+        consent.rows[0]?.submittedAt.toISOString(),
+      );
+      assert.equal(
+        consent.rows[0]?.publicationConsentAt.toISOString(),
         consent.rows[0]?.submittedAt.toISOString(),
       );
       await assert.rejects(
@@ -344,6 +357,23 @@ describe("Workshops migration", () => {
           advertisingConsent: true,
           advertisingConsentAt: "2026-09-01T10:00:01.000Z",
         }),
+      );
+      await assert.rejects(
+        insertRevision(db, "f".repeat(32), workId, "coloring-1", undefined, 2, {
+          publicationConsent: true,
+          publicationConsentAt: "2026-09-01T10:00:01.000Z",
+        }),
+      );
+      await assert.rejects(
+        insertRevision(db, "1".repeat(32), workId, "coloring-1", undefined, 2, {
+          publicationConsent: false,
+          publicationConsentAt: "2026-09-01T10:00:00.000Z",
+        }),
+      );
+      await assert.rejects(
+        db.exec(
+          `UPDATE "workshop_work_revisions" SET "publication_consent" = false, "publication_consent_at" = NULL WHERE "id" = '${revisionId}'`,
+        ),
       );
     } finally {
       await db.close();
@@ -445,6 +475,7 @@ describe("Workshops migration", () => {
 async function createDatabase() {
   const db = await createBaseDatabase();
   await db.exec(await readFile(moderationMigrationPath, "utf8"));
+  await db.exec(await readFile(publicationConsentMigrationPath, "utf8"));
   return db;
 }
 
@@ -488,19 +519,26 @@ async function insertRevision(
   options: {
     advertisingConsent?: boolean;
     advertisingConsentAt?: string;
+    publicationConsent?: boolean;
+    publicationConsentAt?: string;
   } = {},
 ) {
   const checksum = "1".repeat(64);
   const source = "2".repeat(64);
   const advertisingConsent = options.advertisingConsent ?? false;
   const submittedAt = "2026-09-01T10:00:00.000Z";
-  const advertisingConsentAt = advertisingConsent
-    ? (options.advertisingConsentAt ?? submittedAt)
-    : null;
+  const advertisingConsentAt =
+    options.advertisingConsentAt ??
+    (advertisingConsent ? submittedAt : null);
+  const publicationConsent = options.publicationConsent ?? false;
+  const publicationConsentAt =
+    options.publicationConsentAt ??
+    (publicationConsent ? submittedAt : null);
   await db.exec(`
     INSERT INTO "workshop_work_revisions" (
       "id", "work_id", "coloring_id", "sequence", "official_revision_id",
       "status", "advertising_consent", "advertising_consent_at",
+      "publication_consent", "publication_consent_at",
       "crop_rotation", "crop_zoom", "crop_x", "crop_y",
       "source_mime", "source_checksum", "normalized_storage_key",
       "normalized_checksum", "normalized_byte_size", "normalized_width", "normalized_height",
@@ -510,6 +548,7 @@ async function insertRevision(
     ) VALUES (
       '${revisionId}', '${workId}', '${coloringId}', ${sequence}, '${officialRevisionId}',
       'pending', ${advertisingConsent}, ${advertisingConsentAt ? `'${advertisingConsentAt}'` : "NULL"},
+      ${publicationConsent}, ${publicationConsentAt ? `'${publicationConsentAt}'` : "NULL"},
       0, 1, 0, 0, 'image/jpeg', '${source}',
       '${workId}/${revisionId}/normalized-${checksum}.webp', '${checksum}', 10, 800, 1000,
       '${workId}/${revisionId}/web-${checksum}.webp', '${checksum}', 10, 800, 1000,

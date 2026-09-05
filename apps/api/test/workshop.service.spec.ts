@@ -36,6 +36,7 @@ describe("WorkshopService", () => {
       updatedAt: new Date("2026-09-01T10:00:00Z"),
     };
     const workUpdates: unknown[] = [];
+    const publishedRevisionIdField = Symbol("publishedRevisionId");
     const tx = {
       $queryRaw: async () => [{ id: workshop.id }],
       workshop: {
@@ -52,6 +53,7 @@ describe("WorkshopService", () => {
         },
       },
       workshopWork: {
+        fields: { publishedRevisionId: publishedRevisionIdField },
         updateMany: async (args: unknown) => {
           workUpdates.push(args);
           return { count: 2 };
@@ -92,10 +94,157 @@ describe("WorkshopService", () => {
       workshopId: workshop.id,
       deletedAt: null,
       isPublicationEnabled: true,
+      currentRevisionId: { equals: publishedRevisionIdField },
+      currentRevision: { is: { status: WorkshopRevisionStatus.APPROVED } },
       publishedRevision: { is: { status: WorkshopRevisionStatus.APPROVED } },
     });
     assert.ok(reopenUpdate.data.publishedAt instanceof Date);
     assert.equal("isPublicationEnabled" in reopenUpdate.data, false);
+  });
+
+  it("does not publish an old private revision when reopening before consented revision approval", async () => {
+    const oldRevisionId = "c".repeat(32);
+    const pendingRevisionId = "d".repeat(32);
+    const workshop = {
+      id: "a".repeat(32),
+      ownerId: "user-1",
+      handle: "0123456789abcdefabcd",
+      isPublic: false,
+      isIndexable: false,
+      createdAt: new Date("2026-09-01T10:00:00Z"),
+      updatedAt: new Date("2026-09-01T10:00:00Z"),
+    };
+    const work = {
+      id: "b".repeat(32),
+      currentRevisionId: pendingRevisionId,
+      publishedRevisionId: oldRevisionId,
+      isPublicationEnabled: true,
+      isIndexable: false,
+      publishedAt: null as Date | null,
+    };
+    const publishedRevisionIdField = Symbol("publishedRevisionId");
+    let reopenUpdate: { where: Record<string, unknown> } | undefined;
+    const visibilityTx = {
+      $queryRaw: async () => [{ id: workshop.id }],
+      workshop: {
+        findUnique: async () => ({ isPublic: workshop.isPublic }),
+        update: async ({ data }: { data: { isPublic: boolean } }) => {
+          workshop.isPublic = data.isPublic;
+        },
+      },
+      workshopWork: {
+        fields: { publishedRevisionId: publishedRevisionIdField },
+        updateMany: async (args: { where: Record<string, unknown> }) => {
+          reopenUpdate = args;
+          return { count: 0 };
+        },
+      },
+    };
+    const service = createWorkshopService({
+      workshop: { findUnique: async () => workshop },
+      workshopCollection: { findMany: async () => [] },
+      orderItem: { findMany: async () => [] },
+      $transaction: async <T>(
+        callback: (client: typeof visibilityTx) => Promise<T>,
+      ) => callback(visibilityTx),
+    });
+
+    await service.updateVisibility("user-1", { isPublic: true });
+
+    assert.equal(work.publishedAt, null);
+    assert.deepEqual(reopenUpdate?.where.currentRevisionId, {
+      equals: publishedRevisionIdField,
+    });
+    assert.deepEqual(reopenUpdate?.where.currentRevision, {
+      is: { status: WorkshopRevisionStatus.APPROVED },
+    });
+
+    const revision = pendingRevision({
+      id: pendingRevisionId,
+      publicationConsent: true,
+      publicationConsentAt: new Date("2026-09-01T10:00:00Z"),
+    });
+    revision.work.currentRevisionId = pendingRevisionId;
+    revision.work.publishedRevisionId = oldRevisionId;
+    revision.work.isPublicationEnabled = true;
+    revision.work.workshop.isPublic = true;
+    const moderationUpdates: unknown[] = [];
+    const moderationService = createModerationService(
+      moderationTx(revision, moderationUpdates, []),
+    );
+
+    await moderationService.decide(revision.id, "admin-1", {
+      decision: "APPROVE",
+    });
+
+    const approval = moderationUpdates[0] as {
+      data: Record<string, unknown>;
+    };
+    assert.equal(approval.data.publishedRevisionId, pendingRevisionId);
+    assert.equal(approval.data.isPublicationEnabled, true);
+    assert.ok(approval.data.publishedAt instanceof Date);
+  });
+
+  it("explicit publication switches to the current approved revision", async () => {
+    const currentRevision = revisionRecord({
+      id: "d".repeat(32),
+      status: WorkshopRevisionStatus.APPROVED,
+      moderatedAt: new Date("2026-09-01T11:00:00Z"),
+    });
+    const oldPublishedRevision = revisionRecord({
+      id: "c".repeat(32),
+      status: WorkshopRevisionStatus.APPROVED,
+      moderatedAt: new Date("2026-09-01T10:00:00Z"),
+    });
+    const oldPublishedAt = new Date("2026-09-01T10:00:00Z");
+    const work = {
+      id: "b".repeat(32),
+      publicId: "0123456789abcdef01234567",
+      attemptNumber: 1,
+      currentRevisionId: currentRevision.id,
+      publishedRevisionId: oldPublishedRevision.id,
+      isPublicationEnabled: true,
+      isIndexable: false,
+      publishedAt: oldPublishedAt,
+      deletedAt: null,
+      createdAt: new Date("2026-09-01T09:00:00Z"),
+      currentRevision,
+      publishedRevision: oldPublishedRevision,
+      workshop: { isPublic: true },
+    };
+    let update: { data: Record<string, unknown> } | undefined;
+    const tx = {
+      $queryRaw: async () => [{ id: work.id }],
+      workshopWork: {
+        findFirst: async () => work,
+        update: async (args: { data: Record<string, unknown> }) => {
+          update = args;
+          return {
+            ...work,
+            publishedRevisionId: currentRevision.id,
+            isPublicationEnabled: true,
+            publishedAt: args.data.publishedAt as Date,
+            publishedRevision: currentRevision,
+          };
+        },
+      },
+    };
+    const service = createWorkshopService({
+      workshopWork: { findFirst: async () => work },
+      $transaction: async <T>(callback: (client: typeof tx) => Promise<T>) =>
+        callback(tx),
+    });
+
+    const result = await service.publish("user-1", work.id);
+
+    assert.equal(update?.data.isPublicationEnabled, true);
+    assert.equal(update?.data.publishedRevisionId, currentRevision.id);
+    assert.ok(update?.data.publishedAt instanceof Date);
+    assert.notEqual(
+      (update?.data.publishedAt as Date).toISOString(),
+      oldPublishedAt.toISOString(),
+    );
+    assert.equal(result.publishedRevision?.id, currentRevision.id);
   });
 
   it("returns uniform 404 for a foreign owner revision before storage", async () => {
@@ -197,6 +346,7 @@ describe("WorkshopService", () => {
         1,
         {
           advertisingConsent: false,
+          publicationConsent: false,
           crop: { rotation: 0, zoom: 1, x: 0, y: 0 },
           materials: [{ toolId: "e".repeat(32) }],
           symbolMappings: [],
@@ -264,6 +414,7 @@ describe("WorkshopService", () => {
         1,
         {
           advertisingConsent: false,
+          publicationConsent: false,
           crop: { rotation: 0, zoom: 1, x: 0, y: 0 },
           materials: [{ toolId: tool.id }],
           symbolMappings: [],
@@ -282,7 +433,7 @@ describe("WorkshopService", () => {
     assert.equal(stored, false);
   });
 
-  it("keeps the old publication and official revision for a metadata-only update", async () => {
+  it("records publication consent without disabling an existing publication", async () => {
     const current = revisionRecord({
       id: "c".repeat(32),
       status: WorkshopRevisionStatus.APPROVED,
@@ -355,7 +506,10 @@ describe("WorkshopService", () => {
         }),
       },
       workshopWork: { findFirst: async () => work },
-      workshopTool: { findMany: async () => [tool] },
+      workshopTool: {
+        findMany: async (args: { where: { id: { in: string[] } } }) =>
+          args.where.id.in.length > 0 ? [tool] : [],
+      },
       markerColor: { findMany: async () => [] },
       $transaction: async <T>(callback: (client: typeof tx) => Promise<T>) =>
         callback(tx),
@@ -368,6 +522,7 @@ describe("WorkshopService", () => {
       1,
       {
         advertisingConsent: true,
+        publicationConsent: false,
         crop: { rotation: 90, zoom: 2, x: 1, y: 1 },
         materials: [{ toolId: tool.id }],
         symbolMappings: [],
@@ -392,8 +547,39 @@ describe("WorkshopService", () => {
       revisionCreates[0]?.data.advertisingConsentAt,
       revisionCreates[0]?.data.submittedAt,
     );
+    assert.equal(revisionCreates[0]?.data.publicationConsent, false);
+    assert.equal(revisionCreates[0]?.data.publicationConsentAt, null);
     assert.ok(revisionCreates[0]?.data.submittedAt instanceof Date);
     assert.equal("publishedRevisionId" in (workUpdates[1]?.data ?? {}), false);
+    assert.equal(work.publishedRevisionId, oldPublished.id);
+
+    await service.createRevision(
+      "user-1",
+      "forest",
+      1,
+      {
+        advertisingConsent: false,
+        publicationConsent: true,
+        crop: { rotation: 0, zoom: 1, x: 0, y: 0 },
+        materials: [],
+        symbolMappings: [],
+      },
+      undefined,
+    );
+
+    assert.equal(revisionCreates[1]?.data.advertisingConsent, false);
+    assert.equal(revisionCreates[1]?.data.advertisingConsentAt, null);
+    assert.equal(revisionCreates[1]?.data.publicationConsent, true);
+    assert.equal(
+      revisionCreates[1]?.data.publicationConsentAt,
+      revisionCreates[1]?.data.submittedAt,
+    );
+    assert.deepEqual(revisionCreates[1]?.data.materials, { create: [] });
+    assert.deepEqual(revisionCreates[1]?.data.symbolMappings, { create: [] });
+    assert.deepEqual(workUpdates[3]?.data, {
+      currentRevisionId: revisionCreates[1]?.data.id,
+      isPublicationEnabled: true,
+    });
     assert.equal(work.publishedRevisionId, oldPublished.id);
   });
 
@@ -791,6 +977,7 @@ describe("WorkshopService", () => {
         1,
         {
           advertisingConsent: false,
+          publicationConsent: false,
           crop: { rotation: 0, zoom: 1, x: 0, y: 0 },
           materials: [{ toolId: tool.id }],
           symbolMappings: [],
@@ -844,7 +1031,7 @@ describe("PublicWorkshopService", () => {
     assert.equal(created, false);
   });
 
-  it("does not expose advertising consent in a public work payload", async () => {
+  it("does not expose consent records in a public work payload", async () => {
     const prisma = {
       workshopWork: {
         findFirst: async () => ({
@@ -873,6 +1060,8 @@ describe("PublicWorkshopService", () => {
             caption: "My work",
             advertisingConsent: true,
             advertisingConsentAt: new Date("2026-09-01T09:30:00Z"),
+            publicationConsent: true,
+            publicationConsentAt: new Date("2026-09-01T09:30:00Z"),
             materials: [],
             symbolMappings: [],
             officialRevision: {
@@ -894,6 +1083,8 @@ describe("PublicWorkshopService", () => {
 
     assert.equal("advertisingConsent" in response.submission, false);
     assert.equal("advertisingConsentAt" in response.submission, false);
+    assert.equal("publicationConsent" in response.submission, false);
+    assert.equal("publicationConsentAt" in response.submission, false);
   });
 });
 
@@ -994,6 +1185,63 @@ describe("WorkshopModerationService", () => {
     ]);
   });
 
+  it("rejects inconsistent publication consent timestamps", async () => {
+    const missingTimestamp = moderationRevision({
+      id: "d".repeat(32),
+      publishedRevisionId: null,
+    });
+    missingTimestamp.publicationConsent = true;
+    const mismatchedTimestamp = moderationRevision({
+      id: "e".repeat(32),
+      publishedRevisionId: null,
+    });
+    mismatchedTimestamp.publicationConsent = true;
+    mismatchedTimestamp.publicationConsentAt = new Date(
+      "2026-09-01T09:30:01Z",
+    );
+    const unexpectedTimestamp = moderationRevision({
+      id: "f".repeat(32),
+      publishedRevisionId: null,
+    });
+    unexpectedTimestamp.publicationConsentAt = new Date(
+      "2026-09-01T09:30:00Z",
+    );
+    const revisions = [
+      missingTimestamp,
+      mismatchedTimestamp,
+      unexpectedTimestamp,
+    ];
+    const service = new WorkshopModerationService(
+      {
+        workshopWorkRevision: {
+          findFirst: async () => revisions.shift(),
+        },
+      } as unknown as PrismaService,
+      {} as WorkshopStorageService,
+      {} as ColoringStorageService,
+      {} as WorkshopAssetDeletionQueueService,
+    );
+
+    await assert.rejects(
+      service.get(missingTimestamp.id),
+      (error: unknown) =>
+        error instanceof ConflictException &&
+        error.message === "Workshop publication consent timestamp is invalid",
+    );
+    await assert.rejects(
+      service.get(mismatchedTimestamp.id),
+      (error: unknown) =>
+        error instanceof ConflictException &&
+        error.message === "Workshop publication consent timestamp is invalid",
+    );
+    await assert.rejects(
+      service.get(unexpectedTimestamp.id),
+      (error: unknown) =>
+        error instanceof ConflictException &&
+        error.message === "Workshop publication consent timestamp is invalid",
+    );
+  });
+
   it("returns 404 for deleted-work moderation detail and admin assets", async () => {
     const revisionId = "d".repeat(32);
     const lookups: unknown[] = [];
@@ -1058,7 +1306,7 @@ describe("WorkshopModerationService", () => {
     assert.deepEqual(events, []);
   });
 
-  it("approval binds the exact pending revision and atomically switches the pointer", async () => {
+  it("approval keeps an unrequested candidate private when no old publication exists", async () => {
     const updates: unknown[] = [];
     const events: unknown[] = [];
     const revision = pendingRevision();
@@ -1069,13 +1317,113 @@ describe("WorkshopModerationService", () => {
 
     assert.deepEqual(updates[0], {
       where: { id: revision.workId },
-      data: { publishedRevisionId: revision.id, publishedAt: null },
+      data: {
+        publishedRevisionId: revision.id,
+        isPublicationEnabled: false,
+        isIndexable: false,
+        publishedAt: null,
+      },
     });
     assert.equal(
       (events[0] as { data: { decision: WorkshopModerationDecision } }).data
         .decision,
       WorkshopModerationDecision.APPROVED,
     );
+  });
+
+  it("approval automatically publishes a consented current revision", async () => {
+    const updates: unknown[] = [];
+    const events: unknown[] = [];
+    const revision = pendingRevision({
+      publicationConsent: true,
+      publicationConsentAt: new Date("2026-09-01T10:00:00Z"),
+    });
+    revision.work.isPublicationEnabled = true;
+    revision.work.isIndexable = true;
+    const service = createModerationService(
+      moderationTx(revision, updates, events),
+    );
+
+    await service.decide(revision.id, "admin-1", { decision: "APPROVE" });
+
+    const update = updates[0] as {
+      data: Record<string, unknown>;
+      where: { id: string };
+    };
+    assert.equal(update.where.id, revision.workId);
+    assert.equal(update.data.publishedRevisionId, revision.id);
+    assert.equal(update.data.isPublicationEnabled, true);
+    assert.equal(update.data.isIndexable, true);
+    assert.ok(update.data.publishedAt instanceof Date);
+  });
+
+  it("approval queues consented publication while the workshop is closed", async () => {
+    const updates: unknown[] = [];
+    const events: unknown[] = [];
+    const revision = pendingRevision({
+      publicationConsent: true,
+      publicationConsentAt: new Date("2026-09-01T10:00:00Z"),
+    });
+    revision.work.isPublicationEnabled = true;
+    revision.work.workshop.isPublic = false;
+    const service = createModerationService(
+      moderationTx(revision, updates, events),
+    );
+
+    await service.decide(revision.id, "admin-1", { decision: "APPROVE" });
+
+    assert.deepEqual(updates[0], {
+      where: { id: revision.workId },
+      data: {
+        publishedRevisionId: revision.id,
+        isPublicationEnabled: true,
+        isIndexable: false,
+        publishedAt: null,
+      },
+    });
+  });
+
+  it("approval preserves an active older publication without new consent", async () => {
+    const updates: unknown[] = [];
+    const events: unknown[] = [];
+    const revision = pendingRevision();
+    revision.work.isPublicationEnabled = true;
+    revision.work.publishedAt = new Date("2026-09-01T09:00:00Z");
+    const oldPublishedRevisionId = revision.work.publishedRevisionId;
+    const service = createModerationService(
+      moderationTx(revision, updates, events),
+    );
+
+    await service.decide(revision.id, "admin-1", { decision: "APPROVE" });
+
+    assert.deepEqual(updates, []);
+    assert.equal(revision.work.publishedRevisionId, oldPublishedRevisionId);
+  });
+
+  it("approval honors publication consent revoked before moderation", async () => {
+    const updates: unknown[] = [];
+    const events: unknown[] = [];
+    const revision = pendingRevision({
+      publicationConsent: true,
+      publicationConsentAt: new Date("2026-09-01T10:00:00Z"),
+    });
+    revision.work.isPublicationEnabled = false;
+    revision.work.publishedAt = null;
+    const service = createModerationService(
+      moderationTx(revision, updates, events),
+    );
+
+    await service.decide(revision.id, "admin-1", { decision: "APPROVE" });
+
+    assert.deepEqual(updates[0], {
+      where: { id: revision.workId },
+      data: {
+        publishedRevisionId: revision.id,
+        isPublicationEnabled: false,
+        isIndexable: false,
+        publishedAt: null,
+      },
+    });
   });
 
   it("request changes requires a reason and preserves an older publication", async () => {
@@ -1292,6 +1640,8 @@ function pendingRevision(overrides: Record<string, unknown> = {}) {
     id: revisionId,
     workId,
     status: WorkshopRevisionStatus.PENDING,
+    publicationConsent: false,
+    publicationConsentAt: null as Date | null,
     normalizedStorageKey: `${workId}/${revisionId}/normalized-${"1".repeat(64)}.webp`,
     webStorageKey: `${workId}/${revisionId}/web-${"2".repeat(64)}.webp`,
     thumbStorageKey: `${workId}/${revisionId}/thumb-${"3".repeat(64)}.webp`,
@@ -1300,6 +1650,8 @@ function pendingRevision(overrides: Record<string, unknown> = {}) {
       currentRevisionId: revisionId,
       publishedRevisionId: "c".repeat(32),
       isPublicationEnabled: false,
+      isIndexable: false,
+      publishedAt: null as Date | null,
       deletedAt: null as Date | null,
       workshop: { isPublic: true },
     },
@@ -1429,7 +1781,9 @@ function revisionRecord(overrides: Record<string, unknown> = {}) {
     status: WorkshopRevisionStatus.PENDING,
     caption: null,
     advertisingConsent: false,
-    advertisingConsentAt: null,
+    advertisingConsentAt: null as Date | null,
+    publicationConsent: false,
+    publicationConsentAt: null as Date | null,
     cropRotation: 0,
     cropZoom: 1,
     cropX: 0,

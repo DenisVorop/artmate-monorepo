@@ -2,15 +2,7 @@ import { Check } from "lucide-react";
 
 import { cn } from "@/shared/lib";
 
-export const editorSteps = [
-  "Фото",
-  "Кадр",
-  "Материалы",
-  "Символы",
-  "Подпись",
-  "Модерация",
-  "Проверка",
-] as const;
+export const editorSteps = ["Фото", "Кадр", "Подпись", "Модерация", "Проверка"] as const;
 
 export function EditorStepper({
   currentStep,

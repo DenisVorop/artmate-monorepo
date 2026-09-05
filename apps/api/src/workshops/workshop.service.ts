@@ -142,6 +142,12 @@ export class WorkshopService {
             workshopId: workshop.id,
             deletedAt: null,
             isPublicationEnabled: true,
+            currentRevisionId: {
+              equals: tx.workshopWork.fields.publishedRevisionId,
+            },
+            currentRevision: {
+              is: { status: WorkshopRevisionStatus.APPROVED },
+            },
             publishedRevision: {
               is: { status: WorkshopRevisionStatus.APPROVED },
             },
@@ -507,6 +513,8 @@ export class WorkshopService {
             caption: input.caption ?? null,
             advertisingConsent: input.advertisingConsent,
             advertisingConsentAt: input.advertisingConsent ? submittedAt : null,
+            publicationConsent: input.publicationConsent,
+            publicationConsentAt: input.publicationConsent ? submittedAt : null,
             cropRotation: appliedCrop.rotation,
             cropZoom: appliedCrop.zoom,
             cropX: appliedCrop.x,
@@ -524,7 +532,12 @@ export class WorkshopService {
         });
         await tx.workshopWork.update({
           where: { id: workId },
-          data: { currentRevisionId: revisionId },
+          data: {
+            currentRevisionId: revisionId,
+            ...(input.publicationConsent
+              ? { isPublicationEnabled: true }
+              : {}),
+          },
         });
 
         await tx.workshopModerationEvent.create({
@@ -776,7 +789,11 @@ export class WorkshopService {
           workshop: { is: { ownerId: userId } },
           deletedAt: null,
         },
-        include: { workshop: true, publishedRevision: true },
+        include: {
+          workshop: true,
+          currentRevision: true,
+          publishedRevision: true,
+        },
       });
 
       if (!current) {
@@ -786,10 +803,10 @@ export class WorkshopService {
       if (
         enabled &&
         (!current.workshop.isPublic ||
-          current.publishedRevision?.status !== WorkshopRevisionStatus.APPROVED)
+          current.currentRevision?.status !== WorkshopRevisionStatus.APPROVED)
       ) {
         throw new BadRequestException(
-          "Open workshop with an approved published revision is required",
+          "Open workshop with an approved current revision is required",
         );
       }
 
@@ -797,7 +814,14 @@ export class WorkshopService {
         where: { id: current.id },
         data: {
           isPublicationEnabled: enabled,
-          publishedAt: enabled ? (current.publishedAt ?? new Date()) : null,
+          publishedAt: enabled
+            ? current.publishedRevisionId === current.currentRevision!.id
+              ? (current.publishedAt ?? new Date())
+              : new Date()
+            : null,
+          ...(enabled
+            ? { publishedRevisionId: current.currentRevision!.id }
+            : {}),
           ...(!enabled ? { isIndexable: false } : {}),
         },
         include: workInclude,
@@ -945,6 +969,10 @@ export class WorkshopService {
     userId: string,
     inputs: WorkshopRevisionPayloadDTO["materials"],
   ) {
+    if (inputs.length === 0) {
+      return [];
+    }
+
     const ids = inputs.map(({ toolId }) => toolId);
 
     if (new Set(ids).size !== ids.length) {
@@ -984,6 +1012,10 @@ export class WorkshopService {
       line: string;
     }>,
   ) {
+    if (inputs.length === 0) {
+      return [];
+    }
+
     const symbols = inputs.map(({ symbol }) => symbol);
 
     if (new Set(symbols).size !== symbols.length) {
@@ -1247,6 +1279,17 @@ export class WorkshopService {
       );
     }
 
+    if (
+      revision.publicationConsent !== Boolean(revision.publicationConsentAt) ||
+      (revision.publicationConsentAt &&
+        revision.publicationConsentAt.getTime() !==
+          revision.submittedAt.getTime())
+    ) {
+      throw new ConflictException(
+        "Workshop publication consent timestamp is invalid",
+      );
+    }
+
     return {
       id: revision.id,
       sequence: revision.sequence,
@@ -1255,6 +1298,8 @@ export class WorkshopService {
       caption: revision.caption ?? undefined,
       advertisingConsent: revision.advertisingConsent ?? undefined,
       advertisingConsentAt: revision.advertisingConsentAt?.toISOString(),
+      publicationConsent: revision.publicationConsent,
+      publicationConsentAt: revision.publicationConsentAt?.toISOString(),
       crop: {
         rotation: revision.cropRotation,
         zoom: revision.cropZoom,

@@ -112,7 +112,11 @@ export function WorkshopColoringCard({
         ) : null}
 
         {currentStatus === "PENDING" ? (
-          <p className="text-sm font-semibold text-amber-700">Новая версия ожидает модерации</p>
+          <p className="text-sm font-semibold text-amber-700">
+            {work?.isPublicationEnabled && work.currentRevision?.publicationConsent
+              ? "После одобрения опубликуется автоматически"
+              : "Новая версия ожидает модерации"}
+          </p>
         ) : null}
       </CardContent>
 
@@ -147,6 +151,31 @@ export function WorkshopColoringCard({
                 Дождитесь решения модератора
               </p>
             ) : null}
+            {state === "PENDING" &&
+            work.isPublicationEnabled &&
+            work.currentRevision?.publicationConsent &&
+            onUnpublish ? (
+              <Button
+                type="button"
+                variant="outline"
+                className="min-h-11"
+                disabled={isMutating}
+                onClick={() => onUnpublish(work)}
+              >
+                Не публиковать
+              </Button>
+            ) : null}
+            {state === "AWAITING_WORKSHOP" && onUnpublish ? (
+              <Button
+                type="button"
+                variant="outline"
+                className="min-h-11"
+                disabled={isMutating}
+                onClick={() => onUnpublish(work)}
+              >
+                Не публиковать после открытия
+              </Button>
+            ) : null}
             {state === "APPROVED_PRIVATE" && onPublish ? (
               <Button
                 type="button"
@@ -163,6 +192,19 @@ export function WorkshopColoringCard({
                   <ExternalLink data-icon="inline-start" />
                   Открыть
                 </Link>
+              </Button>
+            ) : null}
+            {state === "PUBLISHED" &&
+            currentStatus === "APPROVED" &&
+            hasUnpublishedChanges(work) &&
+            onPublish ? (
+              <Button
+                type="button"
+                className="min-h-11 flex-1"
+                disabled={isMutating}
+                onClick={() => onPublish(work)}
+              >
+                Опубликовать изменения
               </Button>
             ) : null}
             {state === "PUBLISHED" && onUnpublish ? (
@@ -208,6 +250,8 @@ function WorkStatusBadge({ work }: { work: WorkshopWork }) {
           Одобрено, не опубликовано
         </Badge>
       );
+    case "AWAITING_WORKSHOP":
+      return <Badge variant="secondary">Одобрено, ждёт открытия мастерской</Badge>;
     case "PUBLISHED":
       return <Badge className="bg-emerald-100 text-emerald-800">Опубликовано</Badge>;
     case "HIDDEN":
@@ -239,14 +283,32 @@ function getCardLabel(work: WorkshopWork | undefined, number: number) {
   }
   if (state === "PENDING") return `Открыть работу на проверке для картины ${number}`;
   if (state === "APPROVED_PRIVATE") return `Открыть одобренную работу для картины ${number}`;
+  if (state === "AWAITING_WORKSHOP") {
+    return `Открыть одобренную работу для картины ${number}`;
+  }
   return `Открыть опубликованную работу для картины ${number}`;
 }
 
-type WorkState = "PENDING" | "CHANGES_REQUESTED" | "APPROVED_PRIVATE" | "PUBLISHED" | "HIDDEN";
+type WorkState =
+  | "PENDING"
+  | "CHANGES_REQUESTED"
+  | "APPROVED_PRIVATE"
+  | "AWAITING_WORKSHOP"
+  | "PUBLISHED"
+  | "HIDDEN";
 
 function getWorkState(work: WorkshopWork | undefined): WorkState | undefined {
   if (!work?.currentRevision) return undefined;
   if (work.isPublicationEnabled && work.publishedRevision && work.publishedAt) return "PUBLISHED";
+  if (
+    work.isPublicationEnabled &&
+    work.currentRevision.status === "APPROVED" &&
+    work.publishedRevision?.status === "APPROVED" &&
+    work.publishedRevision.id === work.currentRevision.id &&
+    !work.publishedAt
+  ) {
+    return "AWAITING_WORKSHOP";
+  }
   if (work.currentRevision.status === "APPROVED") return "APPROVED_PRIVATE";
   return work.currentRevision.status;
 }

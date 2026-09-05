@@ -74,6 +74,8 @@ function PublicWorkContent({
 }) {
   const related = useCommunityWorks(work.official.collection.slug, work.official.coloring.number);
   const otherWorks = related.works.filter((item) => item.publicId !== work.publicId);
+  const hasAuthorMaterialDetails =
+    work.submission.materials.length > 0 || work.submission.symbolMappings.length > 0;
 
   return (
     <article className="space-y-8">
@@ -101,7 +103,13 @@ function PublicWorkContent({
 
       <header className="space-y-5">
         <PageTitle>{work.official.coloring.title}</PageTitle>
-        <div className="grid gap-4 rounded-2xl border border-rose-100 bg-rose-50/50 p-4 lg:grid-cols-[auto_1fr_minmax(18rem,36rem)] lg:items-center">
+        <div
+          className={`grid gap-4 rounded-2xl border border-rose-100 bg-rose-50/50 p-4 lg:items-center ${
+            hasAuthorMaterialDetails
+              ? "lg:grid-cols-[auto_1fr_minmax(18rem,36rem)]"
+              : "lg:grid-cols-[auto_1fr]"
+          }`}
+        >
           <Avatar className="size-14">
             {work.author.image ? (
               <AvatarImage src={work.author.image} alt={`Аватар ${work.author.name}`} />
@@ -120,10 +128,12 @@ function PublicWorkContent({
               {formatDate(work.submission.publishedAt)}
             </p>
           </div>
-          <aside className="flex gap-3 rounded-xl border border-amber-200 bg-amber-50 p-3 text-xs leading-5 text-amber-950">
-            <AlertTriangle className="mt-0.5 size-4 shrink-0" aria-hidden="true" />
-            <p>{authorMaterialsWarning}</p>
-          </aside>
+          {hasAuthorMaterialDetails ? (
+            <aside className="flex gap-3 rounded-xl border border-amber-200 bg-amber-50 p-3 text-xs leading-5 text-amber-950">
+              <AlertTriangle className="mt-0.5 size-4 shrink-0" aria-hidden="true" />
+              <p>{authorMaterialsWarning}</p>
+            </aside>
+          ) : null}
         </div>
       </header>
 

@@ -129,8 +129,8 @@ export function WorkshopCollection({ slug }: { slug: string }) {
       >
         <DialogContent>
           <DialogHeader>
-            <DialogTitle>{getActionTitle(pendingAction?.kind)}</DialogTitle>
-            <DialogDescription>{getActionDescription(pendingAction?.kind)}</DialogDescription>
+            <DialogTitle>{getActionTitle(pendingAction)}</DialogTitle>
+            <DialogDescription>{getActionDescription(pendingAction)}</DialogDescription>
           </DialogHeader>
           {actionError ? <p className="text-sm text-destructive">{actionError}</p> : null}
           <DialogFooter>
@@ -155,14 +155,53 @@ export function WorkshopCollection({ slug }: { slug: string }) {
   );
 }
 
-function getActionTitle(kind: PendingAction["kind"] | undefined) {
-  if (kind === "publish") return "Опубликовать работу?";
-  if (kind === "unpublish") return "Скрыть работу?";
+function getActionTitle(action: PendingAction | undefined) {
+  if (action?.kind === "publish") return "Опубликовать работу?";
+  if (isPendingAutomaticPublication(action)) {
+    return "Отменить автопубликацию?";
+  }
+  if (isAwaitingWorkshopPublication(action)) {
+    return "Не публиковать после открытия мастерской?";
+  }
+  if (action?.kind === "unpublish") return "Скрыть работу?";
   return "Удалить работу?";
 }
 
-function getActionDescription(kind: PendingAction["kind"] | undefined) {
-  if (kind === "publish") return "Одобренная работа появится в вашей публичной мастерской.";
-  if (kind === "unpublish") return "Работа исчезнет из публичной мастерской, но останется у вас.";
+function getActionDescription(action: PendingAction | undefined) {
+  if (action?.kind === "publish") {
+    return "Текущая одобренная версия появится в вашей публичной мастерской.";
+  }
+  if (isPendingAutomaticPublication(action)) {
+    return "После одобрения новая версия останется доступна только вам. Уже опубликованная версия, если она есть, тоже будет скрыта.";
+  }
+  if (isAwaitingWorkshopPublication(action)) {
+    return "Работа останется доступна только вам и не появится автоматически после открытия мастерской.";
+  }
+  if (action?.kind === "unpublish") {
+    return "Работа исчезнет из публичной мастерской, но останется у вас.";
+  }
   return "Работа сразу исчезнет из мастерской и публичных страниц. Отменить удаление через интерфейс нельзя; данные останутся в закрытом служебном архиве.";
+}
+
+function isPendingAutomaticPublication(action: PendingAction | undefined) {
+  return Boolean(
+    action?.kind === "unpublish" &&
+      action.work.isPublicationEnabled &&
+      action.work.currentRevision?.status === "PENDING" &&
+      action.work.currentRevision.publicationConsent,
+  );
+}
+
+function isAwaitingWorkshopPublication(action: PendingAction | undefined) {
+  if (action?.kind !== "unpublish") return false;
+
+  const { work } = action;
+
+  return Boolean(
+    work.isPublicationEnabled &&
+      work.currentRevision?.status === "APPROVED" &&
+      work.currentRevision.publicationConsent &&
+      work.publishedRevision?.id === work.currentRevision.id &&
+      !work.publishedAt,
+  );
 }

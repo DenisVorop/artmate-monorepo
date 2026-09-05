@@ -40,16 +40,20 @@ export function CommunityWorkMaterials({ work }: { work: PublicCommunityWork }) 
 
       <section className="rounded-2xl border border-rose-100 bg-rose-50/60 p-5 sm:p-6">
         <h2 className="text-xl font-bold">Материалы, указанные автором</h2>
-        <ul className="mt-4 grid gap-3 text-sm sm:grid-cols-2">
-          {work.submission.materials.map((material) => (
-            <li key={material.position} className="rounded-xl bg-white p-3">
-              <p className="text-stone-500">Материал {material.position}</p>
-              <p className="font-bold text-stone-900">
-                {material.brand} · {material.line}
-              </p>
-            </li>
-          ))}
-        </ul>
+        {work.submission.materials.length > 0 ? (
+          <ul className="mt-4 grid gap-3 text-sm sm:grid-cols-2">
+            {work.submission.materials.map((material) => (
+              <li key={material.position} className="rounded-xl bg-white p-3">
+                <p className="text-stone-500">Материал {material.position}</p>
+                <p className="font-bold text-stone-900">
+                  {material.brand} · {material.line}
+                </p>
+              </li>
+            ))}
+          </ul>
+        ) : (
+          <p className="mt-3 text-sm text-stone-500">Автор не указал материалы.</p>
+        )}
       </section>
 
       <section>

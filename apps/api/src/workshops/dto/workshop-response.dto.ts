@@ -282,6 +282,15 @@ export class WorkshopModerationDetailDTO extends WorkshopModerationListItemDTO {
   advertisingConsentAt?: string;
 
   @ApiProperty()
+  @IsBoolean()
+  publicationConsent!: boolean;
+
+  @ApiPropertyOptional({ format: "date-time" })
+  @IsOptional()
+  @IsISO8601()
+  publicationConsentAt?: string;
+
+  @ApiProperty()
   @IsObject()
   officialComparison!: object;
 

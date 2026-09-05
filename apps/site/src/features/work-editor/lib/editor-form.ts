@@ -32,7 +32,6 @@ export const workEditorFormSchema = z
     }),
     materials: z
       .array(editorMaterialSchema)
-      .min(1, "Добавьте хотя бы один материал")
       .max(19, "Не более 19 материалов")
       .superRefine((materials, context) => {
         const seen = new Set<string>();
@@ -67,6 +66,7 @@ export const workEditorFormSchema = z
       )
       .max(19),
     caption: z.string().trim().max(500, "Не более 500 символов"),
+    publicationConsent: z.boolean(),
     advertisingConsent: z.boolean(),
   })
   .superRefine((values, context) => {
@@ -104,6 +104,7 @@ export function toCreateRevisionInput(
   return {
     photo: values.photo,
     caption: values.caption.trim() || undefined,
+    publicationConsent: values.publicationConsent,
     advertisingConsent: values.advertisingConsent,
     crop: values.crop,
     materials: tools.map((tool) => ({ toolId: tool.id })),

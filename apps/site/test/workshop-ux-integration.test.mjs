@@ -8,6 +8,9 @@ async function readSource(path) {
 
 test("workshop cards expose every required state and mobile-visible actions", async () => {
   const card = await readSource("src/entities/workshop/ui/coloring-card.tsx");
+  const collection = await readSource(
+    "src/features/workshop-collection/ui/workshop-collection.tsx",
+  );
 
   for (const text of [
     "Добавить работу",
@@ -19,6 +22,11 @@ test("workshop cards expose every required state and mobile-visible actions", as
     "Заменить фото",
     "Есть неопубликованные изменения",
     "Новая версия ожидает модерации",
+    "После одобрения опубликуется автоматически",
+    "Одобрено, ждёт открытия мастерской",
+    "Опубликовать изменения",
+    "Не публиковать",
+    "Не публиковать после открытия",
   ]) {
     assert.ok(card.includes(text), `Missing card state/action: ${text}`);
   }
@@ -29,6 +37,19 @@ test("workshop cards expose every required state and mobile-visible actions", as
   assert.match(card, /currentRevision\?\.moderationReason/);
   assert.match(card, /currentStatus === "PENDING"/);
   assert.match(card, /currentStatus === "APPROVED"/);
+  assert.match(card, /work\.publishedRevision\.id === work\.currentRevision\.id/);
+  assert.match(
+    card,
+    /state === "PENDING" &&[\s\S]*work\.isPublicationEnabled &&[\s\S]*work\.currentRevision\?\.publicationConsent &&[\s\S]*onUnpublish/,
+  );
+  assert.match(card, /state === "AWAITING_WORKSHOP" && onUnpublish/);
+  assert.match(collection, /isPendingAutomaticPublication\(action\)/);
+  assert.match(
+    collection,
+    /currentRevision\?\.status === "PENDING"[\s\S]*currentRevision\.publicationConsent/,
+  );
+  assert.match(collection, /Не публиковать после открытия мастерской\?/);
+  assert.match(collection, /не появится автоматически после открытия мастерской/);
   assert.doesNotMatch(card, /DRAFT|Черновик|Продолжить/);
   assert.doesNotMatch(card, /group-hover:(?:block|flex|visible)|hidden.*group-hover/);
 });
@@ -99,5 +120,12 @@ test("public work order, report auth and moderated community copy are explicit",
   assert.match(report, /maxLength=\{500\}/);
   assert.match(materials, /Палитра Artmate для этой картины/);
   assert.match(materials, /Материалы, указанные автором/);
+  assert.match(materials, /work\.submission\.materials\.length > 0/);
+  assert.match(materials, /Автор не указал материалы\./);
+  assert.match(
+    publicWork,
+    /work\.submission\.materials\.length > 0 \|\| work\.submission\.symbolMappings\.length > 0/,
+  );
+  assert.match(publicWork, /hasAuthorMaterialDetails \? \([\s\S]*authorMaterialsWarning/);
   assert.match(community, /Только текущие публичные работы, одобренные модерацией/);
 });
