@@ -54,6 +54,7 @@ test("editor RHF+Zod contract maps a separate material for every color", async (
       { symbol: "J", materialIndex: 2, markerNumber: "" },
     ],
     caption: "Готовая работа",
+    publicationConsent: true,
     advertisingConsent: false,
   };
 
@@ -85,8 +86,18 @@ test("editor RHF+Zod contract maps a separate material for every color", async (
       { toolId: "c".repeat(32) },
     ]);
     assert.equal(dto.advertisingConsent, false);
+    assert.equal(dto.publicationConsent, true);
     assert.equal("intent" in dto, false);
     assert.equal(dto.crop.rotation, 270);
+
+    const photoOnlyValues = form.workEditorFormSchema.parse({
+      ...values,
+      materials: [],
+      mappings: [],
+    });
+    const photoOnlyDto = form.toCreateRevisionInput(photoOnlyValues, [], []);
+    assert.deepEqual(photoOnlyDto.materials, []);
+    assert.deepEqual(photoOnlyDto.symbolMappings, []);
 
     assert.equal(
       form.workEditorFormSchema.safeParse({
@@ -150,6 +161,7 @@ test("editor defaults restore mixed material positions from an existing revision
           { symbol: "A", materialPosition: 1, markerNumber: "010" },
         ],
         caption: "Смешанная техника",
+        publicationConsent: true,
         advertisingConsent: true,
       },
     },
@@ -167,6 +179,7 @@ test("editor defaults restore mixed material positions from an existing revision
     { symbol: "A", materialIndex: 0, markerNumber: "010" },
   ]);
   assert.equal(values.advertisingConsent, false);
+  assert.equal(values.publicationConsent, false);
 });
 
 test("new editor starts without a global brand or inherited advertising consent", async () => {
@@ -193,6 +206,7 @@ test("new editor starts without a global brand or inherited advertising consent"
     { symbol: "A", materialIndex: null, markerNumber: "" },
   ]);
   assert.equal(values.advertisingConsent, false);
+  assert.equal(values.publicationConsent, false);
 });
 
 test("material helpers preserve per-color choices and enforce the 19 item limit", async () => {
@@ -224,7 +238,7 @@ test("material helpers preserve per-color choices and enforce the 19 item limit"
   ]);
 });
 
-test("editor UI is a moderated photo workflow with material selection per color", async () => {
+test("editor UI hides optional materials and marker mappings behind nested controls", async () => {
   const editor = await readSource("src/features/work-editor/ui/work-editor.tsx");
   const preview = await readSource("src/features/work-editor/ui/photo-preview.tsx");
   const stepper = await readSource("src/features/work-editor/ui/stepper.tsx");
@@ -234,7 +248,7 @@ test("editor UI is a moderated photo workflow with material selection per color"
   assert.match(editor, /URL\.revokeObjectURL\(nextUrl\)/);
   assert.match(editor, /accept=\{acceptedWorkshopPhotoTypes\.join/);
   assert.match(editor, /Повернуть на 90°/);
-  assert.match(editor, /материал[\s\S]*отдельно для каждого цвета/i);
+  assert.match(editor, /Материалы можно добавить по желанию/);
   assert.match(editor, /Материал цвета/);
   assert.match(editor, /mappings\.\$\{index\}\.materialIndex/);
   assert.match(editor, /Добавить материал/);
@@ -246,6 +260,9 @@ test("editor UI is a moderated photo workflow with material selection per color"
   assert.match(editor, /Отправить на модерацию/);
   assert.doesNotMatch(editor, /Оставить только себе|DRAFT|необязательное согласие/);
   assert.match(editor, /advertisingConsent/);
+  assert.match(editor, /publicationConsent/);
+  assert.match(editor, /Опубликовать работу после модерации/);
+  assert.match(editor, /автоматически появится/);
   assert.match(editor, /Хочу, чтобы моя работа вдохновляла других/);
   assert.match(editor, /Все введённые данные сохранены в форме/);
   assert.match(editor, /toCreateRevisionInput\(formValues, resolvedTools, officialColors\)/);
@@ -255,6 +272,24 @@ test("editor UI is a moderated photo workflow with material selection per color"
   assert.match(editor, /crop=\{objectUrl \? crop : undefined\}/);
   assert.match(editor, /Без нового фото сервер сохранит прежний кадр без изменений/);
   assert.match(editor, /currentRevision\?\.status === "PENDING"/);
+  assert.match(editor, /Добавить материалы/);
+  assert.match(editor, /aria-expanded=\{isMaterialsEditorOpen\}/);
+  assert.match(editor, /currentStep === 2 && isMaterialsEditorOpen/);
+  assert.match(editor, /currentRevision\?\.materials\.length/);
+  assert.match(editor, /Добавить соответствия маркеров/);
+  assert.match(editor, /Скрыть соответствия маркеров/);
+  assert.match(editor, /Заполнять эти данные необязательно/);
+  assert.match(editor, /aria-expanded=\{isMappingEditorOpen\}/);
+  assert.match(editor, /currentStep === 2 && isMaterialsEditorOpen && isMappingEditorOpen/);
+  assert.match(editor, /Boolean\(data\.work\?\.currentRevision\?\.symbolMappings\.length\)/);
+  assert.equal(editor.match(/setIsMappingEditorOpen\(true\)/g)?.length, 2);
+  assert.match(
+    editor,
+    /formErrors\.materials \|\| formErrors\.mappings[\s\S]*setIsMaterialsEditorOpen\(true\)[\s\S]*formErrors\.mappings[\s\S]*setIsMappingEditorOpen\(true\)[\s\S]*setCurrentStep\(2\)/,
+  );
+  assert.match(editor, /currentStep === 2[\s\S]*Подпись к работе/);
+  assert.match(editor, /currentStep === 3[\s\S]*Отправка на модерацию/);
+  assert.match(editor, /currentStep === 4[\s\S]*Проверьте данные/);
   assert.match(preview, /getCropPreviewGeometry/);
   assert.match(preview, /naturalWidth/);
   assert.match(preview, /naturalHeight/);
@@ -263,6 +298,9 @@ test("editor UI is a moderated photo workflow with material selection per color"
   assert.doesNotMatch(`${editor}\n${preview}`, /canvas|getContext\(/i);
   assert.match(stepper, /aria-label="Шаги добавления работы"/);
   assert.match(stepper, /min-h-11/);
+  assert.doesNotMatch(stepper, /"Материалы"/);
+  assert.doesNotMatch(stepper, /"Символы"/);
+  assert.match(stepper, /"Кадр",\s*"Подпись"/);
 });
 
 test("photo preview geometry matches the server crop rectangle", async () => {
@@ -322,13 +360,16 @@ test("photo preview geometry matches the server crop rectangle", async () => {
   assert.equal(quarterTurn.cropHeight, 1250);
 });
 
-test("exact author-material warning is present beside public author data", async () => {
+test("author-material warning is neutral and only shown for supplied author details", async () => {
   const constants = await readSource("src/entities/community-work/lib/constants.ts");
   const publicWork = await readSource("src/features/public-work/ui/public-work.tsx");
   const warning =
-    "Материалы и соответствие цветов указаны автором работы. Модерация проверяет публикацию и её связь с выбранной картиной, но не подтверждает фактическое использование указанных маркеров. Оттенки могут отличаться из-за бумаги, техники нанесения, освещения и цветопередачи экрана.";
+    "Информация в блоке материалов предоставлена автором работы. Модерация проверяет публикацию и её связь с выбранной картиной, но не подтверждает фактическое использование перечисленных материалов или маркеров. Оттенки могут отличаться из-за бумаги, техники нанесения, освещения и цветопередачи экрана.";
 
   assert.ok(constants.includes(warning));
   assert.match(publicWork, /authorMaterialsWarning/);
-  assert.match(publicWork, /work\.author\.name[\s\S]*authorMaterialsWarning/);
+  assert.match(
+    publicWork,
+    /work\.author\.name[\s\S]*hasAuthorMaterialDetails[\s\S]*authorMaterialsWarning/,
+  );
 });

@@ -14,14 +14,26 @@ const reasonDialog = readFileSync(
   "utf8",
 );
 
-test("detail renders comparison, consent, materials, mappings and history", () => {
+test("detail renders comparison, separate consents, materials, mappings and history", () => {
   assert.match(detail, /Фото автора/);
   assert.match(detail, /Официальная цветная версия Artmate/);
+  assert.match(detail, /Согласие на публикацию/);
+  assert.match(detail, /detail\.publicationConsent/);
+  assert.match(detail, /Согласие получено/);
+  assert.match(detail, /Согласие не получено/);
+  assert.doesNotMatch(detail, /Публикация запрошена|Не запрошена/);
+  assert.match(
+    detail,
+    /formatWorkshopModerationDate\(detail\.publicationConsentAt\)/,
+  );
   assert.match(detail, /Рекламное согласие/);
+  assert.match(detail, /detail\.advertisingConsent/);
   assert.match(detail, /Согласие получено/);
   assert.match(detail, /Зафиксировано сервером/);
   assert.doesNotMatch(detail, /не влияет на решение/);
   assert.match(detail, /Материалы, указанные автором/);
+  assert.match(detail, /detail\.materials\.length === 0/);
+  assert.match(detail, /Материалы не указаны\./);
   assert.match(detail, /Соответствие символов и маркеров/);
   assert.match(detail, /Официальная палитра Artmate/);
   assert.match(detail, /WorkshopModerationHistory/);

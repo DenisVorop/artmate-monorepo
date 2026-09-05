@@ -63,6 +63,7 @@ test("moderation detail accepts the exact backend response shape", () => {
     ...queueItem,
     caption: "Моя работа",
     advertisingConsent: false,
+    publicationConsent: false,
     officialComparison: {
       revisionId: "33333333333333333333333333333333",
       version: 2,
@@ -127,6 +128,21 @@ test("moderation detail accepts the exact backend response shape", () => {
   assert.equal(
     workshopModerationDetailSchema.safeParse({
       ...detail,
+      materials: [],
+      symbolMappings: [],
+    }).success,
+    true,
+  );
+  assert.equal(
+    workshopModerationDetailSchema.safeParse({
+      ...detail,
+      publicationConsent: undefined,
+    }).success,
+    false,
+  );
+  assert.equal(
+    workshopModerationDetailSchema.safeParse({
+      ...detail,
       advertisingConsent: true,
     }).success,
     false,
@@ -143,6 +159,28 @@ test("moderation detail accepts the exact backend response shape", () => {
       ...detail,
       advertisingConsent: true,
       advertisingConsentAt: "2026-09-01T10:00:00.000Z",
+    }).success,
+    true,
+  );
+  assert.equal(
+    workshopModerationDetailSchema.safeParse({
+      ...detail,
+      publicationConsent: true,
+    }).success,
+    false,
+  );
+  assert.equal(
+    workshopModerationDetailSchema.safeParse({
+      ...detail,
+      publicationConsentAt: "2026-09-01T10:00:00.000Z",
+    }).success,
+    false,
+  );
+  assert.equal(
+    workshopModerationDetailSchema.safeParse({
+      ...detail,
+      publicationConsent: true,
+      publicationConsentAt: "2026-09-01T10:00:00.000Z",
     }).success,
     true,
   );

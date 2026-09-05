@@ -99,6 +99,8 @@ export const workshopModerationDetailSchema = workshopModerationQueueItemSchema
     caption: z.string().trim().max(500).optional(),
     advertisingConsent: z.boolean(),
     advertisingConsentAt: dateSchema.optional(),
+    publicationConsent: z.boolean(),
+    publicationConsentAt: dateSchema.optional(),
     officialComparison: z
       .object({
         revisionId: revisionIdSchema,
@@ -174,8 +176,18 @@ export const workshopModerationDetailSchema = workshopModerationQueueItemSchema
     if (detail.advertisingConsent !== Boolean(detail.advertisingConsentAt)) {
       context.addIssue({
         code: z.ZodIssueCode.custom,
-        message: "Время согласия должно соответствовать признаку согласия",
+        message:
+          "Время рекламного согласия должно соответствовать признаку согласия",
         path: ["advertisingConsentAt"],
+      });
+    }
+
+    if (detail.publicationConsent !== Boolean(detail.publicationConsentAt)) {
+      context.addIssue({
+        code: z.ZodIssueCode.custom,
+        message:
+          "Время согласия на публикацию должно соответствовать признаку согласия",
+        path: ["publicationConsentAt"],
       });
     }
   });

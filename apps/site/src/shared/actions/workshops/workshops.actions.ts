@@ -85,6 +85,7 @@ export async function createMyWorkshopRevision(
     "payload",
     JSON.stringify({
       caption: input.caption,
+      publicationConsent: input.publicationConsent,
       advertisingConsent: input.advertisingConsent,
       crop: input.crop,
       materials: input.materials,

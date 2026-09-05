@@ -31,6 +31,7 @@ export type WorkshopMarkerMappingInput = {
 export type CreateWorkshopRevisionInput = {
   photo?: File;
   caption?: string;
+  publicationConsent: boolean;
   advertisingConsent: boolean;
   crop: WorkshopCropInput;
   materials: Array<{ toolId: string }>;

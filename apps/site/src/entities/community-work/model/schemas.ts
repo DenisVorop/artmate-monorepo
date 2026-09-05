@@ -86,7 +86,7 @@ export const publicCommunityWorkSchema = z
     submission: z
       .object({
         caption: z.string().max(500).optional(),
-        materials: z.array(publicMaterialSchema).min(1).max(19),
+        materials: z.array(publicMaterialSchema).max(19),
         symbolMappings: z.array(publicMappingSchema).max(19),
         assets: z.object({ web: boundedUrl, thumb: boundedUrl }).strict(),
         publishedAt: isoDate,

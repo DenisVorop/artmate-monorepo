@@ -2,7 +2,6 @@ import { plainToInstance, Transform, Type } from "class-transformer";
 import { ApiProperty, ApiPropertyOptional } from "@nestjs/swagger";
 import {
   ArrayMaxSize,
-  ArrayMinSize,
   IsArray,
   IsBoolean,
   IsDefined,
@@ -133,6 +132,11 @@ export class WorkshopRevisionPayloadDTO {
   @IsBoolean()
   advertisingConsent!: boolean;
 
+  @ApiProperty()
+  @IsDefined()
+  @IsBoolean()
+  publicationConsent!: boolean;
+
   @ApiProperty({ type: () => WorkshopCropDTO })
   @IsDefined()
   @IsObject()
@@ -142,7 +146,6 @@ export class WorkshopRevisionPayloadDTO {
 
   @ApiProperty({ type: () => [WorkshopRevisionMaterialInputDTO], maxItems: 19 })
   @IsArray()
-  @ArrayMinSize(1)
   @ArrayMaxSize(19)
   @IsObject({ each: true })
   @ValidateNested({ each: true })

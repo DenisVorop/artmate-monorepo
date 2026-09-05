@@ -144,16 +144,31 @@ export class WorkshopModerationService {
           );
         }
 
-        await tx.workshopWork.update({
-          where: { id: revision.workId },
-          data: {
-            publishedRevisionId: revision.id,
-            publishedAt:
-              lockedWork.isPublicationEnabled && lockedWork.workshop.isPublic
-                ? now
-                : null,
-          },
-        });
+        const hasActivePublication =
+          lockedWork.isPublicationEnabled &&
+          lockedWork.publishedRevisionId !== null &&
+          lockedWork.publishedAt !== null;
+        const shouldPublishRevision =
+          revision.publicationConsent && lockedWork.isPublicationEnabled;
+        const shouldKeepActivePublication =
+          !shouldPublishRevision && hasActivePublication;
+
+        if (!shouldKeepActivePublication) {
+          await tx.workshopWork.update({
+            where: { id: revision.workId },
+            data: {
+              publishedRevisionId: revision.id,
+              isPublicationEnabled: shouldPublishRevision,
+              isIndexable: shouldPublishRevision
+                ? lockedWork.isIndexable
+                : false,
+              publishedAt:
+                shouldPublishRevision && lockedWork.workshop.isPublic
+                  ? now
+                  : null,
+            },
+          });
+        }
         const changed = await tx.workshopWorkRevision.updateMany({
           where: { id: revision.id, status: revision.status },
           data: { status: WorkshopRevisionStatus.APPROVED, moderatedAt: now },
@@ -371,11 +386,24 @@ export class WorkshopModerationService {
       );
     }
 
+    if (
+      revision.publicationConsent !== Boolean(revision.publicationConsentAt) ||
+      (revision.publicationConsentAt &&
+        revision.publicationConsentAt.getTime() !==
+          revision.submittedAt!.getTime())
+    ) {
+      throw new ConflictException(
+        "Workshop publication consent timestamp is invalid",
+      );
+    }
+
     return {
       ...base,
       caption: revision.caption ?? undefined,
       advertisingConsent: revision.advertisingConsent,
       advertisingConsentAt: revision.advertisingConsentAt?.toISOString(),
+      publicationConsent: revision.publicationConsent,
+      publicationConsentAt: revision.publicationConsentAt?.toISOString(),
       officialComparison: {
         revisionId: revision.officialRevisionId,
         version: revision.officialRevision.version,

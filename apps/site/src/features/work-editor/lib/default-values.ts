@@ -22,6 +22,7 @@ export function getEditorDefaultValues(data: OwnerWorkshopColoring): WorkEditorF
       };
     }),
     caption: revision?.caption ?? "",
+    publicationConsent: false,
     advertisingConsent: false,
   };
 }

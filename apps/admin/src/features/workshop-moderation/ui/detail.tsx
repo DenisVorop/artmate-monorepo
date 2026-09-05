@@ -4,6 +4,7 @@ import Link from "next/link";
 import {
   AlertTriangle,
   ExternalLink,
+  ImageUp,
   Megaphone,
   RefreshCw,
   UserRound,
@@ -195,7 +196,7 @@ function AuthorDescription({
   readonly detail: WorkshopModerationDetailModel;
 }) {
   return (
-    <div className="grid gap-4 md:grid-cols-2">
+    <div className="grid gap-4 md:grid-cols-2 xl:grid-cols-3">
       <Card>
         <CardHeader>
           <CardTitle role="heading" aria-level={2}>
@@ -206,6 +207,31 @@ function AuthorDescription({
           <p className="whitespace-pre-wrap text-sm">
             {detail.caption || "Подпись не указана"}
           </p>
+        </CardContent>
+      </Card>
+      <Card>
+        <CardHeader>
+          <CardTitle
+            className="flex items-center gap-2"
+            role="heading"
+            aria-level={2}
+          >
+            <ImageUp className="size-4" aria-hidden="true" />
+            Согласие на публикацию
+          </CardTitle>
+        </CardHeader>
+        <CardContent className="grid justify-items-start gap-3">
+          <Badge variant={detail.publicationConsent ? "default" : "outline"}>
+            {detail.publicationConsent
+              ? "Согласие получено"
+              : "Согласие не получено"}
+          </Badge>
+          {detail.publicationConsent && detail.publicationConsentAt ? (
+            <p className="text-sm text-muted-foreground">
+              Согласие зафиксировано сервером:{" "}
+              {formatWorkshopModerationDate(detail.publicationConsentAt)}
+            </p>
+          ) : null}
         </CardContent>
       </Card>
       <Card>

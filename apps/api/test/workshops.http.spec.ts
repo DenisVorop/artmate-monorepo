@@ -159,6 +159,7 @@ describe("Workshop HTTP security contract", () => {
       JSON.stringify({
         caption: "My work\nhttps://spam.example",
         advertisingConsent: false,
+        publicationConsent: false,
         crop: { rotation: 0, zoom: 1, x: 0, y: 0 },
         materials: [{ toolId: "a".repeat(32) }],
         symbolMappings: [],
@@ -192,29 +193,39 @@ describe("Workshop HTTP security contract", () => {
       new FormData(),
       formDataWithPayload({
         advertisingConsent: false,
+        publicationConsent: false,
         materials: [{ toolId: "a".repeat(32) }],
         symbolMappings: [],
       }),
       formDataWithPayload([]),
       formDataWithPayload({
         advertisingConsent: false,
+        publicationConsent: false,
         crop: [],
         materials: [{ toolId: "a".repeat(32) }],
         symbolMappings: [],
       }),
       formDataWithPayload({
         advertisingConsent: false,
+        publicationConsent: false,
         crop: { rotation: 0, zoom: 1, x: 0, y: 0 },
         materials: [[]],
         symbolMappings: [],
       }),
       formDataWithPayload({
         advertisingConsent: false,
+        publicationConsent: false,
         crop: { rotation: 0, zoom: 1, x: 0, y: 0 },
         materials: [{ toolId: "a".repeat(32) }],
         symbolMappings: [[]],
       }),
       formDataWithPayload({
+        crop: { rotation: 0, zoom: 1, x: 0, y: 0 },
+        materials: [{ toolId: "a".repeat(32) }],
+        symbolMappings: [],
+      }),
+      formDataWithPayload({
+        advertisingConsent: false,
         crop: { rotation: 0, zoom: 1, x: 0, y: 0 },
         materials: [{ toolId: "a".repeat(32) }],
         symbolMappings: [],
@@ -248,6 +259,7 @@ describe("Workshop HTTP security contract", () => {
       JSON.stringify({
         caption: "  My finished work  ",
         advertisingConsent: false,
+        publicationConsent: true,
         crop: { rotation: 90, zoom: 1.25, x: -0.5, y: 0.5 },
         materials: [{ toolId: "a".repeat(32) }],
         symbolMappings: [
@@ -280,6 +292,7 @@ describe("Workshop HTTP security contract", () => {
     assert.deepEqual(JSON.parse(JSON.stringify(latestRevisionArguments[3])), {
       caption: "My finished work",
       advertisingConsent: false,
+      publicationConsent: true,
       crop: { rotation: 90, zoom: 1.25, x: -0.5, y: 0.5 },
       materials: [{ toolId: "a".repeat(32) }],
       symbolMappings: [
@@ -293,6 +306,42 @@ describe("Workshop HTTP security contract", () => {
     assert.equal(latestRevisionArguments[4], undefined);
   });
 
+  it("accepts a revision without optional material details", async () => {
+    const callsBefore = revisionCalls;
+    const body = new FormData();
+    body.set(
+      "payload",
+      JSON.stringify({
+        advertisingConsent: false,
+        publicationConsent: true,
+        crop: { rotation: 0, zoom: 1, x: 0, y: 0 },
+        materials: [],
+        symbolMappings: [],
+      }),
+    );
+
+    const response = await fetch(
+      `${baseUrl}/workshops/me/collections/forest/colorings/01/revisions`,
+      {
+        method: "POST",
+        headers: {
+          authorization: "Bearer customer-token",
+          "x-artmate-csrf": "1",
+        },
+        body,
+      },
+    );
+
+    assert.equal(response.status, 201);
+    assert.equal(revisionCalls, callsBefore + 1);
+    const revisionInput = latestRevisionArguments[3] as {
+      materials?: unknown[];
+      symbolMappings?: unknown[];
+    };
+    assert.deepEqual(revisionInput.materials, []);
+    assert.deepEqual(revisionInput.symbolMappings, []);
+  });
+
   it("rejects the removed revision intent contract", async () => {
     const callsBefore = revisionCalls;
     const body = new FormData();
@@ -301,6 +350,7 @@ describe("Workshop HTTP security contract", () => {
       JSON.stringify({
         intent: "SUBMIT",
         advertisingConsent: false,
+        publicationConsent: false,
         crop: { rotation: 0, zoom: 1, x: 0, y: 0 },
         materials: [{ toolId: "a".repeat(32) }],
         symbolMappings: [],
@@ -461,6 +511,8 @@ function moderationResponse(isPublishedRevision: boolean) {
     ...moderationListResponse(isPublishedRevision),
     advertisingConsent: true,
     advertisingConsentAt: "2026-09-01T10:00:00.000Z",
+    publicationConsent: true,
+    publicationConsentAt: "2026-09-01T10:00:00.000Z",
     officialComparison: { revisionId: "official-1", coloredUrl: "/official" },
     materials: [],
     symbolMappings: [],
