@@ -12,6 +12,7 @@ import type {
   DeliverySelection,
 } from "../src/delivery/providers/delivery-provider.interface";
 import type { OzonLogisticsService } from "../src/ozon/ozon-logistics.service";
+import type { OzonPickupIndexReadService } from "../src/ozon/ozon-pickup-index-read.service";
 
 describe("DeliveryService", () => {
   it("uses the fixed Ozon price and point-info details for delivery calculation", async () => {
@@ -194,14 +195,9 @@ describe("DeliveryService", () => {
     assert.equal(ozonLookupCount, 0);
   });
 
-  it("adapts storefront map requests and delegates point lookup", async () => {
-    const clusters = [
-      {
-        coordinate: { lat: 55.76, long: 37.61 },
-        isSameBuilding: false,
-        mapPointIds: ["11"],
-        pointsCount: 1,
-      },
+  it("delegates Ozon city and full-locality reads to the published index", async () => {
+    const cities = [
+      { id: "city-1", name: "Москва", region: "Москва", countryCode: "RU" },
     ];
     const points = [
       {
@@ -211,42 +207,26 @@ describe("DeliveryService", () => {
         workHours: "09:00-21:00",
       },
     ];
-    let mapRequest: unknown;
-    let requestedPointIds: readonly string[] | undefined;
+    const calls: unknown[] = [];
     const service = createDeliveryService(
       {},
+      {},
       {
-        getMapClusters: async (request: unknown) => {
-          mapRequest = request;
-
-          return clusters;
-        },
-        getPickupPointsByIds: async (mapPointIds: readonly string[]) => {
-          requestedPointIds = mapPointIds;
-
-          return points;
-        },
+        searchCities: async (query: string) => (
+          calls.push(["cities", query]),
+          cities
+        ),
+        getPickupPoints: async (localityId: string) => (
+          calls.push(["points", localityId]),
+          points
+        ),
       },
     );
 
-    const map = await service.getOzonDeliveryMap({
-      viewport: {
-        leftBottom: { lat: 55.55, long: 37.35 },
-        rightTop: { lat: 55.95, long: 37.85 },
-      },
-      zoom: 11,
-    });
-    const resolvedPoints = await service.getOzonDeliveryPoints(["11"]);
+    const resolvedCities = await service.searchOzonCities("мо");
+    const resolvedPoints = await service.getOzonPickupPoints("city-1");
 
-    assert.deepEqual(map, { clusters });
-    assert.deepEqual(mapRequest, {
-      viewport: {
-        left_bottom: { lat: 55.55, long: 37.35 },
-        right_top: { lat: 55.95, long: 37.85 },
-      },
-      zoom: 11,
-    });
-    assert.deepEqual(requestedPointIds, ["11"]);
+    assert.deepEqual(resolvedCities, cities);
     assert.deepEqual(resolvedPoints, [
       {
         ...points[0],
@@ -254,16 +234,22 @@ describe("DeliveryService", () => {
         minimumDeliveryPrice: 100,
       },
     ]);
+    assert.deepEqual(calls, [
+      ["cities", "мо"],
+      ["points", "city-1"],
+    ]);
   });
 });
 
 function createDeliveryService(
   cdek: object,
   ozonLogistics: object,
+  ozonPickupIndex: object = {},
 ): DeliveryService {
   return new DeliveryService(
     cdek as CdekDeliveryProvider,
     ozonLogistics as OzonLogisticsService,
     new ProviderResponseCacheService(),
+    ozonPickupIndex as OzonPickupIndexReadService,
   );
 }

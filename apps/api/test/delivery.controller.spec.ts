@@ -6,11 +6,11 @@ import type { DeliveryProxyThrottleService } from "../src/delivery/delivery-prox
 import type { DeliveryService } from "../src/delivery/delivery.service";
 
 describe("DeliveryController Ozon proxy protection", () => {
-  it("throttles both public Ozon proxy handlers before delegation", async () => {
+  it("throttles both public Ozon index handlers before delegation", async () => {
     const throttleCalls: unknown[] = [];
     const deliveryService = {
-      getOzonDeliveryMap: async () => ({ clusters: [] }),
-      getOzonDeliveryPoints: async () => [],
+      getOzonPickupPoints: async () => [],
+      searchOzonCities: async () => [],
     } as unknown as DeliveryService;
     const throttle = {
       assertAllowed: (input: unknown) => throttleCalls.push(input),
@@ -23,21 +23,15 @@ describe("DeliveryController Ozon proxy protection", () => {
       requestIp: "127.0.0.1",
     };
 
-    await controller.getOzonDeliveryMap(
-      {
-        viewport: {
-          leftBottom: { lat: 55.7, long: 37.5 },
-          rightTop: { lat: 55.8, long: 37.7 },
-        },
-        zoom: 12,
-      },
+    await controller.searchOzonCities(
+      { query: "Москва" },
       identity.cookieHeader,
       identity.forwardedFor,
       identity.realIp,
       identity.requestIp,
     );
-    await controller.getOzonDeliveryPoints(
-      { mapPointIds: ["11"] },
+    await controller.getOzonPickupPoints(
+      { localityId: "locality-1" },
       identity.cookieHeader,
       identity.forwardedFor,
       identity.realIp,

@@ -10,6 +10,7 @@ import { CdekDeliveryProvider } from "../src/delivery/providers/cdek/cdek-delive
 import { ProviderResponseCacheService } from "../src/delivery/provider-response-cache.service";
 import { OzonLogisticsService } from "../src/ozon/ozon-logistics.service";
 import { OzonOAuthService } from "../src/ozon/ozon-oauth.service";
+import { OzonPickupIndexReadService } from "../src/ozon/ozon-pickup-index-read.service";
 
 @Module({
   providers: [
@@ -18,6 +19,7 @@ import { OzonOAuthService } from "../src/ozon/ozon-oauth.service";
     DeliveryService,
     OzonLogisticsService,
     ProviderResponseCacheService,
+    { provide: OzonPickupIndexReadService, useValue: {} },
     { provide: OzonOAuthService, useValue: {} },
   ],
 })

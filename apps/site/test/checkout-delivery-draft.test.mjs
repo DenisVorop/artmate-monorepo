@@ -54,14 +54,6 @@ const ozonPoint = {
   title: "Ozon B",
   workHours: "10:00-22:00",
 };
-const ozonViewport = {
-  viewport: {
-    leftBottom: { lat: 55.6, long: 37.4 },
-    rightTop: { lat: 55.9, long: 37.9 },
-  },
-  zoom: 13,
-};
-
 function calculation(candidate, overrides = {}) {
   const point = candidate.provider === "cdek" ? cdekPointB : ozonPoint;
 
@@ -152,7 +144,10 @@ test("calculation guard rejects structurally malformed matching responses", asyn
         pickupPoint: { ...cdekPointB, deliveryPrice: Number.NaN },
       },
     },
-    { ...valid, delivery: { ...valid.delivery, pickupPoint: { ...cdekPointB, latitude: Infinity } } },
+    {
+      ...valid,
+      delivery: { ...valid.delivery, pickupPoint: { ...cdekPointB, latitude: Infinity } },
+    },
     { ...valid, delivery: { ...valid.delivery, pickupPoint: { ...cdekPointB, longitude: NaN } } },
     { ...valid, delivery: { ...valid.delivery, pickupPoint: { ...cdekPointB, cityCode: 0 } } },
     {
@@ -209,7 +204,6 @@ test("partial CDEK code survives and changing city clears only its point", async
   const { createDeliveryPickerDrafts, selectDraftCity, selectDraftPickupPoint } =
     await loadDraftState();
   const ozonDraft = {
-    mapRequest: ozonViewport,
     pickupPoint: ozonPoint,
     pickupPointId: ozonPoint.id,
   };
@@ -230,12 +224,12 @@ test("partial CDEK code survives and changing city clears only its point", async
   assert.strictEqual(drafts.ozon, ozonDraft);
 });
 
-test("Ozon city locator stays in its draft and resets only dependent Ozon state", async () => {
+test("Ozon locality stays in its draft and changing it resets only dependent Ozon state", async () => {
   const {
     getDeliveryDraftCandidate,
+    seedDeliveryPickerDrafts,
     selectOzonDraftCity,
     selectDraftPickupPoint,
-    setOzonDraftMapRequest,
   } = await loadDraftState();
   const cdekDraft = {
     city: { code: 44, countryCode: "RU", name: "Москва" },
@@ -243,18 +237,26 @@ test("Ozon city locator stays in its draft and resets only dependent Ozon state"
     pickupPoint: cdekPointA,
     pickupPointId: cdekPointA.id,
   };
-  const city = { code: 137, countryCode: "RU", name: "Санкт-Петербург" };
+  const city = {
+    countryCode: "RU",
+    id: "locality-137",
+    name: "Санкт-Петербург",
+    region: "Санкт-Петербург",
+  };
   let drafts = { cdek: cdekDraft, ozon: {} };
 
-  drafts = setOzonDraftMapRequest(drafts, ozonViewport);
   drafts = selectDraftPickupPoint(drafts, "ozon", ozonPoint);
   drafts = selectOzonDraftCity(drafts, city);
 
   assert.strictEqual(drafts.cdek, cdekDraft);
-  assert.deepEqual(drafts.ozon, { city, cityCode: city.code });
+  assert.deepEqual(drafts.ozon, { city, localityId: city.id });
   assert.equal(drafts.ozon.pickupPoint, undefined);
   assert.equal(drafts.ozon.pickupPointId, undefined);
-  assert.equal(drafts.ozon.mapRequest, undefined);
+  assert.equal(getDeliveryDraftCandidate(drafts, "ozon"), undefined);
+
+  const confirmed = { pickupPointId: "old-city-point", provider: "ozon" };
+  drafts = seedDeliveryPickerDrafts(drafts, confirmed, calculation(confirmed));
+  assert.deepEqual(drafts.ozon, { city, localityId: city.id });
   assert.equal(getDeliveryDraftCandidate(drafts, "ozon"), undefined);
 
   drafts = selectDraftPickupPoint(drafts, "ozon", ozonPoint);
@@ -265,57 +267,41 @@ test("Ozon city locator stays in its draft and resets only dependent Ozon state"
   assert.equal("cityCode" in getDeliveryDraftCandidate(drafts, "ozon"), false);
 });
 
-test("Ozon locator focus ignores stale cities and points without coordinates", async () => {
-  const { getOzonLocatorMapFocus } = await loadDraftState();
-  const points = [
-    cdekPointA,
-    cdekPointB,
-    { ...cdekPointB, id: "without-coordinates", latitude: undefined, longitude: undefined },
-  ];
-
-  assert.equal(getOzonLocatorMapFocus(137, 44, points), undefined);
-  assert.equal(
-    getOzonLocatorMapFocus(137, 137, [
-      { ...cdekPointA, latitude: undefined, longitude: undefined },
-    ]),
-    undefined,
-  );
-  assert.deepEqual(getOzonLocatorMapFocus(137, 137, points), {
-    key: "ozon-city:137",
-    points: [
-      { lat: cdekPointA.latitude, long: cdekPointA.longitude },
-      { lat: cdekPointB.latitude, long: cdekPointB.longitude },
-    ],
-  });
-});
-
-test("Ozon server seed supplies point coordinates and preserves viewport", async () => {
-  const {
-    createDeliveryPickerDrafts,
-    getOzonDraftInitialView,
-    setOzonDraftMapRequest,
-    seedDeliveryPickerDrafts,
-  } = await loadDraftState();
+test("restored Ozon point ID cannot bypass locality selection", async () => {
+  const { createDeliveryPickerDrafts, getDeliveryDraftCandidate, seedDeliveryPickerDrafts } =
+    await loadDraftState();
   const confirmed = { pickupPointId: ozonPoint.id, provider: "ozon" };
-  let drafts = createDeliveryPickerDrafts(confirmed);
-
-  drafts = setOzonDraftMapRequest(drafts, ozonViewport);
-  drafts = seedDeliveryPickerDrafts(drafts, confirmed, calculation(confirmed));
+  const drafts = seedDeliveryPickerDrafts(
+    createDeliveryPickerDrafts(confirmed),
+    confirmed,
+    calculation(confirmed),
+  );
 
   assert.deepEqual(drafts.ozon.pickupPoint, ozonPoint);
-  assert.strictEqual(drafts.ozon.mapRequest, ozonViewport);
-  assert.deepEqual(getOzonDraftInitialView(drafts.ozon), {
-    center: { lat: ozonPoint.latitude, long: ozonPoint.longitude },
-    zoom: ozonViewport.zoom,
-  });
-  assert.deepEqual(getOzonDraftInitialView({ mapRequest: ozonViewport }), {
-    center: { lat: 55.75, long: 37.65 },
-    zoom: 13,
-  });
-  assert.deepEqual(getOzonDraftInitialView({}), {
-    center: { lat: 55.75, long: 37.62 },
-    zoom: 11,
-  });
+  assert.equal(drafts.ozon.localityId, undefined);
+  assert.equal(getDeliveryDraftCandidate(drafts, "ozon"), undefined);
+});
+
+test("background calculation cannot restore an old Ozon point into a newly selected locality", async () => {
+  const { selectOzonDraftCity, seedDeliveryPickerDrafts, getDeliveryDraftCandidate } =
+    await loadDraftState();
+  const draft = selectOzonDraftCity(
+    { cdek: {}, ozon: {} },
+    {
+      id: "city-B",
+      name: "Санкт-Петербург",
+      region: "Санкт-Петербург",
+      countryCode: "RU",
+    },
+  );
+  const seeded = seedDeliveryPickerDrafts(
+    draft,
+    { provider: "ozon", pickupPointId: "point-A" },
+    undefined,
+  );
+  assert.equal(seeded.ozon.localityId, "city-B");
+  assert.equal(seeded.ozon.pickupPointId, undefined);
+  assert.equal(getDeliveryDraftCandidate(seeded, "ozon"), undefined);
 });
 
 test("point selection changes only draft and produces strict candidates", async () => {
@@ -324,11 +310,22 @@ test("point selection changes only draft and produces strict candidates", async 
     getDeliveryDraftCandidate,
     isSameDeliverySelection,
     selectDraftPickupPoint,
+    selectOzonDraftCity,
   } = await loadDraftState();
   let commits = 0;
   let closes = 0;
   let drafts = createDeliveryPickerDrafts();
 
+  drafts = selectDraftPickupPoint(drafts, "ozon", ozonPoint);
+
+  assert.equal(getDeliveryDraftCandidate(drafts, "ozon"), undefined);
+
+  drafts = selectOzonDraftCity(drafts, {
+    countryCode: "RU",
+    id: "locality-44",
+    name: "Москва",
+    region: "Москва",
+  });
   drafts = selectDraftPickupPoint(drafts, "ozon", ozonPoint);
 
   assert.deepEqual(getDeliveryDraftCandidate(drafts, "ozon"), {
@@ -495,7 +492,6 @@ test("persisted CDEK without cityCode is rejected", async () => {
       JSON.stringify({ expiresAt: 10_000, pickupPointId: "CDEK-A", provider: "cdek" }),
     );
     assert.equal(testModule.exports.readPersistedPickupSelection("cart-a", 1_000), undefined);
-
   } finally {
     globalThis.window = originalWindow;
     globalThis.localStorage = originalLocalStorage;
@@ -558,8 +554,7 @@ test("field owns controlled carrier drafts and point clicks do not close or comm
     ),
     /onOpenChange/u,
   );
-  assert.match(selector, /useState\(\(\)\s*=>\s*getOzonDraftInitialView/u);
-  assert.doesNotMatch(selector, /const ozonInitialView\s*=\s*getOzonDraftInitialView/u);
+  assert.doesNotMatch(selector, /getOzonDraftInitialView|setOzonDraftMapRequest/u);
 });
 
 test("display and submit require the server calculation matching confirmed delivery", async () => {

@@ -39,59 +39,17 @@ describe("delivery provider search", () => {
     assert.equal(citySearches, 1);
   });
 
-  it("turns CDEK and confirmed Ozon provider failures into neutral responses", async () => {
+  it("turns CDEK provider failures into neutral responses", async () => {
     const providerFailure = async () => {
       throw new Error("provider unavailable");
     };
-    const service = createService(
-      {
-        getPickupPoints: providerFailure,
-        searchCities: providerFailure,
-      },
-      {
-        getMapClusters: providerFailure,
-        getPickupPointsByIds: providerFailure,
-      },
-    );
+    const service = createService({
+      getPickupPoints: providerFailure,
+      searchCities: providerFailure,
+    });
 
     assert.deepEqual(await service.searchCdekCities("Москва", "RU"), []);
     assert.deepEqual(await service.getCdekPickupPoints(44), []);
-    assert.deepEqual(
-      await service.getOzonDeliveryMap({
-        viewport: {
-          leftBottom: { lat: 55.5, long: 37.3 },
-          rightTop: { lat: 55.9, long: 37.8 },
-        },
-        zoom: 11,
-      }),
-      { clusters: [] },
-    );
-    assert.deepEqual(await service.getOzonDeliveryPoints(["ozon-1"]), []);
-  });
-
-  it("keeps Ozon textual point search disabled without a confirmed contract", async () => {
-    let ozonCalls = 0;
-    const service = createService(
-      {},
-      new Proxy(
-        {},
-        {
-          get: () => () => {
-            ozonCalls += 1;
-            throw new Error("No Ozon method may be guessed");
-          },
-        },
-      ),
-    );
-
-    const searchOzonPickupPoints = (
-      service as DeliveryService & {
-        searchOzonPickupPoints(query: string): Promise<unknown[]>;
-      }
-    ).searchOzonPickupPoints.bind(service);
-
-    assert.deepEqual(await searchOzonPickupPoints("Москва"), []);
-    assert.equal(ozonCalls, 0);
   });
 });
 
@@ -100,7 +58,11 @@ describe("provider response cache", () => {
     const modulePath = "../src/delivery/provider-response-cache.service";
     const { ProviderResponseCacheService } = (await import(modulePath)) as {
       ProviderResponseCacheService: new () => {
-        getOrSet<T>(key: string, ttlMs: number, load: () => Promise<T>): Promise<T>;
+        getOrSet<T>(
+          key: string,
+          ttlMs: number,
+          load: () => Promise<T>,
+        ): Promise<T>;
       };
     };
     const cache = new ProviderResponseCacheService();
@@ -123,7 +85,11 @@ describe("provider response cache", () => {
     const modulePath = "../src/delivery/provider-response-cache.service";
     const { ProviderResponseCacheService } = (await import(modulePath)) as {
       ProviderResponseCacheService: new () => {
-        getOrSet<T>(key: string, ttlMs: number, load: () => Promise<T>): Promise<T>;
+        getOrSet<T>(
+          key: string,
+          ttlMs: number,
+          load: () => Promise<T>,
+        ): Promise<T>;
       };
     };
     const cache = new ProviderResponseCacheService();
@@ -195,7 +161,10 @@ describe("delivery provider throttle", () => {
       { countryCode: "RU", query: "Москва" },
       ...identity,
     );
-    await throttledController.getCdekPickupPoints({ cityCode: 44 }, ...identity);
+    await throttledController.getCdekPickupPoints(
+      { cityCode: 44 },
+      ...identity,
+    );
 
     assert.deepEqual(events, [
       "throttle",
@@ -224,8 +193,14 @@ describe("delivery provider throttle", () => {
   });
 });
 
-describe("unconfirmed Ozon point-list adapter", () => {
+describe("Ozon storefront delivery boundary", () => {
   it("exposes Ozon discovery only through bounded delivery routes", () => {
+    assert.equal("getOzonDeliveryMap" in DeliveryController.prototype, false);
+    assert.equal(
+      "getOzonDeliveryPoints" in DeliveryController.prototype,
+      false,
+    );
+
     for (const method of [
       "getDeliveryMap",
       "getDeliveryPointInfo",
@@ -251,5 +226,6 @@ function createService(cdek: object = {}, ozonLogistics: object = {}) {
     cdek as CdekDeliveryProvider,
     ozonLogistics as OzonLogisticsService,
     new ProviderResponseCacheService(),
+    {} as never,
   );
 }

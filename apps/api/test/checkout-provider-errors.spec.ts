@@ -79,7 +79,9 @@ describe("checkout provider error boundaries", () => {
 
     await assert.rejects(
       service.createCheckoutPayment(paymentInput),
-      hasPublicResponse("Не удалось начать оплату через Ozon. Попробуйте еще раз."),
+      hasPublicResponse(
+        "Не удалось начать оплату через Ozon. Попробуйте еще раз.",
+      ),
     );
     assert.match(logs.join("\n"), /status 597/u);
     assert.match(logs.join("\n"), new RegExp(privateBodySentinel, "u"));
@@ -104,7 +106,9 @@ describe("checkout provider error boundaries", () => {
 
     await assert.rejects(
       service.createCheckoutPayment(paymentInput),
-      hasPublicResponse("Не удалось начать оплату через T-Bank. Попробуйте еще раз."),
+      hasPublicResponse(
+        "Не удалось начать оплату через T-Bank. Попробуйте еще раз.",
+      ),
     );
     assert.match(logs.join("\n"), /status 598/u);
     assert.match(logs.join("\n"), new RegExp(privateBodySentinel, "u"));
@@ -179,7 +183,7 @@ describe("checkout provider error boundaries", () => {
     }
   });
 
-  it("sanitizes Ozon map, point-info, and selected-point provider failures", async () => {
+  it("sanitizes Ozon selected-point provider failures", async () => {
     const providerError = new HttpException(
       {
         body: {
@@ -198,24 +202,12 @@ describe("checkout provider error boundaries", () => {
       },
     } as unknown as OzonOAuthService);
     const logs = captureWarnings(service);
-    const cases: Array<[() => Promise<unknown>, string]> = [
-      [
-        () => service.getMapClusters(createMapRequest()),
-        "Не удалось загрузить карту пунктов Ozon. Попробуйте еще раз.",
-      ],
-      [
-        () => service.getPickupPointsByIds(["point-1"]),
-        "Не удалось загрузить пункты выдачи Ozon. Попробуйте еще раз.",
-      ],
-      [
-        () => service.getPickupPoint("point-1"),
+    await assert.rejects(
+      service.getPickupPoint("point-1"),
+      hasPublicResponse(
         "Не удалось проверить пункт выдачи Ozon. Попробуйте еще раз.",
-      ],
-    ];
-
-    for (const [operation, message] of cases) {
-      await assert.rejects(operation(), hasPublicResponse(message));
-    }
+      ),
+    );
     assert.match(logs.join("\n"), /599/u);
     assert.match(logs.join("\n"), new RegExp(privateBodySentinel, "u"));
     assert.match(logs.join("\n"), new RegExp(privateDetailsSentinel, "u"));
@@ -244,7 +236,10 @@ describe("checkout provider error boundaries", () => {
 
       await assert.rejects(
         service.calculateCheckout("cart-1", { delivery }),
-        hasPublicResponse("Не удалось рассчитать доставку. Попробуйте еще раз.", 503),
+        hasPublicResponse(
+          "Не удалось рассчитать доставку. Попробуйте еще раз.",
+          503,
+        ),
       );
       await assert.rejects(
         service.createOrder("cart-1", {
@@ -259,7 +254,10 @@ describe("checkout provider error boundaries", () => {
           delivery,
           payment: { method: "tbank_acquiring" },
         }),
-        hasPublicResponse("Не удалось рассчитать доставку. Попробуйте еще раз.", 503),
+        hasPublicResponse(
+          "Не удалось рассчитать доставку. Попробуйте еще раз.",
+          503,
+        ),
       );
       assert.match(logs.join("\n"), /596/u);
       assert.match(logs.join("\n"), new RegExp(privateBodySentinel, "u"));
@@ -269,7 +267,9 @@ describe("checkout provider error boundaries", () => {
   });
 
   it("preserves controlled checkout delivery validation errors", async () => {
-    const validationError = new BadRequestException("CDEK pickup point is invalid");
+    const validationError = new BadRequestException(
+      "CDEK pickup point is invalid",
+    );
     const service = createOrdersServiceWithDeliveryFailure(validationError);
 
     await assert.rejects(
@@ -307,7 +307,10 @@ function hasPublicResponse(message: string, status = 502) {
       message,
       statusCode: status,
     });
-    assert.doesNotMatch(serialized, /PRIVATE_PROVIDER|PRIVATE_ERROR_CODE|597|598|599/u);
+    assert.doesNotMatch(
+      serialized,
+      /PRIVATE_PROVIDER|PRIVATE_ERROR_CODE|597|598|599/u,
+    );
     assert.doesNotMatch(serialized, /body|details|ozonStatus|tbankStatus/u);
     return true;
   };
@@ -320,9 +323,18 @@ function callPaymentInitialization(
   return (
     service as unknown as Record<
       typeof method,
-      (order: ReturnType<typeof createPaymentOrder>, userId?: string) => Promise<unknown>
+      (
+        order: ReturnType<typeof createPaymentOrder>,
+        userId?: string,
+      ) => Promise<unknown>
     >
-  )[method](createPaymentOrder(method === "createOzonPaymentForOrder" ? "ozon_acquiring" : "tbank_acquiring"));
+  )[method](
+    createPaymentOrder(
+      method === "createOzonPaymentForOrder"
+        ? "ozon_acquiring"
+        : "tbank_acquiring",
+    ),
+  );
 }
 
 function createOrdersServiceWithPaymentFailure(
@@ -348,8 +360,12 @@ function createOrdersServiceWithPaymentFailure(
         input: { errorMessage: string },
       ) => diagnostics.push(input.errorMessage),
     },
-    ozonAcquiringService: { createCheckoutPayment: provider === "ozon" ? fail : undefined },
-    tbankAcquiringService: { createCheckoutPayment: provider === "tbank" ? fail : undefined },
+    ozonAcquiringService: {
+      createCheckoutPayment: provider === "ozon" ? fail : undefined,
+    },
+    tbankAcquiringService: {
+      createCheckoutPayment: provider === "tbank" ? fail : undefined,
+    },
   }) as OrdersService;
 }
 
@@ -384,16 +400,6 @@ function jsonResponse(body: unknown, status: number) {
     headers: { "content-type": "application/json" },
     status,
   });
-}
-
-function createMapRequest() {
-  return {
-    viewport: {
-      left_bottom: { lat: 55.55, long: 37.35 },
-      right_top: { lat: 55.95, long: 37.85 },
-    },
-    zoom: 11,
-  };
 }
 
 function createOrdersServiceWithDeliveryFailure(error: Error) {
