@@ -33,6 +33,12 @@ import { OzonOAuthService } from "./ozon-oauth.service";
 
 type OzonLogisticsMode = "mock" | "real";
 
+export type OzonDeliveryPointListItem = {
+  mapPointId: string;
+  latitude: number;
+  longitude: number;
+};
+
 const MOCK_RESPONSE_DELAY_MS = 450;
 
 @Injectable()
@@ -62,6 +68,31 @@ export class OzonLogisticsService {
     await this.delayMockResponse();
 
     return this.getMockDeliveryPointInfo(request);
+  }
+
+  async getDeliveryPointList(): Promise<OzonDeliveryPointListItem[]> {
+    try {
+      if (this.getMode() === "mock") {
+        return OZON_MOCK_PICKUP_POINTS.map((point) => ({
+          mapPointId: String(point.mapPointId),
+          latitude: point.lat,
+          longitude: point.long,
+        }));
+      }
+
+      const response = await this.requestSellerApi(
+        "/v1/delivery/point/list",
+        {},
+      );
+
+      return this.mapDeliveryPointListResponse(response);
+    } catch (error) {
+      throw this.createPublicProviderException(
+        error,
+        "point-list",
+        "Не удалось загрузить пункты выдачи Ozon. Попробуйте еще раз.",
+      );
+    }
   }
 
   async getMapClusters(
@@ -518,6 +549,44 @@ export class OzonLogisticsService {
     }
 
     return record.points;
+  }
+
+  private mapDeliveryPointListResponse(
+    response: unknown,
+  ): OzonDeliveryPointListItem[] {
+    const record = this.getUpstreamResponseRecord(response, "point-list");
+
+    if (!Object.hasOwn(record, "points") || !Array.isArray(record.points)) {
+      throw new BadGatewayException({
+        message: "Ozon Logistics point-list response is invalid",
+      });
+    }
+
+    return record.points.map((point) => {
+      const pointRecord = this.toRecord(point);
+      const coordinate = this.toRecord(pointRecord.coordinate);
+      const mapPointId = this.parseExternalMapPointId(
+        pointRecord.map_point_id,
+      );
+      const latitude = this.getNumber(coordinate, "lat");
+      const longitude = this.getNumber(coordinate, "long");
+
+      if (
+        !mapPointId ||
+        latitude === undefined ||
+        longitude === undefined ||
+        latitude < -90 ||
+        latitude > 90 ||
+        longitude < -180 ||
+        longitude > 180
+      ) {
+        throw new BadGatewayException({
+          message: "Ozon Logistics point-list item is invalid",
+        });
+      }
+
+      return { mapPointId, latitude, longitude };
+    });
   }
 
   private isPickupPointDeliveryMethod(point: unknown) {

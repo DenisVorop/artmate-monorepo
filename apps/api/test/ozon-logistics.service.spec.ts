@@ -28,9 +28,118 @@ import {
 } from "../src/ozon/dto";
 import { ozonSellerApiMaxConcurrentRequests } from "../src/ozon/ozon.constants";
 import { OzonLogisticsService } from "../src/ozon/ozon-logistics.service";
+import { OZON_MOCK_PICKUP_POINTS } from "../src/ozon/ozon-logistics.mock-data";
 import type { OzonOAuthService } from "../src/ozon/ozon-oauth.service";
 
 describe("Ozon logistics storefront mapping", () => {
+  it("requests and normalizes the complete Ozon delivery point list", async () => {
+    await withOzonLogisticsMode("real", async () => {
+      const calls: Array<{ body: unknown; path: string }> = [];
+      const opaqueId = "90071992547409931234";
+      const service = new OzonLogisticsService({
+        requestSellerApi: async (path: string, body: unknown) => {
+          calls.push({ body, path });
+
+          return {
+            points: [
+              {
+                coordinate: { lat: -90, long: -180 },
+                map_point_id: 42,
+              },
+              {
+                coordinate: { lat: 90, long: 180 },
+                map_point_id: opaqueId,
+              },
+            ],
+          };
+        },
+      } as unknown as OzonOAuthService);
+
+      assert.deepEqual(await service.getDeliveryPointList(), [
+        { mapPointId: "42", latitude: -90, longitude: -180 },
+        { mapPointId: opaqueId, latitude: 90, longitude: 180 },
+      ]);
+      assert.deepEqual(calls, [
+        { body: {}, path: "/v1/delivery/point/list" },
+      ]);
+    });
+  });
+
+  it("accepts an explicit empty Ozon delivery point list", async () => {
+    await withOzonLogisticsMode("real", async () => {
+      assert.deepEqual(
+        await createLogisticsServiceReturning({
+          points: [],
+        }).getDeliveryPointList(),
+        [],
+      );
+    });
+  });
+
+  it("rejects malformed Ozon delivery point list responses with Bad Gateway", async () => {
+    await withOzonLogisticsMode("real", async () => {
+      const invalidResponses = [
+        {},
+        { points: null },
+        { points: {} },
+        { points: [null] },
+        { points: [{}] },
+        {
+          points: [{ coordinate: { lat: 55.76, long: 37.61 } }],
+        },
+        {
+          points: [{ coordinate: { lat: Number.NaN, long: 37.61 }, map_point_id: 1 }],
+        },
+        {
+          points: [
+            {
+              coordinate: { lat: "55.76", long: 37.61 },
+              map_point_id: 1,
+            },
+          ],
+        },
+        {
+          points: [{ coordinate: { lat: 91, long: 37.61 }, map_point_id: 1 }],
+        },
+        {
+          points: [{ coordinate: { lat: 55.76, long: -181 }, map_point_id: 1 }],
+        },
+        {
+          points: [
+            {
+              coordinate: { lat: 55.76, long: 37.61 },
+              map_point_id: Number.MAX_SAFE_INTEGER + 1,
+            },
+          ],
+        },
+        null,
+        [],
+      ];
+
+      for (const response of invalidResponses) {
+        await assert.rejects(
+          createLogisticsServiceReturning(response).getDeliveryPointList(),
+          (error) =>
+            error instanceof BadGatewayException && error.getStatus() === 502,
+        );
+      }
+    });
+  });
+
+  it("keeps the mock delivery point list deterministic and aligned", async () => {
+    await withOzonLogisticsMode("mock", async () => {
+      const service = new OzonLogisticsService({} as OzonOAuthService);
+      const expectedPoints = OZON_MOCK_PICKUP_POINTS.map((point) => ({
+        mapPointId: String(point.mapPointId),
+        latitude: point.lat,
+        longitude: point.long,
+      }));
+
+      assert.deepEqual(await service.getDeliveryPointList(), expectedPoints);
+      assert.deepEqual(await service.getDeliveryPointList(), expectedPoints);
+    });
+  });
+
   it("normalizes map clusters and keeps only available staffed PVZ details", async () => {
     await withOzonLogisticsMode("real", async () => {
       const calls: Array<{ body: unknown; path: string }> = [];
