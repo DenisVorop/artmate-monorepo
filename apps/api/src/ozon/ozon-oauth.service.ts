@@ -8,6 +8,7 @@ import {
 } from "@nestjs/common";
 import crypto from "node:crypto";
 
+import { Prisma } from "../generated/prisma/client";
 import type { OzonOAuthToken as PrismaOzonOAuthToken } from "../generated/prisma/client";
 import { PrismaService } from "../prisma/prisma.service";
 
@@ -282,11 +283,13 @@ export class OzonOAuthService {
   }
 
   private async getStoredToken() {
-    const token = await this.prisma.ozonOAuthToken.findUnique({
-      where: {
-        tokenKey: OZON_OAUTH_TOKEN_KEY,
+    const token = await this.getOzonOAuthTokenDelegate().ozonOAuthToken.findUnique(
+      {
+        where: {
+          tokenKey: OZON_OAUTH_TOKEN_KEY,
+        },
       },
-    });
+    );
 
     if (!token) {
       this.storedToken = undefined;
@@ -300,26 +303,28 @@ export class OzonOAuthService {
   }
 
   private async saveToken(token: OzonStoredOAuthToken) {
-    const savedToken = await this.prisma.ozonOAuthToken.upsert({
-      where: {
-        tokenKey: OZON_OAUTH_TOKEN_KEY,
+    const savedToken = await this.getOzonOAuthTokenDelegate().ozonOAuthToken.upsert(
+      {
+        where: {
+          tokenKey: OZON_OAUTH_TOKEN_KEY,
+        },
+        create: {
+          tokenKey: OZON_OAUTH_TOKEN_KEY,
+          accessToken: token.accessToken,
+          refreshToken: token.refreshToken ?? null,
+          scope: token.scope,
+          tokenType: token.tokenType ?? null,
+          expiresAt: new Date(token.expiresAt),
+        },
+        update: {
+          accessToken: token.accessToken,
+          refreshToken: token.refreshToken ?? null,
+          scope: token.scope,
+          tokenType: token.tokenType ?? null,
+          expiresAt: new Date(token.expiresAt),
+        },
       },
-      create: {
-        tokenKey: OZON_OAUTH_TOKEN_KEY,
-        accessToken: token.accessToken,
-        refreshToken: token.refreshToken ?? null,
-        scope: token.scope,
-        tokenType: token.tokenType ?? null,
-        expiresAt: new Date(token.expiresAt),
-      },
-      update: {
-        accessToken: token.accessToken,
-        refreshToken: token.refreshToken ?? null,
-        scope: token.scope,
-        tokenType: token.tokenType ?? null,
-        expiresAt: new Date(token.expiresAt),
-      },
-    });
+    );
 
     this.storedToken = this.mapPrismaToken(savedToken);
 
@@ -335,6 +340,12 @@ export class OzonOAuthService {
       scope: token.scope,
       tokenType: this.getOptionalString(token.tokenType),
       updatedAt: token.updatedAt.getTime(),
+    };
+  }
+
+  private getOzonOAuthTokenDelegate() {
+    return this.prisma as PrismaService & {
+      ozonOAuthToken: Prisma.OzonOAuthTokenDelegate;
     };
   }
 
