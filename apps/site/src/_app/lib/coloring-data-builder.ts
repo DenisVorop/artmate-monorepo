@@ -1,5 +1,7 @@
 import { coloringQuery, type Coloring } from "@/entities/coloring";
+import { productsQuery, type ProductsDataResult } from "@/entities/products";
 import { getPublicColoring } from "@/shared/actions/colorings";
+import { getProductsData } from "@/shared/actions/products";
 import { ApiResult } from "@/shared/lib/api-result";
 
 import type { TaskFn } from "../types/data-builder";
@@ -8,6 +10,7 @@ import { BaseDataBuilder } from "./base-data-builder";
 
 type Fields = {
   coloring?: Coloring | null;
+  productsData?: ProductsDataResult;
 };
 
 export class ColoringDataBuilder<
@@ -43,6 +46,14 @@ export class ColoringDataBuilder<
       );
 
       return coloring;
+    });
+  }
+
+  withProducts() {
+    const setApiResultQueryData = this.setApiResultQueryData.bind(this);
+
+    return this.add("productsData", async function () {
+      return setApiResultQueryData(productsQuery.getData().queryKey, await getProductsData());
     });
   }
 }

@@ -194,9 +194,12 @@ test("digital collection entity queries have stable hydrated list and slug ident
 });
 
 test("digital version routes use SSR builders, hydration, metadata, notFound, and structured data", async () => {
-  const [hub, detail, routes] = await Promise.all([
+  const [hub, collection, coloring, collectionBuilder, coloringBuilder, routes] = await Promise.all([
     readSource("app/(site)/raskraski/page.tsx"),
     readSource("app/(site)/raskraski/digital/[collectionSlug]/page.tsx"),
+    readSource("app/(site)/raskraski/digital/[collectionSlug]/[number]/page.tsx"),
+    readSource("src/_app/lib/coloring-collections-data-builder.ts"),
+    readSource("src/_app/lib/coloring-data-builder.ts"),
     readSource("src/shared/constants/routes.ts"),
   ]);
 
@@ -207,16 +210,65 @@ test("digital version routes use SSR builders, hydration, metadata, notFound, an
   );
   assert.match(routes, /coloring:\s*\(collectionSlug: string, number: number\)/);
   assert.match(hub, /withCollections\(\)/);
+  assert.doesNotMatch(hub, /withProducts\(\)/);
   assert.match(hub, /ColoringCollectionsStructuredData/);
   assert.match(hub, /HydrationBoundary state=\{dehydrateQueryClient\(queryClient\)\}/);
-  assert.equal((detail.match(/withCollection\(collectionSlug\)/g) ?? []).length, 2);
-  assert.match(detail, /createColoringCollectionMetadata\(collection\)/);
-  assert.match(detail, /if \(collection === null\) \{\s*notFound\(\);\s*\}/);
-  assert.match(detail, /ColoringCollectionStructuredData/);
-  assert.match(detail, /HydrationBoundary state=\{dehydrateQueryClient\(queryClient\)\}/);
+  assert.equal((collection.match(/withCollection\(collectionSlug\)/g) ?? []).length, 2);
+  assert.doesNotMatch(collection, /withProducts\(\)/);
+  assert.match(collection, /createColoringCollectionMetadata\(collection\)/);
+  assert.match(collection, /if \(collection === null\) \{\s*notFound\(\);\s*\}/);
+  assert.match(collection, /ColoringCollectionStructuredData/);
+  assert.match(collection, /HydrationBoundary state=\{dehydrateQueryClient\(queryClient\)\}/);
+  assert.match(coloring, /withProducts\(\)/);
+  assert.match(coloring, /HydrationBoundary state=\{dehydrateQueryClient\(queryClient\)\}/);
+  assert.doesNotMatch(collectionBuilder, /productsQuery|ProductsDataResult|getProductsData|withProducts/);
+  assert.match(coloringBuilder, /productsQuery\.getData\(\)\.queryKey/);
+  assert.match(coloringBuilder, /await getProductsData\(\)/);
+  assert.match(coloringBuilder, /withProducts\(\)/);
 });
 
-test("digital catalog UI keeps covers clean, uses light card derivatives, and exposes the product-page link", async () => {
+test("digital product references cannot carry price or stock in site schemas, types, actions, or API DTOs", async () => {
+  const [collectionSchema, coloringSchema, collectionTypes, coloringTypes, collectionAction, coloringAction, apiDto] =
+    await Promise.all([
+      readSource("src/shared/actions/coloring-collections/coloring-collections.schemas.ts"),
+      readSource("src/shared/actions/colorings/colorings.schemas.ts"),
+      readSource("src/shared/actions/coloring-collections/coloring-collections.types.ts"),
+      readSource("src/shared/actions/colorings/colorings.types.ts"),
+      readSource("src/shared/actions/coloring-collections/coloring-collections.actions.ts"),
+      readSource("src/shared/actions/colorings/colorings.actions.ts"),
+      readSource("../api/src/colorings/dto/public-coloring.dto.ts"),
+    ]);
+
+  for (const source of [
+    collectionSchema,
+    coloringSchema,
+    collectionTypes,
+    coloringTypes,
+    collectionAction,
+    coloringAction,
+    apiDto.match(/export class PublicColoringProductDTO[\s\S]*?^}/m)?.[0] ?? "",
+  ]) {
+    assert.doesNotMatch(source, /\bprice\b|\bisOutOfStock\b/);
+  }
+
+  const schemas = await loadSchemas();
+  assert.equal(
+    schemas.publicColoringCollectionSummarySchema.safeParse({
+      ...summary,
+      product: { ...summary.product, price: 1_000 },
+    }).success,
+    false,
+  );
+  assert.equal(
+    schemas.publicColoringCollectionSummarySchema.safeParse({
+      ...summary,
+      product: { ...summary.product, isOutOfStock: false },
+    }).success,
+    false,
+  );
+});
+
+test("digital catalog UI keeps covers clean, uses light card derivatives, and has no commerce data", async () => {
   const [catalog, gallery, productCard, purchasePanel, products, header] = await Promise.all([
     readSource("src/features/coloring-collections-catalog/ui/catalog.tsx"),
     readSource("src/features/coloring-collection-gallery/ui/gallery.tsx"),
@@ -233,6 +285,7 @@ test("digital catalog UI keeps covers clean, uses light card derivatives, and ex
   assert.match(catalog, /hover:shadow-lg/);
   assert.doesNotMatch(catalog, /hover:-translate-y/);
   assert.doesNotMatch(catalog, /CardTitle|CardDescription|collection\.description/);
+  assert.doesNotMatch(catalog, /productAction|price|isOutOfStock|В корзину/);
   assert.match(
     gallery,
     /<ul className="grid grid-cols-1 gap-4 sm:grid-cols-2 sm:gap-5 md:grid-cols-3 lg:grid-cols-4">/,
@@ -247,6 +300,7 @@ test("digital catalog UI keeps covers clean, uses light card derivatives, and ex
   assert.match(gallery, /\{displayNumber\}/);
   assert.match(gallery, /routes\.coloring\(collection\.slug, displayNumber\)/);
   assert.doesNotMatch(gallery, /displayPosition|index \+ 1/);
+  assert.doesNotMatch(gallery, /productAction|price|isOutOfStock|В корзину/);
   assert.doesNotMatch(productCard, /Смотреть цифровую версию/);
   assert.match(purchasePanel, /Смотреть цифровую версию/);
   assert.match(purchasePanel, /routes\.digitalCollection\(product\.digitalCollection\.slug\)/);
@@ -254,109 +308,71 @@ test("digital catalog UI keeps covers clean, uses light card derivatives, and ex
   assert.match(header, /title: "Цифровые версии"/);
 });
 
-test("digital collection hero stacks the count, title and optional description with coloring-page spacing", async () => {
-  const gallery = await readSource("src/features/coloring-collection-gallery/ui/gallery.tsx");
+test("digital collection hero shows album presentation, exact instruction, and then the gallery", async () => {
+  const [gallery, workshopAction] = await Promise.all([
+    readSource("src/features/coloring-collection-gallery/ui/gallery.tsx"),
+    readSource("src/features/add-workshop-collection/ui/add-button.tsx"),
+  ]);
   const hero = gallery.match(
-    /<section className="container space-y-6 py-5 md:space-y-8 md:py-8">[\s\S]*?<\/section>/,
+    /<section className="container space-y-5 py-5 md:space-y-6 md:py-6">[\s\S]*?<\/section>/,
   )?.[0];
 
   assert.ok(hero);
-  assert.match(hero, /<div className="max-w-3xl space-y-3">/);
-  assert.match(hero, /<Badge variant="secondary" className="h-auto px-3 py-1\.5 text-rose-700">/);
+  assert.match(gallery, /getDigitalCollectionPresentation\(collection\)/);
   assert.match(
     hero,
-    /\{collection\.coloringCount\} из \{collection\.expectedColoringCount\} иллюстраций[\s\S]*?<PageTitle>\{collection\.title\}<\/PageTitle>[\s\S]*?\{collection\.description \? \(\s*<ExpandableText collapsible>[\s\S]*?<SectionSubtitle>\{collection\.description\}<\/SectionSubtitle>[\s\S]*?<\/ExpandableText>\s*\) : null\}/,
+    /<PageTitle>\{presentation\.heading\}<\/PageTitle>[\s\S]*?\{collection\.coloringCount\} картин[\s\S]*?<SectionSubtitle>\{presentation\.instruction\}<\/SectionSubtitle>/,
   );
-  assert.doesNotMatch(hero, /grid-cols|flex-row|justify-self-end|max-w-md/);
+  assert.doesNotMatch(hero, /collection\.description|ExpandableText|Показать полностью/);
+  assert.match(hero, /<PageTitle>[\s\S]*?\{workshopAction\}[\s\S]*?<SectionSubtitle>/);
+  assert.match(workshopAction, /size="sm"/);
+  assert.match(workshopAction, /variant="outline"/);
+  assert.doesNotMatch(workshopAction, /\bw-full\b/);
+  assert.ok(gallery.indexOf(hero) < gallery.indexOf("<ul className="));
   assert.match(gallery, /<CardTitle[\s\S]*?>\s*\{coloring\.title\}\s*<\/CardTitle>/);
 });
 
-test("digital collection descriptions always use the shared disclosure without changing content", async () => {
-  const source = await readSource("src/features/coloring-collection-gallery/ui/gallery.tsx");
-  const jsx = (type, props) => ({ type, props });
-  let description;
-  const { ColoringCollectionGallery } = evaluateTypeScript(source, {
-    "react/jsx-runtime": { jsx, jsxs: jsx },
-    "next/image": "Image",
-    "@/entities/coloring-collection": {
-      useColoringCollectionData: () => ({
-        collection: { ...collection, description },
-        isError: false,
-        isPending: false,
-        refetch() {},
-      }),
+test("digital collection presentation extracts a quoted album title with a safe fallback", async () => {
+  const { getDigitalCollectionPresentation } = evaluateTypeScript(
+    await readSource("src/features/coloring-collection-gallery/lib/presentation.ts"),
+  );
+
+  assert.deepEqual(
+    getDigitalCollectionPresentation({
+      title: "Цифровые картины",
+      product: { title: "Раскраска по номерам «Котики 2»" },
+    }),
+    {
+      albumTitle: "Котики 2",
+      heading: "Котики 2 — цифровая версия",
+      instruction:
+        "Выберите картину из альбома «Котики 2», чтобы открыть цветной образец, контур и палитру с номерами маркеров Artmate.",
     },
-    "@/shared/constants": {
-      routes: {
-        home: "/",
-        colorings: "/raskraski",
-        coloring: (slug, number) => `/raskraski/digital/${slug}/${number}`,
-      },
+  );
+  assert.equal(
+    getDigitalCollectionPresentation({
+      title: "Загадочный лес",
+      product: { title: "Альбом без кавычек" },
+    }).albumTitle,
+    "Загадочный лес",
+  );
+});
+
+test("digital collection presentation extracts the quoted album title from the collection title", async () => {
+  const { getDigitalCollectionPresentation } = evaluateTypeScript(
+    await readSource("src/features/coloring-collection-gallery/lib/presentation.ts"),
+  );
+
+  assert.deepEqual(
+    getDigitalCollectionPresentation({
+      title: "Раскраска по номерам «Котики 2»: макеты и палитры Artmate",
+      product: { title: "Раскраска по номерам Котики 2" },
+    }),
+    {
+      albumTitle: "Котики 2",
+      heading: "Котики 2 — цифровая версия",
+      instruction:
+        "Выберите картину из альбома «Котики 2», чтобы открыть цветной образец, контур и палитру с номерами маркеров Artmate.",
     },
-    "@/shared/ui": {
-      Badge: "Badge",
-      Breadcrumb: "Breadcrumb",
-      BreadcrumbItem: "BreadcrumbItem",
-      BreadcrumbLink: "BreadcrumbLink",
-      BreadcrumbList: "BreadcrumbList",
-      BreadcrumbPage: "BreadcrumbPage",
-      BreadcrumbSeparator: "BreadcrumbSeparator",
-      Button: "Button",
-      Card: "Card",
-      CardContent: "CardContent",
-      CardTitle: "CardTitle",
-      DataState: "DataState",
-      ExpandableText: "ExpandableText",
-    },
-    "@/shared/ui/link": { Link: "Link" },
-    "@/shared/ui/typography": {
-      PageTitle: "PageTitle",
-      SectionSubtitle: "SectionSubtitle",
-    },
-    "../lib/use-track-open": { useTrackOpen() {} },
-  });
-
-  function getElements(node) {
-    if (Array.isArray(node)) return node.flatMap(getElements);
-    if (!node || typeof node !== "object") return [];
-
-    return [node, ...getElements(node.props.children)];
-  }
-
-  function getText(node) {
-    if (Array.isArray(node)) return node.map(getText).join("");
-    if (typeof node === "string" || typeof node === "number") return String(node);
-
-    return node?.props ? getText(node.props.children) : "";
-  }
-
-  for (const value of ["Короткое описание", "Длинное описание ".repeat(50)]) {
-    description = value;
-    const elements = getElements(ColoringCollectionGallery({ slug: "forest" }));
-    const disclosure = elements.find((element) => element.type === "ExpandableText");
-    const subtitle = elements.find((element) => element.type === "SectionSubtitle");
-
-    assert.ok(disclosure);
-    assert.equal(disclosure.props.collapsible, true);
-    assert.strictEqual(disclosure.props.children, subtitle);
-    assert.equal(getText(subtitle), value);
-    assert.ok(elements.some((element) => element.type === "PageTitle"));
-    assert.ok(elements.some((element) => element.type === "ul"));
-  }
-
-  for (const value of ["", null]) {
-    description = value;
-    const elements = getElements(ColoringCollectionGallery({ slug: "forest" }));
-
-    assert.equal(
-      elements.some((element) => element.type === "ExpandableText"),
-      false,
-    );
-    assert.equal(
-      elements.some((element) => element.type === "SectionSubtitle"),
-      false,
-    );
-    assert.ok(elements.some((element) => element.type === "PageTitle"));
-    assert.ok(elements.some((element) => element.type === "ul"));
-  }
+  );
 });

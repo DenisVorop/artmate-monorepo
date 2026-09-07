@@ -619,14 +619,15 @@ test("keyboard main retry moves focus to the stable viewer before remount", asyn
   assert.match(source, /onClick=\{retryImages\}/);
 });
 
-test("details render persisted palette colors, legacy empty state, and category-safe product CTA", async () => {
-  const [detailsSource, heroSource, paletteSource, routesSource] = await Promise.all([
+test("details render persisted palette colors, legacy empty state, and a separate physical album callout", async () => {
+  const [detailsSource, heroSource, calloutSource, paletteSource, routesSource] = await Promise.all([
     readSource("src/features/coloring-details/ui/coloring-details.tsx"),
     readSource("src/features/coloring-details/ui/hero.tsx"),
+    readSource("src/features/coloring-details/ui/physical-album-callout.tsx"),
     readSource("src/features/coloring-details/ui/palette-section.tsx"),
     readSource("src/shared/constants/routes.ts"),
   ]);
-  const source = `${detailsSource}\n${heroSource}\n${paletteSource}`;
+  const source = `${detailsSource}\n${heroSource}\n${calloutSource}\n${paletteSource}`;
   const { routes } = evaluateTypeScript(routesSource);
 
   assert.match(source, /Цифровая версия в палитре Artmate/);
@@ -640,13 +641,16 @@ test("details render persisted palette colors, legacy empty state, and category-
   assert.match(source, /Цифровые версии/);
   assert.match(source, /routes\.colorings/);
   assert.match(
-    heroSource,
-    /const productHref = routes\.product\(collection\.product\.category\?\.slug, collection\.product\.slug\)/,
+    calloutSource,
+    /routes\.product\(product\.category\?\.slug, product\.slug\)/,
   );
-  assert.match(heroSource, /href=\{productHref\}/);
-  assert.match(heroSource, /Купить печатный альбом/);
-  assert.match(heroSource, /ShoppingBag/);
-  assert.match(heroSource, /collection\.product\.title/);
+  assert.match(calloutSource, /Купить печатный альбом/);
+  assert.match(calloutSource, /product\.title/);
+  assert.match(calloutSource, /coverImage/);
+  assert.match(detailsSource, /useProductsData\(\)/);
+  assert.match(detailsSource, /getProductById\(products\.data\.products, coloring\.collection\.product\.id\)/);
+  assert.doesNotMatch(heroSource, /Купить печатный альбом|productAction|CtaGradientLink|ShoppingBag/);
+  assert.doesNotMatch(calloutSource, /\bprice\b|isOutOfStock/);
   assert.doesNotMatch(detailsSource, /Эта иллюстрация входит в тематику/);
   assert.doesNotMatch(detailsSource, /Смотреть все иллюстрации/);
   assert.doesNotMatch(detailsSource, /lg:grid-cols-\[minmax\(0,1fr\)/);
@@ -796,23 +800,18 @@ test("details compose hero, full-width viewer, and palette in semantic DOM order
   assert.match(palette, /grid-cols-1[^"]*sm:grid-cols-2[^"]*lg:grid-cols-3/);
 });
 
-test("hero stacks title, description and purchase CTA vertically at every breakpoint", async () => {
+test("hero stacks its digital title and description without purchase actions", async () => {
   const hero = await readSource("src/features/coloring-details/ui/hero.tsx");
   const [title] = getJsxElements(hero, "PageTitle");
   const [description] = getJsxElements(hero, "ExpandableText");
   const [subtitle] = getJsxElements(hero, "SectionSubtitle");
-  const [cta] = getJsxElements(hero, "Button");
 
   assert.ok(title);
   assert.ok(description);
   assert.ok(subtitle);
-  assert.ok(cta);
-  assert.ok(title.pos < description.pos && description.pos < cta.pos);
+  assert.ok(title.pos < description.pos);
   assert.equal(getJsxAttribute(getJsxAncestors(title)[0], "className"), "space-y-3");
   assert.equal(getJsxAttribute(getJsxAncestors(description)[0], "className"), "space-y-3");
-  assert.equal(getJsxAttribute(getJsxAncestors(title)[1], "className"), "max-w-3xl space-y-5");
-  assert.equal(getJsxAttribute(getJsxAncestors(cta)[0], "className"), "max-w-3xl space-y-5");
-  assert.match(getJsxAttribute(cta, "className"), /min-h-11 w-full.*sm:w-auto/);
   assert.match(hero, /<PageTitle>\{title\}<\/PageTitle>/);
   assert.equal(getJsxAttribute(description, "collapsible"), "description.length > 700");
   assert.match(
@@ -820,6 +819,7 @@ test("hero stacks title, description and purchase CTA vertically at every breakp
     /<ExpandableText[\s\S]*?<SectionSubtitle>\{description\}<\/SectionSubtitle>[\s\S]*?<\/ExpandableText>/,
   );
   assert.doesNotMatch(hero, /dangerouslySetInnerHTML/);
+  assert.doesNotMatch(hero, /Button|CtaGradientLink|productAction|Купить печатный альбом/);
   assert.doesNotMatch(hero, /grid-cols|flex-row|float-(?:left|right)|lg:justify-self-end/);
 });
 
