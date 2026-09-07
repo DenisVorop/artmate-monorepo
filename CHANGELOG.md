@@ -1,5 +1,12 @@
 # Changelog
 
+## [0.37.1](https://github.com/DenisVorop/artmate-monorepo/compare/v0.37.0...v0.37.1) (2026-09-07)
+
+
+### Bug Fixes
+
+* **delivery:** search Ozon points by city ([33746de](https://github.com/DenisVorop/artmate-monorepo/commit/33746ded6adfdb46d082cbcbf70924526f0303bf))
+
 ## [0.37.0](https://github.com/DenisVorop/artmate-monorepo/compare/v0.36.0...v0.37.0) (2026-09-07)
 
 
