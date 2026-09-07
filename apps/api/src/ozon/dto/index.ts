@@ -1,9 +1,5 @@
 export { OzonAuthorizationUrlDTO } from "./ozon-authorization-url.dto";
 export { OzonCoordinateDTO } from "./ozon-coordinate.dto";
-export { OzonDeliveryMapClusterDTO } from "./ozon-delivery-map-cluster.dto";
-export { OzonDeliveryMapPointDTO } from "./ozon-delivery-map-point.dto";
-export { OzonDeliveryMapRequestDTO } from "./ozon-delivery-map-request.dto";
-export { OzonDeliveryMapResponseDTO } from "./ozon-delivery-map-response.dto";
 export { OzonDeliveryPointDimensionsDTO } from "./ozon-delivery-point-dimensions.dto";
 export { OzonDeliveryPointInfoDTO } from "./ozon-delivery-point-info.dto";
 export { OzonDeliveryPointInfoRequestDTO } from "./ozon-delivery-point-info-request.dto";

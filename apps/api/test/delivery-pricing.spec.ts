@@ -6,22 +6,26 @@ import type { CdekDeliveryProvider } from "../src/delivery/providers/cdek/cdek-d
 import type { DeliverySelection } from "../src/delivery/providers/delivery-provider.interface";
 import { ProviderResponseCacheService } from "../src/delivery/provider-response-cache.service";
 import type { OzonLogisticsService } from "../src/ozon/ozon-logistics.service";
+import type { OzonPickupIndexReadService } from "../src/ozon/ozon-pickup-index-read.service";
 
 describe("delivery pricing contract", () => {
   it("returns the server-owned 100 RUB Ozon minimum with pickup points", async () => {
-    const service = createService({
-      getPickupPointsByIds: async () => [
-        {
-          address: "Москва, Тверская, 1",
-          deliveryPrice: 1,
-          id: "ozon-1",
-          title: "Ozon ПВЗ",
-          workHours: "09:00-21:00",
-        },
-      ],
-    });
+    const service = createService(
+      {},
+      {
+        getPickupPoints: async () => [
+          {
+            address: "Москва, Тверская, 1",
+            deliveryPrice: 1,
+            id: "ozon-1",
+            title: "Ozon ПВЗ",
+            workHours: "09:00-21:00",
+          },
+        ],
+      },
+    );
 
-    const [point] = await service.getOzonDeliveryPoints(["ozon-1"]);
+    const [point] = await service.getOzonPickupPoints("locality-1");
 
     assert.ok(point);
     assert.equal(point.deliveryPrice, 100);
@@ -58,10 +62,11 @@ describe("delivery pricing contract", () => {
   });
 });
 
-function createService(ozonLogistics: object) {
+function createService(ozonLogistics: object, ozonPickupIndex: object = {}) {
   return new DeliveryService(
     {} as CdekDeliveryProvider,
     ozonLogistics as OzonLogisticsService,
     new ProviderResponseCacheService(),
+    ozonPickupIndex as OzonPickupIndexReadService,
   );
 }

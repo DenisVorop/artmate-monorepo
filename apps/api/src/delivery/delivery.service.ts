@@ -1,18 +1,13 @@
 import { BadRequestException, Injectable } from "@nestjs/common";
 
 import { OzonLogisticsService } from "../ozon/ozon-logistics.service";
+import { OzonPickupIndexReadService } from "../ozon/ozon-pickup-index-read.service";
 
 import {
   cdekCitySearchCacheTtlMs,
   cdekPickupPointsCacheTtlMs,
-  ozonDeliveryMapCacheTtlMs,
-  ozonDeliveryPointInfoCacheTtlMs,
   ozonDeliveryPriceRub,
 } from "./delivery.constants";
-import type {
-  StorefrontOzonDeliveryMapRequestDTO,
-  StorefrontOzonDeliveryMapResponseDTO,
-} from "./dto";
 import { CdekDeliveryProvider } from "./providers/cdek/cdek-delivery.provider";
 import { ProviderResponseCacheService } from "./provider-response-cache.service";
 import type {
@@ -28,6 +23,7 @@ export class DeliveryService {
     private readonly cdekDeliveryProvider: CdekDeliveryProvider,
     private readonly ozonLogisticsService: OzonLogisticsService,
     private readonly providerResponseCache: ProviderResponseCacheService,
+    private readonly ozonPickupIndexReadService: OzonPickupIndexReadService,
   ) {}
 
   async searchCdekCities(query: string, countryCode?: string) {
@@ -61,50 +57,19 @@ export class DeliveryService {
     }
   }
 
-  async getOzonDeliveryMap(
-    request: StorefrontOzonDeliveryMapRequestDTO,
-  ): Promise<StorefrontOzonDeliveryMapResponseDTO> {
-    try {
-      const clusters = await this.providerResponseCache.getOrSet(
-        `ozon:map:${JSON.stringify(request)}`,
-        ozonDeliveryMapCacheTtlMs,
-        () =>
-          this.ozonLogisticsService.getMapClusters({
-            viewport: {
-              left_bottom: request.viewport.leftBottom,
-              right_top: request.viewport.rightTop,
-            },
-            zoom: request.zoom,
-          }),
-      );
-
-      return { clusters };
-    } catch {
-      return { clusters: [] };
-    }
+  searchOzonCities(query: string) {
+    return this.ozonPickupIndexReadService.searchCities(query);
   }
 
-  async getOzonDeliveryPoints(mapPointIds: readonly string[]) {
-    try {
-      const points = await this.providerResponseCache.getOrSet(
-        `ozon:point-info:${JSON.stringify(mapPointIds)}`,
-        ozonDeliveryPointInfoCacheTtlMs,
-        () => this.ozonLogisticsService.getPickupPointsByIds(mapPointIds),
-      );
+  async getOzonPickupPoints(localityId: string) {
+    const points =
+      await this.ozonPickupIndexReadService.getPickupPoints(localityId);
 
-      return points.map((point) => ({
-        ...point,
-        deliveryPrice: ozonDeliveryPriceRub,
-        minimumDeliveryPrice: ozonDeliveryPriceRub,
-      }));
-    } catch {
-      return [];
-    }
-  }
-
-  searchOzonPickupPoints() {
-    // Text search stays neutral until Ozon publishes a confirmed point-list contract.
-    return [];
+    return points.map((point) => ({
+      ...point,
+      deliveryPrice: ozonDeliveryPriceRub,
+      minimumDeliveryPrice: ozonDeliveryPriceRub,
+    }));
   }
 
   calculatePickupPointDelivery(

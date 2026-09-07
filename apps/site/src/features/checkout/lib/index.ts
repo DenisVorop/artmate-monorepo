@@ -19,6 +19,7 @@ export {
   type CheckoutCalculationState,
 } from "./calculation-state";
 export { filterPickupPoints, formatPickupPointCount } from "./delivery-selector";
+export { useDebouncedCityQuery } from "./use-debounced-city-query";
 export { formatEstimatedDeliveryDateRange } from "./delivery-date-range";
 export {
   CheckoutProvider,
@@ -46,16 +47,12 @@ export {
   createDeliveryConfirmationCoordinator,
   createDeliveryPickerDrafts,
   getDeliveryDraftCandidate,
-  getOzonDraftInitialView,
-  getOzonLocatorMapFocus,
   isMatchingCheckoutCalculation,
   isSameDeliverySelection,
   seedDeliveryPickerDrafts,
   selectDraftCity,
   selectDraftPickupPoint,
   selectOzonDraftCity,
-  setOzonDraftMapRequest,
   type DeliveryConfirmationResult,
   type DeliveryPickerDrafts,
-  type PickupPointsMapFocus,
 } from "./delivery-picker-state";

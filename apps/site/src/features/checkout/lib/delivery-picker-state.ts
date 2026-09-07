@@ -1,7 +1,7 @@
 import type {
   DeliveryCityDTO,
   DeliveryPickupPointDTO,
-  OzonDeliveryMapRequestDTO,
+  OzonDeliveryCityDTO,
 } from "@/shared/actions/delivery";
 import type { CheckoutCalculationDTO } from "@/shared/actions/orders";
 
@@ -15,9 +15,8 @@ export type CdekDeliveryDraft = {
 };
 
 export type OzonDeliveryDraft = {
-  city?: DeliveryCityDTO;
-  cityCode?: number;
-  mapRequest?: OzonDeliveryMapRequestDTO;
+  city?: OzonDeliveryCityDTO;
+  localityId?: string;
   pickupPoint?: DeliveryPickupPointDTO;
   pickupPointId?: string;
 };
@@ -25,11 +24,6 @@ export type OzonDeliveryDraft = {
 export type DeliveryPickerDrafts = {
   cdek: CdekDeliveryDraft;
   ozon: OzonDeliveryDraft;
-};
-
-export type PickupPointsMapFocus = {
-  key: string;
-  points: Array<{ lat: number; long: number }>;
 };
 
 type ConfirmationInput = {
@@ -47,11 +41,6 @@ export type DeliveryConfirmationResult =
   | { status: "confirmed"; calculation: CheckoutCalculationDTO }
   | { status: "error"; message: string }
   | { status: "stale" };
-
-const moscowMapView = {
-  center: { lat: 55.75, long: 37.62 },
-  zoom: 11,
-};
 
 export function createDeliveryPickerDrafts(
   confirmed?: CheckoutDeliverySelection,
@@ -120,11 +109,11 @@ export function clearCdekDraftCity(drafts: DeliveryPickerDrafts): DeliveryPicker
 
 export function selectOzonDraftCity(
   drafts: DeliveryPickerDrafts,
-  city: DeliveryCityDTO,
+  city: OzonDeliveryCityDTO,
 ): DeliveryPickerDrafts {
   return {
     ...drafts,
-    ozon: { city, cityCode: city.code },
+    ozon: { city, localityId: city.id },
   };
 }
 
@@ -158,13 +147,6 @@ export function selectDraftPickupPoint(
   };
 }
 
-export function setOzonDraftMapRequest(
-  drafts: DeliveryPickerDrafts,
-  mapRequest: OzonDeliveryMapRequestDTO,
-): DeliveryPickerDrafts {
-  return { ...drafts, ozon: { ...drafts.ozon, mapRequest } };
-}
-
 export function getDeliveryDraftCandidate(
   drafts: DeliveryPickerDrafts,
   provider: CheckoutDeliverySelection["provider"],
@@ -175,7 +157,7 @@ export function getDeliveryDraftCandidate(
     return cityCode && pickupPointId ? { cityCode, pickupPointId, provider: "cdek" } : undefined;
   }
 
-  return drafts.ozon.pickupPointId
+  return drafts.ozon.localityId && drafts.ozon.pickupPointId
     ? { pickupPointId: drafts.ozon.pickupPointId, provider: "ozon" }
     : undefined;
 }
@@ -189,57 +171,6 @@ export function isSameDeliverySelection(
     left?.pickupPointId === right?.pickupPointId &&
     (left?.provider !== "cdek" || (right?.provider === "cdek" && left.cityCode === right.cityCode))
   );
-}
-
-export function getOzonDraftInitialView(draft: OzonDeliveryDraft) {
-  const point = draft.pickupPoint;
-
-  if (
-    typeof point?.latitude === "number" &&
-    Number.isFinite(point.latitude) &&
-    typeof point.longitude === "number" &&
-    Number.isFinite(point.longitude)
-  ) {
-    return {
-      center: { lat: point.latitude, long: point.longitude },
-      zoom: draft.mapRequest?.zoom ?? 15,
-    };
-  }
-
-  if (draft.mapRequest) {
-    const { leftBottom, rightTop } = draft.mapRequest.viewport;
-
-    return {
-      center: {
-        lat: (leftBottom.lat + rightTop.lat) / 2,
-        long: (leftBottom.long + rightTop.long) / 2,
-      },
-      zoom: draft.mapRequest.zoom,
-    };
-  }
-
-  return moscowMapView;
-}
-
-export function getOzonLocatorMapFocus(
-  selectedCityCode: number | undefined,
-  locatorCityCode: number | undefined,
-  pickupPoints: readonly DeliveryPickupPointDTO[],
-): PickupPointsMapFocus | undefined {
-  if (!selectedCityCode || selectedCityCode !== locatorCityCode) {
-    return undefined;
-  }
-
-  const points = pickupPoints.flatMap((point) =>
-    typeof point.latitude === "number" &&
-    Number.isFinite(point.latitude) &&
-    typeof point.longitude === "number" &&
-    Number.isFinite(point.longitude)
-      ? [{ lat: point.latitude, long: point.longitude }]
-      : [],
-  );
-
-  return points.length > 0 ? { key: `ozon-city:${selectedCityCode}`, points } : undefined;
 }
 
 export function isMatchingCheckoutCalculation(
@@ -266,7 +197,9 @@ export function isMatchingCheckoutCalculation(
     !isNonNegativeFiniteNumber(deliveryPrice) ||
     !isNonNegativeFiniteNumber(total) ||
     value.currency !== "RUB" ||
-    (value.promoCode !== undefined && value.promoCode !== null && typeof value.promoCode !== "string") ||
+    (value.promoCode !== undefined &&
+      value.promoCode !== null &&
+      typeof value.promoCode !== "string") ||
     delivery.provider !== candidate.provider ||
     point.id !== candidate.pickupPointId ||
     !isNonEmptyString(point.id) ||
@@ -384,7 +317,7 @@ function seedConfirmedTechnicalSelection(
     };
   }
 
-  if (confirmed.provider === "ozon" && !drafts.ozon.pickupPointId) {
+  if (confirmed.provider === "ozon" && !drafts.ozon.localityId && !drafts.ozon.pickupPointId) {
     return {
       ...drafts,
       ozon: { ...drafts.ozon, pickupPointId: confirmed.pickupPointId },

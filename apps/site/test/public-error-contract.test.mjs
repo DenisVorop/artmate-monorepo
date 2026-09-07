@@ -40,10 +40,13 @@ async function loadApiResultModules() {
   const apiError = evaluateTypeScript(await readSource("src/shared/lib/api-result/api-error.ts"), {
     "../omit-undefined": omitUndefined,
   });
-  const apiResult = evaluateTypeScript(await readSource("src/shared/lib/api-result/api-result.ts"), {
-    "../omit-undefined": omitUndefined,
-    "./api-error": apiError,
-  });
+  const apiResult = evaluateTypeScript(
+    await readSource("src/shared/lib/api-result/api-result.ts"),
+    {
+      "../omit-undefined": omitUndefined,
+      "./api-error": apiError,
+    },
+  );
   const baseApiModel = evaluateTypeScript(
     await readSource("src/shared/lib/api-result/base-api-model.ts"),
     {
@@ -57,7 +60,9 @@ async function loadApiResultModules() {
 
 test("public ApiResult and BaseApiModel DTOs omit server stack traces", async () => {
   const apiErrorSource = await readSource("src/shared/lib/api-result/api-error.ts");
-  const apiErrorDtoContract = apiErrorSource.match(/export type ApiErrorDTO = \{([\s\S]*?)\n\};/u)?.[1];
+  const apiErrorDtoContract = apiErrorSource.match(
+    /export type ApiErrorDTO = \{([\s\S]*?)\n\};/u,
+  )?.[1];
   const { ApiResult, BaseApiModel } = await loadApiResultModules();
   const serverError = new Error("database connection failed");
   const result = ApiResult.error(serverError);
@@ -172,18 +177,11 @@ test("checkout Server Actions replace provider errors with operation-safe DTOs",
         "Не удалось рассчитать заказ. Попробуйте еще раз.",
       ],
       [
-        () =>
-          deliveryActions.getOzonDeliveryMap({
-            viewport: {
-              leftBottom: { lat: 55.5, long: 37.3 },
-              rightTop: { lat: 55.9, long: 37.8 },
-            },
-            zoom: 11,
-          }),
-        "Не удалось загрузить карту пунктов Ozon. Попробуйте еще раз.",
+        () => deliveryActions.searchOzonCities("Мос"),
+        "Не удалось загрузить города Ozon. Попробуйте еще раз.",
       ],
       [
-        () => deliveryActions.getOzonDeliveryPoints(["point-1"]),
+        () => deliveryActions.getOzonPickupPoints("city-1"),
         "Не удалось загрузить пункты выдачи Ozon. Попробуйте еще раз.",
       ],
     ];
@@ -271,18 +269,11 @@ test("checkout Server Actions sanitize transport error messages", async () => {
         "Не удалось рассчитать заказ. Попробуйте еще раз.",
       ],
       [
-        () =>
-          deliveryActions.getOzonDeliveryMap({
-            viewport: {
-              leftBottom: { lat: 55.5, long: 37.3 },
-              rightTop: { lat: 55.9, long: 37.8 },
-            },
-            zoom: 11,
-          }),
-        "Не удалось загрузить карту пунктов Ozon. Попробуйте еще раз.",
+        () => deliveryActions.searchOzonCities("Мос"),
+        "Не удалось загрузить города Ozon. Попробуйте еще раз.",
       ],
       [
-        () => deliveryActions.getOzonDeliveryPoints(["point-1"]),
+        () => deliveryActions.getOzonPickupPoints("city-1"),
         "Не удалось загрузить пункты выдачи Ozon. Попробуйте еще раз.",
       ],
     ];

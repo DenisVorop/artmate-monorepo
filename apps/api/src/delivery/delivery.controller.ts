@@ -1,14 +1,4 @@
-import {
-  Body,
-  Controller,
-  Get,
-  Headers,
-  HttpCode,
-  HttpStatus,
-  Ip,
-  Post,
-  Query,
-} from "@nestjs/common";
+import { Controller, Get, Headers, Ip, Query } from "@nestjs/common";
 import { ApiOkResponse, ApiOperation, ApiTags } from "@nestjs/swagger";
 
 import { ValidateResponse } from "../common/response-validation.interceptor";
@@ -16,11 +6,11 @@ import { ValidateResponse } from "../common/response-validation.interceptor";
 import {
   DeliveryCityDTO,
   DeliveryPickupPointDTO,
+  OzonDeliveryCityDTO,
   SearchDeliveryCitiesQueryDTO,
   SearchDeliveryPickupPointsQueryDTO,
-  StorefrontOzonDeliveryMapRequestDTO,
-  StorefrontOzonDeliveryMapResponseDTO,
-  StorefrontOzonDeliveryPointInfoRequestDTO,
+  SearchOzonCitiesQueryDTO,
+  SearchOzonPickupPointsQueryDTO,
 } from "./dto";
 import { DeliveryProxyThrottleService } from "./delivery-proxy-throttle.service";
 import { DeliveryService } from "./delivery.service";
@@ -33,11 +23,12 @@ export class DeliveryController {
     private readonly deliveryProxyThrottleService: DeliveryProxyThrottleService,
   ) {}
 
-  @Post("ozon/map")
-  @HttpCode(HttpStatus.OK)
-  @ValidateResponse(StorefrontOzonDeliveryMapResponseDTO)
-  getOzonDeliveryMap(
-    @Body() body: StorefrontOzonDeliveryMapRequestDTO,
+  @ValidateResponse(OzonDeliveryCityDTO, { isArray: true })
+  @ApiOperation({ summary: "Search Ozon localities by name prefix" })
+  @ApiOkResponse({ type: [OzonDeliveryCityDTO] })
+  @Get("ozon/cities")
+  searchOzonCities(
+    @Query() query: SearchOzonCitiesQueryDTO,
     @Headers("cookie") cookieHeader: string | undefined,
     @Headers("x-forwarded-for") forwardedFor: string | undefined,
     @Headers("x-real-ip") realIp: string | undefined,
@@ -50,39 +41,28 @@ export class DeliveryController {
       requestIp,
     });
 
-    return this.deliveryService.getOzonDeliveryMap(body);
-  }
-
-  @Post("ozon/points/info")
-  @HttpCode(HttpStatus.OK)
-  @ValidateResponse(DeliveryPickupPointDTO, { isArray: true })
-  getOzonDeliveryPoints(
-    @Body() body: StorefrontOzonDeliveryPointInfoRequestDTO,
-    @Headers("cookie") cookieHeader: string | undefined,
-    @Headers("x-forwarded-for") forwardedFor: string | undefined,
-    @Headers("x-real-ip") realIp: string | undefined,
-    @Ip() requestIp: string | undefined,
-  ) {
-    this.deliveryProxyThrottleService.assertAllowed({
-      cookieHeader,
-      forwardedFor,
-      realIp,
-      requestIp,
-    });
-
-    return this.deliveryService.getOzonDeliveryPoints(body.mapPointIds);
+    return this.deliveryService.searchOzonCities(query.query);
   }
 
   @ValidateResponse(DeliveryPickupPointDTO, { isArray: true })
-  @ApiOperation({
-    summary: "Search Ozon pickup points by text",
-    description:
-      "Disabled until a confirmed Ozon point-list contract is available. Use the map and point-info endpoints instead.",
-  })
+  @ApiOperation({ summary: "Get all Ozon pickup points for a locality" })
   @ApiOkResponse({ type: [DeliveryPickupPointDTO] })
   @Get("ozon/pickup-points")
-  searchOzonPickupPoints() {
-    return this.deliveryService.searchOzonPickupPoints();
+  getOzonPickupPoints(
+    @Query() query: SearchOzonPickupPointsQueryDTO,
+    @Headers("cookie") cookieHeader: string | undefined,
+    @Headers("x-forwarded-for") forwardedFor: string | undefined,
+    @Headers("x-real-ip") realIp: string | undefined,
+    @Ip() requestIp: string | undefined,
+  ) {
+    this.deliveryProxyThrottleService.assertAllowed({
+      cookieHeader,
+      forwardedFor,
+      realIp,
+      requestIp,
+    });
+
+    return this.deliveryService.getOzonPickupPoints(query.localityId);
   }
 
   @ValidateResponse(DeliveryCityDTO, { isArray: true })
