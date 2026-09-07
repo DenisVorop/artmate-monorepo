@@ -138,7 +138,7 @@ describe("Ozon logistics storefront mapping", () => {
         title: "Ozon ПВЗ",
         address: "Москва, Тверская, 1",
         workHours: "09:00-21:00",
-        deliveryPrice: 200,
+        deliveryPrice: 100,
         latitude: 55.76,
         longitude: 37.61,
       });
@@ -199,7 +199,7 @@ describe("Ozon logistics storefront mapping", () => {
       assert.deepEqual(points, [
         {
           address: "Москва, ул. Тверская, 12с1",
-          deliveryPrice: 200,
+          deliveryPrice: 100,
           id: "100101",
           latitude: 55.762147,
           longitude: 37.608103,
@@ -245,76 +245,6 @@ describe("Ozon logistics storefront mapping", () => {
         ),
         true,
       );
-    });
-  });
-
-  it("keeps the compatibility mock list global while excluding non-PVZ points", async () => {
-    await withOzonLogisticsMode("mock", async () => {
-      const service = new OzonLogisticsService({} as OzonOAuthService);
-
-      const points = await service.getPickupPoints();
-      const pointIds = points.map((point) => point.id);
-
-      assert.equal(pointIds.includes("100101"), true);
-      assert.equal(pointIds.includes("200201"), true);
-      assert.equal(pointIds.includes("200204"), false);
-    });
-  });
-
-  it("keeps compatibility real lookup for leaf map points", async () => {
-    await withOzonLogisticsMode("real", async () => {
-      const calls: Array<{ body: unknown; path: string }> = [];
-      const oauth = {
-        requestSellerApi: async (path: string, body: unknown) => {
-          calls.push({ body, path });
-
-          if (path === "/v1/delivery/map") {
-            return {
-              clusters: [],
-              points: [{ map_point_id: "11" }],
-            };
-          }
-
-          return {
-            points: [
-              {
-                enabled: true,
-                delivery_method: {
-                  address: "Москва, Тверская, 1",
-                  delivery_type: { id: 1002 },
-                  map_point_id: "11",
-                  name: "Ozon ПВЗ",
-                  work_hours: "09:00-21:00",
-                },
-              },
-            ],
-          };
-        },
-      } as unknown as OzonOAuthService;
-      const service = new OzonLogisticsService(oauth);
-
-      const points = await service.getPickupPoints();
-
-      assert.deepEqual(
-        points.map((point) => point.id),
-        ["11"],
-      );
-      assert.deepEqual(calls, [
-        {
-          body: {
-            viewport: {
-              left_bottom: { lat: 55.55, long: 37.35 },
-              right_top: { lat: 55.95, long: 37.85 },
-            },
-            zoom: 11,
-          },
-          path: "/v1/delivery/map",
-        },
-        {
-          body: { map_point_ids: ["11"] },
-          path: "/v1/delivery/point/info",
-        },
-      ]);
     });
   });
 
@@ -462,7 +392,7 @@ describe("Ozon logistics storefront mapping", () => {
 
       assert.deepEqual(await service.getPickupPoint(mapPointId), {
         address: "Москва, Тверская, 1",
-        deliveryPrice: 200,
+        deliveryPrice: 100,
         id: mapPointId,
         title,
         workHours,

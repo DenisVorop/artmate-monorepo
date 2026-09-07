@@ -126,11 +126,13 @@ export class OrdersTelegramService {
       "",
       "<b>Клиент</b>",
       `<b>Имя:</b> ${this.formatText(order.customer.name)}`,
-      `<b>Телефон:</b> <code>${this.formatText(order.customer.phone)}</code>`,
+      order.customer.phone
+        ? `<b>Телефон:</b> <code>${this.formatText(order.customer.phone)}</code>`
+        : undefined,
       `<b>Email:</b> <code>${this.formatText(order.customer.email)}</code>`,
       "",
       "<b>Товары</b>",
-    ];
+    ].filter((line): line is string => typeof line === "string");
     const itemLines = order.items.map((item, index) =>
       [
         `<b>${index + 1}.</b> ${this.formatText(item.title)}`,
@@ -287,7 +289,9 @@ export class OrdersTelegramService {
       "",
       `<b>Номер:</b> <code>${this.formatText(order.id)}</code>`,
       `<b>Клиент:</b> ${this.formatText(order.customer.name)}`,
-      `<b>Телефон:</b> <code>${this.formatText(order.customer.phone)}</code>`,
+      order.customer.phone
+        ? `<b>Телефон:</b> <code>${this.formatText(order.customer.phone)}</code>`
+        : undefined,
       `<b>Email:</b> <code>${this.formatText(order.customer.email)}</code>`,
       `<b>Доставка:</b> ${this.formatText(
         this.getDeliveryProviderLabel(order.delivery.provider),
@@ -315,7 +319,9 @@ export class OrdersTelegramService {
       "",
       `<b>Заказ:</b> <code>${this.formatText(input.order.id)}</code>`,
       `<b>Клиент:</b> ${this.formatText(input.order.customer.name)}`,
-      `<b>Телефон:</b> <code>${this.formatText(input.order.customer.phone)}</code>`,
+      input.order.customer.phone
+        ? `<b>Телефон:</b> <code>${this.formatText(input.order.customer.phone)}</code>`
+        : undefined,
       `<b>Email:</b> <code>${this.formatText(input.order.customer.email)}</code>`,
       input.previousStatusCode
         ? `<b>Было:</b> ${this.formatText(

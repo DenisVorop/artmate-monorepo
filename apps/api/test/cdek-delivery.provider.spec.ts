@@ -140,6 +140,60 @@ describe("CdekDeliveryProvider order status selection", () => {
   });
 });
 
+describe("CdekDeliveryProvider order creation", () => {
+  it("sends the required formatted checkout phone as normalized E.164 digits", async () => {
+    const previousShipmentPoint = process.env.CDEK_SHIPMENT_POINT_CODE;
+    let requestBody: unknown;
+    process.env.CDEK_SHIPMENT_POINT_CODE = "MSK-1";
+    const provider = new CdekDeliveryProvider({
+      request: async (_path: string, options: { body?: unknown }) => {
+        requestBody = options.body;
+        return { requests: [{ state: "ACCEPTED" }] };
+      },
+    } as unknown as CdekClientService);
+
+    try {
+      await provider.createOrder({
+        id: "order-1",
+        customer: {
+          email: "buyer@example.com",
+          name: "Анна Иванова",
+          phone: "+7 (999) 123-45-67",
+        },
+        delivery: {
+          provider: "cdek",
+          pickupPoint: {
+            id: "point-1",
+            title: "Point",
+            address: "Address",
+            workHours: "09:00-21:00",
+            deliveryPrice: 100,
+          },
+        },
+        items: [
+          {
+            id: "product-1",
+            lineTotal: 100,
+            price: 100,
+            quantity: 1,
+            slug: "product-1",
+            title: "Product",
+          },
+        ],
+      });
+
+      assert.equal(
+        (requestBody as { recipient: { phones: Array<{ number: string }> } }).recipient.phones[0]
+          ?.number,
+        "+79991234567",
+      );
+    } finally {
+      if (previousShipmentPoint === undefined) delete process.env.CDEK_SHIPMENT_POINT_CODE;
+      else process.env.CDEK_SHIPMENT_POINT_CODE = previousShipmentPoint;
+    }
+  });
+});
+
 function createProviderReturning(response: CdekOrderInfoResponse) {
   const cdekClient = {
     request: async () => response,

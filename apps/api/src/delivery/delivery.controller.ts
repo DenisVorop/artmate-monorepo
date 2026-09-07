@@ -73,11 +73,36 @@ export class DeliveryController {
     return this.deliveryService.getOzonDeliveryPoints(body.mapPointIds);
   }
 
+  @ValidateResponse(DeliveryPickupPointDTO, { isArray: true })
+  @ApiOperation({
+    summary: "Search Ozon pickup points by text",
+    description:
+      "Disabled until a confirmed Ozon point-list contract is available. Use the map and point-info endpoints instead.",
+  })
+  @ApiOkResponse({ type: [DeliveryPickupPointDTO] })
+  @Get("ozon/pickup-points")
+  searchOzonPickupPoints() {
+    return this.deliveryService.searchOzonPickupPoints();
+  }
+
   @ValidateResponse(DeliveryCityDTO, { isArray: true })
   @ApiOperation({ summary: "Search CDEK cities by name" })
   @ApiOkResponse({ type: [DeliveryCityDTO] })
   @Get("cdek/cities")
-  searchCdekCities(@Query() query: SearchDeliveryCitiesQueryDTO) {
+  searchCdekCities(
+    @Query() query: SearchDeliveryCitiesQueryDTO,
+    @Headers("cookie") cookieHeader: string | undefined,
+    @Headers("x-forwarded-for") forwardedFor: string | undefined,
+    @Headers("x-real-ip") realIp: string | undefined,
+    @Ip() requestIp: string | undefined,
+  ) {
+    this.deliveryProxyThrottleService.assertAllowed({
+      cookieHeader,
+      forwardedFor,
+      realIp,
+      requestIp,
+    });
+
     return this.deliveryService.searchCdekCities(
       query.query,
       query.countryCode,
@@ -88,7 +113,20 @@ export class DeliveryController {
   @ApiOperation({ summary: "Get CDEK pickup points for city" })
   @ApiOkResponse({ type: [DeliveryPickupPointDTO] })
   @Get("cdek/pickup-points")
-  getCdekPickupPoints(@Query() query: SearchDeliveryPickupPointsQueryDTO) {
+  getCdekPickupPoints(
+    @Query() query: SearchDeliveryPickupPointsQueryDTO,
+    @Headers("cookie") cookieHeader: string | undefined,
+    @Headers("x-forwarded-for") forwardedFor: string | undefined,
+    @Headers("x-real-ip") realIp: string | undefined,
+    @Ip() requestIp: string | undefined,
+  ) {
+    this.deliveryProxyThrottleService.assertAllowed({
+      cookieHeader,
+      forwardedFor,
+      realIp,
+      requestIp,
+    });
+
     return this.deliveryService.getCdekPickupPoints(query.cityCode);
   }
 }

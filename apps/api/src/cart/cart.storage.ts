@@ -42,43 +42,46 @@ export class CartStorage {
     maxQuantity: number,
   ) {
     const cart = await this.ensureCart(cartId);
-    const where = {
-      cartId_productId: {
-        cartId: cart.id,
-        productId: product.id,
-      },
-    };
-    const existingItem = await this.prisma.cartItem.findUnique({ where });
-    const nextQuantity = Math.min(
-      (existingItem?.quantity ?? 0) + quantity,
-      maxQuantity,
-    );
+    return this.prisma.$transaction(async (tx) => {
+      await this.lockCart(tx, cart.id);
+      const where = {
+        cartId_productId: {
+          cartId: cart.id,
+          productId: product.id,
+        },
+      };
+      const existingItem = await tx.cartItem.findUnique({ where });
+      const nextQuantity = Math.min(
+        (existingItem?.quantity ?? 0) + quantity,
+        maxQuantity,
+      );
 
-    await this.prisma.cartItem.upsert({
-      where,
-      create: {
-        cartId: cart.id,
-        productId: product.id,
-        title: product.title,
-        slug: product.slug,
-        price: product.price,
-        category: product.category ?? null,
-        categorySlug: product.categorySlug ?? null,
-        image: product.image,
-        quantity: nextQuantity,
-      },
-      update: {
-        title: product.title,
-        slug: product.slug,
-        price: product.price,
-        category: product.category ?? null,
-        categorySlug: product.categorySlug ?? null,
-        image: product.image,
-        quantity: nextQuantity,
-      },
+      await tx.cartItem.upsert({
+        where,
+        create: {
+          cartId: cart.id,
+          productId: product.id,
+          title: product.title,
+          slug: product.slug,
+          price: product.price,
+          category: product.category ?? null,
+          categorySlug: product.categorySlug ?? null,
+          image: product.image,
+          quantity: nextQuantity,
+        },
+        update: {
+          title: product.title,
+          slug: product.slug,
+          price: product.price,
+          category: product.category ?? null,
+          categorySlug: product.categorySlug ?? null,
+          image: product.image,
+          quantity: nextQuantity,
+        },
+      });
+
+      return this.touchAndGetCart(cart.id, tx);
     });
-
-    return this.touchAndGetCart(cart.id);
   }
 
   async updateItemQuantity(
@@ -87,50 +90,49 @@ export class CartStorage {
     quantity: number,
   ) {
     const cart = await this.ensureCart(cartId);
-    const where = {
-      cartId_productId: {
-        cartId: cart.id,
-        productId,
-      },
-    };
-    const existingItem = await this.prisma.cartItem.findUnique({ where });
+    return this.prisma.$transaction(async (tx) => {
+      await this.lockCart(tx, cart.id);
+      const where = {
+        cartId_productId: {
+          cartId: cart.id,
+          productId,
+        },
+      };
+      const existingItem = await tx.cartItem.findUnique({ where });
 
-    if (!existingItem) {
-      return undefined;
-    }
+      if (!existingItem) return undefined;
 
-    await this.prisma.cartItem.update({
-      where,
-      data: { quantity },
+      await tx.cartItem.update({ where, data: { quantity } });
+
+      return this.touchAndGetCart(cart.id, tx);
     });
-
-    return this.touchAndGetCart(cart.id);
   }
 
   async removeItem(cartId: string | undefined, productId: string) {
     const cart = await this.ensureCart(cartId);
+    return this.prisma.$transaction(async (tx) => {
+      await this.lockCart(tx, cart.id);
+      await tx.cartItem.deleteMany({
+        where: { cartId: cart.id, productId },
+      });
 
-    await this.prisma.cartItem.deleteMany({
-      where: {
-        cartId: cart.id,
-        productId,
-      },
+      return this.touchAndGetCart(cart.id, tx);
     });
-
-    return this.touchAndGetCart(cart.id);
   }
 
   async clearCart(cartId?: string) {
     const cart = await this.ensureCart(cartId);
+    return this.prisma.$transaction(async (tx) => {
+      await this.lockCart(tx, cart.id);
+      await tx.cartItem.deleteMany({ where: { cartId: cart.id } });
 
-    await this.prisma.cartItem.deleteMany({
-      where: { cartId: cart.id },
+      return this.touchAndGetCart(cart.id, tx);
     });
-
-    return this.touchAndGetCart(cart.id);
   }
 
-  getDTO(cart: StoredCart): Omit<CartDTO, "isOzonDeliveryAvailable"> {
+  getDTO(
+    cart: StoredCart,
+  ): Omit<CartDTO, "isOzonDeliveryAvailable" | "minimumDeliveryPrices"> {
     const items = cart.items.map<CartItemDTO>((item) => {
       const price = this.toNumber(item.price);
 
@@ -159,12 +161,21 @@ export class CartStorage {
     };
   }
 
-  private async touchAndGetCart(cartId: string) {
-    return this.prisma.cart.update({
+  private async touchAndGetCart(
+    cartId: string,
+    client: Prisma.TransactionClient | PrismaService = this.prisma,
+  ) {
+    return client.cart.update({
       where: { id: cartId },
       data: { updatedAt: new Date() },
       include: cartInclude,
     });
+  }
+
+  private lockCart(tx: Prisma.TransactionClient, cartId: string) {
+    return tx.$queryRaw(
+      Prisma.sql`SELECT "id" FROM "carts" WHERE "id" = ${cartId} FOR UPDATE`,
+    );
   }
 
   private normalizeCartId(cartId?: string) {

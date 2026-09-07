@@ -6,6 +6,7 @@ import {
 
 import { CART_ITEM_MAX_QUANTITY } from "./cart.constants";
 import { CartStorage } from "./cart.storage";
+import { ozonDeliveryPriceRub } from "../delivery/delivery.constants";
 import { ProductsService } from "../products/products.service";
 import type {
   AddCartItemRequestDTO,
@@ -79,11 +80,13 @@ export class CartService {
   }
 
   async assertItemsInStock(items: readonly CartItemDTO[]) {
-    await this.productsService.assertProductsInStock(items.map((item) => item.id));
+    await this.productsService.assertProductsInStock(
+      items.map((item) => item.id),
+    );
   }
 
   private async withOzonDeliveryAvailability(
-    cart: Omit<CartDTO, "isOzonDeliveryAvailable">,
+    cart: Omit<CartDTO, "isOzonDeliveryAvailable" | "minimumDeliveryPrices">,
   ): Promise<CartDTO> {
     return {
       ...cart,
@@ -92,6 +95,9 @@ export class CartService {
         (await this.productsService.areProductsOzonDeliveryAvailable(
           cart.items.map((item) => item.id),
         )),
+      minimumDeliveryPrices: {
+        ozon: ozonDeliveryPriceRub,
+      },
     };
   }
 

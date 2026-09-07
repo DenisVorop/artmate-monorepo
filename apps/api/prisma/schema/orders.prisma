@@ -40,10 +40,21 @@ enum OrderDeliveryProvider {
   @@map("order_delivery_provider")
 }
 
+enum OrderCheckoutThrottleScope {
+  CART @map("cart")
+  IP   @map("ip")
+
+  @@map("order_checkout_throttle_scope")
+}
+
 model Order {
   id                          String                @id @db.VarChar(32)
   userId                      String?               @map("user_id")
   cartId                      String                @map("cart_id") @db.VarChar(128)
+  checkoutAttemptId           String?               @unique @map("checkout_attempt_id") @db.VarChar(128)
+  checkoutPayloadFingerprint  String?               @map("checkout_payload_fingerprint") @db.Char(64)
+  yandexClientId              String?               @map("yandex_client_id") @db.VarChar(128)
+  yandexYclid                 String?               @map("yandex_yclid") @db.VarChar(128)
   status                      OrderStatus           @default(PENDING_PAYMENT)
   crmStatus                   OrderCrmStatus        @default(NEW) @map("crm_status")
   customerName                String                @map("customer_name") @db.VarChar(160)
@@ -66,6 +77,11 @@ model Order {
   tbankAcquiringPaymentId     String?               @map("tbank_acquiring_payment_id") @db.VarChar(20)
   paymentErrorCode            String?               @map("payment_error_code") @db.VarChar(120)
   paymentErrorMessage         String?               @map("payment_error_message") @db.Text
+  terminalPaymentFailedAt     DateTime?             @map("terminal_payment_failed_at")
+  cartConsumedAt              DateTime?             @map("cart_consumed_at")
+  cartConsumedQuantities      Json?                 @map("cart_consumed_quantities") @db.JsonB
+  cartRestoredAt              DateTime?             @map("cart_restored_at")
+  cartRestoredQuantities      Json?                 @map("cart_restored_quantities") @db.JsonB
   lastPaymentNotification     Json?                 @map("last_payment_notification") @db.JsonB
   itemsCount                  Int                   @map("items_count")
   subtotal                    Decimal               @db.Decimal(12, 2)
@@ -97,6 +113,22 @@ model Order {
   @@index([tbankAcquiringOrderId])
   @@index([tbankAcquiringPaymentId])
   @@map("orders")
+}
+
+model OrderCheckoutThrottle {
+  id              String                     @id @default(cuid())
+  scope           OrderCheckoutThrottleScope
+  subjectHash     String                     @map("subject_hash") @db.Char(64)
+  requestCount    Int                        @default(0) @map("request_count")
+  windowStartedAt DateTime                   @default(now()) @map("window_started_at")
+  lastRequestAt   DateTime                   @default(now()) @map("last_request_at")
+  blockedUntil    DateTime?                  @map("blocked_until")
+  createdAt       DateTime                   @default(now()) @map("created_at")
+  updatedAt       DateTime                   @default(now()) @updatedAt @map("updated_at")
+
+  @@unique([scope, subjectHash])
+  @@index([blockedUntil])
+  @@map("order_checkout_throttles")
 }
 
 model OrderShipment {

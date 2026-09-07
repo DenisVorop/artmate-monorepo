@@ -5,21 +5,13 @@ import {
   Injectable,
   InternalServerErrorException,
 } from "@nestjs/common";
-import crypto from "node:crypto";
 
 import {
   AuthProvider as PrismaAuthProvider,
+  Prisma,
   UserStatus,
 } from "../generated/prisma/client";
-import {
-  renderBrandedEmail,
-  renderEmailButton,
-  renderEmailNotice,
-  renderEmailParagraph,
-  renderSupportEmailFooter,
-  renderSupportEmailFooterText,
-} from "../mailer/branded-email";
-import { MailerService } from "../mailer/mailer.service";
+import { NotificationQueueService } from "../notifications/notification-queue.service";
 import { PrismaService } from "../prisma/prisma.service";
 
 import {
@@ -29,6 +21,11 @@ import {
   AUTH_PASSWORD_RESET_DEFAULT_TOKEN_TTL_SECONDS,
 } from "./auth.constants";
 import { CredentialsAuthService } from "./credentials-auth.service";
+import {
+  createPasswordResetToken,
+  createPasswordResetTokenHash,
+  createPasswordResetTokenId,
+} from "./password-reset-token";
 
 type RequestPasswordResetInput = {
   readonly email: string;
@@ -46,13 +43,11 @@ type StoredCredentialAccount = {
   readonly userId: string;
 };
 
-const tokenPurpose = "password-reset";
-
 @Injectable()
 export class PasswordResetService {
   constructor(
     private readonly credentialsAuthService: CredentialsAuthService,
-    private readonly mailerService: MailerService,
+    private readonly notificationQueueService: NotificationQueueService,
     private readonly prisma: PrismaService,
   ) {}
 
@@ -63,13 +58,17 @@ export class PasswordResetService {
       return { ok: true as const };
     }
 
+    const email = account.email;
     await this.assertCanSendToken(account.userId, input.ipAddress);
-    await this.consumeActiveTokens(account.userId);
-    await this.createAndSendToken(
-      account.userId,
-      account.email,
-      input.ipAddress,
-    );
+    await this.prisma.$transaction(async (tx) => {
+      await this.consumeActiveTokens(tx, account.userId);
+      await this.createAndQueueToken(
+        tx,
+        account.userId,
+        email,
+        input.ipAddress,
+      );
+    });
 
     return { ok: true as const };
   }
@@ -98,17 +97,60 @@ export class PasswordResetService {
     const now = new Date();
 
     await this.prisma.$transaction(async (prisma) => {
+      await prisma.$queryRaw`SELECT id FROM users WHERE id = ${token.userId} FOR UPDATE`;
+      await prisma.$queryRaw`SELECT id FROM auth_password_reset_tokens WHERE id = ${token.id} FOR UPDATE`;
+
+      const lockedToken = await prisma.authPasswordResetToken.findUnique({
+        where: { id: token.id },
+      });
+      const lockedNow = new Date();
+
+      if (
+        !lockedToken ||
+        lockedToken.id !== token.id ||
+        lockedToken.userId !== token.userId ||
+        lockedToken.tokenHash !== tokenHash ||
+        lockedToken.consumedAt ||
+        lockedToken.expiresAt <= lockedNow
+      ) {
+        throw new BadRequestException(
+          "Password reset link is invalid or expired",
+        );
+      }
+
+      const user = await prisma.user.findUnique({
+        where: { id: lockedToken.userId },
+        select: { status: true },
+      });
       const account = await prisma.authAccount.findFirst({
         where: {
           provider: PrismaAuthProvider.CREDENTIALS,
-          userId: token.userId,
+          userId: lockedToken.userId,
         },
         include: {
           credential: true,
         },
       });
 
-      if (!account?.credential) {
+      if (user?.status !== UserStatus.ACTIVE || !account?.credential) {
+        throw new BadRequestException(
+          "Password reset link is invalid or expired",
+        );
+      }
+
+      const consumedToken = await prisma.authPasswordResetToken.updateMany({
+        where: {
+          id: lockedToken.id,
+          tokenHash,
+          consumedAt: null,
+          expiresAt: { gt: lockedNow },
+        },
+        data: {
+          consumedAt: now,
+        },
+      });
+
+      if (consumedToken.count !== 1) {
         throw new BadRequestException(
           "Password reset link is invalid or expired",
         );
@@ -122,9 +164,14 @@ export class PasswordResetService {
         },
       });
 
+      await prisma.user.update({
+        where: { id: lockedToken.userId },
+        data: { authVersion: { increment: 1 } },
+      });
+
       await prisma.authPasswordResetToken.updateMany({
         where: {
-          userId: token.userId,
+          userId: lockedToken.userId,
           consumedAt: null,
         },
         data: {
@@ -218,8 +265,11 @@ export class PasswordResetService {
     }
   }
 
-  private async consumeActiveTokens(userId: string) {
-    await this.prisma.authPasswordResetToken.updateMany({
+  private async consumeActiveTokens(
+    prisma: Prisma.TransactionClient,
+    userId: string,
+  ) {
+    await prisma.authPasswordResetToken.updateMany({
       where: {
         userId,
         consumedAt: null,
@@ -230,20 +280,22 @@ export class PasswordResetService {
     });
   }
 
-  private async createAndSendToken(
+  private async createAndQueueToken(
+    prisma: Prisma.TransactionClient,
     userId: string,
     email: string,
     ipAddress?: string,
   ) {
-    const token = this.createRawToken();
+    const tokenId = createPasswordResetTokenId();
+    const token = createPasswordResetToken(tokenId, this.getSecret());
     const now = new Date();
     const expiresAt = new Date(
       now.getTime() + this.getTokenTtlSeconds() * 1000,
     );
-    const resetUrl = this.createResetUrl(token);
 
-    await this.prisma.authPasswordResetToken.create({
+    const storedToken = await prisma.authPasswordResetToken.create({
       data: {
+        id: tokenId,
         userId,
         tokenHash: this.createTokenHash(token),
         expiresAt,
@@ -252,68 +304,17 @@ export class PasswordResetService {
       },
     });
 
-    await this.mailerService.sendMail({
-      to: email,
-      subject: "Восстановление пароля Artmate",
-      text: this.renderTextEmail(resetUrl),
-      html: this.renderHtmlEmail(resetUrl),
-    });
-  }
-
-  private createRawToken() {
-    return crypto.randomBytes(32).toString("base64url");
+    await this.notificationQueueService.enqueuePasswordReset(
+      {
+        passwordResetTokenId: storedToken.id,
+        recipient: email,
+      },
+      prisma,
+    );
   }
 
   private createTokenHash(token: string) {
-    return crypto
-      .createHmac("sha256", this.getSecret())
-      .update(`${tokenPurpose}:${token}`)
-      .digest("hex");
-  }
-
-  private createResetUrl(token: string) {
-    const resetUrl = new URL(
-      this.getOptionalEnv("AUTH_PASSWORD_RESET_URL") ??
-        `${this.getSiteUrl()}/auth/reset-password`,
-    );
-
-    resetUrl.searchParams.set("token", token);
-
-    return resetUrl.toString();
-  }
-
-  private renderTextEmail(resetUrl: string) {
-    const ttlMinutes = this.getTokenTtlMinutes();
-
-    return [
-      "ARTMATE",
-      "",
-      "Мы получили запрос на смену пароля.",
-      "",
-      `Ссылка для смены пароля: ${resetUrl}`,
-      "",
-      `Ссылка действует ${ttlMinutes} минут.`,
-      "Если вы не запрашивали смену пароля, просто игнорируйте письмо.",
-      "",
-      renderSupportEmailFooterText(),
-    ].join("\n");
-  }
-
-  private renderHtmlEmail(resetUrl: string) {
-    const ttlMinutes = this.getTokenTtlMinutes();
-
-    return renderBrandedEmail({
-      title: "Смена пароля",
-      previewText: "Ссылка для восстановления пароля Artmate.",
-      contentHtml: `
-        ${renderEmailParagraph("Перейдите по ссылке, чтобы задать новый пароль для аккаунта Artmate.")}
-        ${renderEmailButton({ href: resetUrl, label: "Сменить пароль" })}
-        ${renderEmailNotice(
-          `Ссылка действует <strong style="color:#202530;">${ttlMinutes} минут</strong>. Если вы не запрашивали смену пароля, просто игнорируйте это письмо.`,
-        )}
-      `,
-      footerHtml: renderSupportEmailFooter(),
-    });
+    return createPasswordResetTokenHash(token, this.getSecret());
   }
 
   private createRateLimitException(message: string, retryAfterSeconds: number) {
@@ -340,14 +341,6 @@ export class PasswordResetService {
     }
 
     return secret;
-  }
-
-  private getSiteUrl() {
-    return this.getOptionalEnv("SITE_URL") ?? "http://localhost:3000";
-  }
-
-  private getTokenTtlMinutes() {
-    return Math.max(1, Math.floor(this.getTokenTtlSeconds() / 60));
   }
 
   private getTokenTtlSeconds() {

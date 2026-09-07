@@ -1,6 +1,6 @@
 import { Injectable, NotFoundException } from "@nestjs/common";
 
-import type { AuthProvider, AuthUser } from "./auth.types";
+import type { AuthPrincipal, AuthProvider } from "./auth.types";
 import { YandexOAuthService } from "./yandex-oauth.service";
 
 type OAuthProvider = Extract<AuthProvider, "yandex">;
@@ -8,7 +8,7 @@ type OAuthProvider = Extract<AuthProvider, "yandex">;
 type OAuthProviderClient = {
   createState: () => string;
   getAuthorizationUrl: (state: string) => string;
-  getUserByCode: (code: string) => Promise<AuthUser>;
+  getUserByCode: (code: string) => Promise<AuthPrincipal>;
 };
 
 @Injectable()

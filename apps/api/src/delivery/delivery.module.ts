@@ -8,6 +8,7 @@ import { CdekWebhookService } from "./providers/cdek/cdek-webhook.service";
 import { DeliveryController } from "./delivery.controller";
 import { DeliveryProxyThrottleService } from "./delivery-proxy-throttle.service";
 import { DeliveryService } from "./delivery.service";
+import { ProviderResponseCacheService } from "./provider-response-cache.service";
 
 @Module({
   imports: [OzonModule],
@@ -17,6 +18,7 @@ import { DeliveryService } from "./delivery.service";
     CdekWebhookService,
     CdekDeliveryProvider,
     DeliveryProxyThrottleService,
+    ProviderResponseCacheService,
     DeliveryService,
   ],
   exports: [DeliveryProxyThrottleService, DeliveryService],

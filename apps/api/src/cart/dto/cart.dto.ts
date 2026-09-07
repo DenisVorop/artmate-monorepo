@@ -13,6 +13,12 @@ import {
 
 import { CartItemDTO } from "./cart-item.dto";
 
+class CartMinimumDeliveryPricesDTO {
+  @IsNumber({ allowInfinity: false, allowNaN: false })
+  @Min(0)
+  ozon!: number;
+}
+
 export class CartDTO {
   @IsString()
   @IsNotEmpty()
@@ -40,4 +46,8 @@ export class CartDTO {
 
   @IsBoolean()
   isOzonDeliveryAvailable!: boolean;
+
+  @ValidateNested()
+  @Type(() => CartMinimumDeliveryPricesDTO)
+  minimumDeliveryPrices!: CartMinimumDeliveryPricesDTO;
 }

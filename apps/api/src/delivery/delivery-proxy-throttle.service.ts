@@ -192,7 +192,7 @@ export class DeliveryProxyThrottleService {
     throw new HttpException(
       {
         statusCode: HttpStatus.TOO_MANY_REQUESTS,
-        message: "Too many Ozon delivery requests. Try again later",
+        message: "Too many delivery requests. Try again later",
         retryAfterSeconds: Math.max(1, Math.ceil((resetAt - now) / 1000)),
       },
       HttpStatus.TOO_MANY_REQUESTS,

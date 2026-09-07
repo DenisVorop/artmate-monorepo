@@ -1,0 +1,32 @@
+enum AnalyticsOutboxStatus {
+  PENDING    @map("pending")
+  PROCESSING @map("processing")
+  SENT       @map("sent")
+  FAILED     @map("failed")
+
+  @@map("analytics_outbox_status")
+}
+
+model AnalyticsOutboxEvent {
+  id               String                @id @default(cuid())
+  eventType        String                @map("event_type") @db.VarChar(80)
+  aggregateId      String                @map("aggregate_id") @db.VarChar(128)
+  payload          Json                  @db.JsonB
+  status           AnalyticsOutboxStatus @default(PENDING)
+  attempts         Int                   @default(0)
+  nextAttemptAt    DateTime              @default(now()) @map("next_attempt_at")
+  lockedAt         DateTime?             @map("locked_at")
+  leaseToken       String?               @map("lease_token") @db.VarChar(36)
+  sentAt           DateTime?             @map("sent_at")
+  failedAt         DateTime?             @map("failed_at")
+  lastError        String?               @map("last_error") @db.Text
+  providerResponse String?               @map("provider_response") @db.Text
+  providerUploadId String?               @unique @map("provider_upload_id") @db.VarChar(128)
+  createdAt        DateTime              @default(now()) @map("created_at")
+  updatedAt        DateTime              @default(now()) @updatedAt @map("updated_at")
+
+  @@unique([eventType, aggregateId])
+  @@index([status, nextAttemptAt, createdAt])
+  @@index([status, lockedAt])
+  @@map("analytics_outbox_events")
+}

@@ -2,11 +2,15 @@ import { randomUUID } from "node:crypto";
 
 import {
   BadRequestException,
+  ConflictException,
   Injectable,
   Logger,
   NotFoundException,
 } from "@nestjs/common";
 
+import { OrderActivationService } from "../auth/order-activation.service";
+import { AnalyticsOutboxService } from "../analytics/analytics-outbox.service";
+import { parseYandexAttribution } from "../analytics/yandex-attribution";
 import type { CartItemDTO } from "../cart/dto";
 import {
   OrderDeliveryProvider as PrismaOrderDeliveryProvider,
@@ -28,20 +32,26 @@ import type {
   AdminOrderCommentDTO,
   AdminOrderHistoryEventDTO,
   AdminOrderDTO,
-  OrderCustomerDTO,
+  CreateOrderCustomerRequestDTO,
   OrderDTO,
   OrderDeliveryDTO,
   OrderPaymentDTO,
   OrderShipmentDTO,
 } from "./dto";
 import type {
+  CreateOrderPaymentMethod,
   DeliveryProvider,
   OrderStatus,
   PaymentMethod,
 } from "./orders.constants";
+import { ORDER_PAYMENT_INITIALIZATION_WAIT_TIMEOUT_MS } from "./orders.constants";
 import type { OrderReceiptItemPricing } from "./payment-receipt";
 
 const CHECKOUT_SUCCESS_PATH = "/checkout/success";
+const CHECKOUT_FAILURE_PATH = "/checkout/failure";
+const CHECKOUT_PATH = "/checkout";
+const PAYMENT_INITIALIZING_PATH = "/checkout/payment-initializing";
+const PAYMENT_INITIALIZATION_STALE_MS = 5 * 60 * 1000;
 
 const orderInclude = {
   items: {
@@ -89,13 +99,16 @@ const adminOrderInclude = {
 } as const;
 
 type CreateStoredOrderInput = {
-  userId: string;
+  userId?: string;
   cartId: string;
-  customer: OrderCustomerDTO;
+  checkoutAttemptId: string;
+  checkoutPayloadFingerprint: string;
+  attribution?: { clientId?: string; yclid?: string };
+  customer: CreateOrderCustomerRequestDTO;
   delivery: OrderDeliveryDTO;
   items: CartItemDTO[];
   itemsCount: number;
-  paymentMethod: PaymentMethod;
+  paymentMethod: CreateOrderPaymentMethod;
   promoCode?: string;
   subtotal: number;
   comment?: string;
@@ -116,6 +129,7 @@ type MarkOzonAcquiringPaymentFailedInput = {
 type ApplyOzonAcquiringNotificationInput = {
   acquiringOrderId?: string;
   amount?: string;
+  authoritativeStatus?: string;
   currencyCode?: string;
   errorCode?: string;
   errorMessage?: string;
@@ -123,9 +137,6 @@ type ApplyOzonAcquiringNotificationInput = {
   extTransactionId?: string;
   paymentMethod?: string;
   raw: Record<string, unknown>;
-  status?: string;
-  transactionId?: string;
-  transactionUid?: string;
   verified: OzonAcquiringVerifiedNotification;
 };
 
@@ -226,12 +237,17 @@ export class OrdersStorage {
   constructor(
     private readonly prisma: PrismaService,
     private readonly promocodesService: PromocodesService,
+    private readonly orderActivationService?: OrderActivationService,
+    private readonly analyticsOutboxService?: AnalyticsOutboxService,
   ) {}
 
   async createOrder(input: CreateStoredOrderInput): Promise<OrderDTO> {
+    const attribution = parseYandexAttribution(input.attribution);
     const deliveryPrice = input.delivery.pickupPoint.deliveryPrice;
     const total = input.subtotal + deliveryPrice;
-    const userId = await this.getExistingUserId(input.userId);
+    const userId = input.userId
+      ? await this.getExistingUserId(input.userId)
+      : undefined;
     const deliveryProvider = this.toPrismaDeliveryProvider(
       input.delivery.provider,
     );
@@ -246,6 +262,10 @@ export class OrdersStorage {
               id,
               userId,
               cartId: input.cartId,
+              checkoutAttemptId: input.checkoutAttemptId,
+              checkoutPayloadFingerprint: input.checkoutPayloadFingerprint,
+              yandexClientId: attribution.clientId,
+              yandexYclid: attribution.yclid,
               status: PrismaOrderStatus.PENDING_PAYMENT,
               crmStatus: PrismaOrderCrmStatus.WAITING_PAYMENT,
               customerName: input.customer.name,
@@ -324,8 +344,15 @@ export class OrdersStorage {
 
         return this.mapOrder(order);
       } catch (error) {
-        if (this.isUniqueConstraintError(error) && attempt < 2) {
-          continue;
+        if (this.isUniqueConstraintError(error)) {
+          const existing = await this.getOrderByCheckoutAttempt(
+            input.checkoutAttemptId,
+            input.cartId,
+            input.userId,
+            input.checkoutPayloadFingerprint,
+          );
+          if (existing) return existing;
+          if (attempt < 2) continue;
         }
 
         throw error;
@@ -333,6 +360,177 @@ export class OrdersStorage {
     }
 
     throw new Error("Order id generation failed");
+  }
+
+  async getOrderByCheckoutAttempt(
+    checkoutAttemptId: string,
+    cartId: string,
+    userId: string | undefined,
+    checkoutPayloadFingerprint: string,
+  ): Promise<OrderDTO | undefined> {
+    const order = await this.prisma.order.findUnique({
+      where: { checkoutAttemptId },
+      include: orderInclude,
+    });
+    if (!order) return undefined;
+
+    if (
+      order.cartId !== cartId ||
+      (order.userId ?? undefined) !== userId ||
+      order.checkoutPayloadFingerprint !== checkoutPayloadFingerprint
+    ) {
+      throw new ConflictException(
+        "checkoutAttemptId is already used by another checkout",
+      );
+    }
+
+    return this.mapOrder(order);
+  }
+
+  async claimPaymentInitialization(orderId: string): Promise<boolean> {
+    return this.prisma.$transaction(async (tx) => {
+      await this.lockOrder(tx, orderId);
+      const order = await tx.order.findUnique({
+        where: { id: orderId },
+        include: orderInclude,
+      });
+      if (!order) throw new NotFoundException("Order not found");
+
+      if (order.terminalPaymentFailedAt) return false;
+
+      const startedAt = this.getPaymentInitializationStartedAt(
+        order.paymentRedirectUrl,
+      );
+      if (order.paymentStatus !== PrismaOrderPaymentStatus.FAILED) {
+        if (
+          startedAt &&
+          startedAt > Date.now() - PAYMENT_INITIALIZATION_STALE_MS
+        ) {
+          return false;
+        }
+        if (
+          !startedAt &&
+          !order.paymentRedirectUrl.startsWith(CHECKOUT_SUCCESS_PATH)
+        ) {
+          return false;
+        }
+      }
+
+      await tx.order.update({
+        where: { id: orderId },
+        data: {
+          paymentErrorCode: null,
+          paymentErrorMessage: null,
+          paymentRedirectUrl: `${PAYMENT_INITIALIZING_PATH}?startedAt=${Date.now()}`,
+          paymentStatus: PrismaOrderPaymentStatus.PENDING,
+        },
+      });
+      return true;
+    });
+  }
+
+  async waitForPaymentInitialization(orderId: string): Promise<OrderDTO> {
+    const deadline = Date.now() + ORDER_PAYMENT_INITIALIZATION_WAIT_TIMEOUT_MS;
+
+    do {
+      const order = await this.prisma.order.findUnique({
+        where: { id: orderId },
+        include: orderInclude,
+      });
+      if (!order) throw new NotFoundException("Order not found");
+      if (
+        order.paymentStatus === PrismaOrderPaymentStatus.FAILED ||
+        !this.getPaymentInitializationStartedAt(order.paymentRedirectUrl)
+      ) {
+        return this.mapOrder(order);
+      }
+      await this.delay(50);
+    } while (Date.now() < deadline);
+
+    const order = await this.prisma.order.findUnique({
+      where: { id: orderId },
+      include: orderInclude,
+    });
+    if (!order) throw new NotFoundException("Order not found");
+
+    return this.mapOrder(order);
+  }
+
+  async consumeOrderCartSnapshot(orderId: string): Promise<void> {
+    await this.prisma.$transaction(async (tx) => {
+      await this.lockOrder(tx, orderId);
+      const order = await tx.order.findUnique({
+        where: { id: orderId },
+        include: orderInclude,
+      });
+      if (!order) throw new NotFoundException("Order not found");
+      if (!order.checkoutAttemptId) return;
+      if (
+        order.cartConsumedAt ||
+        order.cartRestoredAt ||
+        order.terminalPaymentFailedAt ||
+        !this.isSecurePaymentRedirect(order.paymentRedirectUrl)
+      ) {
+        return;
+      }
+
+      await this.consumeOrderItemsInTransaction(tx, order, "payment_initialization");
+    });
+  }
+
+  async recoverGuestPayment(
+    orderId: string,
+    cartId: string | undefined,
+  ): Promise<{ redirectUrl: string | null }> {
+    if (!cartId) throw new NotFoundException("Order not found");
+
+    return this.prisma.$transaction(async (tx) => {
+      await this.lockOrder(tx, orderId);
+      const order = await tx.order.findUnique({
+        where: { id: orderId },
+        include: orderInclude,
+      });
+      if (!order || order.cartId !== cartId) {
+        throw new NotFoundException("Order not found");
+      }
+
+      if (order.paymentStatus === PrismaOrderPaymentStatus.PAID) {
+        return { redirectUrl: CHECKOUT_SUCCESS_PATH };
+      }
+      if (order.userId) throw new NotFoundException("Order not found");
+
+      if (order.terminalPaymentFailedAt) {
+        if (!order.cartRestoredAt) {
+          const restoredQuantities = order.cartConsumedAt
+            ? await this.restoreOrderItemsInTransaction(tx, order)
+            : {};
+          const restoredAt = new Date();
+          await tx.order.update({
+            where: { id: order.id },
+            data: {
+              cartRestoredAt: restoredAt,
+              cartRestoredQuantities: this.toPrismaJson(restoredQuantities),
+            },
+          });
+          await tx.orderHistory.create({
+            data: {
+              orderId: order.id,
+              eventType: "cart_restored",
+              payload: this.toPrismaJson({
+                source: "guest_payment_recovery",
+              }),
+            },
+          });
+        }
+        return { redirectUrl: CHECKOUT_PATH };
+      }
+
+      return {
+        redirectUrl: this.isSecurePaymentRedirect(order.paymentRedirectUrl)
+          ? order.paymentRedirectUrl
+          : null,
+      };
+    });
   }
 
   async getOrder(orderId: string, userId: string): Promise<OrderDTO> {
@@ -573,8 +771,7 @@ export class OrdersStorage {
         where: { id: orderId },
         select: {
           crmStatus: true,
-          paidAt: true,
-          paymentMethod: true,
+          paymentStatus: true,
           userId: true,
         },
       });
@@ -583,28 +780,22 @@ export class OrdersStorage {
         throw new NotFoundException("Order not found");
       }
 
+      if (
+        this.isPaidWorkflowStatus(status) &&
+        existingOrder.paymentStatus !== PrismaOrderPaymentStatus.PAID
+      ) {
+        throw new ConflictException(
+          "Payment must be confirmed by the payment provider before moving the order to the paid workflow",
+        );
+      }
+
       const previousStatus = this.mapOrderCrmStatus(existingOrder.crmStatus);
       const changed = existingOrder.crmStatus !== nextStatus;
 
       if (changed) {
-        if (this.isPaidWorkflowStatus(status)) {
-          await this.promocodesService.consumeInTransaction(tx, orderId, {
-            provider: this.mapPaymentMethod(existingOrder.paymentMethod),
-            source: "admin_crm",
-          });
-        }
         await tx.order.update({
           where: { id: orderId },
-          data: {
-            crmStatus: nextStatus,
-            ...(this.isPaidWorkflowStatus(status)
-              ? {
-                  paidAt: existingOrder.paidAt ?? new Date(),
-                  paymentStatus: PrismaOrderPaymentStatus.PAID,
-                  status: PrismaOrderStatus.PAID,
-                }
-              : {}),
-          },
+          data: { crmStatus: nextStatus },
         });
         await tx.orderHistory.create({
           data: {
@@ -651,6 +842,7 @@ export class OrdersStorage {
     orderId: string,
     input: AttachOzonAcquiringPaymentInput,
   ): Promise<OrderDTO> {
+    this.assertSecurePaymentRedirect(input.redirectUrl);
     const order = await this.prisma.$transaction(async (tx) => {
       await this.lockOrder(tx, orderId);
       const existing = await tx.order.findUnique({
@@ -679,7 +871,11 @@ export class OrdersStorage {
             existing.ozonAcquiringOrderId ?? input.acquiringOrderId,
           ozonAcquiringPaymentId:
             existing.ozonAcquiringPaymentId ?? input.paymentId,
-          paymentRedirectUrl: input.redirectUrl,
+          paymentRedirectUrl:
+            existing.paymentStatus === PrismaOrderPaymentStatus.PAID ||
+            existing.terminalPaymentFailedAt
+              ? existing.paymentRedirectUrl
+              : input.redirectUrl,
           history: {
             create: {
               eventType: "payment_created",
@@ -717,6 +913,7 @@ export class OrdersStorage {
     orderId: string,
     input: AttachTBankAcquiringPaymentInput,
   ): Promise<OrderDTO> {
+    this.assertSecurePaymentRedirect(input.redirectUrl);
     const order = await this.prisma.$transaction(async (tx) => {
       await this.lockOrder(tx, orderId);
       const existing = await tx.order.findUnique({
@@ -741,7 +938,11 @@ export class OrdersStorage {
       return tx.order.update({
         where: { id: orderId },
         data: {
-          paymentRedirectUrl: input.redirectUrl,
+          paymentRedirectUrl:
+            existing.paymentStatus === PrismaOrderPaymentStatus.PAID ||
+            existing.terminalPaymentFailedAt
+              ? existing.paymentRedirectUrl
+              : input.redirectUrl,
           tbankAcquiringOrderId:
             existing.tbankAcquiringOrderId ?? input.acquiringOrderId,
           tbankAcquiringPaymentId:
@@ -782,6 +983,9 @@ export class OrdersStorage {
     input: ApplyOzonAcquiringNotificationInput,
   ): Promise<ApplyOzonAcquiringNotificationResult | undefined> {
     const orderId = input.verified.merchantOrderId;
+    if (!orderId) {
+      throw new BadRequestException("Ozon merchant order id is required");
+    }
     return this.prisma.$transaction(async (tx) => {
       await this.lockOrder(tx, orderId);
       const order = await tx.order.findUnique({
@@ -794,54 +998,12 @@ export class OrdersStorage {
         PrismaOrderPaymentMethod.OZON_ACQUIRING,
       );
       const previousStatus = this.mapOrderCrmStatus(order.crmStatus);
-      const isPaid = input.status === "Completed";
-      const isAlreadyPaid =
-        order.paymentStatus === PrismaOrderPaymentStatus.PAID;
-      if (input.verified.profile === "canonical") {
-        this.assertImmutableProviderId(
-          "Ozon order id",
-          order.ozonAcquiringOrderId,
-          input.verified.acquiringOrderId,
-        );
-        if (isAlreadyPaid && input.verified.transactionIdentity) {
-          const { kind, value } = input.verified.transactionIdentity;
-          const storedKind = order.ozonAcquiringTransactionId
-            ? "transactionId"
-            : order.ozonAcquiringTransactionUid
-              ? "transactionUid"
-              : undefined;
-          if (storedKind && storedKind !== kind) {
-            throw new BadRequestException(
-              "Ozon transaction identity does not match order",
-            );
-          }
-          this.assertImmutableProviderId(
-            kind === "transactionId"
-              ? "Ozon transaction id"
-              : "Ozon transaction uid",
-            kind === "transactionId"
-              ? order.ozonAcquiringTransactionId
-              : order.ozonAcquiringTransactionUid,
-            value,
-          );
-        }
-      } else {
-        this.assertImmutableProviderId(
-          "Ozon order id",
-          order.ozonAcquiringOrderId,
-          input.acquiringOrderId,
-        );
-        this.assertImmutableProviderId(
-          "Ozon transaction id",
-          order.ozonAcquiringTransactionId,
-          input.transactionId,
-        );
-        this.assertImmutableProviderId(
-          "Ozon transaction uid",
-          order.ozonAcquiringTransactionUid,
-          input.transactionUid,
-        );
-      }
+      const isPaid = input.authoritativeStatus === "STATUS_PAID";
+      this.assertImmutableProviderId(
+        "Ozon order id",
+        order.ozonAcquiringOrderId,
+        input.acquiringOrderId,
+      );
       if (input.amount !== undefined) {
         this.assertPaidAmount(order.total, input.amount, "Ozon");
       }
@@ -851,11 +1013,7 @@ export class OrdersStorage {
         );
       }
       if (isPaid) {
-        if (
-          input.verified.profile === "canonical" &&
-          (!input.verified.acquiringOrderId ||
-            !input.verified.transactionIdentity)
-        ) {
+        if (!input.acquiringOrderId) {
           throw new BadRequestException(
             "Ozon paid notification identifiers are required",
           );
@@ -872,7 +1030,7 @@ export class OrdersStorage {
       const paymentStatusChangedToPaid =
         isPaid && order.paymentStatus !== PrismaOrderPaymentStatus.PAID;
       if (paymentStatusChangedToPaid) {
-        await this.markPaidInTransaction(tx, order, {
+        await this.markVerifiedProviderPaidInTransaction(tx, order, {
           provider: "ozon_acquiring",
           source: "ozon_acquiring_notification",
         });
@@ -881,36 +1039,11 @@ export class OrdersStorage {
         where: { id: order.id },
         data: {
           lastPaymentNotification: this.toPrismaJson(input.raw),
-          ...(input.verified.profile === "canonical"
-            ? {
-                ozonAcquiringOrderId:
-                  order.ozonAcquiringOrderId ?? input.verified.acquiringOrderId,
-              }
-            : {}),
-          ...(paymentStatusChangedToPaid &&
-          input.verified.profile === "canonical"
-            ? input.verified.transactionIdentity?.kind === "transactionId"
-              ? {
-                  ozonAcquiringTransactionId:
-                    order.ozonAcquiringTransactionId ??
-                    input.verified.transactionIdentity.value,
-                }
-              : input.verified.transactionIdentity?.kind === "transactionUid"
-                ? {
-                    ozonAcquiringTransactionUid:
-                      order.ozonAcquiringTransactionUid ??
-                      input.verified.transactionIdentity.value,
-                  }
-                : {}
-            : {}),
+          ozonAcquiringOrderId:
+            order.ozonAcquiringOrderId ?? input.acquiringOrderId,
           ...(isPaid
             ? { paymentErrorCode: null, paymentErrorMessage: null }
-            : input.status === "Rejected"
-              ? {
-                  paymentErrorCode: input.errorCode,
-                  paymentErrorMessage: input.errorMessage,
-                }
-              : {}),
+            : {}),
         },
       });
       const updatedOrder = await tx.order.findUnique({
@@ -922,7 +1055,7 @@ export class OrdersStorage {
         order: this.mapOrder(updatedOrder),
         paymentStatusChangedToPaid,
         previousStatus,
-        userId: order.userId ?? undefined,
+        userId: updatedOrder.userId ?? undefined,
       };
     });
   }
@@ -970,7 +1103,7 @@ export class OrdersStorage {
       const paymentStatusChangedToPaid =
         isPaid && order.paymentStatus !== PrismaOrderPaymentStatus.PAID;
       if (paymentStatusChangedToPaid) {
-        await this.markPaidInTransaction(tx, order, {
+        await this.markVerifiedProviderPaidInTransaction(tx, order, {
           provider: "tbank_acquiring",
           source: "tbank_acquiring_notification",
         });
@@ -1009,8 +1142,13 @@ export class OrdersStorage {
               ? {
                   paymentErrorCode: input.errorCode,
                   paymentErrorMessage: input.errorMessage,
-                  ...(shouldRelease
-                    ? { paymentStatus: PrismaOrderPaymentStatus.FAILED }
+                   ...(shouldRelease
+                    ? {
+                        paymentRedirectUrl: CHECKOUT_FAILURE_PATH,
+                        paymentStatus: PrismaOrderPaymentStatus.FAILED,
+                        terminalPaymentFailedAt:
+                          order.terminalPaymentFailedAt ?? new Date(),
+                      }
                     : {}),
                 }
               : {}),
@@ -1025,7 +1163,7 @@ export class OrdersStorage {
         order: this.mapOrder(updatedOrder),
         paymentStatusChangedToPaid,
         previousStatus,
-        userId: order.userId ?? undefined,
+        userId: updatedOrder.userId ?? undefined,
       };
     });
   }
@@ -1129,11 +1267,6 @@ export class OrdersStorage {
           where: { id: existingOrder.id },
           data: {
             crmStatus: nextOrderStatus,
-            ...(nextOrderStatus === PrismaOrderCrmStatus.COMPLETED
-              ? {
-                  status: PrismaOrderStatus.PAID,
-                }
-              : {}),
           },
         });
         await tx.orderHistory.create({
@@ -1233,37 +1366,6 @@ export class OrdersStorage {
     return user.id;
   }
 
-  async markOrderAsPaid(orderId: string, userId: string): Promise<OrderDTO> {
-    const order = await this.prisma.$transaction(async (tx) => {
-      await this.lockOrder(tx, orderId);
-      const existingOrder = await tx.order.findFirst({
-        where: { id: orderId, userId },
-        include: orderInclude,
-      });
-      if (!existingOrder) throw new NotFoundException("Order not found");
-      if (
-        existingOrder.paymentMethod !== PrismaOrderPaymentMethod.BANK_CARD_MOCK
-      ) {
-        throw new BadRequestException(
-          "Only mock card payments can be confirmed by the order owner",
-        );
-      }
-      await this.markPaidInTransaction(tx, existingOrder, {
-        authorId: userId,
-        provider: "bank_card_mock",
-        source: "payment_confirmed",
-      });
-      const updatedOrder = await tx.order.findUnique({
-        where: { id: orderId },
-        include: orderInclude,
-      });
-      if (!updatedOrder) throw new NotFoundException("Order not found");
-      return updatedOrder;
-    });
-
-    return this.mapOrder(order);
-  }
-
   private mapOrder(order: StoredOrder): OrderDTO {
     return {
       id: order.id,
@@ -1271,7 +1373,7 @@ export class OrdersStorage {
       status: this.mapOrderCrmStatus(order.crmStatus),
       customer: {
         name: order.customerName,
-        phone: order.customerPhone,
+        ...(order.customerPhone ? { phone: order.customerPhone } : {}),
         email: order.customerEmail,
       },
       delivery: {
@@ -1456,11 +1558,9 @@ export class OrdersStorage {
   }
 
   private toPrismaPaymentMethod(
-    method: PaymentMethod,
+    method: CreateOrderPaymentMethod,
   ): PrismaOrderPaymentMethod {
     switch (method) {
-      case "bank_card_mock":
-        return PrismaOrderPaymentMethod.BANK_CARD_MOCK;
       case "ozon_acquiring":
         return PrismaOrderPaymentMethod.OZON_ACQUIRING;
       case "tbank_acquiring":
@@ -1473,6 +1573,18 @@ export class OrdersStorage {
       error instanceof Prisma.PrismaClientKnownRequestError &&
       error.code === "P2002"
     );
+  }
+
+  private getPaymentInitializationStartedAt(redirectUrl: string) {
+    if (!redirectUrl.startsWith(PAYMENT_INITIALIZING_PATH)) return undefined;
+    const startedAt = Number(
+      new URL(redirectUrl, "http://localhost").searchParams.get("startedAt"),
+    );
+    return Number.isFinite(startedAt) ? startedAt : 0;
+  }
+
+  private delay(ms: number) {
+    return new Promise<void>((resolve) => setTimeout(resolve, ms));
   }
 
   private isFreshShipmentCreation(shipment: StoredOrderShipment) {
@@ -1491,6 +1603,12 @@ export class OrdersStorage {
   private lockOrder(tx: Prisma.TransactionClient, orderId: string) {
     return tx.$queryRaw(
       Prisma.sql`SELECT "id" FROM "orders" WHERE "id" = ${orderId} FOR UPDATE`,
+    );
+  }
+
+  private lockCart(tx: Prisma.TransactionClient, cartId: string) {
+    return tx.$queryRaw(
+      Prisma.sql`SELECT "id" FROM "carts" WHERE "id" = ${cartId} FOR UPDATE`,
     );
   }
 
@@ -1534,10 +1652,53 @@ export class OrdersStorage {
     }
   }
 
+  private async markVerifiedProviderPaidInTransaction(
+    tx: Prisma.TransactionClient,
+    order: StoredOrder,
+    input: { provider: string; source: string },
+  ) {
+    if (order.checkoutAttemptId !== null) {
+      if (order.cartRestoredAt && order.cartConsumedAt) {
+        await this.reconcileRestoredOrderItemsInTransaction(tx, order);
+      } else if (!order.cartConsumedAt) {
+        await this.consumeOrderItemsInTransaction(
+          tx,
+          order,
+          "verified_paid_transition",
+        );
+      }
+    }
+    if (!order.userId) {
+      if (!this.orderActivationService) {
+        throw new Error("OrderActivationService is not configured");
+      }
+      await this.orderActivationService.attachPaidGuestOrderInTransaction(
+        tx,
+        order,
+      );
+    }
+
+    if (!this.analyticsOutboxService) {
+      throw new Error("AnalyticsOutboxService is not configured");
+    }
+    const paidAt = order.paidAt ?? new Date();
+    await this.markPaidInTransaction(tx, order, { ...input, paidAt });
+    await this.analyticsOutboxService.enqueueOrderPaid(tx, {
+      ...order,
+      paidAt,
+    });
+    return true;
+  }
+
   private async markPaidInTransaction(
     tx: Prisma.TransactionClient,
     order: StoredOrder,
-    input: { provider: string; source: string; authorId?: string },
+    input: {
+      provider: string;
+      source: string;
+      authorId?: string;
+      paidAt?: Date;
+    },
   ) {
     if (order.paymentStatus === PrismaOrderPaymentStatus.PAID) return false;
     const promoResult = await this.promocodesService.consumeInTransaction(
@@ -1557,7 +1718,7 @@ export class OrdersStorage {
       where: { id: order.id },
       data: {
         crmStatus: PrismaOrderCrmStatus.PAID,
-        paidAt: order.paidAt ?? new Date(),
+        paidAt: order.paidAt ?? input.paidAt ?? new Date(),
         paymentErrorCode: null,
         paymentErrorMessage: null,
         paymentStatus: PrismaOrderPaymentStatus.PAID,
@@ -1621,6 +1782,191 @@ export class OrdersStorage {
         include: orderInclude,
       });
     });
+  }
+
+  private isSecurePaymentRedirect(value: string) {
+    try {
+      return new URL(value).protocol === "https:";
+    } catch {
+      return false;
+    }
+  }
+
+  private assertSecurePaymentRedirect(value: string) {
+    if (!this.isSecurePaymentRedirect(value)) {
+      throw new BadRequestException("Payment redirect URL must use HTTPS");
+    }
+  }
+
+  private async restoreOrderItemsInTransaction(
+    tx: Prisma.TransactionClient,
+    order: StoredOrder,
+  ) {
+    const consumedQuantities = this.getQuantityLedger(
+      order.cartConsumedQuantities,
+    );
+    const restoredQuantities: Record<string, number> = {};
+    await tx.cart.upsert({
+      where: { id: order.cartId },
+      create: { id: order.cartId },
+      update: {},
+    });
+    await this.lockCart(tx, order.cartId);
+    for (const item of order.items) {
+      const consumedQuantity = consumedQuantities[item.productId] ?? 0;
+      if (consumedQuantity === 0) continue;
+      const where = {
+        cartId_productId: {
+          cartId: order.cartId,
+          productId: item.productId,
+        },
+      };
+      const existing = await tx.cartItem.findUnique({ where });
+      const existingQuantity = existing?.quantity ?? 0;
+      const quantity = Math.min(
+        existingQuantity + consumedQuantity,
+        99,
+      );
+      restoredQuantities[item.productId] = quantity - existingQuantity;
+      await tx.cartItem.upsert({
+        where,
+        create: {
+          cartId: order.cartId,
+          productId: item.productId,
+          title: item.title,
+          slug: item.slug,
+          price: item.price,
+          category: item.category,
+          categorySlug: item.categorySlug,
+          image: item.image,
+          quantity,
+        },
+        update: {
+          title: item.title,
+          slug: item.slug,
+          price: item.price,
+          category: item.category,
+          categorySlug: item.categorySlug,
+          image: item.image,
+          quantity,
+        },
+      });
+    }
+    await tx.cart.update({
+      where: { id: order.cartId },
+      data: { updatedAt: new Date() },
+    });
+    return restoredQuantities;
+  }
+
+  private async consumeOrderItemsInTransaction(
+    tx: Prisma.TransactionClient,
+    order: StoredOrder,
+    source: string,
+  ) {
+    const consumedQuantities: Record<string, number> = {};
+    await this.lockCart(tx, order.cartId);
+    for (const item of order.items) {
+      const where = {
+        cartId_productId: {
+          cartId: order.cartId,
+          productId: item.productId,
+        },
+      };
+      const existing = await tx.cartItem.findUnique({ where });
+      if (!existing) continue;
+      const consumedQuantity = Math.min(existing.quantity, item.quantity);
+      if (consumedQuantity === 0) continue;
+      consumedQuantities[item.productId] = consumedQuantity;
+      const quantity = existing.quantity - consumedQuantity;
+      if (quantity === 0) {
+        await tx.cartItem.deleteMany({
+          where: { cartId: order.cartId, productId: item.productId },
+        });
+      } else {
+        await tx.cartItem.update({ where, data: { quantity } });
+      }
+    }
+    await tx.cart.update({
+      where: { id: order.cartId },
+      data: { updatedAt: new Date() },
+    });
+    const consumedAt = new Date();
+    await tx.order.update({
+      where: { id: order.id },
+      data: {
+        cartConsumedAt: consumedAt,
+        cartConsumedQuantities: this.toPrismaJson(consumedQuantities),
+      },
+    });
+    await tx.orderHistory.create({
+      data: {
+        orderId: order.id,
+        eventType: "cart_consumed",
+        payload: this.toPrismaJson({ source }),
+      },
+    });
+  }
+
+  private async reconcileRestoredOrderItemsInTransaction(
+    tx: Prisma.TransactionClient,
+    order: StoredOrder,
+  ) {
+    const restoredQuantities = this.getQuantityLedger(
+      order.cartRestoredQuantities,
+    );
+    await this.lockCart(tx, order.cartId);
+    for (const item of order.items) {
+      const where = {
+        cartId_productId: {
+          cartId: order.cartId,
+          productId: item.productId,
+        },
+      };
+      const existing = await tx.cartItem.findUnique({ where });
+      if (!existing) continue;
+      const quantityToRemove = Math.min(
+        restoredQuantities[item.productId] ?? 0,
+        existing.quantity,
+      );
+      const quantity = existing.quantity - quantityToRemove;
+      if (quantityToRemove === 0) continue;
+      if (quantity === 0) {
+        await tx.cartItem.deleteMany({
+          where: { cartId: order.cartId, productId: item.productId },
+        });
+      } else {
+        await tx.cartItem.update({ where, data: { quantity } });
+      }
+    }
+    await tx.cart.update({
+      where: { id: order.cartId },
+      data: { updatedAt: new Date() },
+    });
+    await tx.order.update({
+      where: { id: order.id },
+      data: { cartConsumedAt: order.cartConsumedAt ?? new Date() },
+    });
+    await tx.orderHistory.create({
+      data: {
+        orderId: order.id,
+        eventType: "cart_restoration_reconciled",
+        payload: this.toPrismaJson({ source: "verified_paid_transition" }),
+      },
+    });
+  }
+
+  private getQuantityLedger(value: Prisma.JsonValue | null) {
+    if (!value || typeof value !== "object" || Array.isArray(value)) return {};
+
+    return Object.fromEntries(
+      Object.entries(value).filter(
+        (entry): entry is [string, number] =>
+          typeof entry[1] === "number" &&
+          Number.isSafeInteger(entry[1]) &&
+          entry[1] > 0,
+      ),
+    );
   }
 
   private assertReceiptPricing(

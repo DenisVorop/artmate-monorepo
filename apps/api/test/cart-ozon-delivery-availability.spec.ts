@@ -1,4 +1,6 @@
 import assert from "node:assert/strict";
+import { readFile } from "node:fs/promises";
+import path from "node:path";
 import { describe, it } from "node:test";
 
 import type { CartStorage } from "../src/cart/cart.storage";
@@ -6,6 +8,34 @@ import { CartService } from "../src/cart/cart.service";
 import type { ProductsService } from "../src/products/products.service";
 
 describe("Cart Ozon delivery availability", () => {
+  it("includes only the server-owned Ozon minimum delivery price", async () => {
+    const cartStorage = {
+      ensureCart: async () => ({ id: "cart-1" }),
+      getDTO: () => createCartDTO(),
+    };
+    const productsService = {
+      areProductsOzonDeliveryAvailable: async () => true,
+    };
+    const service = new CartService(
+      cartStorage as unknown as CartStorage,
+      productsService as unknown as ProductsService,
+    );
+
+    const cart = await service.getCart("cart-1");
+
+    assert.deepEqual(cart.minimumDeliveryPrices, { ozon: 100 });
+    assert.equal("cdek" in cart.minimumDeliveryPrices, false);
+  });
+
+  it("does not declare a made-up CDEK minimum delivery price", async () => {
+    const constantsSource = await readFile(
+      path.join(__dirname, "../src/delivery/delivery.constants.ts"),
+      "utf8",
+    );
+
+    assert.doesNotMatch(constantsSource, /cdekDeliveryPriceFromRub/u);
+  });
+
   it("derives availability from current products on every read", async () => {
     let available = true;
     const productIdCalls: (readonly string[])[] = [];
@@ -15,7 +45,9 @@ describe("Cart Ozon delivery availability", () => {
       getDTO: () => createCartDTO(),
     };
     const productsService = {
-      areProductsOzonDeliveryAvailable: async (productIds: readonly string[]) => {
+      areProductsOzonDeliveryAvailable: async (
+        productIds: readonly string[],
+      ) => {
         productIdCalls.push(productIds);
         return available;
       },

@@ -3,6 +3,8 @@ import {
   UnauthorizedException,
   InternalServerErrorException,
 } from "@nestjs/common";
+import crypto from "node:crypto";
+
 import { JwtService } from "@nestjs/jwt";
 
 import {
@@ -17,7 +19,7 @@ import {
   AUTH_ACCESS_TOKEN_COOKIE_NAME,
   AUTH_ACCESS_TOKEN_EXPIRES_IN,
 } from "./auth.constants";
-import type { AuthTokenPayload, AuthUser } from "./auth.types";
+import type { AuthPrincipal, AuthTokenPayload, AuthUser } from "./auth.types";
 import { CredentialsAuthService } from "./credentials-auth.service";
 
 @Injectable()
@@ -29,7 +31,11 @@ export class AuthService {
     private readonly usersService: UsersService,
   ) {}
 
-  async createAccessToken(user: AuthUser) {
+  async createAccessToken(user: AuthPrincipal) {
+    if (!Number.isSafeInteger(user.authVersion) || user.authVersion < 0) {
+      throw new InternalServerErrorException("Invalid user auth version");
+    }
+
     const payload: AuthTokenPayload = {
       sub: user.id,
       provider: user.provider,
@@ -39,6 +45,8 @@ export class AuthService {
       phone: user.phone,
       image: user.image,
       roles: user.roles,
+      authVersion: user.authVersion,
+      envCredentialBinding: user.envCredentialBinding,
     };
 
     return this.jwtService.signAsync(payload, {
@@ -69,8 +77,9 @@ export class AuthService {
           secret: this.getJwtSecret(),
         },
       );
+      const authVersion = this.getPayloadAuthVersion(payload);
 
-      return await this.getUserFromPayload(payload);
+      return await this.getUserFromPayload(payload, authVersion);
     } catch {
       throw new UnauthorizedException("Invalid access token");
     }
@@ -122,6 +131,7 @@ export class AuthService {
 
   private async getUserFromPayload(
     payload: AuthTokenPayload,
+    authVersion: number,
   ): Promise<AuthUser> {
     const user = this.getPayloadUser(payload);
     const storedUser = await this.prisma.user.findUnique({
@@ -133,14 +143,20 @@ export class AuthService {
         phone: true,
         roles: true,
         status: true,
+        authVersion: true,
       },
     });
 
     if (!storedUser) {
       if (user.id === `${user.provider}:${user.providerUserId}`) {
-        const legacyUser = await this.getLegacyProviderUser(user);
+        const legacyUser = await this.getLegacyProviderUser(user, authVersion);
 
         if (legacyUser) {
+          await this.assertCredentialsTokenBinding(
+            user,
+            legacyUser.id,
+            payload.envCredentialBinding,
+          );
           return legacyUser;
         }
       }
@@ -151,6 +167,16 @@ export class AuthService {
     if (storedUser.status !== PrismaUserStatus.ACTIVE) {
       throw new UnauthorizedException("User account is not active");
     }
+
+    if (storedUser.authVersion !== authVersion) {
+      throw new UnauthorizedException("Invalid access token");
+    }
+
+    await this.assertCredentialsTokenBinding(
+      user,
+      user.id,
+      payload.envCredentialBinding,
+    );
 
     return {
       ...user,
@@ -164,18 +190,8 @@ export class AuthService {
 
   private async getLegacyProviderUser(
     user: AuthUser,
+    authVersion: number,
   ): Promise<AuthUser | undefined> {
-    if (user.provider === "credentials") {
-      const envUser =
-        await this.credentialsAuthService.getEnvCredentialsUserByEmail(
-          user.providerUserId,
-        );
-
-      if (envUser) {
-        return envUser;
-      }
-    }
-
     const account = await this.prisma.authAccount.findUnique({
       where: {
         provider_providerUserId: {
@@ -188,7 +204,11 @@ export class AuthService {
       },
     });
 
-    if (!account || account.user.status !== PrismaUserStatus.ACTIVE) {
+    if (
+      !account ||
+      account.user.status !== PrismaUserStatus.ACTIVE ||
+      account.user.authVersion !== authVersion
+    ) {
       return undefined;
     }
 
@@ -225,6 +245,71 @@ export class AuthService {
       image: payload.image,
       roles: payload.roles,
     };
+  }
+
+  private getPayloadAuthVersion(payload: AuthTokenPayload) {
+    const authVersion =
+      payload.authVersion === undefined ? 0 : payload.authVersion;
+
+    if (!Number.isSafeInteger(authVersion) || authVersion < 0) {
+      throw new UnauthorizedException("Invalid access token payload");
+    }
+
+    return authVersion;
+  }
+
+  private async assertCredentialsTokenBinding(
+    user: AuthUser,
+    resolvedUserId: string,
+    tokenBinding: unknown,
+  ) {
+    if (user.provider !== "credentials") {
+      return;
+    }
+
+    const account = await this.prisma.authAccount.findUnique({
+      where: {
+        provider_providerUserId: {
+          provider: PrismaAuthProvider.CREDENTIALS,
+          providerUserId: user.providerUserId,
+        },
+      },
+      select: {
+        credential: { select: { id: true } },
+        userId: true,
+      },
+    });
+
+    if (!account || account.userId !== resolvedUserId) {
+      throw new UnauthorizedException("Invalid access token");
+    }
+
+    if (account.credential) {
+      return;
+    }
+
+    const currentBinding =
+      this.credentialsAuthService.getEnvCredentialBinding(
+        user.providerUserId,
+      );
+
+    if (
+      typeof tokenBinding !== "string" ||
+      !currentBinding ||
+      !this.safeCompare(tokenBinding, currentBinding)
+    ) {
+      throw new UnauthorizedException("Invalid access token");
+    }
+  }
+
+  private safeCompare(actual: string, expected: string) {
+    const actualBuffer = Buffer.from(actual);
+    const expectedBuffer = Buffer.from(expected);
+
+    return (
+      actualBuffer.length === expectedBuffer.length &&
+      crypto.timingSafeEqual(actualBuffer, expectedBuffer)
+    );
   }
 
   private isAuthProvider(provider: unknown): provider is AuthUser["provider"] {

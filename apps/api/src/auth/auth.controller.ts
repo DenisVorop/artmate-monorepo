@@ -31,6 +31,7 @@ import {
 import { AuthService } from "./auth.service";
 import {
   AuthEmailVerificationResponseDTO,
+  AuthOrderActivationResponseDTO,
   AuthPasswordResetResponseDTO,
   AuthSessionDTO,
   AuthTelegramLinkCodeDTO,
@@ -38,20 +39,23 @@ import {
   AuthTelegramLinkStatusDTO,
   AuthUserDTO,
   ConfirmEmailVerificationRequestDTO,
+  ConfirmOrderActivationRequestDTO,
   ConfirmPasswordResetRequestDTO,
   ConfirmTelegramLinkRequestDTO,
   CreateTelegramLinkCodeRequestDTO,
   LoginRequestDTO,
   RegisterRequestDTO,
-  RequestPasswordResetRequestDTO,
+  RequestAccountRecoveryDTO,
   ResendEmailVerificationRequestDTO,
+  ValidateOrderActivationRequestDTO,
 } from "./dto";
 import { AuthGuard } from "./auth.guard";
-import type { AuthUser } from "./auth.types";
+import type { AuthPrincipal, AuthUser } from "./auth.types";
 import { CredentialsAuthService } from "./credentials-auth.service";
 import { EmailVerificationService } from "./email-verification.service";
 import { LoginThrottleService } from "./login-throttle.service";
 import { OAuthProvidersService } from "./oauth-providers.service";
+import { OrderActivationService } from "./order-activation.service";
 import { PasswordResetService } from "./password-reset.service";
 import { TelegramLinkService } from "./telegram-link.service";
 
@@ -91,6 +95,7 @@ export class AuthController {
     private readonly emailVerificationService: EmailVerificationService,
     private readonly loginThrottleService: LoginThrottleService,
     private readonly oauthProvidersService: OAuthProvidersService,
+    private readonly orderActivationService: OrderActivationService,
     private readonly passwordResetService: PasswordResetService,
     private readonly telegramLinkService: TelegramLinkService,
     private readonly usersService: UsersService,
@@ -144,12 +149,16 @@ export class AuthController {
     @Body() request: ConfirmEmailVerificationRequestDTO,
     @Res({ passthrough: true }) response: CookieResponse,
   ) {
-    const userId = await this.emailVerificationService.confirmCode(
+    const verifiedUser = await this.emailVerificationService.confirmCode(
       request.email,
       request.code,
     );
-    const user =
-      await this.credentialsAuthService.getCredentialsUserById(userId);
+    const user = {
+      ...(await this.credentialsAuthService.getCredentialsUserById(
+        verifiedUser.id,
+      )),
+      authVersion: verifiedUser.authVersion,
+    };
 
     return this.createCookieSession(response, user);
   }
@@ -172,17 +181,33 @@ export class AuthController {
   }
 
   @ValidateResponse(AuthPasswordResetResponseDTO)
-  @Post("password-reset/request")
-  requestPasswordReset(
-    @Body() request: RequestPasswordResetRequestDTO,
+  @Post("recovery/request")
+  requestAccountRecovery(
+    @Body() request: RequestAccountRecoveryDTO,
     @Headers("x-forwarded-for") forwardedFor: string | undefined,
     @Headers("x-real-ip") realIp: string | undefined,
     @Ip() requestIp: string | undefined,
   ) {
-    return this.passwordResetService.requestReset({
+    return this.orderActivationService.requestRecovery({
       email: request.email,
       ipAddress: this.getClientIp(requestIp, forwardedFor, realIp),
     });
+  }
+
+  @ValidateResponse(AuthSessionDTO)
+  @Post("order-activation/confirm")
+  async confirmOrderActivation(
+    @Body() request: ConfirmOrderActivationRequestDTO,
+    @Res({ passthrough: true }) response: CookieResponse,
+  ) {
+    const user = await this.orderActivationService.confirmActivation(request);
+    return this.createCookieSession(response, user);
+  }
+
+  @ValidateResponse(AuthOrderActivationResponseDTO)
+  @Post("order-activation/validate")
+  validateOrderActivation(@Body() request: ValidateOrderActivationRequestDTO) {
+    return this.orderActivationService.validateActivation(request.token);
   }
 
   @ValidateResponse(AuthPasswordResetResponseDTO)
@@ -388,8 +413,21 @@ export class AuthController {
     }
   }
 
-  private async createCookieSession(response: CookieResponse, user: AuthUser) {
-    const accessToken = await this.authService.createAccessToken(user);
+  private async createCookieSession(
+    response: CookieResponse,
+    principal: AuthPrincipal,
+  ) {
+    const accessToken = await this.authService.createAccessToken(principal);
+    const user: AuthUser = {
+      id: principal.id,
+      provider: principal.provider,
+      providerUserId: principal.providerUserId,
+      ...(principal.email === undefined ? {} : { email: principal.email }),
+      ...(principal.name === undefined ? {} : { name: principal.name }),
+      ...(principal.phone === undefined ? {} : { phone: principal.phone }),
+      ...(principal.image === undefined ? {} : { image: principal.image }),
+      roles: principal.roles,
+    };
 
     this.setAccessTokenCookie(response, accessToken);
 

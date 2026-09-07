@@ -78,3 +78,8 @@ export interface DeliveryProviderAdapter {
     selection: DeliverySelection;
   }): Promise<DeliveryQuote>;
 }
+
+/** No request/response shape is defined until Ozon point-list is confirmed. */
+export interface OzonPointListAdapter {
+  readonly enabled: boolean;
+}
