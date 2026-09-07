@@ -119,8 +119,20 @@ describe("Ozon logistics storefront mapping", () => {
       for (const response of invalidResponses) {
         await assert.rejects(
           createLogisticsServiceReturning(response).getDeliveryPointList(),
-          (error) =>
-            error instanceof BadGatewayException && error.getStatus() === 502,
+          (error) => {
+            assert.ok(error instanceof BadGatewayException);
+            assert.equal(
+              error.message,
+              "Не удалось загрузить пункты выдачи Ozon. Попробуйте еще раз.",
+            );
+            assert.deepEqual(error.getResponse(), {
+              error: "Bad Gateway",
+              message:
+                "Не удалось загрузить пункты выдачи Ozon. Попробуйте еще раз.",
+              statusCode: 502,
+            });
+            return true;
+          },
         );
       }
     });

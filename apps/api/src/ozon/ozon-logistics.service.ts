@@ -568,13 +568,15 @@ export class OzonLogisticsService {
       const mapPointId = this.parseExternalMapPointId(
         pointRecord.map_point_id,
       );
-      const latitude = this.getNumber(coordinate, "lat");
-      const longitude = this.getNumber(coordinate, "long");
+      const latitude = coordinate.lat;
+      const longitude = coordinate.long;
 
       if (
         !mapPointId ||
-        latitude === undefined ||
-        longitude === undefined ||
+        typeof latitude !== "number" ||
+        !Number.isFinite(latitude) ||
+        typeof longitude !== "number" ||
+        !Number.isFinite(longitude) ||
         latitude < -90 ||
         latitude > 90 ||
         longitude < -180 ||
