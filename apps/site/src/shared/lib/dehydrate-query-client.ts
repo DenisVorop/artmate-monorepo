@@ -3,7 +3,6 @@ import { dehydrate, type DehydratedState, type QueryClient } from "@tanstack/rea
 type SerializedQueryError = {
   message: string;
   name: string;
-  stack?: string;
   status?: number;
 } | null;
 
@@ -15,6 +14,18 @@ export function dehydrateQueryClient(queryClient: QueryClient): DehydratedState 
 
   return {
     ...dehydratedState,
+    mutations: dehydratedState.mutations.map((mutation) => {
+      const { error, failureReason, ...stateWithoutErrors } = mutation.state;
+
+      return {
+        ...mutation,
+        state: {
+          ...stateWithoutErrors,
+          error: serializeQueryError(error),
+          failureReason: serializeQueryError(failureReason),
+        },
+      };
+    }),
     queries: dehydratedState.queries.map((query) => {
       if (query.state.status !== "error") {
         return query;
@@ -43,7 +54,6 @@ function serializeQueryError(error: unknown): SerializedQueryError {
     return {
       message: error.message,
       name: error.name,
-      stack: error.stack,
       status: getErrorStatus(error),
     };
   }
@@ -54,7 +64,6 @@ function serializeQueryError(error: unknown): SerializedQueryError {
     return {
       message: typeof errorRecord.message === "string" ? errorRecord.message : "Unknown error",
       name: typeof errorRecord.name === "string" ? errorRecord.name : "Error",
-      stack: typeof errorRecord.stack === "string" ? errorRecord.stack : undefined,
       status: typeof errorRecord.status === "number" ? errorRecord.status : undefined,
     };
   }

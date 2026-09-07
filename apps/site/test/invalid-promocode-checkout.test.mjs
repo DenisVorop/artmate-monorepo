@@ -140,6 +140,15 @@ function createReactHarness() {
       useCallback: (callback) => callback,
       useEffect: (effect) => effect(),
       useMemo: (factory) => factory(),
+      useRef(initialValue) {
+        const index = cursor++;
+
+        if (!(index in state)) {
+          state[index] = { current: initialValue };
+        }
+
+        return state[index];
+      },
       useState(initialValue) {
         const index = cursor++;
 
@@ -168,15 +177,27 @@ const validFormValues = {
   phone: "+7 (999) 123-45-67",
 };
 
-async function createCheckoutHarness({ calculationState, promoState }) {
+async function createCheckoutHarness({ calculationState, persistedDelivery, promoState }) {
   const getPromoPricingState = await loadPromoPricingState();
   const checkoutForm = evaluateTypeScript(
     await readSource("src/features/checkout/lib/checkout-form.ts"),
     { zod: require("zod") },
   );
   const reactHarness = createReactHarness();
+  const checkoutCalculationState = evaluateTypeScript(
+    await readSource("src/features/checkout/lib/calculation-state.ts"),
+    {
+      "./delivery-picker-state": {
+        isMatchingCheckoutCalculation: (value, candidate, cartId) =>
+          value?.cartId === cartId &&
+          value?.delivery?.provider === candidate.provider &&
+          value?.delivery?.pickupPoint?.id === candidate.pickupPointId,
+      },
+    },
+  );
   const calculationCalls = [];
   const submitted = [];
+  const submitVariables = [];
   let formValues = validFormValues;
   const form = {
     formState: { isDirty: false },
@@ -189,15 +210,55 @@ async function createCheckoutHarness({ calculationState, promoState }) {
     await readSource("src/features/checkout/lib/checkout-provider/checkout-provider.tsx"),
     {
       "../../model": {
+        checkoutCalculationQueryKey: (candidate, identity) => [candidate, identity],
+        checkoutCalculationQueryOptions: (candidate, identity) => ({
+          queryKey: [candidate, identity],
+        }),
         useCheckoutCalculation: (delivery, identity) => {
           calculationCalls.push({ delivery, identity });
           return calculationState;
         },
       },
       "../checkout-form": checkoutForm,
+      "../calculation-state": checkoutCalculationState,
+      "../delivery-picker-state": {
+        createDeliveryConfirmationCoordinator: () => {
+          let token = 0;
+
+          return {
+            confirm: async ({ calculate, candidate, cartId, commit }) => {
+              const ownToken = ++token;
+              const calculation = await calculate();
+
+              if (ownToken !== token) return { status: "stale" };
+              if (
+                calculation?.cartId !== cartId ||
+                calculation?.delivery?.provider !== candidate.provider ||
+                calculation?.delivery?.pickupPoint?.id !== candidate.pickupPointId
+              ) {
+                return { status: "error", message: "mismatch" };
+              }
+
+              commit({ calculation, candidate });
+              return { status: "confirmed", calculation };
+            },
+            invalidate: () => {
+              token += 1;
+            },
+          };
+        },
+        isMatchingCheckoutCalculation: (calculation, candidate, cartId) =>
+          calculation?.cartId === cartId &&
+          calculation?.delivery?.provider === candidate.provider &&
+          calculation?.delivery?.pickupPoint?.id === candidate.pickupPointId,
+      },
+      "../pickup-selection-storage": {
+        clearPersistedPickupSelection: () => undefined,
+        readPersistedPickupSelection: () => persistedDelivery,
+        writePersistedPickupSelection: () => undefined,
+      },
       "./checkout.context": {
         CheckoutContext: { Provider: "CheckoutContextProvider" },
-        checkoutSteps: ["delivery", "contacts", "confirmation"],
       },
       "@/entities/cart": {},
       "@/entities/session": { useUser: () => ({ id: "user-1" }) },
@@ -207,6 +268,12 @@ async function createCheckoutHarness({ calculationState, promoState }) {
         usePromocode: () => promoState,
       },
       "@hookform/resolvers/zod": { zodResolver: (schema) => schema },
+      "@tanstack/react-query": {
+        useQueryClient: () => ({
+          fetchQuery: async () => calculationState.calculation,
+          setQueryData: () => undefined,
+        }),
+      },
       react: reactHarness.react,
       "react-hook-form": {
         FormProvider: "FormProvider",
@@ -216,13 +283,18 @@ async function createCheckoutHarness({ calculationState, promoState }) {
     },
   );
   const props = {
-    cart: { id: "cart-1", items: [{ id: "item-1", price: 1_000, quantity: 1 }] },
+    cart: {
+      id: "cart-1",
+      isOzonDeliveryAvailable: true,
+      items: [{ id: "item-1", price: 1_000, quantity: 1 }],
+    },
     children: "checkout",
     isSubmitting: false,
-    onSubmit: async (input) => {
+    onSubmit: async (variables) => {
+      const { input } = variables;
+      submitVariables.push(variables);
       submitted.push(input);
     },
-    requiresAuth: false,
   };
   const render = () => {
     reactHarness.beginRender();
@@ -236,12 +308,20 @@ async function createCheckoutHarness({ calculationState, promoState }) {
       formValues = values;
     },
     submitted,
+    submitVariables,
   };
 }
 
 const delivery = { pickupPointId: "point-1", provider: "ozon" };
 const readyCalculation = {
-  calculation: { delivery: 200, discount: 0, subtotal: 1_000, total: 1_200 },
+  calculation: {
+    cartId: "cart-1",
+    delivery: { pickupPoint: { id: "point-1" }, provider: "ozon" },
+    deliveryPrice: 200,
+    discount: 0,
+    subtotal: 1_000,
+    total: 1_200,
+  },
   error: null,
   isError: false,
   isPaused: false,
@@ -250,7 +330,7 @@ const readyCalculation = {
 };
 
 async function selectDelivery(harness) {
-  harness.render().setSelectedDelivery(delivery);
+  await harness.render().confirmDelivery(delivery);
   return harness.render();
 }
 
@@ -335,7 +415,7 @@ test("valid matching promo keeps its discount while stale and unresolved preview
   assert.match(renderedText(tree), /Скидка \(SAVE10\).*100 RUB.*900 RUB/u);
 });
 
-test("invalid promo calculates without a code, advances, and omits it for both payments", async () => {
+test("invalid promo calculates without a code and omits it for both payments", async () => {
   const promoState = {
     error: new Error("Промокод истек"),
     isError: true,
@@ -353,11 +433,6 @@ test("invalid promo calculates without a code, advances, and omits it for both p
 
     assert.equal(latestCall.identity.enabled, true);
     assert.equal(latestCall.identity.promoCode, undefined);
-    assert.equal(context.canContinueDelivery, true);
-
-    context.continueFromDelivery();
-    assert.equal(harness.render().step, "contacts");
-
     harness.setFormValues({ ...validFormValues, paymentMethod });
     context.submitOrder({ preventDefault: () => undefined });
     await new Promise((resolve) => setTimeout(resolve, 0));
@@ -418,7 +493,6 @@ test("hydration, pending, paused and unresolved promo disable calculation and su
     const context = await selectDelivery(harness);
 
     assert.equal(harness.calculationCalls.at(-1).identity.enabled, false);
-    assert.equal(context.canContinueDelivery, false);
     context.submitOrder({ preventDefault: () => undefined });
     await new Promise((resolve) => setTimeout(resolve, 0));
     assert.equal(harness.submitted.length, 0);
@@ -442,24 +516,115 @@ test("pending or failed actual checkout calculation still prevents order submiss
     });
     const context = await selectDelivery(harness);
 
-    assert.equal(context.canContinueDelivery, false);
-    assert.equal(context.checkoutCalculation.error, calculationState.error);
+    assert.equal(context.checkoutCalculation.status, calculationState.isPending ? "pending" : "error");
     context.submitOrder({ preventDefault: () => undefined });
     await new Promise((resolve) => setTimeout(resolve, 0));
     assert.equal(harness.submitted.length, 0);
   }
 });
 
+test("checkout submits only a ready calculation matching the confirmed delivery", async () => {
+  const promoState = {
+    error: null,
+    isError: false,
+    isHydrating: false,
+    isPaused: false,
+    isPending: false,
+  };
+
+  for (const calculationState of [
+    { ...readyCalculation, isPending: true },
+    { ...readyCalculation, isPaused: true },
+    { ...readyCalculation, error: new Error("Delivery failed"), isError: true },
+  ]) {
+    const harness = await createCheckoutHarness({ calculationState, promoState });
+    const context = await selectDelivery(harness);
+
+    context.submitOrder({ preventDefault: () => undefined });
+    await new Promise((resolve) => setTimeout(resolve, 0));
+    assert.equal(harness.submitted.length, 0, context.checkoutCalculation.status);
+  }
+
+  const idleHarness = await createCheckoutHarness({
+    calculationState: { ...readyCalculation, calculation: undefined },
+    promoState,
+  });
+  idleHarness.render().submitOrder({ preventDefault: () => undefined });
+  await new Promise((resolve) => setTimeout(resolve, 0));
+  assert.equal(idleHarness.submitted.length, 0);
+
+  const mismatchHarness = await createCheckoutHarness({
+    calculationState: {
+      ...readyCalculation,
+      calculation: {
+        ...readyCalculation.calculation,
+        delivery: {
+          ...readyCalculation.calculation.delivery,
+          pickupPoint: { id: "point-2" },
+        },
+      },
+    },
+    persistedDelivery: delivery,
+    promoState,
+  });
+  mismatchHarness.render();
+  const mismatchContext = mismatchHarness.render();
+  mismatchContext.submitOrder({ preventDefault: () => undefined });
+  await new Promise((resolve) => setTimeout(resolve, 0));
+  assert.equal(mismatchContext.checkoutCalculation.status, "error");
+  assert.equal(
+    mismatchContext.checkoutCalculation.error.message,
+    "Не удалось получить актуальный расчет заказа",
+  );
+  assert.equal(mismatchContext.checkoutCalculation.retry, readyCalculation.retry);
+  assert.equal(mismatchHarness.submitted.length, 0);
+
+  const readyHarness = await createCheckoutHarness({ calculationState: readyCalculation, promoState });
+  const readyContext = await selectDelivery(readyHarness);
+  readyContext.submitOrder({ preventDefault: () => undefined });
+  await new Promise((resolve) => setTimeout(resolve, 0));
+  assert.equal(readyContext.checkoutCalculation.status, "ready");
+  assert.equal(readyHarness.submitted.length, 1);
+  assert.deepEqual(Object.keys(readyHarness.submitVariables[0]), ["input"]);
+});
+
+test("unresolved promo cannot reuse a cached base calculation for confirmed delivery", async () => {
+  const harness = await createCheckoutHarness({
+    calculationState: readyCalculation,
+    persistedDelivery: delivery,
+    promoState: {
+      error: null,
+      isError: false,
+      isHydrating: false,
+      isPaused: false,
+      isPending: false,
+      retry: readyCalculation.retry,
+      selectedCode: "SAVE10",
+    },
+  });
+
+  harness.render();
+  const context = harness.render();
+  assert.equal(context.checkoutCalculation.status, "error");
+  assert.equal(
+    context.checkoutCalculation.error.message,
+    "Не удалось получить актуальный расчет заказа",
+  );
+  assert.equal(context.checkoutCalculation.retry, readyCalculation.retry);
+  context.submitOrder({ preventDefault: () => undefined });
+  await new Promise((resolve) => setTimeout(resolve, 0));
+  assert.equal(harness.submitted.length, 0);
+});
+
 test("checkout query key and request use the effective promo code identity", async () => {
-  const queryOptions = [];
   const requests = [];
-  const { useCheckoutCalculation: runCheckoutCalculation } = evaluateTypeScript(
-    await readSource("src/features/checkout/model/use-checkout-calculation.ts"),
+  const { checkoutCalculationQueryOptions } = evaluateTypeScript(
+    await readSource("src/features/checkout/model/query.ts"),
     {
       "@/shared/actions/orders": {
         calculateCheckout: async (input) => {
           requests.push(input);
-          return { data: { total: 1_000 } };
+          return { data: readyCalculation.calculation };
         },
       },
       "@/shared/lib/api-result": {
@@ -467,30 +632,28 @@ test("checkout query key and request use the effective promo code identity", asy
       },
       "@/shared/lib/query-freshness": { getFreshQueryData: (result) => result.data },
       "@/shared/lib/query-keys": { cartPricingQueryKey: ["cart-pricing"] },
+      "../lib/delivery-picker-state": {
+        isMatchingCheckoutCalculation: (calculation, candidate, cartId) =>
+          calculation?.cartId === cartId &&
+          calculation?.delivery?.provider === candidate.provider &&
+          calculation?.delivery?.pickupPoint?.id === candidate.pickupPointId,
+      },
       "@tanstack/react-query": {
-        useQuery: (options) => {
-          queryOptions.push(options);
-          return {
-            data: undefined,
-            error: null,
-            fetchStatus: "idle",
-            isError: false,
-            isFetching: false,
-            isPaused: false,
-            refetch: () => undefined,
-          };
-        },
+        queryOptions: (options) => options,
       },
     },
   );
+  const queryOptions = [];
 
   for (const promoCode of [undefined, "SAVE10"]) {
-    runCheckoutCalculation(delivery, {
-      accountIdentity: "user-1",
-      cartSignature: "cart-signature",
-      enabled: true,
-      promoCode,
-    });
+    queryOptions.push(
+      checkoutCalculationQueryOptions(delivery, {
+        accountIdentity: "user-1",
+        cartId: "cart-1",
+        cartSignature: "cart-signature",
+        promoCode,
+      }),
+    );
   }
 
   assert.notDeepEqual(queryOptions[0].queryKey, queryOptions[1].queryKey);

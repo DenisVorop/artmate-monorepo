@@ -26,7 +26,7 @@ export function ComboboxOption({
     <button
       type="button"
       className={cn(
-        "flex w-full items-start gap-3 rounded-md px-3 py-2 text-left text-sm transition-colors outline-none hover:bg-muted focus-visible:bg-muted",
+        "flex min-h-11 w-full items-start gap-3 rounded-md px-3 py-2 text-left text-sm transition-colors outline-none hover:bg-muted focus-visible:bg-muted",
         isSelected && "bg-rose-50 text-rose-950",
       )}
       onClick={onSelect}

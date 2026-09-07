@@ -1,6 +1,7 @@
 "use client";
 
 import { Check, Cookie } from "lucide-react";
+import { useLayoutEffect, useRef } from "react";
 
 import { routes } from "@/shared/constants";
 import { acceptCookieConsent, useCookieConsent } from "@/shared/lib/cookie-consent";
@@ -9,13 +10,48 @@ import { Link } from "@/shared/ui/link";
 
 export function CookieConsentBanner() {
   const { isAccepted, isReady } = useCookieConsent();
+  const sectionRef = useRef<HTMLElement>(null);
+  const isVisible = isReady && !isAccepted;
 
-  if (!isReady || isAccepted) {
+  useLayoutEffect(() => {
+    if (typeof document === "undefined") {
+      return;
+    }
+
+    const rootStyle = document.documentElement.style;
+    const section = sectionRef.current;
+    const resetHeight = () => rootStyle.removeProperty("--site-cookie-consent-height");
+
+    if (!isVisible || !section) {
+      resetHeight();
+      return;
+    }
+
+    const updateHeight = () => {
+      rootStyle.setProperty(
+        "--site-cookie-consent-height",
+        `${section.getBoundingClientRect().height}px`,
+      );
+    };
+    const resizeObserver =
+      typeof ResizeObserver === "undefined" ? undefined : new ResizeObserver(updateHeight);
+
+    updateHeight();
+    resizeObserver?.observe(section);
+
+    return () => {
+      resizeObserver?.disconnect();
+      resetHeight();
+    };
+  }, [isVisible]);
+
+  if (!isVisible) {
     return null;
   }
 
   return (
     <section
+      ref={sectionRef}
       aria-label="Уведомление об использовании cookie"
       className="fixed right-0 bottom-0 left-0 z-50 px-3 pb-3 sm:px-4 sm:pb-4"
     >
@@ -41,7 +77,7 @@ export function CookieConsentBanner() {
           type="button"
           variant="outline"
           onClick={() => acceptCookieConsent()}
-          className="h-8 w-full border-stone-200 bg-white px-2.5 text-xs text-stone-800 hover:bg-stone-50 focus-visible:border-rose-200 focus-visible:ring-rose-200/40 md:h-9 md:w-auto md:px-2.5 md:text-sm"
+          className="min-h-11 w-full border-stone-200 bg-white px-2.5 text-xs text-stone-800 hover:bg-stone-50 focus-visible:border-rose-200 focus-visible:ring-rose-200/40 md:w-auto md:px-2.5 md:text-sm"
         >
           <Check data-icon="inline-start" aria-hidden="true" />
           Принять

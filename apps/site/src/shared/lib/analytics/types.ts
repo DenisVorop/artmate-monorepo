@@ -8,7 +8,6 @@ export const yandexGoalEventIds = [
   "digital_versions_opened",
   "digital_coloring_open",
   "order_created",
-  "order_paid",
 ] as const;
 
 export type YandexGoalEventId = (typeof yandexGoalEventIds)[number];
@@ -55,15 +54,14 @@ export type YandexGoalParams = {
     order_price: number;
     currency: RubCurrency;
   };
-  order_paid: {
-    order_id: string;
-    items_count: number;
-    order_price: number;
-    currency: RubCurrency;
-  };
 };
 
-export const diagnosticEventNames = ["welcome_promo_dismiss", "digital_open_from_product"] as const;
+export const diagnosticEventNames = [
+  "welcome_promo_dismiss",
+  "digital_open_from_product",
+  "account_recovery_requested",
+  "order_activation_completed",
+] as const;
 
 export type DiagnosticEventName = (typeof diagnosticEventNames)[number];
 
@@ -75,6 +73,8 @@ export type DiagnosticEventParams = {
     product_id: string;
     collection_slug: string;
   };
+  account_recovery_requested: EmptyAnalyticsParams;
+  order_activation_completed: EmptyAnalyticsParams;
 };
 
 export type AnalyticsDedupeScope = "memory" | "session" | "local";

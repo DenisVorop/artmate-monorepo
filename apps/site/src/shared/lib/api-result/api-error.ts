@@ -5,7 +5,6 @@ import { omitUndefined } from '../omit-undefined';
 export type ApiErrorDTO = {
   message: string;
   name: string;
-  stack?: string;
   status?: number;
 };
 
@@ -24,7 +23,6 @@ export class ApiError extends Error {
     return omitUndefined({
       message: this.message,
       name: this.name,
-      stack: this.stack,
       status: this.status,
     });
   }

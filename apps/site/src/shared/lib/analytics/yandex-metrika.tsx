@@ -1,6 +1,7 @@
 import { Suspense } from "react";
 import Script from "next/script";
 
+import { YandexAttributionInitializer } from "./yandex-attribution-initializer";
 import { YandexMetrikaInitializer } from "./yandex-metrika-initializer";
 import { YandexMetrikaPageView } from "./yandex-metrika-page-view";
 
@@ -42,6 +43,7 @@ export function YandexMetrika() {
         </div>
       </noscript>
       <YandexMetrikaInitializer counterId={counterId} />
+      <YandexAttributionInitializer counterId={counterId} />
       <Suspense fallback={null}>
         <YandexMetrikaPageView counterId={counterId} />
       </Suspense>

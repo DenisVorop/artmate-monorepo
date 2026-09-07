@@ -10,6 +10,24 @@ async function readSource(path) {
   return readFile(new URL(`../${path}`, import.meta.url), "utf8");
 }
 
+test("map markers and zoom controls expose 44px interactive targets", async () => {
+  const [map, styles] = await Promise.all([
+    readSource("src/features/checkout/ui/delivery-selector/pickup-points-map.tsx"),
+    readSource("src/features/checkout/ui/delivery-selector/pickup-points-map.module.css"),
+  ]);
+
+  assert.equal(map.match(/iconSize: \[44, 44\]/gu)?.length, 3);
+  assert.equal(map.match(/iconAnchor: \[22, 22\]/gu)?.length, 3);
+  assert.match(styles, /\.markerShell\s*\{[^}]*height:\s*44px;[^}]*width:\s*44px;/su);
+  assert.match(styles, /\.marker\s*\{[^}]*height:\s*18px;[^}]*width:\s*18px;/su);
+  assert.match(styles, /\.markerSelected\s*\{[^}]*height:\s*24px;[^}]*width:\s*24px;/su);
+  assert.match(
+    styles,
+    /\.clusterMarker\s*\{[^}]*height:\s*40px;[^}]*min-width:\s*40px;[^}]*width:\s*40px;/su,
+  );
+  assert.match(styles, /leaflet-control-zoom[^}]*min-height:\s*44px;[^}]*min-width:\s*44px;/su);
+});
+
 function evaluateTypeScript(source, mocks, appendedSource = "") {
   const output = ts.transpileModule(`${source}\n${appendedSource}`, {
     compilerOptions: {
@@ -108,6 +126,7 @@ async function loadMapHelpers() {
     source,
     {
       "./pickup-points-map.module.css": {},
+      "../../lib": { clusterPickupPoints: () => [] },
       "@/shared/lib": { cn: () => "" },
       "lucide-react": { MapPin: () => null },
       react: {
@@ -126,7 +145,47 @@ async function loadMapHelpers() {
   );
 }
 
-async function renderOzonDeliverySelector(ozonPickupPoints) {
+async function loadMapCameraHelpers() {
+  const source = await readSource(
+    "src/features/checkout/ui/delivery-selector/pickup-points-map.tsx",
+  );
+
+  assert.match(source, /function fitMapToGeoPointsOnce/);
+  assert.match(source, /function focusMapOnCoordinatesOnce/);
+  assert.match(source, /scrollWheelZoom: true/);
+  assert.match(source, /touchZoom: true/);
+  const markerReconciliation = source.slice(
+    source.indexOf("markerLayer.clearLayers()"),
+    source.indexOf("fitMapToGeoPointsOnce(map"),
+  );
+
+  assert.doesNotMatch(markerReconciliation, /fitBounds/);
+  assert.match(markerReconciliation, /onSelectRef\.current\(point\)/);
+
+  return evaluateTypeScript(
+    source,
+    {
+      "./pickup-points-map.module.css": {},
+      "../../lib": { clusterPickupPoints: () => [] },
+      "@/shared/lib": { cn: () => "" },
+      "lucide-react": { MapPin: () => null },
+      react: {
+        useEffect: () => undefined,
+        useMemo: () => undefined,
+        useRef: () => undefined,
+        useState: () => undefined,
+      },
+      "react/jsx-runtime": {
+        Fragment: Symbol("Fragment"),
+        jsx: () => null,
+        jsxs: () => null,
+      },
+    },
+    "export { bindMarkerActivation, fitMapToGeoPointsOnce, focusMapOnCoordinatesOnce };",
+  );
+}
+
+async function renderOzonDeliverySelector(ozonPickupPoints, options = {}) {
   const source = await readSource(
     "src/features/checkout/ui/delivery-selector/delivery-selector.tsx",
   );
@@ -134,12 +193,28 @@ async function renderOzonDeliverySelector(ozonPickupPoints) {
   const component = (name) => name;
   const { DeliverySelector } = evaluateTypeScript(source, {
     "../../lib": {
+      clearCdekDraftCity: (drafts) => ({ ...drafts, cdek: {} }),
+      clearOzonDraftCity: (drafts) => ({ ...drafts, ozon: {} }),
       filterPickupPoints: (points) => points,
       formatPickupPointCount: (count) => `${count} ПВЗ`,
+      getOzonDraftInitialView: () => ({ center: { lat: 55.75, long: 37.62 }, zoom: 11 }),
+      getOzonLocatorMapFocus: () => options.mapFocus,
+      selectDraftCity: (drafts) => drafts,
+      selectDraftPickupPoint: (drafts) => drafts,
+      selectOzonDraftCity: (drafts) => drafts,
+      setOzonDraftMapRequest: (drafts) => drafts,
     },
     "../../model": {
       useCdekCities: () => ({ cities: [], isError: false, isPending: false }),
-      useCdekPickupPoints: () => ({ isError: false, isPending: false, pickupPoints: [] }),
+      useCdekPickupPoints: (cityCode) =>
+        cityCode !== undefined && cityCode === options.drafts?.ozon?.cityCode
+          ? (options.locator ?? {
+              isError: false,
+              isPending: false,
+              pickupPoints: [],
+              resolvedCityCode: cityCode,
+            })
+          : { isError: false, isPending: false, pickupPoints: [] },
       useOzonPickupPoints: () => ozonPickupPoints,
     },
     "./combobox-field": { ComboboxField: component("ComboboxField") },
@@ -176,9 +251,11 @@ async function renderOzonDeliverySelector(ozonPickupPoints) {
   });
 
   return DeliverySelector({
+    drafts: options.drafts ?? { cdek: {}, ozon: {} },
     isOzonDeliveryAvailable: true,
-    onChange: () => undefined,
-    selectedDelivery: { pickupPointId: "selected", provider: "ozon" },
+    onCompanyChange: () => undefined,
+    onDraftChange: () => undefined,
+    selectedCompany: options.selectedCompany ?? "ozon",
   });
 }
 
@@ -202,6 +279,25 @@ function findRenderedNode(node, predicate) {
   }
 
   return undefined;
+}
+
+function findRenderedNodes(node, predicate, matches = []) {
+  if (!node || typeof node !== "object") return matches;
+  if (predicate(node)) matches.push(node);
+  const children = Array.isArray(node) ? node : node.props?.children;
+  for (const child of Array.isArray(children) ? children : [children]) {
+    findRenderedNodes(child, predicate, matches);
+  }
+
+  return matches;
+}
+
+function getRenderedText(node) {
+  if (typeof node === "string" || typeof node === "number") return String(node);
+  if (!node || typeof node !== "object") return "";
+  const children = Array.isArray(node) ? node : node.props?.children;
+
+  return (Array.isArray(children) ? children : [children]).map(getRenderedText).join("");
 }
 
 function createMarkerActivationHarness() {
@@ -260,7 +356,7 @@ function createMarkerActivationHarness() {
   };
 }
 
-async function loadDeliveryActions() {
+async function loadDeliveryActions(cartId) {
   const source = await readSource("src/shared/actions/delivery/delivery.actions.ts");
   const ApiResult = {
     prepareApi: (callback) => async () => {
@@ -281,7 +377,12 @@ async function loadDeliveryActions() {
         apiCsrfHeader: { "x-artmate-csrf": "1" },
         getForwardedIpHeaders: () => ({}),
       },
-      "next/headers": { headers: async () => new Headers() },
+      "next/headers": {
+        cookies: async () => ({
+          get: (name) => (name === "cart_id" && cartId ? { value: cartId } : undefined),
+        }),
+        headers: async () => new Headers(),
+      },
     }),
     source,
   };
@@ -328,7 +429,7 @@ test("clusters without a usable viewport resolve terminal point details", async 
   );
 });
 
-test("rendered Ozon statuses stay distinct within identical fixed one-line geometry", async () => {
+test("rendered Ozon statuses stay distinct within identical accessible one-line geometry", async () => {
   const states = [
     {
       expected: "Загружаем ПВЗ на карте.",
@@ -373,10 +474,12 @@ test("rendered Ozon statuses stay distinct within identical fixed one-line geome
   const statusClassNames = [];
 
   for (const { expected, value } of states) {
-    const rendered = await renderOzonDeliverySelector(value);
+    const rendered = await renderOzonDeliverySelector(value, {
+      drafts: { cdek: {}, ozon: { mapRequest: { viewport: {}, zoom: 11 } } },
+    });
     const status = findRenderedNode(
       rendered,
-      (node) => node.type === "p" && node.props?.["aria-live"] === "polite",
+      (node) => node.type === "p" && node.props?.title === expected,
     );
     const statusColumn = findRenderedNode(
       rendered,
@@ -385,12 +488,14 @@ test("rendered Ozon statuses stay distinct within identical fixed one-line geome
         node.props?.className?.split(" ").includes("space-y-4") &&
         findRenderedNode(
           node,
-          (child) => child.type === "p" && child.props?.["aria-live"] === "polite",
+          (child) => child.type === "p" && child.props?.title === expected,
         ),
     );
 
     assert.ok(status);
+    assert.equal(status.props.role, "status");
     assert.equal(status.props.children, expected);
+    assert.equal(status.props["aria-atomic"], true);
     assert.equal(status.props.title, expected);
     assert.deepEqual(status.props.className.split(" "), [
       "h-5",
@@ -405,6 +510,121 @@ test("rendered Ozon statuses stay distinct within identical fixed one-line geome
   }
 
   assert.equal(new Set(statusClassNames).size, 1);
+});
+
+test("Ozon renders city locator before its pickup field with clear fallback statuses", async () => {
+  const rendered = await renderOzonDeliverySelector(
+    { aggregateClusters: [], isError: false, isPending: false, pickupPoints: [] },
+    {
+      drafts: {
+        cdek: {},
+        ozon: {
+          city: { code: 137, countryCode: "RU", name: "Санкт-Петербург" },
+          cityCode: 137,
+        },
+      },
+      locator: {
+        isError: false,
+        isPending: false,
+        pickupPoints: [],
+        resolvedCityCode: 137,
+      },
+    },
+  );
+  const fields = [];
+  const orderedNodes = [];
+  const visit = (node) => {
+    if (!node || typeof node !== "object") return;
+    if (node.type === "ComboboxField") fields.push(node);
+    if (node.type === "ComboboxField" || node.props?.role === "status") orderedNodes.push(node);
+    const children = Array.isArray(node) ? node : node.props?.children;
+    for (const child of Array.isArray(children) ? children : [children]) visit(child);
+  };
+
+  visit(rendered);
+
+  assert.equal(fields[0].props.label, "Город");
+  assert.equal(fields[0].props.placeholder, "Начните вводить город");
+  assert.equal(fields[1].props.label, "Пункт выдачи Ozon");
+  assert.deepEqual(
+    orderedNodes.slice(0, 3).map((node) => node.props.label ?? node.props.role),
+    ["Город", "status", "Пункт выдачи Ozon"],
+  );
+  assert.match(
+    getRenderedText(orderedNodes[1]),
+    /Не удалось автоматически определить область города\. Переместите карту вручную\./u,
+  );
+  assert.doesNotMatch(getRenderedText(rendered), /СДЭК/u);
+});
+
+test("selected Ozon city announces only locator progress before the first map request", async () => {
+  const rendered = await renderOzonDeliverySelector(
+    { aggregateClusters: [], isError: false, isPending: false, pickupPoints: [] },
+    {
+      drafts: {
+        cdek: {},
+        ozon: {
+          city: { code: 137, countryCode: "RU", name: "Санкт-Петербург" },
+          cityCode: 137,
+        },
+      },
+      locator: {
+        isError: false,
+        isPending: true,
+        pickupPoints: [],
+        resolvedCityCode: undefined,
+      },
+    },
+  );
+  const statuses = findRenderedNodes(rendered, (node) => node.props?.role === "status");
+
+  assert.equal(statuses.length, 1);
+  assert.equal(statuses[0].props["aria-live"], "polite");
+  assert.equal(statuses[0].props["aria-atomic"], true);
+  assert.match(getRenderedText(statuses[0]), /Определяем область выбранного города\./u);
+  assert.doesNotMatch(getRenderedText(rendered), /ПВЗ не найдены/u);
+});
+
+test("Ozon locator points define map focus without becoming pickup markers", async () => {
+  const locatorPoint = { id: "CDEK-LOCATOR", latitude: 59.93, longitude: 30.31 };
+  const ozonPoint = { id: "OZON-POINT", latitude: 59.94, longitude: 30.32 };
+  const mapFocus = {
+    key: "ozon-city:137",
+    points: [{ lat: locatorPoint.latitude, long: locatorPoint.longitude }],
+  };
+  const rendered = await renderOzonDeliverySelector(
+    { aggregateClusters: [], isError: false, isPending: false, pickupPoints: [ozonPoint] },
+    {
+      drafts: { cdek: {}, ozon: { cityCode: 137 } },
+      locator: {
+        isError: false,
+        isPending: false,
+        pickupPoints: [locatorPoint],
+        resolvedCityCode: 137,
+      },
+      mapFocus,
+    },
+  );
+  const map = findRenderedNode(rendered, (node) => node.type === "PickupPointsMap");
+
+  assert.strictEqual(map.props.focus, mapFocus);
+  assert.deepEqual(map.props.pickupPoints, [ozonPoint]);
+  assert.equal(map.props.pickupPoints.includes(locatorPoint), false);
+});
+
+test("CDEK and Ozon maps have different React identities when switching carriers", async () => {
+  const points = { aggregateClusters: [], isError: false, isPending: false, pickupPoints: [] };
+  const cdek = await renderOzonDeliverySelector(points, {
+    drafts: { cdek: { cityCode: 44 }, ozon: {} },
+    selectedCompany: "cdek",
+  });
+  const ozon = await renderOzonDeliverySelector(points);
+  const cdekMap = findRenderedNode(cdek, (node) => node.type === "PickupPointsMap");
+  const ozonMap = findRenderedNode(ozon, (node) => node.type === "PickupPointsMap");
+
+  assert.ok(cdekMap);
+  assert.ok(ozonMap);
+  assert.notEqual(cdekMap.key, ozonMap.key);
 });
 
 test("Ozon hook fetches point-info for aggregate IDs when viewport is unavailable", async () => {
@@ -646,6 +866,103 @@ test("aggregate marker click, Enter, and Space each perform one zoom", async () 
   assert.equal(harness.elementListeners.has("keydown"), false);
 });
 
+test("map fits geo points once while moveend, cluster zoom, and point selection preserve interactions", async () => {
+  const { bindMarkerActivation, fitMapToGeoPointsOnce } = await loadMapCameraHelpers();
+  const fitKeyRef = { current: undefined };
+  const fitBoundsCalls = [];
+  const points = [
+    { id: "one", latitude: 55.75, longitude: 37.61 },
+    { id: "two", latitude: 55.76, longitude: 37.62 },
+  ];
+  let currentZoom = 11;
+  const map = {
+    fitBounds: (bounds, options) => {
+      fitBoundsCalls.push({ bounds, options });
+      currentZoom = options.maxZoom;
+    },
+    getZoom: () => currentZoom,
+    setView: (_center, zoom) => {
+      currentZoom = zoom;
+    },
+  };
+
+  fitMapToGeoPointsOnce(map, points, "moscow:one,two", fitKeyRef);
+  assert.equal(fitBoundsCalls.length, 1);
+
+  currentZoom = 12;
+  fitMapToGeoPointsOnce(map, points, "moscow:one,two", fitKeyRef);
+  assert.equal(fitBoundsCalls.length, 1);
+  assert.equal(currentZoom, 12);
+
+  const clusterHarness = createMarkerActivationHarness();
+  const cleanupCluster = bindMarkerActivation(clusterHarness.marker, "2 пункта", () => {
+    map.setView([55.755, 37.615], Math.min(19, map.getZoom() + 2), { animate: false });
+  });
+
+  clusterHarness.markerListeners.get("click")();
+  fitMapToGeoPointsOnce(map, points, "moscow:one,two", fitKeyRef);
+  assert.equal(fitBoundsCalls.length, 1);
+  assert.equal(currentZoom, 14);
+
+  fitMapToGeoPointsOnce(map, points, "saint-petersburg:one,two", fitKeyRef);
+  assert.equal(fitBoundsCalls.length, 2);
+
+  const pointHarness = createMarkerActivationHarness();
+  const selections = [];
+  const cleanupPoint = bindMarkerActivation(pointHarness.marker, "ПВЗ", () =>
+    selections.push(points[0]),
+  );
+
+  pointHarness.markerListeners.get("click")();
+  assert.deepEqual(selections, [points[0]]);
+
+  cleanupCluster();
+  cleanupPoint();
+});
+
+test("city locator focus moves the map once and leaves later pan and zoom untouched", async () => {
+  const { focusMapOnCoordinatesOnce } = await loadMapCameraHelpers();
+  const focusKeyRef = { current: undefined };
+  const calls = [];
+  const map = {
+    fitBounds: (bounds, options) => calls.push({ bounds, options, type: "bounds" }),
+    setView: (center, zoom) => calls.push({ center, type: "center", zoom }),
+  };
+  const focus = {
+    key: "ozon-city:137",
+    points: [
+      { lat: 59.9, long: 30.2 },
+      { lat: 60, long: 30.4 },
+    ],
+  };
+
+  focusMapOnCoordinatesOnce(map, focus.points, focus.key, focusKeyRef);
+  assert.deepEqual(calls, [
+    {
+      bounds: [
+        [59.9, 30.2],
+        [60, 30.4],
+      ],
+      options: { maxZoom: 13, padding: [24, 24] },
+      type: "bounds",
+    },
+  ]);
+
+  focusMapOnCoordinatesOnce(map, focus.points, focus.key, focusKeyRef);
+  assert.equal(calls.length, 1);
+
+  focusMapOnCoordinatesOnce(map, [], undefined, focusKeyRef);
+  focusMapOnCoordinatesOnce(map, focus.points, focus.key, focusKeyRef);
+  assert.equal(calls.length, 2);
+
+  focusMapOnCoordinatesOnce(map, [{ lat: 56.01, long: 92.87 }], "ozon-city:278", focusKeyRef);
+  assert.deepEqual(calls[2], {
+    center: [56.01, 92.87],
+    type: "center",
+    zoom: 13,
+  });
+});
+
 test("site point-info action accepts exact 160-character IDs and rejects boundary plus one", async () => {
   const { actions } = await loadDeliveryActions();
   const exactId = createOpaqueId(160);
@@ -674,6 +991,30 @@ test("site point-info action accepts exact 160-character IDs and rejects boundar
 
     assert.equal(rejected.error instanceof Error, true);
     assert.equal(requests.length, 1);
+  } finally {
+    globalThis.fetch = originalFetch;
+  }
+});
+
+test("site delivery proxy forwards only the cart identity cookie", async () => {
+  const { actions } = await loadDeliveryActions("cart value");
+  const originalFetch = globalThis.fetch;
+  let requestInit;
+
+  globalThis.fetch = async (_url, init) => {
+    requestInit = init;
+
+    return {
+      json: async () => [],
+      ok: true,
+    };
+  };
+
+  try {
+    await actions.searchCdekCities("Москва");
+
+    assert.equal(requestInit.headers.cookie, "cart_id=cart%20value");
+    assert.doesNotMatch(requestInit.headers.cookie, /access|refresh|session/i);
   } finally {
     globalThis.fetch = originalFetch;
   }

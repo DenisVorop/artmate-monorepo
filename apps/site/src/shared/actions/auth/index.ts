@@ -1,4 +1,5 @@
 export {
+  confirmOrderActivation,
   confirmTelegramLink,
   confirmPasswordReset,
   confirmEmailVerification,
@@ -8,9 +9,10 @@ export {
   login,
   logout,
   register,
-  requestPasswordReset,
+  requestAccountRecovery,
   resendEmailVerification,
   unlinkTelegram,
+  validateOrderActivation,
 } from "./auth.actions";
 export type {
   AuthOAuthProvider,
@@ -24,12 +26,15 @@ export type {
   AuthSessionDTO,
   AuthUserDTO,
   ConfirmEmailVerificationInputDTO,
+  ConfirmOrderActivationInputDTO,
   ConfirmPasswordResetInputDTO,
   ConfirmTelegramLinkInputDTO,
   LoginInputDTO,
   LogoutDTO,
+  OrderActivationValidityDTO,
   PasswordResetDTO,
   RegisterInputDTO,
-  RequestPasswordResetInputDTO,
+  RequestAccountRecoveryInputDTO,
   ResendEmailVerificationInputDTO,
+  ValidateOrderActivationInputDTO,
 } from "./auth.types";

@@ -14,12 +14,19 @@ export const checkoutFormValidationSchema = z.object({
     .trim()
     .min(1, "Укажите имя")
     .min(2, "Имя должно быть длиннее 1 символа")
-    .regex(checkoutRussianNamePattern, "Имя может содержать только русские буквы"),
+    .max(120, "Имя должно быть не длиннее 120 символов")
+    .regex(checkoutRussianNamePattern, "Используйте русские буквы, пробелы и дефисы"),
   phone: z
     .string()
+    .trim()
     .min(1, "Укажите телефон")
     .regex(checkoutPhonePattern, `Введите телефон в формате ${checkoutPhonePlaceholder}`),
-  email: z.string().trim().min(1, "Укажите email").email("Введите корректный email"),
+  email: z
+    .string()
+    .trim()
+    .min(1, "Укажите email")
+    .max(254, "Email должен быть не длиннее 254 символов")
+    .email("Введите корректный email"),
   comment: z.string().max(1000, "Комментарий должен быть короче 1000 символов"),
   acceptedLegal: z.boolean().refine((value) => value, "Примите условия публичной оферты"),
   acceptedPersonalDataConsent: z
@@ -34,14 +41,13 @@ export type CheckoutPaymentMethod = (typeof checkoutPaymentMethods)[number];
 export type CheckoutCustomerDefaults = Partial<
   Pick<CheckoutFormValues, "email" | "name" | "phone">
 >;
-export type CheckoutDeliverySelection = CreateOrderInputDTO["delivery"];
-export type CheckoutSubmitLabelInput = {
-  hasDelivery: boolean;
-  isDeliveryPending: boolean;
-  isSubmitting: boolean;
-  requiresAuth: boolean;
+export type CheckoutDeliverySelection =
+  | { cityCode: number; pickupPointId: string; provider: "cdek" }
+  | { pickupPointId: string; provider: "ozon" };
+export type CheckoutAttempt = {
+  id: string;
+  payloadSignature: string;
 };
-
 export function getDefaultCheckoutFormValues(
   customerDefaults: CheckoutCustomerDefaults = {},
 ): CheckoutFormValues {
@@ -59,7 +65,6 @@ export function getDefaultCheckoutFormValues(
 export function formatCheckoutPhone(value: string) {
   const digits = value.replace(/\D/g, "");
   const trimmedValue = value.trim();
-
   const localDigits =
     digits.startsWith("8") ||
     (digits.startsWith("7") && (trimmedValue.startsWith("+7") || digits.length > 10))
@@ -75,36 +80,24 @@ export function formatCheckoutPhone(value: string) {
   const prefix = limitedDigits.slice(3, 6);
   const firstLinePart = limitedDigits.slice(6, 8);
   const secondLinePart = limitedDigits.slice(8, 10);
-
   let phone = `+7 (${areaCode}`;
 
-  if (areaCode.length === 3) {
-    phone += ")";
-  }
-
-  if (prefix) {
-    phone += ` ${prefix}`;
-  }
-
-  if (firstLinePart) {
-    phone += `-${firstLinePart}`;
-  }
-
-  if (secondLinePart) {
-    phone += `-${secondLinePart}`;
-  }
+  if (areaCode.length === 3) phone += ")";
+  if (prefix) phone += ` ${prefix}`;
+  if (firstLinePart) phone += `-${firstLinePart}`;
+  if (secondLinePart) phone += `-${secondLinePart}`;
 
   return phone;
 }
 
-export function toCreateOrderInput(
+export function createCheckoutOrderAttempt(
   values: CheckoutFormValues,
   delivery: CheckoutDeliverySelection,
   promoCode?: string,
-): CreateOrderInputDTO {
+  previousAttempt?: CheckoutAttempt,
+) {
   const comment = values.comment.trim();
-
-  return {
+  const payload = {
     customer: {
       name: values.name.trim(),
       phone: values.phone.trim(),
@@ -119,25 +112,14 @@ export function toCreateOrderInput(
     acceptedPersonalDataConsent: values.acceptedPersonalDataConsent,
     promoCode,
   };
-}
+  const payloadSignature = JSON.stringify(payload);
+  const attempt =
+    previousAttempt?.payloadSignature === payloadSignature
+      ? previousAttempt
+      : { id: crypto.randomUUID(), payloadSignature };
 
-export function getCheckoutSubmitLabel({
-  hasDelivery,
-  isDeliveryPending,
-  isSubmitting,
-  requiresAuth,
-}: CheckoutSubmitLabelInput) {
-  if (isSubmitting) {
-    return "Отправляем заказ";
-  }
-
-  if (!hasDelivery) {
-    return "Выберите ПВЗ";
-  }
-
-  if (isDeliveryPending) {
-    return "Считаем доставку";
-  }
-
-  return requiresAuth ? "Войти и оплатить" : "Перейти к оплате";
+  return {
+    attempt,
+    input: { ...payload, checkoutAttemptId: attempt.id } satisfies CreateOrderInputDTO,
+  };
 }

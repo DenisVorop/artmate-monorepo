@@ -31,4 +31,5 @@ export {
   isSensitiveAnalyticsParamValue,
   sanitizeAnalyticsUrl,
 } from "./sanitize-analytics-url";
+export { readYandexAttribution, type YandexAttribution } from "./yandex-attribution";
 export { YandexMetrika } from "./yandex-metrika";

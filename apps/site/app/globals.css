@@ -98,6 +98,7 @@
 }
 
 :root {
+  --site-cookie-consent-height: 0px;
   --site-header-banner-height: 128px;
   --site-header-nav-height: 56px;
   --background: oklch(1 0 0);

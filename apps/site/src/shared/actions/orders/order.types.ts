@@ -23,8 +23,6 @@ export type PickupPointDTO = {
   longitude?: number;
 };
 
-export type OzonPickupPointDTO = PickupPointDTO;
-
 export type CreateOrderDeliveryInputDTO = {
   provider: OrderDeliveryProviderDTO;
   cityCode?: number;
@@ -33,6 +31,12 @@ export type CreateOrderDeliveryInputDTO = {
 };
 
 export type OrderCustomerDTO = {
+  name: string;
+  phone?: string;
+  email: string;
+};
+
+export type CreateOrderCustomerInputDTO = {
   name: string;
   phone: string;
   email: string;
@@ -103,10 +107,11 @@ export type CheckoutCalculationDTO = {
 };
 
 export type CreateOrderInputDTO = {
-  customer: OrderCustomerDTO;
+  checkoutAttemptId: string;
+  customer: CreateOrderCustomerInputDTO;
   delivery: CreateOrderDeliveryInputDTO;
   payment?: {
-    method: OrderPaymentMethodDTO;
+    method: "ozon_acquiring" | "tbank_acquiring";
   };
   comment?: string;
   acceptedLegal: boolean;
@@ -114,13 +119,20 @@ export type CreateOrderInputDTO = {
   promoCode?: string;
 };
 
+export type CreateOrderResponseDTO = {
+  itemsCount: number;
+  orderId: string;
+  redirectUrl: string | null;
+  revenue: number;
+};
+
+export type PaymentRecoveryResponseDTO = {
+  redirectUrl: string | null;
+};
+
 export type CalculateCheckoutInputDTO = {
   delivery: CreateOrderDeliveryInputDTO;
   promoCode?: string;
-};
-
-export type ConfirmOrderPaymentInputDTO = {
-  orderId: string;
 };
 
 export type OrderStateDTO = {

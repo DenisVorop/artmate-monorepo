@@ -17,20 +17,25 @@ export const PersonalDataConsentCheckbox = forwardRef<
   return (
     <div
       className={cn(
-        "flex items-start gap-3 rounded-lg border bg-muted/30 p-3 text-sm",
+        "flex items-start gap-1 rounded-lg border bg-muted/30 p-1 text-sm",
         hasError && "border-destructive/50 bg-destructive/5",
         className,
       )}
     >
-      <input
-        id={id}
-        ref={ref}
-        type="checkbox"
-        className="mt-0.5 size-4 shrink-0 rounded border-border accent-rose-500"
-        aria-invalid={hasError}
-        {...props}
-      />
-      <span className="text-muted-foreground">
+      <label
+        htmlFor={id}
+        className="flex min-h-11 min-w-11 cursor-pointer items-center justify-center"
+      >
+        <input
+          id={id}
+          ref={ref}
+          type="checkbox"
+          className="size-4 shrink-0 rounded border-border accent-rose-500"
+          aria-invalid={hasError}
+          {...props}
+        />
+      </label>
+      <span className="min-h-11 py-3 pr-2 text-muted-foreground">
         <label htmlFor={id} className="cursor-pointer">
           Я согласен на обработку персональных данных в соответствии с{" "}
         </label>

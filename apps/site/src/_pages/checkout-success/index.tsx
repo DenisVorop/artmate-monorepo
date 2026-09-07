@@ -1,13 +1,14 @@
-import { CheckoutSuccess } from "@/features/checkout";
+import { CheckoutSuccess, GuestCheckoutSuccess } from "@/features/checkout";
 
 type CheckoutSuccessPageProps = {
+  isAuthenticated: boolean;
   orderId?: string;
 };
 
-export function CheckoutSuccessPage({ orderId }: CheckoutSuccessPageProps) {
+export function CheckoutSuccessPage({ isAuthenticated, orderId }: CheckoutSuccessPageProps) {
   return (
     <main className="bg-background">
-      <CheckoutSuccess orderId={orderId} />
+      {isAuthenticated ? <CheckoutSuccess orderId={orderId} /> : <GuestCheckoutSuccess />}
     </main>
   );
 }

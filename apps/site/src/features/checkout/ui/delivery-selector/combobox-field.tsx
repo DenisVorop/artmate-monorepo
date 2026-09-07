@@ -1,7 +1,7 @@
 "use client";
 
 import { ChevronsUpDown, LoaderCircle, Search } from "lucide-react";
-import { Children, type ReactNode, useEffect, useRef } from "react";
+import { Children, type ReactNode, useEffect, useId, useRef } from "react";
 
 import { cn } from "@/shared/lib";
 import { Button, Input, Label, Popover, PopoverContent, PopoverTrigger } from "@/shared/ui";
@@ -36,6 +36,7 @@ export function ComboboxField({
   triggerLabel,
 }: ComboboxFieldProps) {
   const inputRef = useRef<HTMLInputElement | null>(null);
+  const triggerId = useId();
   const hasOptions = Children.count(children) > 0;
 
   useEffect(() => {
@@ -52,17 +53,18 @@ export function ComboboxField({
 
   return (
     <div className="space-y-2">
-      <Label>{label}</Label>
+      <Label htmlFor={triggerId}>{label}</Label>
       <Popover open={isOpen} onOpenChange={onOpenChange}>
         <PopoverTrigger asChild>
           <Button
             type="button"
+            id={triggerId}
             variant="outline"
             disabled={disabled}
-            role="combobox"
             aria-expanded={isOpen}
+            aria-haspopup="dialog"
             className={cn(
-              "h-auto min-h-10 w-full justify-between px-3 py-2 text-left font-normal whitespace-normal",
+              "h-auto min-h-11 w-full justify-between px-3 py-2 text-left font-normal whitespace-normal",
               !selectedLabel && "text-muted-foreground",
             )}
           >
@@ -77,23 +79,36 @@ export function ComboboxField({
               <Input
                 ref={inputRef}
                 value={inputValue}
+                aria-label={placeholder}
                 onChange={(event) => onInputChange(event.target.value)}
                 placeholder={placeholder}
-                className="pl-9"
+                className="min-h-11 pl-9"
               />
             </div>
           </div>
 
           <div className="max-h-80 overflow-y-auto p-1">
             {isPending ? (
-              <div className="flex items-center gap-2 px-3 py-2 text-sm text-muted-foreground">
-                <LoaderCircle className="size-4 animate-spin" />
+              <div
+                role="status"
+                aria-atomic={true}
+                aria-live="polite"
+                className="flex items-center gap-2 px-3 py-2 text-sm text-muted-foreground"
+              >
+                <LoaderCircle aria-hidden="true" className="size-4 animate-spin" />
                 Загружаем
               </div>
             ) : hasOptions ? (
               children
             ) : (
-              <p className="px-3 py-2 text-sm text-muted-foreground">{emptyText}</p>
+              <p
+                role="status"
+                aria-atomic={true}
+                aria-live="polite"
+                className="px-3 py-2 text-sm text-muted-foreground"
+              >
+                {emptyText}
+              </p>
             )}
           </div>
         </PopoverContent>

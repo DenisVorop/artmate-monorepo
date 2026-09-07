@@ -1,13 +1,18 @@
-import { CheckoutFailure } from "@/features/checkout";
+import { CheckoutFailure, GuestCheckoutFailure } from "@/features/checkout";
 
 type CheckoutFailurePageProps = {
+  hasOwnerOrder: boolean;
   orderId?: string;
 };
 
-export function CheckoutFailurePage({ orderId }: CheckoutFailurePageProps) {
+export function CheckoutFailurePage({ hasOwnerOrder, orderId }: CheckoutFailurePageProps) {
   return (
     <main className="bg-background">
-      <CheckoutFailure orderId={orderId} />
+      {hasOwnerOrder && orderId ? (
+        <CheckoutFailure orderId={orderId} />
+      ) : (
+        <GuestCheckoutFailure orderId={orderId} />
+      )}
     </main>
   );
 }

@@ -360,8 +360,8 @@ test("runtime param sanitization removes PII, nested values and invalid scalars"
     ym: (...args) => ymCalls.push(args),
   });
   const analytics = createAnalytics({
-    orderPaid: () =>
-      createGoalCommand("order_paid", {
+    orderCreated: () =>
+      createGoalCommand("order_created", {
         order_id: "order-1",
         items_count: 2,
         order_price: 599,
@@ -383,7 +383,7 @@ test("runtime param sanitization removes PII, nested values and invalid scalars"
       }),
   });
 
-  withWindow(analyticsWindow, () => analytics.send("orderPaid"));
+  withWindow(analyticsWindow, () => analytics.send("orderCreated"));
 
   const safeParams = {
     order_id: "order-1",
@@ -391,8 +391,8 @@ test("runtime param sanitization removes PII, nested values and invalid scalars"
     order_price: 599,
     currency: "RUB",
   };
-  assert.deepEqual(analyticsWindow.dataLayer, [{ event: "order_paid", ...safeParams }]);
-  assert.deepEqual(ymCalls, [[109148727, "reachGoal", "order_paid", safeParams]]);
+  assert.deepEqual(analyticsWindow.dataLayer, [{ event: "order_created", ...safeParams }]);
+  assert.deepEqual(ymCalls, [[109148727, "reachGoal", "order_created", safeParams]]);
 });
 
 test("goal runtime allowlist removes structurally valid extra fields", async () => {
@@ -443,9 +443,9 @@ test("invalid required goal params do not create partial conversions or consume 
         price: Number.NaN,
         currency: "USD",
       }),
-    orderPaid: () =>
+    orderCreated: () =>
       createGoalCommand(
-        "order_paid",
+        "order_created",
         {
           order_id: "order-runtime-validation",
           items_count: 1,
@@ -458,17 +458,17 @@ test("invalid required goal params do not create partial conversions or consume 
 
   withWindow(analyticsWindow, () => {
     analytics.send("productViewed");
-    analytics.send("orderPaid");
+    analytics.send("orderCreated");
     assert.equal(localStorage.values.size, 0);
 
     orderPrice = 599;
-    analytics.send("orderPaid");
-    analytics.send("orderPaid");
+    analytics.send("orderCreated");
+    analytics.send("orderCreated");
   });
 
   assert.deepEqual(analyticsWindow.dataLayer, [
     {
-      event: "order_paid",
+      event: "order_created",
       order_id: "order-runtime-validation",
       items_count: 1,
       order_price: 599,
@@ -532,15 +532,11 @@ test("blocked storage falls back to memory dedupe without throwing", async () =>
   assert.equal(analyticsWindow.dataLayer.length, 1);
 });
 
-test("paired order goal and purchase use separate dedupe namespaces", async () => {
-  const { createAnalytics, createEcommerceCommand, createGoalCommand, mapAnalyticsProduct } =
-    await loadAnalytics();
-  const ymCalls = [];
+test("purchase uses its own persistent dedupe namespace", async () => {
+  const { createAnalytics, createEcommerceCommand, mapAnalyticsProduct } = await loadAnalytics();
   const localStorage = createStorage();
   const analyticsWindow = createAnalyticsWindow({
-    counterId: "109148727",
     localStorage,
-    ym: (...args) => ymCalls.push(args),
   });
   const product = mapAnalyticsProduct({
     id: "product-1",
@@ -550,17 +546,7 @@ test("paired order goal and purchase use separate dedupe namespaces", async () =
   assert.ok(product);
   const dedupe = { scope: "local", entityKey: "order-1" };
   const analytics = createAnalytics({
-    orderPaid: () => [
-      createGoalCommand(
-        "order_paid",
-        {
-          order_id: "order-1",
-          items_count: 1,
-          order_price: 599,
-          currency: "RUB",
-        },
-        dedupe,
-      ),
+    orderPurchased: () =>
       createEcommerceCommand(
         "purchase",
         {
@@ -569,20 +555,16 @@ test("paired order goal and purchase use separate dedupe namespaces", async () =
         },
         dedupe,
       ),
-    ],
   });
 
   withWindow(analyticsWindow, () => {
-    analytics.send("orderPaid");
-    analytics.send("orderPaid");
+    analytics.send("orderPurchased");
+    analytics.send("orderPurchased");
   });
 
-  assert.equal(analyticsWindow.dataLayer.length, 2);
-  assert.equal(analyticsWindow.dataLayer[0].event, "order_paid");
-  assert.ok(analyticsWindow.dataLayer[1].ecommerce.purchase);
-  assert.equal(ymCalls.length, 1);
-  assert.equal(localStorage.values.size, 2);
-  assert.ok([...localStorage.values.keys()].some((key) => key.includes(":goal:order_paid:")));
+  assert.equal(analyticsWindow.dataLayer.length, 1);
+  assert.ok(analyticsWindow.dataLayer[0].ecommerce.purchase);
+  assert.equal(localStorage.values.size, 1);
   assert.ok([...localStorage.values.keys()].some((key) => key.includes(":ecommerce:purchase:")));
 });
 

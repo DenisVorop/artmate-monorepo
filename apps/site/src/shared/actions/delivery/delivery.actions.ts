@@ -1,6 +1,6 @@
 "use server";
 
-import { headers } from "next/headers";
+import { cookies, headers } from "next/headers";
 
 import { ApiResult, type ApiResultDTO } from "@/shared/lib/api-result";
 import { apiCsrfHeader, getForwardedIpHeaders } from "@/shared/lib/api-security";
@@ -13,9 +13,12 @@ import type {
 } from "./delivery.types";
 
 const defaultApiBaseUrl = "http://localhost:3002";
+const cartCookieName = "cart_id";
 const maxOzonPointInfoIds = 1_000;
 const maxOzonPointInfoIdLength = 160;
 const ozonPointInfoConcurrency = 4;
+const ozonMapErrorMessage = "Не удалось загрузить карту пунктов Ozon. Попробуйте еще раз.";
+const ozonPointsErrorMessage = "Не удалось загрузить пункты выдачи Ozon. Попробуйте еще раз.";
 
 export async function searchCdekCities(query: string): Promise<ApiResultDTO<DeliveryCityDTO[]>> {
   const result = await ApiResult.prepareApi(async () =>
@@ -46,7 +49,7 @@ export async function getOzonDeliveryMap(
     requestDelivery<OzonDeliveryMapResponseDTO>("/delivery/ozon/map", {
       method: "POST",
       body: JSON.stringify(input),
-    }),
+    }, ozonMapErrorMessage),
   )();
 
   return result.toDTO() as ApiResultDTO<OzonDeliveryMapResponseDTO>;
@@ -74,6 +77,7 @@ export async function getOzonDeliveryPoints(
               method: "POST",
               body: JSON.stringify({ mapPointIds: batches[batchIndex] }),
             },
+            ozonPointsErrorMessage,
           );
         }
       },
@@ -87,21 +91,42 @@ export async function getOzonDeliveryPoints(
   return result.toDTO() as ApiResultDTO<DeliveryPickupPointDTO[]>;
 }
 
-async function requestDelivery<T>(path: string, init: RequestInit = {}) {
+async function requestDelivery<T>(
+  path: string,
+  init: RequestInit = {},
+  serverErrorMessage?: string,
+) {
+  const cookieStore = await cookies();
   const headerStore = await headers();
-  const response = await fetch(`${getApiBaseUrl()}${path}`, {
-    ...init,
-    cache: "no-store",
-    headers: {
-      "content-type": "application/json",
-      ...getForwardedIpHeaders(headerStore),
-      ...init.headers,
-      ...apiCsrfHeader,
-    },
-  });
+  const cartId = cookieStore.get(cartCookieName)?.value;
+  let response: Response;
+
+  try {
+    response = await fetch(`${getApiBaseUrl()}${path}`, {
+      ...init,
+      cache: "no-store",
+      headers: {
+        "content-type": "application/json",
+        ...(cartId ? { cookie: `${cartCookieName}=${encodeURIComponent(cartId)}` } : {}),
+        ...getForwardedIpHeaders(headerStore),
+        ...init.headers,
+        ...apiCsrfHeader,
+      },
+    });
+  } catch (error) {
+    if (serverErrorMessage) {
+      throw new Error(serverErrorMessage);
+    }
+
+    throw error;
+  }
 
   if (!response.ok) {
-    throw new Error(await getErrorMessage(response));
+    throw new Error(
+      response.status >= 500 && serverErrorMessage
+        ? serverErrorMessage
+        : await getErrorMessage(response),
+    );
   }
 
   return (await response.json()) as T;

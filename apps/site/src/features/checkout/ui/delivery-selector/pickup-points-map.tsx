@@ -9,6 +9,7 @@ import type {
   OzonDeliveryMapClusterDTO,
   OzonDeliveryMapRequestDTO,
 } from "@/shared/actions/delivery";
+import { clusterPickupPoints, type PickupPointsMapFocus } from "../../lib";
 import { cn } from "@/shared/lib";
 
 import styles from "./pickup-points-map.module.css";
@@ -17,6 +18,7 @@ type LeafletModule = typeof import("leaflet");
 type MapBounds = Pick<LatLngBounds, "getEast" | "getNorth" | "getSouth" | "getWest">;
 type MarkerActivationSource = "keyboard" | "pointer";
 type PendingMarkerFocusRef = { current: string | undefined };
+type PreviousFitKeyRef = { current: string | undefined };
 
 const mapMaxZoom = 19;
 const mapMinZoom = 2;
@@ -30,6 +32,7 @@ type PickupPointsMapProps = {
   ariaLabel?: string;
   emptyMessage?: string;
   fitPoints?: boolean;
+  focus?: PickupPointsMapFocus;
   initialCenter?: { lat: number; long: number };
   initialZoom?: number;
   onSelect: (_point: DeliveryPickupPointDTO) => void;
@@ -48,6 +51,7 @@ export function PickupPointsMap({
   ariaLabel = "Карта пунктов выдачи",
   emptyMessage = "Для выбранного города служба доставки не вернула координаты ПВЗ. Выберите пункт выдачи из списка.",
   fitPoints = true,
+  focus,
   initialCenter,
   initialZoom = 12,
   onSelect,
@@ -58,16 +62,32 @@ export function PickupPointsMap({
   const containerRef = useRef<HTMLDivElement | null>(null);
   const mapRef = useRef<LeafletMap | null>(null);
   const markersRef = useRef<LayerGroup | null>(null);
+  const onSelectRef = useRef(onSelect);
   const onViewportChangeRef = useRef(onViewportChange);
   const pendingFocusPickupPointIdRef = useRef<string | undefined>(undefined);
+  const previousFitKeyRef = useRef<string | undefined>(undefined);
+  const previousFocusKeyRef = useRef<string | undefined>(undefined);
   const previousSelectedPickupPointIdRef = useRef<string | undefined>(undefined);
   const [leaflet, setLeaflet] = useState<LeafletModule>();
+  const [mapZoom, setMapZoom] = useState(initialZoom);
   const geoPoints = useMemo(() => pickupPoints.filter(isGeoPickupPoint), [pickupPoints]);
+  const pointClusters = useMemo(
+    () => clusterPickupPoints(geoPoints, mapZoom),
+    [geoPoints, mapZoom],
+  );
   const selectedPoint = geoPoints.find((point) => point.id === selectedPickupPointId);
   const initialPoint = geoPoints[0];
   const initialCoordinate = getInitialMapCoordinate(initialCenter, initialPoint);
   const initialLatitude = initialCoordinate?.lat;
   const initialLongitude = initialCoordinate?.long;
+  const geoPointsFitKey = useMemo(
+    () => getGeoPointsFitKey(initialCenter, geoPoints),
+    [geoPoints, initialCenter],
+  );
+
+  useEffect(() => {
+    onSelectRef.current = onSelect;
+  }, [onSelect]);
 
   useEffect(() => {
     onViewportChangeRef.current = onViewportChange;
@@ -106,7 +126,8 @@ export function PickupPointsMap({
       maxBoundsViscosity: 1,
       maxZoom: mapMaxZoom,
       minZoom: mapMinZoom,
-      scrollWheelZoom: false,
+      scrollWheelZoom: true,
+      touchZoom: true,
       zoomControl: true,
     });
 
@@ -128,7 +149,10 @@ export function PickupPointsMap({
         return;
       }
 
-      onViewportChangeRef.current?.(getOzonMapRequest(map.getBounds(), map.getZoom()));
+      const zoom = map.getZoom();
+
+      setMapZoom(zoom);
+      onViewportChangeRef.current?.(getOzonMapRequest(map.getBounds(), zoom));
     };
 
     map.setView([initialLatitude, initialLongitude], initialZoom);
@@ -161,23 +185,51 @@ export function PickupPointsMap({
 
     markerLayer.clearLayers();
 
-    if (geoPoints.length === 0 && aggregateClusters.length === 0) {
+    if (pointClusters.length === 0 && aggregateClusters.length === 0) {
       restorePendingMarkerFocus(pendingFocusPickupPointIdRef, selectedPickupPointId, null);
       return;
     }
 
-    const bounds: Array<[number, number]> = [];
     const markerActivationCleanups: Array<() => void> = [];
     let selectedMarkerElement: HTMLElement | null = null;
 
-    geoPoints.forEach((point) => {
+    pointClusters.forEach((cluster) => {
+      if (cluster.points.length > 1) {
+        const markerAriaLabel = `${cluster.points.length} пунктов выдачи - приблизить`;
+        const marker = leaflet.marker([cluster.latitude, cluster.longitude], {
+          icon: leaflet.divIcon({
+            className: styles.markerShell,
+            html: `<span class="${styles.clusterMarker}">${cluster.points.length}</span>`,
+            iconAnchor: [22, 22],
+            iconSize: [44, 44],
+          }),
+          title: markerAriaLabel,
+        });
+
+        marker.addTo(markerLayer);
+        markerActivationCleanups.push(
+          bindMarkerActivation(marker, markerAriaLabel, () => {
+            map.setView(
+              [cluster.latitude, cluster.longitude],
+              Math.min(mapMaxZoom, map.getZoom() + 2),
+              { animate: false },
+            );
+          }),
+        );
+        return;
+      }
+
+      const point = cluster.points[0];
+
+      if (!point) return;
+
       const isSelected = point.id === selectedPickupPointId;
       const marker = leaflet.marker([point.latitude, point.longitude], {
         icon: leaflet.divIcon({
           className: styles.markerShell,
           html: `<span class="${cn(styles.marker, isSelected && styles.markerSelected)}"></span>`,
-          iconAnchor: isSelected ? [12, 12] : [9, 9],
-          iconSize: isSelected ? [24, 24] : [18, 18],
+          iconAnchor: [22, 22],
+          iconSize: [44, 44],
         }),
         title: point.title,
       });
@@ -195,14 +247,13 @@ export function PickupPointsMap({
         bindMarkerActivation(
           marker,
           point.title,
-          () => onSelect(point),
+          () => onSelectRef.current(point),
           (source) => {
             pendingFocusPickupPointIdRef.current =
               source === "keyboard" && point.id !== selectedPickupPointId ? point.id : undefined;
           },
         ),
       );
-      bounds.push([point.latitude, point.longitude]);
     });
 
     aggregateClusters.forEach((cluster) => {
@@ -217,8 +268,8 @@ export function PickupPointsMap({
         icon: leaflet.divIcon({
           className: styles.markerShell,
           html: `<span class="${styles.clusterMarker}">${cluster.pointsCount}</span>`,
-          iconAnchor: [20, 20],
-          iconSize: [40, 40],
+          iconAnchor: [22, 22],
+          iconSize: [44, 44],
         }),
         title: markerAriaLabel,
       });
@@ -244,27 +295,33 @@ export function PickupPointsMap({
       markerActivationCleanups.forEach((cleanup) => cleanup());
     };
 
-    if (selectedPickupPointId || !fitPoints || bounds.length === 0) {
-      return cleanupMarkerActivations;
-    }
-
-    if (bounds.length === 1) {
-      const [singlePoint] = bounds;
-
-      if (singlePoint) {
-        map.setView(singlePoint, 13);
-      }
-
-      return cleanupMarkerActivations;
-    }
-
-    map.fitBounds(bounds as LatLngBoundsExpression, {
-      maxZoom: 13,
-      padding: [24, 24],
-    });
-
     return cleanupMarkerActivations;
-  }, [aggregateClusters, fitPoints, geoPoints, leaflet, onSelect, selectedPickupPointId]);
+  }, [aggregateClusters, leaflet, pointClusters, selectedPickupPointId]);
+
+  useEffect(() => {
+    const map = mapRef.current;
+
+    if (!leaflet || !map || selectedPickupPointId || !fitPoints) {
+      return;
+    }
+
+    fitMapToGeoPointsOnce(map, geoPoints, geoPointsFitKey, previousFitKeyRef);
+  }, [fitPoints, geoPoints, geoPointsFitKey, leaflet, selectedPickupPointId]);
+
+  useEffect(() => {
+    const map = mapRef.current;
+
+    if (!leaflet || !map) {
+      return;
+    }
+
+    focusMapOnCoordinatesOnce(
+      map,
+      focus?.points ?? [],
+      focus?.key,
+      previousFocusKeyRef,
+    );
+  }, [focus, leaflet]);
 
   useEffect(() => {
     if (selectedPickupPointId === previousSelectedPickupPointIdRef.current) {
@@ -323,6 +380,75 @@ function isGeoPickupPoint(point: DeliveryPickupPointDTO): point is GeoPickupPoin
     typeof point.longitude === "number" &&
     Number.isFinite(point.longitude)
   );
+}
+
+function getGeoPointsFitKey(
+  initialCenter: { lat: number; long: number } | undefined,
+  geoPoints: readonly GeoPickupPoint[],
+) {
+  const points = geoPoints
+    .map((point) => [point.id, point.latitude, point.longitude] as const)
+    .sort(([leftId], [rightId]) => leftId.localeCompare(rightId));
+
+  return JSON.stringify([initialCenter?.lat, initialCenter?.long, points]);
+}
+
+function fitMapToGeoPointsOnce(
+  map: Pick<LeafletMap, "fitBounds" | "setView">,
+  geoPoints: readonly Pick<GeoPickupPoint, "latitude" | "longitude">[],
+  fitKey: string,
+  previousFitKey: PreviousFitKeyRef,
+) {
+  if (geoPoints.length === 0 || previousFitKey.current === fitKey) {
+    return;
+  }
+
+  previousFitKey.current = fitKey;
+  const bounds = geoPoints.map((point) => [point.latitude, point.longitude] as [number, number]);
+
+  if (bounds.length === 1) {
+    const [singlePoint] = bounds;
+
+    if (singlePoint) {
+      map.setView(singlePoint, 13);
+    }
+
+    return;
+  }
+
+  map.fitBounds(bounds as LatLngBoundsExpression, {
+    maxZoom: 13,
+    padding: [24, 24],
+  });
+}
+
+function focusMapOnCoordinatesOnce(
+  map: Pick<LeafletMap, "fitBounds" | "setView">,
+  points: readonly { lat: number; long: number }[],
+  focusKey: string | undefined,
+  previousFocusKey: PreviousFitKeyRef,
+) {
+  if (!focusKey || points.length === 0) {
+    previousFocusKey.current = undefined;
+    return;
+  }
+
+  if (previousFocusKey.current === focusKey) {
+    return;
+  }
+
+  previousFocusKey.current = focusKey;
+  const bounds = points.map((point) => [point.lat, point.long] as [number, number]);
+
+  if (bounds.length === 1) {
+    map.setView(bounds[0] as [number, number], 13);
+    return;
+  }
+
+  map.fitBounds(bounds as LatLngBoundsExpression, {
+    maxZoom: 13,
+    padding: [24, 24],
+  });
 }
 
 function zoomToAggregateCluster(

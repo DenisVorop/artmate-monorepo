@@ -1,13 +1,18 @@
 "use client";
 
 type FieldErrorProps = {
+  id: string;
   message?: string;
 };
 
-export function FieldError({ message }: FieldErrorProps) {
+export function FieldError({ id, message }: FieldErrorProps) {
   if (!message) {
     return null;
   }
 
-  return <p className="text-sm text-destructive">{message}</p>;
+  return (
+    <p id={id} role="alert" className="text-sm text-destructive">
+      {message}
+    </p>
+  );
 }

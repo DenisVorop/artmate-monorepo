@@ -198,29 +198,12 @@ function beginCheckoutEvent(cart) {
   };
 }
 
-function orderCreatedEvent(order) {
-  return {
-    event: "order_created",
-    order_id: order.id.trim(),
-    items_count: order.itemsCount,
-    order_price: order.subtotal - order.discount,
-    currency: "RUB",
-  };
-}
-
 function orderPaidEvents(order) {
   const orderId = order.id.trim();
   const revenue = order.subtotal - order.discount;
   const coupon = order.promoCode?.trim();
 
   return [
-    {
-      event: "order_paid",
-      order_id: orderId,
-      items_count: order.itemsCount,
-      order_price: revenue,
-      currency: "RUB",
-    },
     {
       ecommerce: {
         currencyCode: "RUB",
@@ -476,9 +459,6 @@ test("checkout surfaces first fresh failure and latches a verified cart across b
   const { Checkout } = evaluateTypeScript(
     await readSource("src/features/checkout/ui/checkout.tsx"),
     {
-      "../lib": {
-        transitionCheckoutAuthConfirmation: (state) => state,
-      },
       "../lib/use-track-checkout-start": checkoutStartTracker,
       "../model": {
         useCreateOrderMutation: () => ({ createOrder() {}, error: null, isPending: false }),
@@ -653,16 +633,19 @@ test("begin_checkout sends the exact payload once in StrictMode and again on re-
   );
 });
 
-async function createOrderMutationHarness({ actionResult, analytics, onSuccess }) {
+async function createOrderMutationHarness({ actionResult, analytics, attribution, effects, onSuccess }) {
   const cacheWrites = [];
+  const createOrderCalls = [];
   const invalidations = [];
   let mutationOptions;
   const queryClient = {
     invalidateQueries(options) {
+      effects?.push(["cart-pricing-cleanup"]);
       invalidations.push(options);
       return Promise.resolve();
     },
     setQueryData(queryKey, value) {
+      effects?.push(["cart-cache-cleanup"]);
       cacheWrites.push([queryKey, value]);
     },
   };
@@ -671,7 +654,13 @@ async function createOrderMutationHarness({ actionResult, analytics, onSuccess }
     {
       "../lib/analytics": { useAnalytics: () => analytics },
       "@/entities/cart": { cartQuery: { getCart: () => ({ queryKey: ["cart"] }) } },
-      "@/shared/actions/orders": { createOrder: async () => actionResult },
+      "@/shared/actions/orders": {
+        createOrder: async (...args) => {
+          createOrderCalls.push(args);
+          return actionResult;
+        },
+      },
+      "@/shared/lib/analytics": { readYandexAttribution: () => attribution ?? {} },
       "@/shared/lib/api-result": {
         ApiResult: {
           fromDTO(dto) {
@@ -719,83 +708,238 @@ async function createOrderMutationHarness({ actionResult, analytics, onSuccess }
   return {
     ...createMutation({ onSuccess }),
     cacheWrites,
+    createOrderCalls,
     invalidations,
     mutationOptions,
   };
 }
 
-test("order creation tracks confirmed success before its callback and skips error or undefined", async () => {
-  const sharedAnalytics = await loadSharedAnalytics();
-  const checkoutAnalytics = await loadCheckoutAnalytics(sharedAnalytics);
-  const analytics = checkoutAnalytics.useAnalytics();
-  const order = createOrder({
-    id: "order-created-success",
-    deliveryPrice: 2_300,
-    total: 13_300,
-  });
-  const analyticsWindow = createAnalyticsWindow();
+test("order creation sends confirmed summary before cleanup and redirect callback", async () => {
+  const response = {
+    itemsCount: 3,
+    orderId: "AM-ORDER-1",
+    redirectUrl: "https://bank.example/pay",
+    revenue: 2797,
+  };
   const callbackValues = [];
+  const order = { input: { acceptedLegal: true } };
+  const attribution = { clientId: "123", yclid: "456" };
+  const effects = [];
 
-  await withWindow(analyticsWindow, async () => {
-    const success = await createOrderMutationHarness({
-      actionResult: { value: order },
-      analytics,
-      onSuccess: (createdOrder) => {
-        assert.deepEqual(analyticsWindow.dataLayer, [orderCreatedEvent(order)]);
-        callbackValues.push(createdOrder);
-      },
-    });
-
-    assert.equal(await success.createOrderAsync({ acceptedLegal: true }), order);
-    assert.deepEqual(callbackValues, [order]);
-    assert.deepEqual(success.cacheWrites, [[["cart"], null]]);
-    assert.deepEqual(success.invalidations, [{ queryKey: ["cart-pricing"] }]);
-
-    const eventCountAfterSuccess = analyticsWindow.dataLayer.length;
-    const failed = await createOrderMutationHarness({
-      actionResult: { error: "order creation rejected" },
-      analytics,
-    });
-    await assert.rejects(
-      () => failed.createOrderAsync({ acceptedLegal: true }),
-      /order creation rejected/,
-    );
-    assert.equal(analyticsWindow.dataLayer.length, eventCountAfterSuccess);
-
-    const empty = await createOrderMutationHarness({
-      actionResult: { value: undefined },
-      analytics,
-    });
-    assert.equal(await empty.createOrderAsync({ acceptedLegal: true }), undefined);
-    assert.equal(analyticsWindow.dataLayer.length, eventCountAfterSuccess);
+  const success = await createOrderMutationHarness({
+    actionResult: { value: response },
+    analytics: { orderCreated: (summary) => effects.push(["analytics", summary]) },
+    attribution,
+    effects,
+    onSuccess: (createdOrder) => {
+      effects.push(["promo-cleanup"]);
+      effects.push(["redirect", createdOrder.redirectUrl]);
+      callbackValues.push(createdOrder);
+    },
   });
+
+  assert.equal(await success.createOrder(order), response);
+  assert.deepEqual(success.createOrderCalls, [[order.input, attribution]]);
+  assert.deepEqual(effects, [
+    ["analytics", { currency: "RUB", itemsCount: 3, orderId: "AM-ORDER-1", revenue: 2797 }],
+    ["cart-cache-cleanup"],
+    ["cart-pricing-cleanup"],
+    ["promo-cleanup"],
+    ["redirect", "https://bank.example/pay"],
+  ]);
+  assert.deepEqual(callbackValues, [response]);
+  assert.deepEqual(success.cacheWrites, [[["cart"], null]]);
+  assert.deepEqual(success.invalidations, [{ queryKey: ["cart-pricing"] }]);
+
+  const failed = await createOrderMutationHarness({
+    actionResult: { error: "order creation rejected" },
+    analytics: {},
+    attribution,
+  });
+  await assert.rejects(
+    () => failed.createOrder(order),
+    /order creation rejected/,
+  );
+
+  const pendingEffects = [];
+  const pending = await createOrderMutationHarness({
+    actionResult: {
+      value: { itemsCount: 4, orderId: "AM-ORDER-2", redirectUrl: null, revenue: 2697 },
+    },
+    analytics: {
+      orderCreated: (summary) => pendingEffects.push(["analytics", summary]),
+    },
+    attribution,
+    effects: pendingEffects,
+    onSuccess: () => {
+      pendingEffects.push(["promo-cleanup"]);
+      pendingEffects.push(["redirect"]);
+    },
+  });
+  await assert.rejects(
+    () => pending.createOrder(order),
+    /страницу оплаты/u,
+  );
+  assert.equal(pending.createOrderCalls.length, 1);
+  assert.deepEqual(pendingEffects, [
+    [
+      "analytics",
+      { currency: "RUB", itemsCount: 4, orderId: "AM-ORDER-2", revenue: 2697 },
+    ],
+    ["cart-pricing-cleanup"],
+  ]);
+  assert.deepEqual(pending.cacheWrites, []);
 });
 
-test("order_created is deduplicated per order for the browser session", async () => {
-  const sessionStorage = createStorage();
-  const analyticsWindow = createAnalyticsWindow({ sessionStorage });
-  const firstOrder = createOrder({ id: "order-created-session-1" });
-  const secondOrder = createOrder({ id: "order-created-session-2" });
+test("order_created uses session dedupe by orderId and accepts only a safe summary", async () => {
+  const sharedAnalytics = await loadSharedAnalytics();
+  const checkoutAnalytics = await loadCheckoutAnalytics(sharedAnalytics);
+  const analyticsWindow = createAnalyticsWindow();
+  const summary = {
+    currency: "RUB",
+    itemsCount: 2,
+    orderId: "AM-ORDER-1",
+    revenue: 2897,
+  };
 
-  await withWindow(analyticsWindow, async () => {
-    const firstSharedAnalytics = await loadSharedAnalytics();
-    const firstCheckoutAnalytics = await loadCheckoutAnalytics(firstSharedAnalytics);
-    firstCheckoutAnalytics.useAnalytics().orderCreated(firstOrder);
-    firstCheckoutAnalytics.useAnalytics().orderCreated(firstOrder);
-
-    const reloadedSharedAnalytics = await loadSharedAnalytics();
-    const reloadedCheckoutAnalytics = await loadCheckoutAnalytics(reloadedSharedAnalytics);
-    reloadedCheckoutAnalytics.useAnalytics().orderCreated(firstOrder);
-    reloadedCheckoutAnalytics.useAnalytics().orderCreated(secondOrder);
+  await withWindow(analyticsWindow, () => {
+    checkoutAnalytics.useAnalytics().orderCreated(summary);
+    checkoutAnalytics.useAnalytics().orderCreated(summary);
+    checkoutAnalytics.useAnalytics().orderCreated({ ...summary, orderId: "AM-ORDER-2" });
   });
 
   assert.deepEqual(analyticsWindow.dataLayer, [
-    orderCreatedEvent(firstOrder),
-    orderCreatedEvent(secondOrder),
+    {
+      event: "order_created",
+      currency: "RUB",
+      items_count: 2,
+      order_id: "AM-ORDER-1",
+      order_price: 2897,
+    },
+    {
+      event: "order_created",
+      currency: "RUB",
+      items_count: 2,
+      order_id: "AM-ORDER-2",
+      order_price: 2897,
+    },
   ]);
 });
 
-test("order_paid requires a full paid order and ignores pending, failed, and status-only data", async () => {
+test("payment recovery action forwards cart cookie, CSRF headers, and encoded path", async () => {
+  const requests = [];
+  const actions = evaluateTypeScript(await readSource("src/shared/actions/orders/orders.actions.ts"), {
+    "./order.types": {},
+    "@/shared/lib/api-result": {
+      ApiResult: {
+        prepareApi: (callback) => async () => {
+          const value = await callback();
+          return { toDTO: () => ({ value }) };
+        },
+      },
+    },
+    "@/shared/lib/api-security": {
+      apiCsrfHeader: { "x-artmate-csrf": "1" },
+      getForwardedIpHeaders: () => ({ "x-forwarded-for": "203.0.113.8" }),
+    },
+    "next/headers": {
+      cookies: async () => ({
+        get: (name) => (name === "cart_id" ? { value: "secret cart" } : undefined),
+      }),
+      headers: async () => ({}),
+    },
+  });
+  const previousFetch = globalThis.fetch;
+  globalThis.fetch = async (url, init) => {
+    requests.push({ url, init });
+    return { json: async () => ({ redirectUrl: null }), ok: true };
+  };
+  try {
+    await actions.recoverOrderPayment("AM-12/34");
+  } finally {
+    globalThis.fetch = previousFetch;
+  }
+
+  assert.equal(requests[0].url, "http://localhost:3002/orders/AM-12%2F34/payment-recovery");
+  assert.equal(requests[0].init.method, "POST");
+  assert.equal(requests[0].init.headers.cookie, "cart_id=secret%20cart");
+  assert.equal(requests[0].init.headers["x-artmate-csrf"], "1");
+});
+
+test("create-order action forwards only the private Yandex attribution allowlist", async () => {
+  const requests = [];
+  const validClientId = "1".repeat(128);
+  const actions = evaluateTypeScript(await readSource("src/shared/actions/orders/orders.actions.ts"), {
+    "./order.types": {},
+    "@/shared/lib/api-result": {
+      ApiResult: {
+        prepareApi: (callback) => async () => {
+          const value = await callback();
+
+          return { toDTO: () => ({ value }) };
+        },
+      },
+    },
+    "@/shared/lib/api-security": {
+      apiCsrfHeader: {},
+      getForwardedIpHeaders: () => ({}),
+    },
+    "next/headers": {
+      cookies: async () => ({ get: () => undefined }),
+      headers: async () => ({}),
+    },
+  });
+  const previousFetch = globalThis.fetch;
+  globalThis.fetch = async (url, init) => {
+    requests.push({ url, init });
+    return { ok: true, json: async () => ({ redirectUrl: "https://bank.example/pay" }) };
+  };
+
+  try {
+    await actions.createOrder(
+      { acceptedLegal: true },
+      {
+        clientId: validClientId,
+        yclid: "456",
+        email: "must-not-leak@example.com",
+        nested: { token: "must-not-leak" },
+      },
+    );
+    await actions.createOrder(
+      { acceptedLegal: true },
+      {
+        clientId: "abc123",
+        yclid: "must-not-leak@example.com",
+      },
+    );
+    await actions.createOrder(
+      { acceptedLegal: true },
+      {
+        clientId: "1".repeat(129),
+        yclid: "2".repeat(129),
+      },
+    );
+    await actions.createOrder({
+      acceptedLegal: true,
+      attribution: {
+        yclid: "attacker-controlled",
+        email: "must-not-leak@example.com",
+      },
+    });
+  } finally {
+    globalThis.fetch = previousFetch;
+  }
+
+  assert.deepEqual(JSON.parse(requests[0].init.body), {
+    acceptedLegal: true,
+    attribution: { clientId: validClientId, yclid: "456" },
+  });
+  assert.deepEqual(JSON.parse(requests[1].init.body), { acceptedLegal: true });
+  assert.deepEqual(JSON.parse(requests[2].init.body), { acceptedLegal: true });
+  assert.deepEqual(JSON.parse(requests[3].init.body), { acceptedLegal: true });
+});
+
+test("purchase requires a full paid order and ignores pending, failed, and status-only data", async () => {
   const sharedAnalytics = await loadSharedAnalytics();
   const checkoutAnalytics = await loadCheckoutAnalytics(sharedAnalytics);
   const react = { useEffect: (effect) => effect() };
@@ -895,15 +1039,22 @@ test("order_paid requires a full paid order and ignores pending, failed, and sta
   ]);
 });
 
-test("paid order sends exact safe goal and purchase payloads without delivery or PII", async () => {
+test("paid order sends only the exact safe purchase payload without a browser goal", async () => {
   const sharedAnalytics = await loadSharedAnalytics();
   const checkoutAnalytics = await loadCheckoutAnalytics(sharedAnalytics);
   const order = createOrder({ id: "  order-paid-exact  " });
+  const ymCalls = [];
   const analyticsWindow = createAnalyticsWindow();
+  analyticsWindow.document.getElementById = () => ({
+    getAttribute: () => "109148727",
+  });
+  analyticsWindow.ym = (...args) => ymCalls.push(args);
 
   await withWindow(analyticsWindow, () => checkoutAnalytics.useAnalytics().orderPaid(order));
 
   assert.deepEqual(analyticsWindow.dataLayer, orderPaidEvents(order));
+  assert.deepEqual(ymCalls, []);
+  assert.equal(JSON.stringify(analyticsWindow.dataLayer).includes("order_paid"), false);
   const serialized = JSON.stringify(analyticsWindow.dataLayer);
   assert.equal(serialized.includes(String(order.deliveryPrice)), false);
   assert.equal(serialized.includes(order.customer.email), false);
@@ -913,7 +1064,7 @@ test("paid order sends exact safe goal and purchase payloads without delivery or
   assert.equal(serialized.includes(order.payment.redirectUrl), false);
 });
 
-test("invalid paid-order products block purchase without blocking the order_paid goal", async () => {
+test("invalid paid-order products block the browser purchase", async () => {
   const sharedAnalytics = await loadSharedAnalytics();
   const checkoutAnalytics = await loadCheckoutAnalytics(sharedAnalytics);
   const order = createOrder({
@@ -930,18 +1081,10 @@ test("invalid paid-order products block purchase without blocking the order_paid
 
   await withWindow(analyticsWindow, () => checkoutAnalytics.useAnalytics().orderPaid(order));
 
-  assert.deepEqual(analyticsWindow.dataLayer, [
-    {
-      event: "order_paid",
-      order_id: order.id,
-      items_count: order.itemsCount,
-      order_price: order.subtotal - order.discount,
-      currency: "RUB",
-    },
-  ]);
+  assert.deepEqual(analyticsWindow.dataLayer, []);
 });
 
-test("order_paid and purchase use localStorage dedupe across reloads while a new order works", async () => {
+test("purchase uses localStorage dedupe across reloads while a new order works", async () => {
   const localStorage = createStorage();
   const analyticsWindow = createAnalyticsWindow({ localStorage });
   const firstOrder = createOrder({ id: "order-paid-local-1" });

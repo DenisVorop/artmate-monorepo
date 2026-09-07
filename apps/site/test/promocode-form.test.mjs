@@ -106,6 +106,7 @@ async function createFormHarness(initialState = {}) {
     selectedCode: undefined,
     ...initialState,
   };
+  const formErrors = initialState.formErrors ?? {};
   const jsx = (type, props, key) => ({ key, props, type });
   const component = (name) => name;
   const { PromoCodeForm } = evaluateTypeScript(
@@ -126,7 +127,7 @@ async function createFormHarness(initialState = {}) {
       react: { useEffect: (effect) => effect() },
       "react-hook-form": {
         useForm: () => ({
-          formState: { errors: {} },
+          formState: { errors: formErrors },
           handleSubmit: (submit) => () => submit({ code: submittedCode }),
           register: () => ({
             name: "code",
@@ -261,4 +262,35 @@ test("pending, hydration, success and error states keep their status semantics",
 
   const failure = await createFormHarness({ error: new Error("Промокод истек"), isError: true });
   assert.match(renderedText(failure.render()), /Промокод истек/u);
+});
+
+test("promo controls keep 44px targets and associate validation errors without duplicating status", async () => {
+  const harness = await createFormHarness({
+    formErrors: { code: { message: "Введите промокод" } },
+  });
+  const tree = harness.render();
+  const input = findNode(tree, (node) => node.type === "Input");
+  const submit = findNode(tree, (node) => node.type === "Button" && node.props.type === "submit");
+  const error = findNode(tree, (node) => node.props?.id === "promo-code-error");
+  const status = findNode(tree, (node) => node.props?.id === "promo-code-status");
+
+  assert.match(input.props.className, /min-h-11/u);
+  assert.equal(input.props["aria-invalid"], true);
+  assert.equal(input.props["aria-describedby"], "promo-code-error promo-code-status");
+  assert.match(submit.props.className, /min-h-11/u);
+  assert.equal(error.props.role, "alert");
+  assert.ok(status);
+  assert.equal(
+    findNode(status, (node) => node.props?.id === "promo-code-error"),
+    undefined,
+  );
+
+  const guest = await createFormHarness({
+    error: new Error("Требуется вход"),
+    isError: true,
+    isGuest: true,
+    onLoginRequested: () => undefined,
+  });
+  const login = findNode(guest.render(), (node) => renderedText(node) === "Войти и проверить");
+  assert.match(login.props.className, /min-h-11/u);
 });

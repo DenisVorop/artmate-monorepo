@@ -5,7 +5,6 @@ import type {
   ConfirmEmailVerificationInputDTO,
   LoginInputDTO,
   RegisterInputDTO,
-  RequestPasswordResetInputDTO,
 } from "@/shared/actions/auth";
 
 const personalDataConsentSchema = z
@@ -49,17 +48,6 @@ export const emailVerificationFormSchema = z.object({
     .regex(/^\d{6}$/, "Введите 6 цифр из письма"),
 });
 
-export const passwordResetRequestFormSchema = z.object({
-  acceptedPersonalDataConsent: personalDataConsentSchema,
-  email: z
-    .string()
-    .trim()
-    .min(1, "Укажите email")
-    .refine((value) => /^[^\s@]+@[^\s@]+\.[^\s@]+$/.test(value), {
-      message: "Введите корректный email",
-    }),
-});
-
 export const confirmPasswordResetFormSchema = z
   .object({
     password: z.string().min(8, "Пароль должен быть не короче 8 символов"),
@@ -75,8 +63,6 @@ export type LoginFormValues = z.infer<typeof loginFormSchema>;
 export type RegisterFormValues = z.infer<typeof registerFormSchema>;
 
 export type EmailVerificationFormValues = z.infer<typeof emailVerificationFormSchema>;
-
-export type PasswordResetRequestFormValues = z.infer<typeof passwordResetRequestFormSchema>;
 
 export type ConfirmPasswordResetFormValues = z.infer<typeof confirmPasswordResetFormSchema>;
 
@@ -109,15 +95,6 @@ export function toEmailVerificationInput(
   return {
     email: email.trim(),
     code: values.code.trim(),
-  };
-}
-
-export function toPasswordResetRequestInput(
-  values: PasswordResetRequestFormValues,
-): RequestPasswordResetInputDTO {
-  return {
-    acceptedPersonalDataConsent: values.acceptedPersonalDataConsent,
-    email: values.email.trim(),
   };
 }
 

@@ -3,7 +3,6 @@
 import { useEffect, useMemo, useState } from "react";
 import { useRouter, useSearchParams } from "next/navigation";
 import {
-  ArrowLeft,
   Check,
   ExternalLink,
   KeyRound,
@@ -47,12 +46,10 @@ import {
   getAuthErrorMessage,
   getSafeAuthRedirectPath,
   loginFormSchema,
-  passwordResetRequestFormSchema,
   registerFormSchema,
   toConfirmPasswordResetInput,
   toEmailVerificationInput,
   toLoginInput,
-  toPasswordResetRequestInput,
   toRegisterInput,
   updateEmailVerificationFlow,
   useAnalytics,
@@ -60,7 +57,6 @@ import {
   type EmailVerificationFormValues,
   type EmailVerificationFlow,
   type LoginFormValues,
-  type PasswordResetRequestFormValues,
   type RegisterFormValues,
   type SignupAttempt,
 } from "../lib";
@@ -69,7 +65,6 @@ import {
   useConfirmPasswordResetMutation,
   useLoginMutation,
   useRegisterMutation,
-  useRequestPasswordResetMutation,
   useResendEmailVerificationMutation,
 } from "../model";
 
@@ -94,15 +89,10 @@ export function AuthForm({
 }: AuthFormProps = {}) {
   const [mode, setMode] = useState<AuthMode>("login");
   const [verificationFlow, setVerificationFlow] = useState<EmailVerificationFlow>();
-  const [isPasswordResetRequested, setIsPasswordResetRequested] = useState(false);
   const lockedEmail = isEmailLocked && initialEmail?.trim() ? initialEmail.trim() : undefined;
-  const description = isPasswordResetRequested
-    ? lockedEmail
-      ? "Отправим ссылку для смены пароля на почту из формы заказа."
-      : "Укажите email, и мы отправим ссылку для смены пароля."
-    : verificationFlow
-      ? "Введите код из письма, чтобы завершить вход."
-      : "Войдите или создайте аккаунт, чтобы сохранять заказы и персональные данные.";
+  const description = verificationFlow
+    ? "Введите код из письма, чтобы завершить вход."
+    : "Войдите или создайте аккаунт, чтобы сохранять заказы и персональные данные.";
   const content = verificationFlow ? (
     <EmailVerificationForm
       onAuthenticated={onAuthenticated}
@@ -114,12 +104,6 @@ export function AuthForm({
       }
       signupAttempt={getSignupAttempt(verificationFlow)}
       verification={verificationFlow.verification}
-    />
-  ) : isPasswordResetRequested ? (
-    <PasswordResetRequestForm
-      initialEmail={initialEmail}
-      lockedEmail={lockedEmail}
-      onBack={() => setIsPasswordResetRequested(false)}
     />
   ) : (
     <Tabs value={mode} onValueChange={(value) => setMode(value as AuthMode)}>
@@ -134,7 +118,6 @@ export function AuthForm({
           initialEmail={initialEmail}
           lockedEmail={lockedEmail}
           onAuthenticated={onAuthenticated}
-          onPasswordReset={() => setIsPasswordResetRequested(true)}
           onVerificationRequired={(verification) =>
             setVerificationFlow(createLoginVerificationFlow(verification))
           }
@@ -181,14 +164,12 @@ function LoginForm({
   initialEmail,
   lockedEmail,
   onAuthenticated,
-  onPasswordReset,
   onVerificationRequired,
 }: {
   readonly hideOAuth: boolean;
   readonly initialEmail?: string;
   readonly lockedEmail?: string;
   readonly onAuthenticated?: () => void;
-  readonly onPasswordReset: () => void;
   readonly onVerificationRequired: (_verification: AuthEmailVerificationStateDTO) => void;
 }) {
   const router = useRouter();
@@ -291,14 +272,11 @@ function LoginForm({
       <div className="space-y-2">
         <div className="flex items-center justify-between gap-3">
           <Label htmlFor="auth-password">Пароль</Label>
-          <Button
-            type="button"
-            variant="link"
-            className="h-auto px-0 text-xs"
-            onClick={onPasswordReset}
-          >
-            <KeyRound data-icon="inline-start" />
-            Забыли пароль?
+          <Button asChild variant="link" className="h-auto px-0 text-xs">
+            <Link href={routes.authRecovery}>
+              <KeyRound data-icon="inline-start" />
+              Забыли пароль?
+            </Link>
           </Button>
         </div>
         <Input
@@ -323,103 +301,6 @@ function LoginForm({
       </Button>
 
       {!hideOAuth && <OAuthButton />}
-    </form>
-  );
-}
-
-function PasswordResetRequestForm({
-  initialEmail,
-  lockedEmail,
-  onBack,
-}: {
-  readonly initialEmail?: string;
-  readonly lockedEmail?: string;
-  readonly onBack: () => void;
-}) {
-  const [submitError, setSubmitError] = useState<string>();
-  const [isSent, setIsSent] = useState(false);
-  const { mutate: requestPasswordReset, isPending } = useRequestPasswordResetMutation();
-  const {
-    register,
-    handleSubmit,
-    formState: { errors },
-  } = useForm<PasswordResetRequestFormValues>({
-    defaultValues: {
-      acceptedPersonalDataConsent: false,
-      email: lockedEmail ?? initialEmail ?? "",
-    },
-    mode: "onSubmit",
-    resolver: zodResolver(passwordResetRequestFormSchema),
-  });
-
-  const submitForm = handleSubmit((values) => {
-    setSubmitError(undefined);
-
-    requestPasswordReset(
-      toPasswordResetRequestInput({ ...values, email: lockedEmail ?? values.email }),
-      {
-        onSuccess: () => setIsSent(true),
-        onError: (error) => setSubmitError(getAuthErrorMessage(error)),
-      },
-    );
-  });
-
-  if (isSent) {
-    return (
-      <div className="space-y-4">
-        <div className="rounded-lg border bg-muted/40 px-3 py-2 text-sm text-muted-foreground">
-          <MailCheck data-icon="inline-start" aria-hidden="true" />
-          Если аккаунт найден, мы отправили письмо со ссылкой для смены пароля.
-        </div>
-
-        <Button type="button" variant="outline" className="h-10 w-full" onClick={onBack}>
-          <ArrowLeft data-icon="inline-start" />
-          Вернуться ко входу
-        </Button>
-      </div>
-    );
-  }
-
-  return (
-    <form onSubmit={submitForm} className="space-y-4">
-      <div className="space-y-2">
-        <Label htmlFor="password-reset-email">Email</Label>
-        <Input
-          id="password-reset-email"
-          type="email"
-          autoComplete="email"
-          readOnly={Boolean(lockedEmail)}
-          aria-invalid={Boolean(errors.email)}
-          className={lockedEmail ? "bg-muted/50 text-muted-foreground" : undefined}
-          {...register("email")}
-        />
-        <FieldError message={errors.email?.message} />
-      </div>
-
-      <FormError message={submitError} />
-
-      <div className="space-y-2">
-        <PersonalDataConsentCheckbox
-          id="password-reset-personal-data-consent"
-          hasError={Boolean(errors.acceptedPersonalDataConsent)}
-          {...register("acceptedPersonalDataConsent")}
-        />
-        <FieldError message={errors.acceptedPersonalDataConsent?.message} />
-      </div>
-
-      <Button type="submit" disabled={isPending} className="h-10 w-full">
-        {isPending ? (
-          <LoaderCircle data-icon="inline-start" className="animate-spin" />
-        ) : (
-          <KeyRound data-icon="inline-start" />
-        )}
-        Отправить ссылку
-      </Button>
-
-      <Button type="button" variant="ghost" className="h-10 w-full" onClick={onBack}>
-        <ArrowLeft data-icon="inline-start" />
-        Назад
-      </Button>
     </form>
   );
 }
@@ -470,7 +351,7 @@ export function PasswordResetForm({ token }: { readonly token?: string }) {
           <div className="space-y-4">
             <FormError message="Ссылка для смены пароля недействительна или устарела." />
             <Button asChild className="h-10 w-full">
-              <Link href={routes.auth}>
+              <Link href={routes.authRecovery}>
                 <KeyRound data-icon="inline-start" />
                 Запросить новую ссылку
               </Link>
