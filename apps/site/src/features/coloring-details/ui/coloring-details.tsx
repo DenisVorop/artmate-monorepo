@@ -3,12 +3,14 @@
 import type { ReactNode } from "react";
 
 import { useColoringData } from "@/entities/coloring";
+import { getProductById, useProductsData } from "@/entities/products";
 import { Button, DataState } from "@/shared/ui";
 
 import { useTrackOpen } from "../lib/use-track-open";
 import { ComparisonViewer } from "./comparison-viewer";
 import { Hero } from "./hero";
 import { PaletteSection } from "./palette-section";
+import { PhysicalAlbumCallout } from "./physical-album-callout";
 
 type ColoringDetailsProps = {
   collectionSlug: string;
@@ -28,6 +30,7 @@ export function ColoringDetails({
     number,
     publishedRevisionId,
   );
+  const products = useProductsData();
   useTrackOpen(
     !isPending && !isError ? coloring?.collection.slug : undefined,
     !isPending && !isError ? coloring?.number : undefined,
@@ -62,6 +65,10 @@ export function ColoringDetails({
   }
 
   const coloringTitle = `Картина ${coloring.number}`;
+  const productEnrichment = !products.isError && products.data
+    ? getProductById(products.data.products, coloring.collection.product.id)
+    : undefined;
+
   return (
     <main className="overflow-hidden bg-[radial-gradient(circle_at_top_left,rgba(251,113,133,0.09),transparent_34rem)]">
       <Hero
@@ -87,6 +94,11 @@ export function ColoringDetails({
 
       <div className="container space-y-6 pb-12 md:space-y-8 md:pb-16">
         <PaletteSection palette={coloring.palette} themes={coloring.themes} />
+
+        <PhysicalAlbumCallout
+          coverImage={productEnrichment?.image}
+          product={coloring.collection.product}
+        />
 
         {communityWorks}
 

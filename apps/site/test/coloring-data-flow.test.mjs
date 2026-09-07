@@ -293,6 +293,21 @@ test("strict coloring schemas reject unknown nested and top-level fields", async
     }).success,
     false,
   );
+  for (const commerceField of [
+    { price: 1_000 },
+    { isOutOfStock: false },
+  ]) {
+    assert.equal(
+      publicColoringSchema.safeParse({
+        ...coloring,
+        collection: {
+          ...coloring.collection,
+          product: { ...coloring.collection.product, ...commerceField },
+        },
+      }).success,
+      false,
+    );
+  }
   assert.equal(
     publicColoringsManifestSchema.safeParse([
       {
@@ -452,6 +467,7 @@ test("ColoringDataBuilder fetches once, separates 404, throws 5xx, and hydrates 
   const responses = [];
   const cacheWrites = [];
   let fetches = 0;
+  let productFetches = 0;
   class BaseDataBuilder {
     constructor(childClass = this.constructor, tasks = {}, queryClient) {
       this.childClass = childClass;
@@ -463,6 +479,12 @@ test("ColoringDataBuilder fetches once, separates 404, throws 5xx, and hydrates 
 
     add(key, task) {
       return new this.childClass(this.childClass, { ...this.tasks, [key]: task }, this.queryClient);
+    }
+
+    setApiResultQueryData(queryKey, result) {
+      const data = result.data ?? null;
+      this.queryClient.setQueryData(queryKey, data);
+      return data;
     }
 
     async build() {
@@ -490,10 +512,19 @@ test("ColoringDataBuilder fetches once, separates 404, throws 5xx, and hydrates 
         }),
       },
     },
+    "@/entities/products": {
+      productsQuery: { getData: () => ({ queryKey: ["products", "data"] }) },
+    },
     "@/shared/actions/colorings": {
       getPublicColoring: async () => {
         fetches += 1;
         return responses.shift();
+      },
+    },
+    "@/shared/actions/products": {
+      getProductsData: async () => {
+        productFetches += 1;
+        return { status: "success", data: { products: [] } };
       },
     },
     "@/shared/lib/api-result": { ApiResult },
@@ -522,4 +553,16 @@ test("ColoringDataBuilder fetches once, separates 404, throws 5xx, and hydrates 
     (error) => error.status === 503,
   );
   assert.equal(fetches, 3);
+
+  responses.push({ status: "success", data: coloring });
+  const detail = await new ColoringDataBuilder()
+    .withColoring("forest", 1)
+    .withProducts()
+    .build();
+  assert.deepEqual(detail.productsData, { products: [] });
+  assert.equal(productFetches, 1);
+  assert.deepEqual(
+    cacheWrites.find(({ queryKey }) => queryKey[0] === "products"),
+    { queryKey: ["products", "data"], data: { products: [] } },
+  );
 });

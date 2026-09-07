@@ -43,6 +43,7 @@ export default async function Page({ params }: ColoringRouteProps) {
 
   const { coloring, queryClient } = await new ColoringDataBuilder()
     .withColoring(collectionSlug, number)
+    .withProducts()
     .build();
 
   if (coloring === null) {

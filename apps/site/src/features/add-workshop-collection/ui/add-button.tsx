@@ -40,9 +40,9 @@ export function AddWorkshopCollectionButton({ slug }: { slug: string }) {
     <div className="space-y-2">
       <Button
         type="button"
-        size="lg"
+        size="sm"
         variant="outline"
-        className="min-h-11 w-full border-rose-200 text-rose-700 sm:w-auto"
+        className="min-h-11 border-rose-200 text-rose-700"
         disabled={isSessionPending || addCollection.isPending}
         onClick={() => void add()}
       >

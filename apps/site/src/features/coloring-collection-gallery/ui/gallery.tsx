@@ -18,11 +18,11 @@ import {
   CardContent,
   CardTitle,
   DataState,
-  ExpandableText,
 } from "@/shared/ui";
 import { Link } from "@/shared/ui/link";
 import { PageTitle, SectionSubtitle } from "@/shared/ui/typography";
 
+import { getDigitalCollectionPresentation } from "../lib/presentation";
 import { useTrackOpen } from "../lib/use-track-open";
 
 type ColoringCollectionGalleryProps = {
@@ -65,9 +65,11 @@ export function ColoringCollectionGallery({
     );
   }
 
+  const presentation = getDigitalCollectionPresentation(collection);
+
   return (
     <main className="bg-[radial-gradient(circle_at_top_left,rgba(251,113,133,0.08),transparent_34rem)]">
-      <section className="container space-y-6 py-5 md:space-y-8 md:py-8">
+      <section className="container space-y-5 py-5 md:space-y-6 md:py-6">
         <Breadcrumb>
           <BreadcrumbList>
             <BreadcrumbItem>
@@ -83,22 +85,22 @@ export function ColoringCollectionGallery({
             </BreadcrumbItem>
             <BreadcrumbSeparator />
             <BreadcrumbItem>
-              <BreadcrumbPage>{collection.title}</BreadcrumbPage>
+              <BreadcrumbPage>{presentation.albumTitle}</BreadcrumbPage>
             </BreadcrumbItem>
           </BreadcrumbList>
         </Breadcrumb>
 
-        <div className="max-w-3xl space-y-3">
-          <Badge variant="secondary" className="h-auto px-3 py-1.5 text-rose-700">
-            {collection.coloringCount} из {collection.expectedColoringCount} иллюстраций
-          </Badge>
-          <PageTitle>{collection.title}</PageTitle>
-          {collection.description ? (
-            <ExpandableText collapsible>
-              <SectionSubtitle>{collection.description}</SectionSubtitle>
-            </ExpandableText>
-          ) : null}
-          {workshopAction}
+        <div className="max-w-4xl space-y-4">
+          <div className="flex flex-wrap items-start justify-between gap-3">
+            <div className="space-y-3">
+              <PageTitle>{presentation.heading}</PageTitle>
+              <Badge variant="secondary" className="h-auto px-3 py-1.5 text-rose-700">
+                {collection.coloringCount} картин
+              </Badge>
+            </div>
+            {workshopAction ? <div className="shrink-0">{workshopAction}</div> : null}
+          </div>
+          <SectionSubtitle>{presentation.instruction}</SectionSubtitle>
         </div>
       </section>
 
