@@ -1,10 +1,12 @@
 "use client";
 
 import { zodResolver } from "@hookform/resolvers/zod";
+import { useQueryClient } from "@tanstack/react-query";
 import {
   useCallback,
   useEffect,
   useMemo,
+  useRef,
   useState,
   type FormEventHandler,
   type ReactNode,
@@ -15,22 +17,36 @@ import type { Cart } from "@/entities/cart";
 import { useUser } from "@/entities/session";
 import { getCartPricingSignature, getPromoPricingState, usePromocode } from "@/features/promocode";
 
-import { useCheckoutCalculation } from "../../model";
+import {
+  checkoutCalculationQueryKey,
+  checkoutCalculationQueryOptions,
+  useCheckoutCalculation,
+  type CheckoutCalculationIdentity,
+} from "../../model";
 import {
   checkoutFormValidationSchema,
-  getCheckoutSubmitLabel,
+  createCheckoutOrderAttempt,
   getDefaultCheckoutFormValues,
-  toCreateOrderInput,
+  type CheckoutAttempt,
   type CheckoutCustomerDefaults,
   type CheckoutFormValues,
 } from "../checkout-form";
 import type { CheckoutDeliverySelection } from "../checkout-form";
+import { getCheckoutSubmitLabel, resolveCheckoutCalculationState } from "../calculation-state";
+import {
+  createDeliveryConfirmationCoordinator,
+  isMatchingCheckoutCalculation,
+  type DeliveryConfirmationResult,
+} from "../delivery-picker-state";
+import {
+  clearPersistedPickupSelection,
+  readPersistedPickupSelection,
+  writePersistedPickupSelection,
+} from "../pickup-selection-storage";
 
 import {
   CheckoutContext,
-  checkoutSteps,
   type CheckoutProviderSubmit,
-  type CheckoutStep,
   type CheckoutContextValue,
 } from "./checkout.context";
 
@@ -41,16 +57,7 @@ type CheckoutProviderProps = {
   isEmailLocked?: boolean;
   isSubmitting: boolean;
   onSubmit: CheckoutProviderSubmit;
-  requiresAuth: boolean;
 };
-
-const contactsFields = ["name", "phone", "email", "comment"] as const;
-
-function scrollViewportToTop() {
-  window.requestAnimationFrame(() => {
-    window.scrollTo({ top: 0, behavior: "smooth" });
-  });
-}
 
 export function CheckoutProvider({
   cart,
@@ -59,35 +66,56 @@ export function CheckoutProvider({
   isEmailLocked = false,
   isSubmitting,
   onSubmit,
-  requiresAuth,
 }: CheckoutProviderProps) {
   const user = useUser();
+  const queryClient = useQueryClient();
   const promoCode = usePromocode();
   const promoPricing = getPromoPricingState(promoCode);
-  const [step, setStep] = useState<CheckoutStep>("delivery");
   const [selectedDelivery, setSelectedDeliveryState] = useState<CheckoutDeliverySelection>();
+  const checkoutAttemptRef = useRef<CheckoutAttempt | undefined>(undefined);
+  const confirmationCoordinatorRef = useRef<
+    ReturnType<typeof createDeliveryConfirmationCoordinator> | undefined
+  >(undefined);
+  confirmationCoordinatorRef.current ??= createDeliveryConfirmationCoordinator();
+  const cartSignature = getCartPricingSignature(cart);
+  const accountIdentity = user?.id ?? "guest";
+  const calculationIdentity = useMemo<CheckoutCalculationIdentity>(
+    () => ({ accountIdentity, cartId: cart.id, cartSignature, promoCode: promoPricing.code }),
+    [accountIdentity, cart.id, cartSignature, promoPricing.code],
+  );
+  const confirmationIdentity = JSON.stringify([
+    cart.id,
+    cartSignature,
+    calculationIdentity.accountIdentity,
+    promoPricing.code ?? null,
+    promoPricing.isReady,
+    cart.isOzonDeliveryAvailable,
+  ]);
+  const latestConfirmationIdentityRef = useRef(confirmationIdentity);
+  latestConfirmationIdentityRef.current = confirmationIdentity;
   const serverCheckoutCalculation = useCheckoutCalculation(selectedDelivery, {
-    accountIdentity: user?.id ?? "guest",
-    cartSignature: getCartPricingSignature(cart),
+    ...calculationIdentity,
     enabled: promoPricing.isReady,
-    promoCode: promoPricing.code,
   });
   const checkoutCalculation = useMemo(
     () =>
-      promoPricing.isReady
-        ? serverCheckoutCalculation
-        : {
-            calculation: undefined,
-            error: promoCode.error,
-            isError: promoCode.isError,
-            isPaused: Boolean(selectedDelivery) && promoCode.isPaused,
-            isPending: Boolean(selectedDelivery) && (promoCode.isHydrating || promoCode.isPending),
-            retry: promoCode.retry,
-          },
+      resolveCheckoutCalculationState({
+        calculation: promoPricing.isReady ? serverCheckoutCalculation.calculation : undefined,
+        cartId: cart.id,
+        confirmedDelivery: selectedDelivery,
+        error: serverCheckoutCalculation.error,
+        isError: promoPricing.isReady && serverCheckoutCalculation.isError,
+        isOffline: promoPricing.isReady
+          ? serverCheckoutCalculation.isPaused
+          : promoCode.isPaused,
+        isPending: promoPricing.isReady
+          ? serverCheckoutCalculation.isPending
+          : promoCode.isHydrating || promoCode.isPending,
+        retry: promoPricing.isReady ? serverCheckoutCalculation.retry : promoCode.retry,
+      }),
     [
+      cart.id,
       promoPricing.isReady,
-      promoCode.error,
-      promoCode.isError,
       promoCode.isHydrating,
       promoCode.isPaused,
       promoCode.isPending,
@@ -109,18 +137,7 @@ export function CheckoutProvider({
     formState: { isDirty },
     reset,
   } = form;
-  const activeStepIndex = checkoutSteps.indexOf(step);
-  const canContinueDelivery =
-    Boolean(selectedDelivery) &&
-    Boolean(checkoutCalculation.calculation) &&
-    !checkoutCalculation.isPending &&
-    !checkoutCalculation.isError;
-  const submitLabel = getCheckoutSubmitLabel({
-    hasDelivery: Boolean(selectedDelivery),
-    isDeliveryPending: checkoutCalculation.isPending,
-    isSubmitting,
-    requiresAuth,
-  });
+  const submitLabel = getCheckoutSubmitLabel(checkoutCalculation, isSubmitting);
 
   useEffect(() => {
     if (!isDirty) {
@@ -128,49 +145,67 @@ export function CheckoutProvider({
     }
   }, [defaultValues, isDirty, reset]);
 
-  const setSelectedDelivery = useCallback((delivery: CheckoutDeliverySelection | undefined) => {
-    setSelectedDeliveryState(delivery);
+  useEffect(() => {
+    const persistedSelection = readPersistedPickupSelection(cart.id);
 
-    if (!delivery) {
-      setStep("delivery");
+    if (persistedSelection?.provider === "ozon" && !cart.isOzonDeliveryAvailable) {
+      clearPersistedPickupSelection(cart.id);
+      setSelectedDeliveryState(undefined);
+      return;
     }
+
+    setSelectedDeliveryState(persistedSelection);
+  }, [cart.id, cart.isOzonDeliveryAvailable]);
+
+  useEffect(() => {
+    confirmationCoordinatorRef.current?.invalidate("checkout identity changed");
+  }, [confirmationIdentity]);
+
+  useEffect(() => () => confirmationCoordinatorRef.current?.invalidate("checkout unmounted"), []);
+
+  const invalidateDeliveryConfirmation = useCallback(() => {
+    confirmationCoordinatorRef.current?.invalidate("picker closed");
   }, []);
 
-  const continueFromDelivery = useCallback(() => {
-    if (canContinueDelivery) {
-      setStep("contacts");
-      scrollViewportToTop();
-    }
-  }, [canContinueDelivery]);
-
-  const continueFromContacts = useCallback(async () => {
-    const isValid = await form.trigger(contactsFields, { shouldFocus: true });
-
-    if (isValid) {
-      setStep("confirmation");
-      scrollViewportToTop();
-    }
-  }, [form]);
-
-  const goBack = useCallback(() => {
-    setStep((currentStep) => {
-      const currentIndex = checkoutSteps.indexOf(currentStep);
-      const previousStep = checkoutSteps[Math.max(currentIndex - 1, 0)];
-
-      return previousStep ?? currentStep;
-    });
-    scrollViewportToTop();
-  }, []);
-
-  const goToStep = useCallback(
-    (nextStep: CheckoutStep) => {
-      const nextIndex = checkoutSteps.indexOf(nextStep);
-
-      if (nextIndex <= activeStepIndex) {
-        setStep(nextStep);
+  const confirmDelivery = useCallback(
+    async (delivery: CheckoutDeliverySelection): Promise<DeliveryConfirmationResult> => {
+      if (
+        !promoPricing.isReady ||
+        (delivery.provider === "ozon" && !cart.isOzonDeliveryAvailable) ||
+        (typeof navigator !== "undefined" && navigator.onLine === false)
+      ) {
+        return {
+          status: "error",
+          message: "Не удалось подтвердить пункт выдачи. Попробуйте еще раз.",
+        };
       }
+
+      const requestIdentity = confirmationIdentity;
+      const queryOptions = checkoutCalculationQueryOptions(delivery, calculationIdentity);
+
+      return confirmationCoordinatorRef.current!.confirm({
+        calculate: () => queryClient.fetchQuery({ ...queryOptions, staleTime: 0 }),
+        candidate: delivery,
+        cartId: cart.id,
+        commit: ({ calculation, candidate }) => {
+          queryClient.setQueryData(
+            checkoutCalculationQueryKey(candidate, calculationIdentity),
+            calculation,
+          );
+          setSelectedDeliveryState(candidate);
+          writePersistedPickupSelection(cart.id, candidate);
+        },
+        isCurrent: () => latestConfirmationIdentityRef.current === requestIdentity,
+      });
     },
-    [activeStepIndex],
+    [
+      calculationIdentity,
+      cart.id,
+      cart.isOzonDeliveryAvailable,
+      confirmationIdentity,
+      promoPricing.isReady,
+      queryClient,
+    ],
   );
 
   const submitOrder = useCallback<FormEventHandler<HTMLFormElement>>(
@@ -178,21 +213,27 @@ export function CheckoutProvider({
       void form.handleSubmit(async (values) => {
         if (
           !selectedDelivery ||
-          !checkoutCalculation.calculation ||
-          checkoutCalculation.isPending ||
-          checkoutCalculation.isError
+          checkoutCalculation.status !== "ready" ||
+          !isMatchingCheckoutCalculation(checkoutCalculation.calculation, selectedDelivery, cart.id)
         ) {
-          setStep("delivery");
           return;
         }
 
-        await onSubmit(toCreateOrderInput(values, selectedDelivery, promoPricing.code));
+        const checkoutAttempt = createCheckoutOrderAttempt(
+          values,
+          selectedDelivery,
+          promoPricing.code,
+          checkoutAttemptRef.current,
+        );
+        checkoutAttemptRef.current = checkoutAttempt.attempt;
+        await onSubmit({
+          input: checkoutAttempt.input,
+        });
       })(event);
     },
     [
-      checkoutCalculation.calculation,
-      checkoutCalculation.isError,
-      checkoutCalculation.isPending,
+      checkoutCalculation,
+      cart.id,
       form,
       onSubmit,
       promoPricing.code,
@@ -202,40 +243,26 @@ export function CheckoutProvider({
 
   const value = useMemo<CheckoutContextValue>(
     () => ({
-      activeStepIndex,
-      canContinueDelivery,
       checkoutCalculation,
-      continueFromContacts,
-      continueFromDelivery,
+      confirmDelivery,
       customerDefaults,
       form,
-      goBack,
-      goToStep,
       isEmailLocked,
       isSubmitting,
-      requiresAuth,
+      invalidateDeliveryConfirmation,
       selectedDelivery,
-      setSelectedDelivery,
-      step,
       submitLabel,
       submitOrder,
     }),
     [
-      activeStepIndex,
-      canContinueDelivery,
       checkoutCalculation,
-      continueFromContacts,
-      continueFromDelivery,
+      confirmDelivery,
       customerDefaults,
       form,
-      goBack,
-      goToStep,
       isEmailLocked,
       isSubmitting,
-      requiresAuth,
+      invalidateDeliveryConfirmation,
       selectedDelivery,
-      setSelectedDelivery,
-      step,
       submitLabel,
       submitOrder,
     ],

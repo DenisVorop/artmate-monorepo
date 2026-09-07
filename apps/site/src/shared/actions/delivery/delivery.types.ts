@@ -10,6 +10,7 @@ export type DeliveryPickupPointDTO = {
   address: string;
   workHours: string;
   deliveryPrice: number;
+  minimumDeliveryPrice?: number;
   cityCode?: number;
   latitude?: number;
   longitude?: number;

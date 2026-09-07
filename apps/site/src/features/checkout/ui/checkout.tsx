@@ -1,12 +1,10 @@
 "use client";
 
 import { ArrowLeft, ShoppingBag } from "lucide-react";
-import { useEffect, useMemo, useState } from "react";
-import { useRouter } from "next/navigation";
+import { useEffect, useState } from "react";
 
 import type { Cart, CartResult } from "@/entities/cart";
 import { useCartData } from "@/entities/cart";
-import { getPreferredCustomerPhone, useOrdersData } from "@/entities/orders";
 import { useUser } from "@/entities/session";
 import { AuthForm } from "@/features/auth";
 import { usePromocode, withPromocode } from "@/features/promocode";
@@ -24,18 +22,14 @@ import { Link } from "@/shared/ui/link";
 import { PageTitle } from "@/shared/ui/typography";
 
 import { useCreateOrderMutation } from "../model";
-import {
-  type CheckoutCreateOrderInput,
-  type CheckoutAuthConfirmationState,
-  type CheckoutCustomerDefaults,
-  type CheckoutOrder,
-  transitionCheckoutAuthConfirmation,
+import type {
+  CheckoutCreateOrderResponse,
+  CheckoutCustomerDefaults,
+  CheckoutProviderSubmitVariables,
 } from "../lib";
 import { useTrackCheckoutStart } from "../lib/use-track-checkout-start";
 
 import { CheckoutFlow } from "./checkout-flow";
-
-type AuthDialogDefaults = Pick<CheckoutCustomerDefaults, "email" | "name">;
 
 export function Checkout() {
   const cart = useCartData({ refreshOnMount: true });
@@ -94,93 +88,45 @@ export function Checkout() {
 
 function LoadedCheckout({ cart }: { cart: Cart }) {
   useTrackCheckoutStart(cart);
-  const [authDialogDefaults, setAuthDialogDefaults] = useState<AuthDialogDefaults>();
   const [isAuthDialogOpen, setIsAuthDialogOpen] = useState(false);
-  const [authConfirmationState, setAuthConfirmationState] =
-    useState<CheckoutAuthConfirmationState>("ready");
-
-  const requestLogin = (defaults?: AuthDialogDefaults) => {
-    setAuthDialogDefaults(defaults);
-    setAuthConfirmationState((state) => transitionCheckoutAuthConfirmation(state, "request-auth"));
-    setIsAuthDialogOpen(true);
-  };
 
   return (
     <PromocodeCheckout
-      authDialogDefaults={authDialogDefaults}
-      authConfirmationState={authConfirmationState}
       cart={cart}
       isAuthDialogOpen={isAuthDialogOpen}
       onAuthDialogOpenChange={setIsAuthDialogOpen}
-      onAuthRequired={requestLogin}
-      onAuthenticated={() => {
-        setAuthConfirmationState((state) =>
-          transitionCheckoutAuthConfirmation(state, "auth-succeeded"),
-        );
-        setIsAuthDialogOpen(false);
-      }}
-      onManualConfirmation={() =>
-        setAuthConfirmationState((state) =>
-          transitionCheckoutAuthConfirmation(state, "manual-confirmation"),
-        )
-      }
-      onPromocodeLoginRequested={() => requestLogin()}
+      onAuthenticated={() => setIsAuthDialogOpen(false)}
+      onPromocodeLoginRequested={() => setIsAuthDialogOpen(true)}
     />
   );
 }
 
 type PromocodeCheckoutProps = {
-  authDialogDefaults?: AuthDialogDefaults;
-  authConfirmationState: CheckoutAuthConfirmationState;
   cart: Cart;
   isAuthDialogOpen: boolean;
   onAuthDialogOpenChange: (_isOpen: boolean) => void;
-  onAuthRequired: (_defaults?: AuthDialogDefaults) => void;
   onAuthenticated: () => void;
-  onManualConfirmation: () => void;
 };
 
 function BasePromocodeCheckout({
-  authDialogDefaults,
-  authConfirmationState,
   cart,
   isAuthDialogOpen,
   onAuthDialogOpenChange,
-  onAuthRequired,
   onAuthenticated,
-  onManualConfirmation,
 }: PromocodeCheckoutProps) {
   return (
     <>
-      {authConfirmationState === "manual-confirmation-required" ? (
-        <p className="container mb-4 rounded-lg border bg-muted/30 p-3 text-sm" role="status">
-          Вход выполнен. Дождитесь нового расчета суммы и подтвердите заказ вручную.
-        </p>
-      ) : null}
-      <CheckoutScenario
-        cart={cart}
-        onAuthRequired={onAuthRequired}
-        onManualConfirmation={onManualConfirmation}
-      />
+      <CheckoutScenario cart={cart} />
 
       <Dialog open={isAuthDialogOpen} onOpenChange={onAuthDialogOpenChange}>
         <DialogContent className="sm:max-w-md">
           <DialogHeader>
-            <DialogTitle>Вход для оформления заказа</DialogTitle>
+            <DialogTitle>Вход в аккаунт</DialogTitle>
             <DialogDescription>
-              После входа мы заново проверим промокод и итоговую сумму. Для создания заказа нужно
-              будет явно подтвердить оформление еще раз.
+              После входа мы заново проверим промокод и итоговую сумму.
             </DialogDescription>
           </DialogHeader>
-          <AuthForm
-            embedded
-            key={`${authDialogDefaults?.email ?? ""}:${authDialogDefaults?.name ?? ""}`}
-            initialEmail={authDialogDefaults?.email}
-            initialName={authDialogDefaults?.name}
-            isEmailLocked={Boolean(authDialogDefaults?.email)}
-            showNameOptionalHint={false}
-            onAuthenticated={onAuthenticated}
-          />
+          <AuthForm embedded showNameOptionalHint={false} onAuthenticated={onAuthenticated} />
         </DialogContent>
       </Dialog>
     </>
@@ -189,53 +135,27 @@ function BasePromocodeCheckout({
 
 const PromocodeCheckout = withPromocode(BasePromocodeCheckout);
 
-function CheckoutScenario({
-  cart,
-  onAuthRequired,
-  onManualConfirmation,
-}: {
-  cart: Cart;
-  onAuthRequired: (_defaults?: AuthDialogDefaults) => void;
-  onManualConfirmation: () => void;
-}) {
-  const router = useRouter();
+function CheckoutScenario({ cart }: { cart: Cart }) {
   const user = useUser();
-  const orders = useOrdersData({ enabled: Boolean(user) });
   const { clearCode } = usePromocode();
-  const customerOrders = orders.isError ? [] : orders.data;
-  const customerPhone = user?.phone ?? getPreferredCustomerPhone(customerOrders);
-  const customerDefaults = useMemo<CheckoutCustomerDefaults>(
-    () => ({
-      ...(user?.email ? { email: user.email } : {}),
-      ...(user?.name ? { name: user.name } : {}),
-      ...(customerPhone ? { phone: customerPhone } : {}),
-    }),
-    [customerPhone, user?.email, user?.name],
-  );
-  const handleOrderCreated = (order: CheckoutOrder | undefined) => {
+  const customerDefaults: CheckoutCustomerDefaults = {
+    ...(user?.email ? { email: user.email } : {}),
+    ...(user?.name ? { name: user.name } : {}),
+    ...(user?.phone ? { phone: user.phone } : {}),
+  };
+  const handleOrderCreated = (response: CheckoutCreateOrderResponse | undefined) => {
     clearCode();
 
-    if (order?.payment.redirectUrl) {
-      window.location.assign(order.payment.redirectUrl);
-      return;
-    }
-
-    if (order?.id) {
-      router.push(`${routes.checkoutSuccess}?orderId=${encodeURIComponent(order.id)}`);
+    if (response?.redirectUrl) {
+      window.location.assign(response.redirectUrl);
     }
   };
   const { createOrder, isPending, error } = useCreateOrderMutation({
     onSuccess: handleOrderCreated,
   });
 
-  const handleSubmit = async (input: CheckoutCreateOrderInput) => {
-    if (!user) {
-      onAuthRequired({ email: input.customer.email, name: input.customer.name });
-      return;
-    }
-
-    onManualConfirmation();
-    createOrder(input);
+  const handleSubmit = async (variables: CheckoutProviderSubmitVariables) => {
+    await createOrder(variables);
   };
 
   return (
@@ -245,12 +165,12 @@ function CheckoutScenario({
           <p className="text-sm font-medium tracking-wide text-rose-500 uppercase">Оформление</p>
           <PageTitle className="text-foreground">Оформление заказа</PageTitle>
           <p className="max-w-2xl text-muted-foreground">
-            Проверьте товары, оставьте контакты и войдите в аккаунт, если еще не авторизованы. После
-            этого мы отправим вас на страницу оплаты.
+            Проверьте товары и оставьте контакты. После создания заказа мы отправим вас на страницу
+            оплаты.
           </p>
         </div>
 
-        <Button asChild variant="outline">
+        <Button asChild variant="outline" className="min-h-11">
           <Link href={routes.cart}>
             <ArrowLeft data-icon="inline-start" />
             Вернуться в корзину
@@ -265,7 +185,6 @@ function CheckoutScenario({
         isEmailLocked={Boolean(user?.email)}
         isSubmitting={isPending}
         onSubmit={handleSubmit}
-        requiresAuth={!user}
       />
     </section>
   );

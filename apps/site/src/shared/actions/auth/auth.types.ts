@@ -54,9 +54,22 @@ export type ResendEmailVerificationInputDTO = {
   email: string;
 };
 
-export type RequestPasswordResetInputDTO = {
+export type RequestAccountRecoveryInputDTO = {
   acceptedPersonalDataConsent: boolean;
   email: string;
+};
+
+export type ValidateOrderActivationInputDTO = {
+  token: string;
+};
+
+export type OrderActivationValidityDTO = {
+  valid: boolean;
+};
+
+export type ConfirmOrderActivationInputDTO = {
+  token: string;
+  password: string;
 };
 
 export type ConfirmPasswordResetInputDTO = {

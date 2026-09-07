@@ -8,11 +8,14 @@ import {
   type AnalyticsProduct,
 } from "@/shared/lib/analytics";
 
-type OrderSummaryAnalyticsPayload = {
+export type OrderCreatedAnalyticsSummary = {
+  currency: "RUB";
   itemsCount: number;
   orderId: string;
   revenue: number;
 };
+
+type OrderSummaryAnalyticsPayload = Omit<OrderCreatedAnalyticsSummary, "currency">;
 
 type OrderPaidAnalyticsPayload = OrderSummaryAnalyticsPayload & {
   products: readonly AnalyticsProduct[];
@@ -42,17 +45,6 @@ const analytics = createAnalytics({
       },
       { scope: "session", entityKey: payload.orderId },
     ),
-  orderPaid: (payload: OrderSummaryAnalyticsPayload) =>
-    createGoalCommand(
-      "order_paid",
-      {
-        order_id: payload.orderId,
-        items_count: payload.itemsCount,
-        order_price: payload.revenue,
-        currency: "RUB",
-      },
-      { scope: "local", entityKey: payload.orderId },
-    ),
   orderPurchased: (payload: OrderPaidAnalyticsPayload) =>
     createEcommerceCommand(
       "purchase",
@@ -77,12 +69,21 @@ const checkoutAnalytics = {
     analytics.send("checkoutStarted", cart, attemptKey);
   },
 
-  orderCreated(order: Order | undefined) {
-    const payload = order ? getOrderSummaryAnalyticsPayload(order) : null;
+  orderCreated(summary: OrderCreatedAnalyticsSummary) {
+    const orderId = summary.orderId.trim();
 
-    if (payload) {
-      analytics.send("orderCreated", payload);
+    if (
+      !orderId ||
+      summary.currency !== "RUB" ||
+      !Number.isInteger(summary.itemsCount) ||
+      summary.itemsCount <= 0 ||
+      !Number.isFinite(summary.revenue) ||
+      summary.revenue < 0
+    ) {
+      return;
     }
+
+    analytics.send("orderCreated", { ...summary, orderId });
   },
 
   orderPaid(order: Order | undefined) {
@@ -95,8 +96,6 @@ const checkoutAnalytics = {
     if (!summary) {
       return;
     }
-
-    analytics.send("orderPaid", summary);
 
     const purchase = getOrderPaidAnalyticsPayload(order);
 

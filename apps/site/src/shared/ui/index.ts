@@ -82,6 +82,7 @@ export { MediaExpandButton } from "./media-expand-button";
 export { Popover, PopoverAnchor, PopoverContent, PopoverTrigger } from "./popover";
 export { PersonalDataConsentCheckbox } from "./personal-data-consent-checkbox";
 export { Progress } from "./progress";
+export { RadioGroup, RadioGroupItem } from "./radio-group";
 export { ResponsiveMediaViewer } from "./responsive-media-viewer";
 export { Separator } from "./separator";
 export {

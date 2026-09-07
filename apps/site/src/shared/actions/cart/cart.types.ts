@@ -21,6 +21,9 @@ export type CartDTO = {
   total: number;
   currency: "RUB";
   isOzonDeliveryAvailable: boolean;
+  minimumDeliveryPrices: {
+    ozon: number;
+  };
 };
 
 export type AddCartItemInputDTO = {

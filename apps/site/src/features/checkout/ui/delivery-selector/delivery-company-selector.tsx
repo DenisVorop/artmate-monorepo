@@ -1,9 +1,7 @@
 "use client";
 
-import { CheckCircle2 } from "lucide-react";
-
 import { cn } from "@/shared/lib";
-import { Label } from "@/shared/ui";
+import { Label, RadioGroup, RadioGroupItem } from "@/shared/ui";
 
 import { deliveryCompanies, type DeliveryCompanyCode } from "./delivery-options";
 
@@ -21,10 +19,11 @@ export function DeliveryCompanySelector({
   return (
     <div className="space-y-2">
       <Label id="delivery-company-label">Служба доставки</Label>
-      <div
-        role="group"
+      <RadioGroup
         aria-labelledby="delivery-company-label"
-        className="grid gap-2 sm:grid-cols-2"
+        value={selectedCompany}
+        onValueChange={(value) => onSelect(value as DeliveryCompanyCode)}
+        className="gap-0 divide-y border-y"
       >
         {deliveryCompanies.map((company) => {
           const isAvailable = company.code === "cdek" || isOzonDeliveryAvailable;
@@ -32,29 +31,22 @@ export function DeliveryCompanySelector({
           const Icon = company.icon;
 
           return (
-            <button
+            <Label
               key={company.code}
-              type="button"
-              disabled={!isAvailable}
-              aria-pressed={isSelected}
+              htmlFor={`delivery-company-${company.code}`}
               className={cn(
-                "flex min-h-20 items-start gap-3 rounded-lg border bg-background p-3 text-left transition-colors outline-none",
-                isAvailable &&
-                  "hover:border-rose-200 hover:bg-rose-50/40 focus-visible:ring-2 focus-visible:ring-ring focus-visible:ring-offset-2",
+                "flex min-h-16 cursor-pointer items-center gap-3 py-3 font-normal",
+                isAvailable && "hover:bg-muted/30",
                 !isAvailable && "cursor-not-allowed opacity-70",
-                isSelected && "border-rose-500 bg-rose-50 text-rose-950 shadow-sm",
+                isSelected && "text-foreground",
               )}
-              onClick={() => onSelect(company.code)}
             >
-              <span
-                aria-hidden="true"
-                className={cn(
-                  "flex size-10 shrink-0 items-center justify-center rounded-lg ring-1",
-                  company.accentClassName,
-                )}
-              >
-                <Icon className="size-5" />
-              </span>
+              <RadioGroupItem
+                id={`delivery-company-${company.code}`}
+                value={company.code}
+                disabled={!isAvailable}
+              />
+              <Icon aria-hidden="true" className="size-5 shrink-0 text-muted-foreground" />
               <span className="min-w-0 flex-1">
                 <span className="block font-medium">{company.label}</span>
                 <span className="mt-0.5 block text-xs leading-snug text-muted-foreground">
@@ -65,13 +57,10 @@ export function DeliveryCompanySelector({
                   )}
                 </span>
               </span>
-              {isSelected ? (
-                <CheckCircle2 aria-hidden="true" className="mt-0.5 size-4 shrink-0 text-rose-500" />
-              ) : null}
-            </button>
+            </Label>
           );
         })}
-      </div>
+      </RadioGroup>
     </div>
   );
 }

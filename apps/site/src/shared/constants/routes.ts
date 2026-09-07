@@ -19,7 +19,9 @@ export function parseColoringNumber(value: string) {
 export const routes = {
   home: "/",
   auth: "/auth",
+  authOrderActivation: "/auth/activate-order",
   authOAuth: (provider: string) => `/auth/oauth/${provider}`,
+  authRecovery: "/auth/recovery",
   authResetPassword: "/auth/reset-password",
   account: "/account",
   workshop: "/account/workshop",

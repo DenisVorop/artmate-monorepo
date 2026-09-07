@@ -15,7 +15,6 @@ type WithCheckoutProps = {
   isEmailLocked?: boolean;
   isSubmitting: boolean;
   onSubmit: CheckoutProviderSubmit;
-  requiresAuth: boolean;
 };
 
 export function withCheckout<P extends object>(Component: ComponentType<P>) {
@@ -24,7 +23,6 @@ export function withCheckout<P extends object>(Component: ComponentType<P>) {
     isEmailLocked,
     isSubmitting,
     onSubmit,
-    requiresAuth,
     ...props
   }: P & WithCheckoutProps) {
     return (
@@ -34,7 +32,6 @@ export function withCheckout<P extends object>(Component: ComponentType<P>) {
         isEmailLocked={isEmailLocked}
         isSubmitting={isSubmitting}
         onSubmit={onSubmit}
-        requiresAuth={requiresAuth}
       >
         <Component {...(props as P)} />
       </CheckoutProvider>

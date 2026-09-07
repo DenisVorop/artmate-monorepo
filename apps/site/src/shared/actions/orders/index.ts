@@ -1,18 +1,18 @@
 export {
   calculateCheckout,
-  confirmOrderPayment,
   createOrder,
   getMyOrders,
   getOrder,
   getOrderStatus,
-  getOzonPickupPoints,
+  recoverOrderPayment,
 } from "./orders.actions";
 export type {
   CalculateCheckoutInputDTO,
   CheckoutCalculationDTO,
-  ConfirmOrderPaymentInputDTO,
   CreateOrderDeliveryInputDTO,
+  CreateOrderCustomerInputDTO,
   CreateOrderInputDTO,
+  CreateOrderResponseDTO,
   DeliveryDateRangeDTO,
   OrderCustomerDTO,
   OrderDeliveryDTO,
@@ -24,6 +24,6 @@ export type {
   OrderShipmentDTO,
   OrderStateDTO,
   OrderStatusDTO,
-  OzonPickupPointDTO,
+  PaymentRecoveryResponseDTO,
   PickupPointDTO,
 } from "./order.types";

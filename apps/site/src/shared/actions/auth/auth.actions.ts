@@ -7,19 +7,22 @@ import { apiCsrfHeader, getForwardedIpHeaders } from "@/shared/lib/api-security"
 
 import type {
   AuthEmailVerificationResponseDTO,
+  OrderActivationValidityDTO,
   AuthProvidersDTO,
   AuthSessionDTO,
   AuthTelegramLinkResponseDTO,
   AuthTelegramLinkStatusDTO,
   ConfirmEmailVerificationInputDTO,
+  ConfirmOrderActivationInputDTO,
   ConfirmPasswordResetInputDTO,
   ConfirmTelegramLinkInputDTO,
   LoginInputDTO,
   LogoutDTO,
   PasswordResetDTO,
   RegisterInputDTO,
-  RequestPasswordResetInputDTO,
+  RequestAccountRecoveryInputDTO,
   ResendEmailVerificationInputDTO,
+  ValidateOrderActivationInputDTO,
 } from "./auth.types";
 
 const AUTH_ACCESS_TOKEN_COOKIE_NAME = "artmate_access_token";
@@ -29,6 +32,7 @@ const DEFAULT_API_BASE_URL = "http://localhost:3002";
 type CookieStore = Awaited<ReturnType<typeof cookies>>;
 
 type RequestAuthOptions = {
+  sanitizeHttpError?: boolean;
   syncAccessTokenCookie?: boolean;
 };
 
@@ -106,17 +110,51 @@ export async function resendEmailVerification(
   return result.toDTO() as ApiResultDTO<AuthEmailVerificationResponseDTO>;
 }
 
-export async function requestPasswordReset(
-  input: RequestPasswordResetInputDTO,
+export async function requestAccountRecovery(
+  input: RequestAccountRecoveryInputDTO,
 ): Promise<ApiResultDTO<PasswordResetDTO>> {
   const result = await ApiResult.prepareApi(async () =>
-    requestAuth<PasswordResetDTO>("/auth/password-reset/request", {
+    requestAuth<PasswordResetDTO>("/auth/recovery/request", {
       method: "POST",
       body: JSON.stringify(input),
     }),
   )();
 
   return result.toDTO() as ApiResultDTO<PasswordResetDTO>;
+}
+
+export async function validateOrderActivation(
+  input: ValidateOrderActivationInputDTO,
+): Promise<ApiResultDTO<OrderActivationValidityDTO>> {
+  const result = await ApiResult.prepareApi(async () =>
+    requestAuth<OrderActivationValidityDTO>(
+      "/auth/order-activation/validate",
+      {
+        method: "POST",
+        body: JSON.stringify(input),
+      },
+      { sanitizeHttpError: true },
+    ),
+  )();
+
+  return result.toDTO() as ApiResultDTO<OrderActivationValidityDTO>;
+}
+
+export async function confirmOrderActivation(
+  input: ConfirmOrderActivationInputDTO,
+): Promise<ApiResultDTO<AuthSessionDTO>> {
+  const result = await ApiResult.prepareApi(async () =>
+    requestAuth<AuthSessionDTO>(
+      "/auth/order-activation/confirm",
+      {
+        method: "POST",
+        body: JSON.stringify(input),
+      },
+      { sanitizeHttpError: true, syncAccessTokenCookie: true },
+    ),
+  )();
+
+  return result.toDTO() as ApiResultDTO<AuthSessionDTO>;
 }
 
 export async function confirmPasswordReset(
@@ -203,6 +241,10 @@ async function requestAuth<T>(
   });
 
   if (!response.ok) {
+    if (options.sanitizeHttpError) {
+      throw new AuthTransportError(response.status);
+    }
+
     throw new Error(await getErrorMessage(response));
   }
 
@@ -211,6 +253,16 @@ async function requestAuth<T>(
   }
 
   return (await response.json()) as T;
+}
+
+class AuthTransportError extends Error {
+  readonly status: number;
+
+  constructor(status: number) {
+    super(`Auth API request failed with status ${status}`);
+    this.name = "AuthTransportError";
+    this.status = status;
+  }
 }
 
 function syncAccessTokenCookie(cookieStore: CookieStore, response: Response) {

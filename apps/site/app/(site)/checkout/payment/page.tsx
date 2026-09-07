@@ -1,6 +1,7 @@
 import { redirect } from "next/navigation";
 
-import { getSafeAuthRedirectPath } from "@/features/auth";
+import { CheckoutFailurePage } from "@/pages/checkout-failure";
+import { getAuthSession } from "@/shared/actions/auth";
 import { getOrder } from "@/shared/actions/orders";
 import { routes } from "@/shared/constants";
 import { ApiResult } from "@/shared/lib/api-result";
@@ -20,19 +21,25 @@ type CheckoutPaymentRouteProps = {
 };
 
 export default async function Page({ searchParams }: CheckoutPaymentRouteProps) {
-  const { orderId } = await searchParams;
+  const [{ orderId }, sessionResult] = await Promise.all([
+    searchParams,
+    getAuthSession(),
+  ]);
   const normalizedOrderId = Array.isArray(orderId) ? orderId[0] : orderId;
+  const session = ApiResult.fromDTO(sessionResult).data;
 
   if (!normalizedOrderId) {
     redirect(routes.checkout);
   }
 
-  const redirectPath = createOrderRoute(routes.checkoutPayment, normalizedOrderId);
-  const orderResult = ApiResult.fromDTO(await getOrder(normalizedOrderId));
-  const order = orderResult.isError ? undefined : orderResult.data;
+  let order;
+  if (session?.user && normalizedOrderId) {
+    const orderResult = ApiResult.fromDTO(await getOrder(normalizedOrderId));
+    order = orderResult.isError ? undefined : orderResult.data;
+  }
 
   if (!order) {
-    redirect(`${routes.auth}?next=${encodeURIComponent(getSafeAuthRedirectPath(redirectPath))}`);
+    return <CheckoutFailurePage hasOwnerOrder={false} orderId={normalizedOrderId} />;
   }
 
   if (order.payment.status === "paid") {

@@ -43,8 +43,10 @@ analytics.orderCreated(order);
 - `begin_checkout` — только после свежего успешного чтения непустой корзины; stale cache
   во время refetch, loading/error и empty cart не являются входом в checkout;
 - `order_created` — первым действием после ответа create-order и до cache cleanup/payment redirect;
-- `order_paid` и ecommerce `purchase` — только по свежему полному `OrderDTO` с
-  `order.payment.status === "paid"`; paid из status polling сначала только инвалидирует
+- canonical `order_paid` — только server/offline transactional outbox после verified paid
+  webhook провайдера; browser никогда не отправляет goal `order_paid`;
+- browser сохраняет только ecommerce `purchase` по свежему полному защищённому `OrderDTO`
+  с `order.payment.status === "paid"`; paid из status polling сначала только инвалидирует
   detail query и не является достаточным purchase snapshot;
 - промокод — только после свежего успешного server preview, инициированного ручным
   apply или retry; cached/in-flight preview до клика не подтверждает конверсию, поэтому
@@ -78,9 +80,11 @@ analytics.orderCreated(order);
   - `sign_up`;
   - `digital_versions_opened`;
   - `digital_coloring_open`;
-  - `order_created`;
-  - `order_paid`.
-- CRM-цели заказа остаются серверным/offline источником истины. Не вызывайте их числовые ID из браузера.
+  - `order_created`.
+- `order_paid` не входит в browser goal registry: canonical событие создаётся API в той же
+  транзакции, что и verified paid transition, и доставляется offline outbox worker.
+- CRM-цели заказа остаются серверным/offline источником истины. Не вызывайте их event ID
+  или числовые goal ID из браузера.
 
 ## Ecommerce
 
@@ -124,10 +128,12 @@ URL и referrer перед отправкой проходят через `sanit
 - открытия цифрового каталога, тематики и картины — memory key конкретного mount/view;
   Strict Mode и повтор effect не дублируют показ, новый реальный вход создаёт новый key;
 - `order_created` — session key по уникальному `orderId`, но не по `cartId`;
-- `order_paid` и `purchase` — persistent key по `orderId`;
+- browser `purchase` — persistent key по `orderId`; server `order_paid` дедуплицируется
+  уникальностью outbox `(eventType, aggregateId)` и безопасным lease/retry;
 - polling и React Strict Mode не должны создавать дубли;
 - одинаковые реальные повторные `add`/`remove` не дедуплицируются глобально;
-- goal и ecommerce action имеют разные namespaces, чтобы парные `order_paid` и `purchase` не блокировали друг друга.
+- browser goal и ecommerce action используют разные namespaces; server `order_paid` не
+  участвует в browser dedupe.
 - `entityKey` содержит только публичный/технический ID товара, корзины, заказа или показа; email, телефон, имя, токен и другие персональные данные запрещены даже для ключей в browser storage.
 - Значение промокода и account/user ID не входят ни в promo payload, ни в promo dedupe key.
 
@@ -163,7 +169,7 @@ Builder находится рядом с feature и отвечает за мин
 - фильтрацию PII и невалидных чисел;
 - выбранную дедупликацию;
 - success и error paths изменённой feature;
-- `pending`/`failed` не создают paid/purchase;
+- `pending`/`failed` не создают server `order_paid` или browser `purchase`;
 - `yarn workspace site test` либо релевантный targeted test;
 - `yarn workspace site check-types`;
 - `yarn workspace site lint`;

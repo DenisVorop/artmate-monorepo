@@ -91,7 +91,7 @@ function withoutErrorStack<T>(dto: ApiResultDTO<T>): ApiResultDTO<T> {
   }
 
   const error = { ...dto.error };
-  delete error.stack;
+  delete (error as { stack?: unknown }).stack;
 
   return { ...dto, error };
 }

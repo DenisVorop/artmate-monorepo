@@ -53,6 +53,203 @@ function withBrowserGlobals({ analyticsWindow, document }, callback) {
   }
 }
 
+function createStorage(initialValues = {}) {
+  const values = new Map(Object.entries(initialValues));
+
+  return {
+    values,
+    getItem(key) {
+      return values.get(key) ?? null;
+    },
+    setItem(key, value) {
+      values.set(key, value);
+    },
+    removeItem(key) {
+      values.delete(key);
+    },
+  };
+}
+
+test("Yandex attribution uses getClientID and persists a valid yclid", async () => {
+  const attribution = evaluateTypeScript(
+    await readSource("src/shared/lib/analytics/yandex-attribution.ts"),
+  );
+  const initializer = evaluateTypeScript(
+    await readSource("src/shared/lib/analytics/yandex-attribution-initializer.tsx"),
+    {
+      "./yandex-attribution": attribution,
+      react: { useEffect: (effect) => effect() },
+    },
+  );
+  const localStorage = createStorage();
+  const ymCalls = [];
+  const analyticsWindow = {
+    localStorage,
+    location: { href: "https://artmate.ru/catalog?yclid=1234567890" },
+    ym: (...args) => {
+      ymCalls.push(args);
+      args[2]?.("9876543210");
+    },
+  };
+
+  withBrowserGlobals({ analyticsWindow, document: {} }, () => {
+    initializer.YandexAttributionInitializer({ counterId: 109148727 });
+    assert.deepEqual(attribution.readYandexAttribution(), {
+      clientId: "9876543210",
+      yclid: "1234567890",
+    });
+  });
+
+  assert.equal(ymCalls.length, 1);
+  assert.equal(ymCalls[0][0], 109148727);
+  assert.equal(ymCalls[0][1], "getClientID");
+  assert.equal(typeof ymCalls[0][2], "function");
+});
+
+test("Yandex attribution replaces stored yclid only with a valid bounded query value", async () => {
+  const attribution = evaluateTypeScript(
+    await readSource("src/shared/lib/analytics/yandex-attribution.ts"),
+  );
+  const initializer = evaluateTypeScript(
+    await readSource("src/shared/lib/analytics/yandex-attribution-initializer.tsx"),
+    {
+      "./yandex-attribution": attribution,
+      react: { useEffect: (effect) => effect() },
+    },
+  );
+  const localStorage = createStorage({ "artmate:yandex:yclid": "111" });
+  const analyticsWindow = {
+    localStorage,
+    location: { href: "https://artmate.ru/?yclid=222" },
+    ym: () => undefined,
+  };
+
+  withBrowserGlobals({ analyticsWindow, document: {} }, () => {
+    initializer.YandexAttributionInitializer({ counterId: 109148727 });
+    assert.equal(attribution.readYandexAttribution().yclid, "222");
+
+    analyticsWindow.location.href = `https://artmate.ru/?yclid=${"9".repeat(129)}`;
+    initializer.YandexAttributionInitializer({ counterId: 109148727 });
+    assert.equal(attribution.readYandexAttribution().yclid, "222");
+
+    analyticsWindow.location.href = "https://artmate.ru/?yclid=not-a-yandex-id";
+    initializer.YandexAttributionInitializer({ counterId: 109148727 });
+    assert.equal(attribution.readYandexAttribution().yclid, "222");
+  });
+});
+
+test("Yandex attribution stores timestamped records and enforces the exact 21 day TTL", async () => {
+  const attribution = evaluateTypeScript(
+    await readSource("src/shared/lib/analytics/yandex-attribution.ts"),
+  );
+  const ttl = 21 * 24 * 60 * 60 * 1000;
+  const now = Date.now();
+  const originalDateNow = Date.now;
+  const localStorage = createStorage({
+    "artmate:yandex:client-id": JSON.stringify({ value: "1", capturedAt: now - ttl }),
+    "artmate:yandex:yclid": JSON.stringify({ value: "2", capturedAt: now - ttl - 1 }),
+  });
+
+  Date.now = () => now;
+  try {
+    withBrowserGlobals(
+      { analyticsWindow: { localStorage, location: { href: "https://artmate.ru" } }, document: {} },
+      () => {
+        assert.deepEqual(attribution.readYandexAttribution(), { clientId: "1" });
+      },
+    );
+  } finally {
+    Date.now = originalDateNow;
+  }
+  assert.equal(localStorage.values.has("artmate:yandex:yclid"), false);
+});
+
+test("Yandex attribution removes malformed, future, legacy, and invalid records", async () => {
+  const attribution = evaluateTypeScript(
+    await readSource("src/shared/lib/analytics/yandex-attribution.ts"),
+  );
+  const now = Date.now();
+  const originalDateNow = Date.now;
+  const invalidRecords = [
+    "123",
+    "{bad-json",
+    JSON.stringify({ value: "123", capturedAt: now + 1 }),
+    JSON.stringify({ value: "123.456", capturedAt: now }),
+    JSON.stringify({ value: "１２３", capturedAt: now }),
+  ];
+
+  Date.now = () => now;
+  try {
+    for (const value of invalidRecords) {
+      const localStorage = createStorage({ "artmate:yandex:client-id": value });
+      withBrowserGlobals(
+        { analyticsWindow: { localStorage, location: { href: "https://artmate.ru" } }, document: {} },
+        () => assert.deepEqual(attribution.readYandexAttribution(), {}),
+      );
+      assert.equal(localStorage.values.has("artmate:yandex:client-id"), false);
+    }
+  } finally {
+    Date.now = originalDateNow;
+  }
+});
+
+test("Yandex attribution is empty during SSR and when browser storage is blocked", async () => {
+  const attribution = evaluateTypeScript(
+    await readSource("src/shared/lib/analytics/yandex-attribution.ts"),
+  );
+  const previousWindow = globalThis.window;
+  delete globalThis.window;
+
+  try {
+    assert.deepEqual(attribution.readYandexAttribution(), {});
+  } finally {
+    if (previousWindow !== undefined) globalThis.window = previousWindow;
+  }
+
+  const blockedStorage = {
+    getItem() {
+      throw new Error("blocked");
+    },
+    setItem() {
+      throw new Error("blocked");
+    },
+  };
+
+  withBrowserGlobals(
+    {
+      analyticsWindow: {
+        localStorage: blockedStorage,
+        location: { href: "https://artmate.ru/?yclid=123" },
+        ym: (_counterId, command, callback) => {
+          assert.equal(command, "getClientID");
+          callback("456");
+        },
+      },
+      document: {},
+    },
+    () => {
+      attribution.captureYandexAttribution(109148727);
+      assert.deepEqual(attribution.readYandexAttribution(), {});
+    },
+  );
+
+  withBrowserGlobals(
+    {
+      analyticsWindow: {
+        localStorage: {
+          getItem: () => "{bad-json",
+          removeItem: () => {
+            throw new Error("blocked");
+          },
+        },
+        location: { href: "https://artmate.ru" },
+      },
+      document: {},
+    },
+    () => assert.deepEqual(attribution.readYandexAttribution(), {}),
+  );
+});
+
 test("Yandex Metrika initializes once with sanitized URL and referrer", async () => {
   const sanitizer = await loadSanitizer();
   const initializer = evaluateTypeScript(

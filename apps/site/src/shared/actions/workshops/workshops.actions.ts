@@ -194,7 +194,7 @@ async function requestResult<T>(request: () => Promise<T>): Promise<ApiResultDTO
   }
 
   const error = { ...dto.error };
-  delete error.stack;
+  delete (error as { stack?: unknown }).stack;
 
   return { ...dto, error };
 }

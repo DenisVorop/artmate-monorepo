@@ -277,7 +277,7 @@ test("promo normalization uppercases ASCII only and rejects Unicode folds", asyn
   assert.equal(parsePromoCode("ßA"), undefined);
 });
 
-test("cart and checkout use the provider HOC and manual post-login confirmation", async () => {
+test("cart and checkout use the provider HOC while guest checkout remains immediate", async () => {
   const [cart, checkout, checkoutForm, paymentField] = await Promise.all([
     readSource("src/features/cart/ui/cart.tsx"),
     readSource("src/features/checkout/ui/checkout.tsx"),
@@ -289,24 +289,11 @@ test("cart and checkout use the provider HOC and manual post-login confirmation"
   assert.match(checkout, /withPromocode\(BasePromocodeCheckout\)/u);
   assert.doesNotMatch(`${cart}\n${checkout}`, /<PromocodeProvider/u);
   assert.doesNotMatch(checkout, /pendingOrderInput/u);
-  assert.doesNotMatch(checkout, /onAuthenticated=\{[^}]*createOrder/u);
-  assert.match(checkout, /явно подтвердить оформление еще раз/u);
+  assert.match(checkout, /const handleSubmit[\s\S]*await createOrder\(variables\)/u);
+  assert.doesNotMatch(checkout, /onAuthRequired|if\s*\(!user\)/u);
   assert.match(checkoutForm, /method: values\.paymentMethod/u);
   assert.match(paymentField, /ozon_acquiring/u);
   assert.match(paymentField, /tbank_acquiring/u);
-});
-
-test("authentication success transitions to recalculation and waits for a manual submit", async () => {
-  const { transitionCheckoutAuthConfirmation } = await loadTypeScriptModule(
-    "src/features/checkout/lib/auth-confirmation-state.ts",
-  );
-
-  const authRequired = transitionCheckoutAuthConfirmation("ready", "request-auth");
-  const afterLogin = transitionCheckoutAuthConfirmation(authRequired, "auth-succeeded");
-
-  assert.equal(authRequired, "auth-required");
-  assert.equal(afterLogin, "manual-confirmation-required");
-  assert.equal(transitionCheckoutAuthConfirmation(afterLogin, "manual-confirmation"), "ready");
 });
 
 test("all cart and authentication transitions invalidate pricing", async () => {

@@ -55,9 +55,13 @@ export function PromoCodeForm() {
             id="promo-code"
             autoComplete="off"
             spellCheck={false}
-            aria-describedby="promo-code-status"
+            aria-invalid={Boolean(errors.code)}
+            aria-describedby={
+              errors.code ? "promo-code-error promo-code-status" : "promo-code-status"
+            }
             placeholder="Введите код"
             disabled={isHydrating}
+            className="min-h-11"
             {...codeField}
             onChange={(event) => {
               codeField.onChange(event);
@@ -71,6 +75,7 @@ export function PromoCodeForm() {
             type="submit"
             variant="outline"
             disabled={isHydrating || (isPending && !isPaused)}
+            className="min-h-11"
           >
             {isPending && !isPaused ? (
               <LoaderCircle data-icon="inline-start" className="animate-spin" />
@@ -81,7 +86,7 @@ export function PromoCodeForm() {
           </Button>
         </div>
         {errors.code?.message ? (
-          <p className="text-sm text-destructive" role="alert">
+          <p id="promo-code-error" className="text-sm text-destructive" role="alert">
             {errors.code.message}
           </p>
         ) : null}
@@ -108,7 +113,13 @@ export function PromoCodeForm() {
           <div className="space-y-2" role="alert">
             <p className="text-destructive">{error?.message || "Не удалось проверить промокод."}</p>
             {isGuest && onLoginRequested ? (
-              <Button type="button" size="sm" variant="outline" onClick={onLoginRequested}>
+              <Button
+                type="button"
+                size="sm"
+                variant="outline"
+                className="min-h-11"
+                onClick={onLoginRequested}
+              >
                 <LogIn data-icon="inline-start" />
                 Войти и проверить
               </Button>

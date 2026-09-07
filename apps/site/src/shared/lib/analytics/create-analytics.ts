@@ -67,13 +67,14 @@ const goalParamKeys = {
   digital_versions_opened: ["collection_slug"],
   digital_coloring_open: ["collection_slug", "coloring_number"],
   order_created: ["order_id", "items_count", "order_price", "currency"],
-  order_paid: ["order_id", "items_count", "order_price", "currency"],
 } satisfies {
   [EventId in YandexGoalEventId]: readonly (keyof YandexGoalParams[EventId])[];
 };
 const diagnosticParamKeys = {
   welcome_promo_dismiss: ["reason"],
   digital_open_from_product: ["product_id", "collection_slug"],
+  account_recovery_requested: [],
+  order_activation_completed: [],
 } satisfies {
   [EventName in DiagnosticEventName]: readonly (keyof DiagnosticEventParams[EventName])[];
 };
@@ -269,7 +270,6 @@ function normalizeGoalParams(command: GoalCommand): SafeParams | null {
         ? params
         : null;
     case "order_created":
-    case "order_paid":
       return isNonEmptyStringParam(params, "order_id") &&
         isPositiveIntegerParam(params, "items_count") &&
         isNonNegativeNumberParam(params, "order_price") &&
@@ -295,6 +295,9 @@ function normalizeDiagnosticParams(command: DiagnosticCommand): SafeParams | nul
         isNonEmptyStringParam(params, "collection_slug")
         ? params
         : null;
+    case "account_recovery_requested":
+    case "order_activation_completed":
+      return params;
   }
 }
 
