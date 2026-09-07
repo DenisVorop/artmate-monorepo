@@ -178,7 +178,7 @@ export class EmailVerificationService {
       );
     }
 
-    await this.prisma.$transaction([
+    const [, verifiedUser] = await this.prisma.$transaction([
       this.prisma.authEmailVerificationCode.update({
         where: { id: verificationCode.id },
         data: { consumedAt: new Date() },
@@ -186,10 +186,11 @@ export class EmailVerificationService {
       this.prisma.user.update({
         where: { id: user.id },
         data: { emailVerifiedAt: new Date() },
+        select: { authVersion: true, id: true },
       }),
     ]);
 
-    return user.id;
+    return verifiedUser;
   }
 
   private async assertCanSendCode(userId: string, ipAddress?: string) {

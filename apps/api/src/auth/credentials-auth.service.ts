@@ -5,6 +5,7 @@ import {
   UnauthorizedException,
 } from "@nestjs/common";
 import crypto from "node:crypto";
+import { isEmail } from "class-validator";
 
 import {
   AuthProvider as PrismaAuthProvider,
@@ -15,7 +16,7 @@ import {
 import { PrismaService } from "../prisma/prisma.service";
 import { UsersService } from "../users/users.service";
 
-import type { AuthUser } from "./auth.types";
+import type { AuthPrincipal } from "./auth.types";
 
 const SCRYPT_HASH_PREFIX = "scrypt";
 const SCRYPT_KEY_LENGTH = 64;
@@ -23,6 +24,12 @@ const SCRYPT_KEY_LENGTH = 64;
 type ScryptPasswordHash = {
   salt: string;
   hash: string;
+};
+
+type EnvCredentialConfig = {
+  binding: string;
+  passwordHash?: string;
+  plainPassword?: string;
 };
 
 type RegisterCredentialsUserInput = {
@@ -46,7 +53,7 @@ export class CredentialsAuthService {
     private readonly usersService: UsersService,
   ) {}
 
-  async registerUser(input: RegisterCredentialsUserInput): Promise<AuthUser> {
+  async registerUser(input: RegisterCredentialsUserInput): Promise<AuthPrincipal> {
     const email = this.normalizeEmail(input.email);
     const existingUser = await this.prisma.user.findUnique({
       where: { email },
@@ -89,7 +96,7 @@ export class CredentialsAuthService {
     }
   }
 
-  async validateUser(email: string, password: string): Promise<AuthUser> {
+  async validateUser(email: string, password: string): Promise<AuthPrincipal> {
     const normalizedEmail = this.normalizeEmail(email);
     const account = await this.prisma.authAccount.findFirst({
       where: {
@@ -128,7 +135,7 @@ export class CredentialsAuthService {
     return this.validateEnvUser(normalizedEmail, password);
   }
 
-  async getCredentialsUserById(userId: string): Promise<AuthUser> {
+  async getCredentialsUserById(userId: string): Promise<AuthPrincipal> {
     const account = await this.prisma.authAccount.findFirst({
       where: {
         userId,
@@ -144,22 +151,8 @@ export class CredentialsAuthService {
     return this.mapStoredAccount(account);
   }
 
-  async getEnvCredentialsUserByEmail(
-    email: string,
-  ): Promise<AuthUser | undefined> {
-    const envEmail = this.getOptionalEnv("AUTH_PASSWORD_EMAIL");
-
-    if (!envEmail) {
-      return undefined;
-    }
-
-    const expectedEmail = this.normalizeEmail(envEmail);
-
-    if (this.normalizeEmail(email) !== expectedEmail) {
-      return undefined;
-    }
-
-    return this.upsertEnvCredentialsUser(expectedEmail);
+  getEnvCredentialBinding(email: string) {
+    return this.getEnvCredentialConfig(email)?.binding;
   }
 
   async createPasswordHash(password: string) {
@@ -172,29 +165,28 @@ export class CredentialsAuthService {
   private async validateEnvUser(
     email: string,
     password: string,
-  ): Promise<AuthUser> {
-    const envEmail = this.getOptionalEnv("AUTH_PASSWORD_EMAIL");
+  ): Promise<AuthPrincipal> {
+    const config = this.getEnvCredentialConfig(email);
 
-    if (!envEmail) {
+    if (!config) {
       throw new UnauthorizedException("Invalid email or password");
     }
 
-    const expectedEmail = this.normalizeEmail(envEmail);
-
-    if (email !== expectedEmail) {
-      throw new UnauthorizedException("Invalid email or password");
-    }
-
-    const isPasswordValid = await this.verifyEnvPassword(password);
+    const isPasswordValid = config.passwordHash
+      ? await this.verifyScryptPassword(password, config.passwordHash)
+      : this.safeCompare(password, config.plainPassword ?? "");
 
     if (!isPasswordValid) {
       throw new UnauthorizedException("Invalid email or password");
     }
 
-    return this.upsertEnvCredentialsUser(expectedEmail);
+    return {
+      ...(await this.upsertEnvCredentialsUser(email)),
+      envCredentialBinding: config.binding,
+    };
   }
 
-  private async upsertEnvCredentialsUser(email: string): Promise<AuthUser> {
+  private async upsertEnvCredentialsUser(email: string): Promise<AuthPrincipal> {
     const account = await this.prisma.$transaction(async (tx) => {
       const existingAccount = await tx.authAccount.findUnique({
         where: {
@@ -276,11 +268,35 @@ export class CredentialsAuthService {
     return this.mapStoredAccount(account);
   }
 
-  private async verifyEnvPassword(password: string) {
+  private getEnvCredentialConfig(email: string): EnvCredentialConfig | undefined {
+    const envEmail = this.getOptionalEnv("AUTH_PASSWORD_EMAIL");
+
+    if (!envEmail) {
+      return undefined;
+    }
+
+    const expectedEmail = this.normalizeEmail(envEmail);
+
+    if (!isEmail(expectedEmail)) {
+      throw new InternalServerErrorException("AUTH_PASSWORD_EMAIL is invalid");
+    }
+
+    if (this.normalizeEmail(email) !== expectedEmail) {
+      return undefined;
+    }
+
     const passwordHash = this.getOptionalEnv("AUTH_PASSWORD_HASH");
 
     if (passwordHash) {
-      return this.verifyScryptPassword(password, passwordHash);
+      this.parseScryptHash(passwordHash);
+      return {
+        binding: this.createEnvCredentialBinding(
+          "hash",
+          expectedEmail,
+          passwordHash,
+        ),
+        passwordHash,
+      };
     }
 
     if (process.env.NODE_ENV === "production") {
@@ -290,8 +306,25 @@ export class CredentialsAuthService {
     }
 
     const plainPassword = this.getRequiredEnv("AUTH_PASSWORD");
+    return {
+      binding: this.createEnvCredentialBinding(
+        "plain",
+        expectedEmail,
+        plainPassword,
+      ),
+      plainPassword,
+    };
+  }
 
-    return this.safeCompare(password, plainPassword);
+  private createEnvCredentialBinding(
+    source: "hash" | "plain",
+    email: string,
+    credential: string,
+  ) {
+    return crypto
+      .createHmac("sha256", this.getRequiredEnv("AUTH_JWT_SECRET"))
+      .update(JSON.stringify(["env-credentials-v1", source, email, credential]))
+      .digest("hex");
   }
 
   private async verifyScryptPassword(password: string, passwordHash: string) {
@@ -302,9 +335,15 @@ export class CredentialsAuthService {
   }
 
   private parseScryptHash(passwordHash: string): ScryptPasswordHash {
-    const [algorithm, salt, hash] = passwordHash.split(":");
+    const parts = passwordHash.split(":");
+    const [algorithm, salt, hash] = parts;
 
-    if (algorithm !== SCRYPT_HASH_PREFIX || !salt || !hash) {
+    if (
+      parts.length !== 3 ||
+      algorithm !== SCRYPT_HASH_PREFIX ||
+      !salt ||
+      !hash
+    ) {
       throw new InternalServerErrorException(
         "AUTH_PASSWORD_HASH must use format scrypt:<salt>:<hash>",
       );
@@ -337,7 +376,7 @@ export class CredentialsAuthService {
     return crypto.timingSafeEqual(actualBuffer, expectedBuffer);
   }
 
-  private mapStoredAccount(account: StoredCredentialsAccount): AuthUser {
+  private mapStoredAccount(account: StoredCredentialsAccount): AuthPrincipal {
     return {
       id: account.user.id,
       provider: "credentials",
@@ -347,6 +386,7 @@ export class CredentialsAuthService {
       phone: account.user.phone ?? undefined,
       image: account.user.image ?? undefined,
       roles: this.usersService.mapPrismaRoles(account.user.roles),
+      authVersion: account.user.authVersion,
     };
   }
 

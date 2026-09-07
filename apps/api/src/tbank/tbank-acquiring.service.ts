@@ -63,7 +63,7 @@ type TBankReceipt = {
   Payments: {
     Electronic: number;
   };
-  Phone: string;
+  Phone?: string;
   Taxation: TBankReceiptTaxation;
 };
 
@@ -122,6 +122,8 @@ const failedPaymentStatuses = new Set([
   "DEADLINE_EXPIRED",
   "REJECTED",
 ]);
+const checkoutPaymentErrorMessage =
+  "Не удалось начать оплату через T-Bank. Попробуйте еще раз.";
 
 @Injectable()
 export class TBankAcquiringService {
@@ -157,7 +159,7 @@ export class TBankAcquiringService {
         Payments: {
           Electronic: amount,
         },
-        Phone: input.customer.phone,
+        ...(input.customer.phone ? { Phone: input.customer.phone } : {}),
         Taxation: this.getTaxation(),
       },
       SuccessURL: input.successUrl,
@@ -171,9 +173,13 @@ export class TBankAcquiringService {
     const redirectUrl = this.getStringProperty(responseBody, "PaymentURL");
 
     if (!redirectUrl) {
-      throw new BadGatewayException({
-        message: "T-Bank Acquiring response does not contain PaymentURL",
-        responseShape: this.getSafeResponseShape(responseBody),
+      this.logger.warn(
+        `T-Bank Acquiring /v2/Init response does not contain PaymentURL: ${this.toLogString(
+          this.sanitizeForDiagnostics(responseBody),
+        )}`,
+      );
+      throw this.createPublicBadGatewayException(checkoutPaymentErrorMessage, {
+        body: this.sanitizeForDiagnostics(responseBody),
       });
     }
 
@@ -323,7 +329,9 @@ export class TBankAcquiringService {
   private createData(input: TBankAcquiringCreateCheckoutPaymentInput) {
     return {
       Email: this.truncate(input.customer.email, 100),
-      Phone: this.truncate(input.customer.phone, 100),
+      ...(input.customer.phone
+        ? { Phone: this.truncate(input.customer.phone, 100) }
+        : {}),
       order_id: this.truncate(input.orderId, 100),
     };
   }
@@ -362,36 +370,54 @@ export class TBankAcquiringService {
   }
 
   private async requestAcquiring(path: string, body: unknown) {
-    const response = await fetch(`${this.getBaseUrl()}${path}`, {
-      method: "POST",
-      headers: {
-        "content-type": "application/json",
-      },
-      body: JSON.stringify(body),
-    });
-    const responseBody = await this.parseResponseBody(response);
+    let response: Response;
+    let responseBody: unknown;
+
+    try {
+      response = await fetch(`${this.getBaseUrl()}${path}`, {
+        method: "POST",
+        headers: {
+          "content-type": "application/json",
+        },
+        body: JSON.stringify(body),
+      });
+      responseBody = await this.parseResponseBody(response);
+    } catch (error) {
+      const diagnostic =
+        error instanceof Error
+          ? { message: error.message, name: error.name }
+          : error;
+      this.logger.warn(
+        `T-Bank Acquiring ${path} transport failed: ${this.toLogString(diagnostic)}`,
+      );
+      throw this.createPublicBadGatewayException(
+        checkoutPaymentErrorMessage,
+        diagnostic,
+      );
+    }
 
     if (!response.ok || this.isRejectedResponse(responseBody)) {
       const diagnosticBody = this.sanitizeForDiagnostics(responseBody);
-      const detail = this.getAcquiringErrorDetail(diagnosticBody);
-      const message = detail
-        ? `T-Bank Acquiring request failed: ${detail}`
-        : "T-Bank Acquiring request failed";
-
       this.logger.warn(
         `T-Bank Acquiring ${path} failed with status ${
           response.status
         }: ${this.toLogString(diagnosticBody)}`,
       );
 
-      throw new BadGatewayException({
-        message,
-        tbankBody: diagnosticBody,
-        tbankStatus: response.status,
+      throw this.createPublicBadGatewayException(checkoutPaymentErrorMessage, {
+        body: diagnosticBody,
+        status: response.status,
       });
     }
 
     return responseBody;
+  }
+
+  private createPublicBadGatewayException(message: string, cause: unknown) {
+    return new BadGatewayException(
+      { error: "Bad Gateway", message, statusCode: 502 },
+      { cause },
+    );
   }
 
   private isRejectedResponse(value: unknown) {

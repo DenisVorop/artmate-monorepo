@@ -8,7 +8,16 @@ import {
 } from "@nestjs/common";
 import nodemailer, { type Transporter } from "nodemailer";
 
-type SendMailInput = {
+import {
+  renderBrandedEmail,
+  renderEmailButton,
+  renderEmailNotice,
+  renderEmailParagraph,
+  renderSupportEmailFooter,
+  renderSupportEmailFooterText,
+} from "./branded-email";
+
+export type SendMailInput = {
   readonly to: string;
   readonly subject: string;
   readonly text: string;
@@ -35,9 +44,7 @@ export class MailerService {
   async sendMail(input: SendMailInput) {
     if (this.shouldLogOnly()) {
       console.info("[mail:log-only]", {
-        to: input.to,
         subject: input.subject,
-        text: input.text,
       });
       return;
     }
@@ -72,6 +79,98 @@ export class MailerService {
         await this.delay(mailRetryDelayMs * attempt);
       }
     }
+  }
+
+  createOrderActivationEmail(email: string, activationUrl: string): SendMailInput {
+    return {
+      to: email,
+      subject: "Завершите регистрацию в Artmate",
+      text: [
+        "ARTMATE",
+        "",
+        "Оплата подтверждена. Завершите регистрацию, чтобы войти и посмотреть заказ",
+        "",
+        `Ссылка для завершения регистрации: ${activationUrl}`,
+        "",
+        "Ссылка одноразовая. Если срок действия истек, запросите восстановление доступа.",
+        "",
+        renderSupportEmailFooterText(),
+      ].join("\n"),
+      html: renderBrandedEmail({
+        title: "Ваш заказ оплачен",
+        previewText: "Завершите регистрацию в Artmate.",
+        contentHtml: `
+          ${renderEmailParagraph("Оплата подтверждена. Завершите регистрацию, чтобы войти и посмотреть заказ")}
+          ${renderEmailButton({ href: activationUrl, label: "Завершить регистрацию" })}
+          ${renderEmailNotice("Ссылка одноразовая. Если срок действия истек, запросите восстановление доступа.")}
+        `,
+        footerHtml: renderSupportEmailFooter(),
+      }),
+    };
+  }
+
+  createPasswordResetEmail(
+    email: string,
+    resetUrl: string,
+    ttlMinutes: number,
+  ): SendMailInput {
+    return {
+      to: email,
+      subject: "Восстановление пароля Artmate",
+      text: [
+        "ARTMATE",
+        "",
+        "Мы получили запрос на смену пароля.",
+        "",
+        `Ссылка для смены пароля: ${resetUrl}`,
+        "",
+        `Ссылка действует ${ttlMinutes} минут.`,
+        "Если вы не запрашивали смену пароля, просто игнорируйте письмо.",
+        "",
+        renderSupportEmailFooterText(),
+      ].join("\n"),
+      html: renderBrandedEmail({
+        title: "Смена пароля",
+        previewText: "Ссылка для восстановления пароля Artmate.",
+        contentHtml: `
+          ${renderEmailParagraph("Перейдите по ссылке, чтобы задать новый пароль для аккаунта Artmate.")}
+          ${renderEmailButton({ href: resetUrl, label: "Сменить пароль" })}
+          ${renderEmailNotice(
+            `Ссылка действует <strong style="color:#202530;">${ttlMinutes} минут</strong>. Если вы не запрашивали смену пароля, просто игнорируйте это письмо.`,
+          )}
+        `,
+        footerHtml: renderSupportEmailFooter(),
+      }),
+    };
+  }
+
+  createPaidOrderLoginEmail(email: string): SendMailInput {
+    const loginUrl = `${this.getSiteUrl()}/auth`;
+    const recoveryUrl = `${this.getSiteUrl()}/auth/recovery`;
+
+    return {
+      to: email,
+      subject: "Оплаченный заказ добавлен в ваш аккаунт Artmate",
+      text: [
+        "ARTMATE",
+        "",
+        "Оплаченный заказ добавлен в ваш аккаунт.",
+        `Войти: ${loginUrl}`,
+        `Восстановить доступ: ${recoveryUrl}`,
+        "",
+        renderSupportEmailFooterText(),
+      ].join("\n"),
+      html: renderBrandedEmail({
+        title: "Заказ в вашем аккаунте",
+        previewText: "Оплаченный заказ добавлен в ваш аккаунт Artmate.",
+        contentHtml: `
+          ${renderEmailParagraph("Оплаченный заказ добавлен в ваш аккаунт. Войдите с обычными учетными данными или восстановите доступ.")}
+          ${renderEmailButton({ href: loginUrl, label: "Войти" })}
+          ${renderEmailParagraph(`<a href="${recoveryUrl}">Восстановить доступ</a>`)}
+        `,
+        footerHtml: renderSupportEmailFooter(),
+      }),
+    };
   }
 
   private async getTransporter() {
@@ -123,12 +222,9 @@ export class MailerService {
     }
 
     this.logger.log({
-      accepted: this.getMailInfoField(info, "accepted"),
       message: "Mail accepted by SMTP",
       messageId: this.getMailInfoField(info, "messageId"),
-      rejected: this.getMailInfoField(info, "rejected"),
       subject: input.subject,
-      to: input.to,
     });
   }
 
@@ -188,6 +284,10 @@ export class MailerService {
     const value = process.env[name]?.trim();
 
     return value ? value : undefined;
+  }
+
+  private getSiteUrl() {
+    return this.getOptionalEnv("SITE_URL") ?? "http://localhost:3000";
   }
 
   private getRequiredEnv(name: string) {

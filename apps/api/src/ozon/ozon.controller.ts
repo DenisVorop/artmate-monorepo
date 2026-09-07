@@ -1,8 +1,5 @@
 import {
-  ApiBadGatewayResponse,
-  ApiBody,
   ApiExcludeEndpoint,
-  ApiForbiddenResponse,
   ApiFoundResponse,
   ApiOkResponse,
   ApiOperation,
@@ -15,8 +12,6 @@ import {
   Controller,
   Get,
   Headers,
-  HttpCode,
-  HttpStatus,
   Post,
   Query,
   Redirect,
@@ -32,16 +27,11 @@ import {
 } from "./ozon.constants";
 import {
   OzonAuthorizationUrlDTO,
-  OzonDeliveryMapRequestDTO,
-  OzonDeliveryMapResponseDTO,
-  OzonDeliveryPointInfoRequestDTO,
-  OzonDeliveryPointInfoResponseDTO,
   OzonExchangeCodeRequestDTO,
   OzonRefreshTokenRequestDTO,
   OzonTokenStatusDTO,
   OzonTokenStatusResponseDTO,
 } from "./dto";
-import { OzonLogisticsService } from "./ozon-logistics.service";
 import { OzonOAuthService } from "./ozon-oauth.service";
 
 type CookieResponse = {
@@ -71,7 +61,6 @@ type CookieResponse = {
 export class OzonController {
   constructor(
     private readonly authService: AuthService,
-    private readonly ozonLogisticsService: OzonLogisticsService,
     private readonly ozonOAuthService: OzonOAuthService,
   ) {}
 
@@ -219,99 +208,6 @@ export class OzonController {
       ok: true,
       token: tokenStatus,
     };
-  }
-
-  @Post("logistics/map")
-  @HttpCode(HttpStatus.OK)
-  @ApiOperation({
-    summary: "Get Ozon Logistics pickup point clusters by map viewport",
-    description:
-      "In OZON_LOGISTICS_MODE=real sends POST /v1/delivery/map to Ozon Seller API using the saved OAuth bearer token. In mock mode returns Ozon-like pickup point clusters and points.",
-  })
-  @ApiBody({
-    type: OzonDeliveryMapRequestDTO,
-    examples: {
-      moscow: {
-        summary: "Moscow viewport",
-        value: {
-          viewport: {
-            left_bottom: {
-              lat: 55.55,
-              long: 37.35,
-            },
-            right_top: {
-              lat: 55.95,
-              long: 37.85,
-            },
-          },
-          zoom: 11,
-        },
-      },
-    },
-  })
-  @ApiOkResponse({
-    description:
-      "Ozon Seller API response in real mode or Ozon-like mock response with pickup point clusters and map_point_ids.",
-    type: OzonDeliveryMapResponseDTO,
-  })
-  @ApiForbiddenResponse({
-    description:
-      "Ozon rejected the request, for example when logistics API is disabled for the selected seller or app.",
-  })
-  @ApiBadGatewayResponse({
-    description: "Ozon Seller API returned a server-side error.",
-  })
-  getDeliveryMap(@Body() request: OzonDeliveryMapRequestDTO) {
-    return this.ozonLogisticsService.getDeliveryMap(request);
-  }
-
-  @Post("logistics/point-info")
-  @HttpCode(HttpStatus.OK)
-  @ApiOperation({
-    summary: "Get Ozon Logistics pickup point details",
-    description:
-      "In OZON_LOGISTICS_MODE=real sends POST /v1/delivery/point/info to Ozon Seller API using the saved OAuth bearer token. In mock mode returns detailed Ozon-like pickup point data.",
-  })
-  @ApiBody({
-    type: OzonDeliveryPointInfoRequestDTO,
-    examples: {
-      point: {
-        summary: "Pickup point from map response",
-        value: {
-          map_point_ids: ["123456789"],
-        },
-      },
-    },
-  })
-  @ApiOkResponse({
-    description:
-      "Ozon Seller API response in real mode or Ozon-like mock response.",
-    type: OzonDeliveryPointInfoResponseDTO,
-  })
-  @ApiForbiddenResponse({
-    description:
-      "Ozon rejected the request, for example when logistics API is disabled for the selected seller or app.",
-  })
-  @ApiBadGatewayResponse({
-    description: "Ozon Seller API returned a server-side error.",
-  })
-  getDeliveryPointInfo(@Body() request: OzonDeliveryPointInfoRequestDTO) {
-    return this.ozonLogisticsService.getDeliveryPointInfo(request);
-  }
-
-  @Post("logistics/pickup-points")
-  @HttpCode(HttpStatus.OK)
-  @ApiExcludeEndpoint()
-  @ApiOperation({
-    summary: "Proxy Ozon Logistics full pickup point list",
-    description:
-      "Sends POST /v1/delivery/point/list to Ozon Seller API. This can return a very large response, so it is hidden from Swagger.",
-  })
-  getPickupPoints(@Body() body: unknown) {
-    return this.ozonOAuthService.requestSellerApi(
-      "/v1/delivery/point/list",
-      body ?? {},
-    );
   }
 
   private validateState(cookieHeader: string | undefined, state?: string) {

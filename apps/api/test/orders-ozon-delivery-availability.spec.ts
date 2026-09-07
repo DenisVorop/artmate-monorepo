@@ -1,7 +1,11 @@
 import assert from "node:assert/strict";
 import { describe, it } from "node:test";
 
-import { BadGatewayException, BadRequestException } from "@nestjs/common";
+import {
+  BadGatewayException,
+  BadRequestException,
+  ServiceUnavailableException,
+} from "@nestjs/common";
 
 import type { DeliverySelection } from "../src/delivery/providers/delivery-provider.interface";
 import { OrdersService } from "../src/orders/orders.service";
@@ -31,13 +35,14 @@ describe("Orders Ozon delivery availability", () => {
         {
           acceptedLegal: true,
           acceptedPersonalDataConsent: true,
+          checkoutAttemptId: "attempt-unavailable",
           customer: {
             email: "customer@example.com",
-            name: "Customer",
-            phone: "+79990000000",
+            name: "Анна Иванова",
+            phone: "+7 (999) 000-00-00",
           },
           delivery: { provider: "ozon", pickupPointId: "11" },
-          payment: { method: "bank_card_mock" },
+          payment: { method: "tbank_acquiring" },
         },
         {
           id: "user-1",
@@ -87,13 +92,14 @@ describe("Orders Ozon delivery availability", () => {
         {
           acceptedLegal: true,
           acceptedPersonalDataConsent: true,
+          checkoutAttemptId: "attempt-available",
           customer: {
             email: "customer@example.com",
-            name: "Customer",
-            phone: "+79990000000",
+            name: "Анна Иванова",
+            phone: "+7 (999) 000-00-00",
           },
           delivery,
-          payment: { method: "bank_card_mock" },
+          payment: { method: "tbank_acquiring" },
         },
         {
           id: "user-1",
@@ -102,7 +108,9 @@ describe("Orders Ozon delivery availability", () => {
           roles: [],
         },
       ),
-      (error) => error === invalidPointError,
+      (error) =>
+        error instanceof ServiceUnavailableException &&
+        error.message === "Не удалось рассчитать доставку. Попробуйте еще раз.",
     );
     assert.equal(fixture.getCartCallCount(), 2);
     assert.equal(fixture.getDeliveryCallCount(), 2);
@@ -190,6 +198,7 @@ function createOrdersServiceFixture(
           };
         },
       },
+      logger: { warn: () => undefined },
       ordersStorage: {
         createOrder: async () => {
           createOrderCallCount += 1;

@@ -5,6 +5,7 @@ import { BadRequestException } from "@nestjs/common";
 
 import { DeliveryService } from "../src/delivery/delivery.service";
 import type { CdekDeliveryProvider } from "../src/delivery/providers/cdek/cdek-delivery.provider";
+import { ProviderResponseCacheService } from "../src/delivery/provider-response-cache.service";
 import type {
   DeliveryCartItem,
   DeliveryQuote,
@@ -41,8 +42,8 @@ describe("DeliveryService", () => {
     );
 
     assert.equal(delivery.provider, "ozon");
-    assert.equal(delivery.deliveryPrice, 200);
-    assert.equal(delivery.pickupPoint.deliveryPrice, 200);
+    assert.equal(delivery.deliveryPrice, 100);
+    assert.equal(delivery.pickupPoint.deliveryPrice, 100);
     assert.equal(delivery.pickupPoint.address, "Москва, Тверская, 1");
     assert.equal(delivery.pickupPoint.workHours, "09:00-21:00");
     assert.equal(requestedPointId, "11");
@@ -130,10 +131,10 @@ describe("DeliveryService", () => {
     );
 
     assert.equal(lookupCount, 2);
-    assert.equal(calculated.deliveryPrice, 200);
-    assert.equal(calculated.pickupPoint.deliveryPrice, 200);
-    assert.equal(recalculatedForCreate.deliveryPrice, 200);
-    assert.equal(recalculatedForCreate.pickupPoint.deliveryPrice, 200);
+    assert.equal(calculated.deliveryPrice, 100);
+    assert.equal(calculated.pickupPoint.deliveryPrice, 100);
+    assert.equal(recalculatedForCreate.deliveryPrice, 100);
+    assert.equal(recalculatedForCreate.pickupPoint.deliveryPrice, 100);
     assert.equal(
       recalculatedForCreate.pickupPoint.address,
       "Authoritative address 2",
@@ -249,7 +250,8 @@ describe("DeliveryService", () => {
     assert.deepEqual(resolvedPoints, [
       {
         ...points[0],
-        deliveryPrice: 200,
+        deliveryPrice: 100,
+        minimumDeliveryPrice: 100,
       },
     ]);
   });
@@ -262,5 +264,6 @@ function createDeliveryService(
   return new DeliveryService(
     cdek as CdekDeliveryProvider,
     ozonLogistics as OzonLogisticsService,
+    new ProviderResponseCacheService(),
   );
 }

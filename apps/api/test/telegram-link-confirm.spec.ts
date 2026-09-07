@@ -10,7 +10,7 @@ import { AuthController } from "../src/auth/auth.controller";
 import { AuthGuard } from "../src/auth/auth.guard";
 import { ConfirmTelegramLinkRequestDTO } from "../src/auth/dto/confirm-telegram-link-request.dto";
 import { RegisterRequestDTO } from "../src/auth/dto/register-request.dto";
-import { RequestPasswordResetRequestDTO } from "../src/auth/dto/request-password-reset-request.dto";
+import { RequestAccountRecoveryDTO } from "../src/auth/dto/request-account-recovery.dto";
 
 const pipe = new ValidationPipe({
   forbidNonWhitelisted: true,
@@ -52,7 +52,7 @@ describe("Telegram link confirmation contract", () => {
       }),
     );
     await assert.rejects(
-      transform(RequestPasswordResetRequestDTO, { email: "user@example.com" }),
+      transform(RequestAccountRecoveryDTO, { email: "user@example.com" }),
     );
 
     assert.equal(
@@ -67,7 +67,7 @@ describe("Telegram link confirmation contract", () => {
     );
     assert.equal(
       (
-        await transform(RequestPasswordResetRequestDTO, {
+        await transform(RequestAccountRecoveryDTO, {
           acceptedPersonalDataConsent: true,
           email: "user@example.com",
         })

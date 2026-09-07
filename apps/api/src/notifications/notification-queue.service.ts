@@ -6,23 +6,40 @@ import {
 } from "@nestjs/common";
 
 import {
+  createOrderActivationToken,
+  createOrderActivationTokenHash,
+} from "../auth/order-activation-token";
+import {
+  createPasswordResetToken,
+  createPasswordResetTokenHash,
+} from "../auth/password-reset-token";
+import {
+  AuthProvider as PrismaAuthProvider,
   NotificationJobChannel,
   NotificationJobStatus,
   Prisma,
+  UserStatus,
   type NotificationJob,
 } from "../generated/prisma/client";
-import { MailerService } from "../mailer/mailer.service";
+import { MailerService, type SendMailInput } from "../mailer/mailer.service";
 import { PrismaService } from "../prisma/prisma.service";
 import {
   getTelegramBotMethodUrl,
   getTelegramRequestHeaders,
 } from "../telegram/telegram-api";
 
-type EmailNotificationInput = {
-  readonly to: string;
-  readonly subject: string;
-  readonly text: string;
-  readonly html?: string;
+type EmailNotificationInput = SendMailInput;
+
+type NotificationJobWriter = Pick<PrismaService, "notificationJob">;
+
+type OrderActivationNotificationInput = {
+  readonly activationTokenId: string;
+  readonly email: string;
+};
+
+type PasswordResetNotificationInput = {
+  readonly passwordResetTokenId: string;
+  readonly recipient: string;
 };
 
 type TelegramBotKind = "orders" | "mini_app";
@@ -74,8 +91,11 @@ export class NotificationQueueService implements OnModuleInit, OnModuleDestroy {
     }
   }
 
-  async enqueueEmail(input: EmailNotificationInput) {
-    const job = await this.prisma.notificationJob.create({
+  async enqueueEmail(
+    input: EmailNotificationInput,
+    writer: NotificationJobWriter = this.prisma,
+  ) {
+    const job = await writer.notificationJob.create({
       data: {
         channel: NotificationJobChannel.EMAIL,
         maxAttempts: notificationMaxAttempts,
@@ -85,6 +105,38 @@ export class NotificationQueueService implements OnModuleInit, OnModuleDestroy {
 
     this.scheduleProcessing();
 
+    return job;
+  }
+
+  async enqueueOrderActivation(
+    input: OrderActivationNotificationInput,
+    writer: NotificationJobWriter = this.prisma,
+  ) {
+    const job = await writer.notificationJob.create({
+      data: {
+        channel: NotificationJobChannel.EMAIL,
+        maxAttempts: notificationMaxAttempts,
+        payload: this.toJsonPayload({ kind: "order_activation", ...input }),
+      },
+    });
+
+    this.scheduleProcessing();
+    return job;
+  }
+
+  async enqueuePasswordReset(
+    input: PasswordResetNotificationInput,
+    writer: NotificationJobWriter = this.prisma,
+  ) {
+    const job = await writer.notificationJob.create({
+      data: {
+        channel: NotificationJobChannel.EMAIL,
+        maxAttempts: notificationMaxAttempts,
+        payload: this.toJsonPayload({ kind: "password_reset", ...input }),
+      },
+    });
+
+    this.scheduleProcessing();
     return job;
   }
 
@@ -203,12 +255,214 @@ export class NotificationQueueService implements OnModuleInit, OnModuleDestroy {
   private async dispatchJob(job: NotificationJob) {
     switch (job.channel) {
       case NotificationJobChannel.EMAIL:
-        await this.mailerService.sendMail(this.parseEmailPayload(job.payload));
+        await this.dispatchEmail(job.payload);
         return;
       case NotificationJobChannel.TELEGRAM:
         await this.sendTelegram(this.parseTelegramPayload(job.payload));
         return;
     }
+  }
+
+  private async dispatchEmail(payload: Prisma.JsonValue) {
+    const object = this.parseObject(payload, "email payload");
+    if (object.kind === "order_activation") {
+      const activationTokenId = this.parseRequiredString(
+        object.activationTokenId,
+        "email payload.activationTokenId",
+      );
+      const secret = this.getRequiredEnv("AUTH_JWT_SECRET");
+      const token = createOrderActivationToken(activationTokenId, secret);
+      const tokenHash = createOrderActivationTokenHash(token, secret);
+      const activationToken =
+        await this.prisma.authOrderActivationToken.findUnique({
+          where: { id: activationTokenId },
+          select: {
+            consumedAt: true,
+            expiresAt: true,
+            tokenHash: true,
+            userId: true,
+          },
+        });
+      if (
+        !activationToken ||
+        activationToken.tokenHash !== tokenHash ||
+        activationToken.consumedAt ||
+        activationToken.expiresAt <= new Date()
+      ) {
+        return;
+      }
+
+      const eligibleActivationTokenId = await this.prisma.$transaction(
+        async (tx) => {
+          await tx.$queryRaw`SELECT id FROM users WHERE id = ${activationToken.userId} FOR UPDATE`;
+          await tx.$queryRaw`SELECT id FROM auth_order_activation_tokens WHERE id = ${activationTokenId} FOR UPDATE`;
+
+          const lockedToken = await tx.authOrderActivationToken.findUnique({
+            where: { id: activationTokenId },
+            select: {
+              consumedAt: true,
+              expiresAt: true,
+              id: true,
+              tokenHash: true,
+              userId: true,
+            },
+          });
+          const now = new Date();
+          if (
+            !lockedToken ||
+            lockedToken.userId !== activationToken.userId ||
+            lockedToken.tokenHash !== tokenHash ||
+            lockedToken.consumedAt ||
+            lockedToken.expiresAt <= now
+          ) {
+            return undefined;
+          }
+
+          const user = await tx.user.findUnique({
+            where: { id: lockedToken.userId },
+            select: { status: true },
+          });
+          if (!user || user.status !== UserStatus.ACTIVE) return undefined;
+
+          const credentialsAccount = await tx.authAccount.findFirst({
+            where: {
+              provider: PrismaAuthProvider.CREDENTIALS,
+              userId: lockedToken.userId,
+            },
+            include: { credential: true },
+          });
+          const oauthAccount = await tx.authAccount.findFirst({
+            where: {
+              provider: { not: PrismaAuthProvider.CREDENTIALS },
+              userId: lockedToken.userId,
+            },
+          });
+          if (
+            !credentialsAccount ||
+            credentialsAccount.credential ||
+            oauthAccount
+          ) {
+            return undefined;
+          }
+
+          return activationTokenId;
+        },
+      );
+      if (!eligibleActivationTokenId) return;
+
+      const url = new URL(
+        `${process.env.SITE_URL?.trim() || "http://localhost:3000"}/auth/activate-order`,
+      );
+      url.searchParams.set("token", token);
+      await this.mailerService.sendMail(
+        this.mailerService.createOrderActivationEmail(
+          this.parseRequiredString(object.email, "email payload.email"),
+          url.toString(),
+        ),
+      );
+      return;
+    }
+
+    if (object.kind === "password_reset") {
+      const passwordResetTokenId = this.parseRequiredString(
+        object.passwordResetTokenId,
+        "email payload.passwordResetTokenId",
+      );
+      const secret = this.getRequiredEnv("AUTH_PASSWORD_RESET_SECRET");
+      const rawToken = createPasswordResetToken(
+        passwordResetTokenId,
+        secret,
+      );
+      const tokenHash = createPasswordResetTokenHash(rawToken, secret);
+      const token = await this.prisma.authPasswordResetToken.findUnique({
+        where: { id: passwordResetTokenId },
+        select: {
+          consumedAt: true,
+          expiresAt: true,
+          sentAt: true,
+          tokenHash: true,
+          userId: true,
+        },
+      });
+      if (
+        !token ||
+        token.tokenHash !== tokenHash ||
+        token.consumedAt ||
+        token.expiresAt <= new Date()
+      ) {
+        return;
+      }
+
+      const eligibleToken = await this.prisma.$transaction(async (tx) => {
+        await tx.$queryRaw`SELECT id FROM users WHERE id = ${token.userId} FOR UPDATE`;
+        await tx.$queryRaw`SELECT id FROM auth_password_reset_tokens WHERE id = ${passwordResetTokenId} FOR UPDATE`;
+
+        const lockedToken = await tx.authPasswordResetToken.findUnique({
+          where: { id: passwordResetTokenId },
+          select: {
+            consumedAt: true,
+            expiresAt: true,
+            sentAt: true,
+            tokenHash: true,
+            userId: true,
+          },
+        });
+        const now = new Date();
+        if (
+          !lockedToken ||
+          lockedToken.userId !== token.userId ||
+          lockedToken.tokenHash !== tokenHash ||
+          lockedToken.consumedAt ||
+          lockedToken.expiresAt <= now
+        ) {
+          return undefined;
+        }
+
+        const user = await tx.user.findUnique({
+          where: { id: lockedToken.userId },
+          select: { status: true },
+        });
+        if (!user || user.status !== UserStatus.ACTIVE) return undefined;
+
+        const account = await tx.authAccount.findFirst({
+          where: {
+            provider: PrismaAuthProvider.CREDENTIALS,
+            userId: lockedToken.userId,
+          },
+          include: { credential: true },
+        });
+        if (!account?.credential) return undefined;
+
+        return lockedToken;
+      });
+      if (!eligibleToken) return;
+
+      const resetUrl = new URL(
+        process.env.AUTH_PASSWORD_RESET_URL?.trim() ||
+          `${process.env.SITE_URL?.trim() || "http://localhost:3000"}/auth/reset-password`,
+      );
+      resetUrl.searchParams.set("token", rawToken);
+      const ttlMinutes = Math.max(
+        1,
+        Math.floor(
+          (eligibleToken.expiresAt.getTime() - eligibleToken.sentAt.getTime()) /
+            60_000,
+        ),
+      );
+      await this.mailerService.sendMail(
+        this.mailerService.createPasswordResetEmail(
+          this.parseRequiredString(
+            object.recipient,
+            "email payload.recipient",
+          ),
+          resetUrl.toString(),
+          ttlMinutes,
+        ),
+      );
+      return;
+    }
+
+    await this.mailerService.sendMail(this.parseEmailPayload(payload));
   }
 
   private async markJobSent(job: NotificationJob) {
@@ -230,13 +484,16 @@ export class NotificationQueueService implements OnModuleInit, OnModuleDestroy {
   private async markJobFailed(job: NotificationJob, error: unknown) {
     const attempts = job.attempts + 1;
     const isFinalAttempt = attempts >= job.maxAttempts;
+    const errorMessage = job.channel === NotificationJobChannel.EMAIL
+      ? "Email notification delivery failed"
+      : this.getErrorMessage(error);
 
     await this.prisma.notificationJob.update({
       where: { id: job.id },
       data: {
         attempts,
         failedAt: isFinalAttempt ? new Date() : null,
-        lastError: this.truncateError(this.getErrorMessage(error)),
+        lastError: this.truncateError(errorMessage),
         lockedAt: null,
         nextAttemptAt: isFinalAttempt
           ? job.nextAttemptAt
@@ -248,7 +505,7 @@ export class NotificationQueueService implements OnModuleInit, OnModuleDestroy {
     });
 
     this.logger.warn(
-      `Notification job ${job.id} failed on attempt ${attempts}/${job.maxAttempts}: ${this.getErrorMessage(error)}`,
+      `Notification job ${job.id} failed on attempt ${attempts}/${job.maxAttempts}: ${errorMessage}`,
     );
   }
 

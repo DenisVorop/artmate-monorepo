@@ -9,6 +9,7 @@ import { PromocodesModule } from "../promocodes/promocodes.module";
 import { TBankModule } from "../tbank/tbank.module";
 import { UsersModule } from "../users/users.module";
 
+import { CheckoutThrottleService } from "./checkout-throttle.service";
 import { OrdersController } from "./orders.controller";
 import { OrdersTelegramService } from "./orders-telegram.service";
 import { OrdersService } from "./orders.service";
@@ -26,6 +27,11 @@ import { OrdersStorage } from "./orders.storage";
     UsersModule,
   ],
   controllers: [OrdersController],
-  providers: [OrdersService, OrdersStorage, OrdersTelegramService],
+  providers: [
+    CheckoutThrottleService,
+    OrdersService,
+    OrdersStorage,
+    OrdersTelegramService,
+  ],
 })
 export class OrdersModule {}

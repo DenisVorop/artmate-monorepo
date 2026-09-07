@@ -40,6 +40,11 @@ export class DeliveryPickupPointDTO {
   deliveryPrice!: number;
 
   @IsOptional()
+  @IsNumber({ allowInfinity: false, allowNaN: false })
+  @Min(0)
+  minimumDeliveryPrice?: number;
+
+  @IsOptional()
   @IsInt()
   cityCode?: number;
 

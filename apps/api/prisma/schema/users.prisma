@@ -22,6 +22,7 @@ model User {
   image           String?    @db.Text
   roles           UserRole[] @default([CUSTOMER])
   status          UserStatus @default(ACTIVE)
+  authVersion     Int        @default(0) @map("auth_version")
   createdAt       DateTime   @default(now()) @map("created_at")
   updatedAt       DateTime   @default(now()) @updatedAt @map("updated_at")
   deletedAt       DateTime?  @map("deleted_at")
@@ -29,6 +30,7 @@ model User {
   authAccounts             AuthAccount[]
   authSessions             AuthSession[]
   emailVerificationCodes   AuthEmailVerificationCode[]
+  orderActivationTokens    AuthOrderActivationToken[]
   passwordResetTokens      AuthPasswordResetToken[]
   telegramAccount          TelegramAccount?
   aiBlogDraftRuns          AiBlogDraftRun[]            @relation("AiBlogDraftRunCreator")

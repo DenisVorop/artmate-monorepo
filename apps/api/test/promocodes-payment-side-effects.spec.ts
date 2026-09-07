@@ -1,23 +1,34 @@
 import assert from "node:assert/strict";
 import { describe, it } from "node:test";
 
+import { ServiceUnavailableException } from "@nestjs/common";
+
 import { OrdersService } from "../src/orders/orders.service";
 
 describe("payment initialization side effects", () => {
-  it("keeps successful Ozon initialization when cart/notification side effects fail", async () => {
+  it("persists Ozon Init before order-aware cart consumption and keeps the redirect when it fails", async () => {
     let failedWrites = 0;
+    const events: string[] = [];
     const order = createOrder("ozon_acquiring");
     const service = createService({
       order,
-      createOzon: async () => ({
-        acquiringOrderId: "ozon-order-1",
-        paymentId: "payment-1",
-        redirectUrl: "https://pay.test",
-      }),
+      createOzon: async () => {
+        events.push("provider-init");
+        return {
+          acquiringOrderId: "ozon-order-1",
+          paymentId: "payment-1",
+          redirectUrl: "https://pay.test",
+        };
+      },
+      onAttach: () => events.push("attach"),
+      onConsume: () => {
+        events.push("consume");
+        throw new Error("cart consumption failed");
+      },
       onFailed: () => {
         failedWrites += 1;
       },
-      sideEffectsFail: true,
+      notificationsFail: true,
     });
 
     const result = await callPrivatePayment(
@@ -28,6 +39,28 @@ describe("payment initialization side effects", () => {
 
     assert.equal(result.id, order.id);
     assert.equal(failedWrites, 0);
+    assert.deepEqual(events, ["provider-init", "attach", "consume"]);
+  });
+
+  it("uses the same order-aware cart protocol after T-Bank Init", async () => {
+    let consumedOrderId: string | undefined;
+    const order = createOrder("tbank_acquiring");
+    const service = createService({
+      order,
+      createTBank: async () => ({
+        acquiringOrderId: order.id,
+        paymentId: "7001",
+        redirectUrl: "https://pay.test",
+      }),
+      onConsume: (orderId) => {
+        consumedOrderId = orderId;
+      },
+      onFailed: () => undefined,
+    });
+
+    await callPrivatePayment(service, "createTBankPaymentForOrder", order);
+
+    assert.equal(consumedOrderId, order.id);
   });
 
   it("records local T-Bank Init timeout without releasing the reservation", async () => {
@@ -49,7 +82,9 @@ describe("payment initialization side effects", () => {
 
     await assert.rejects(
       callPrivatePayment(service, "createTBankPaymentForOrder", order),
-      /Init timeout/,
+      (error) =>
+        error instanceof ServiceUnavailableException &&
+        error.message === "Не удалось начать оплату. Попробуйте еще раз.",
     );
     assert.equal(failedWrites, 1);
     assert.equal(releases, 0);
@@ -61,21 +96,26 @@ function createService(options: {
   createOzon?: () => Promise<Record<string, unknown>>;
   createTBank?: () => Promise<Record<string, unknown>>;
   onFailed: () => void;
+  onAttach?: () => void;
+  onConsume?: (orderId: string) => void;
   onRelease?: () => void;
-  sideEffectsFail?: boolean;
+  notificationsFail?: boolean;
 }) {
   return Object.assign(Object.create(OrdersService.prototype), {
     logger: { warn: () => undefined },
-    cartService: {
-      clearCart: async () => {
-        if (options.sideEffectsFail) throw new Error("cart clear failed");
-      },
-    },
+    cartService: {},
     notificationQueueService: {},
     ordersStorage: {
       getOrderReceiptPricing: async () => undefined,
-      attachOzonAcquiringPayment: async () => options.order,
-      attachTBankAcquiringPayment: async () => options.order,
+      attachOzonAcquiringPayment: async () => {
+        options.onAttach?.();
+        return options.order;
+      },
+      attachTBankAcquiringPayment: async () => {
+        options.onAttach?.();
+        return options.order;
+      },
+      consumeOrderCartSnapshot: async (orderId: string) => options.onConsume?.(orderId),
       markOzonAcquiringPaymentFailed: async () => {
         options.onFailed();
         return options.order;
@@ -95,7 +135,7 @@ function createService(options: {
       releaseInTransaction: async () => options.onRelease?.(),
     },
     queueOrderCreatedNotifications: async () => {
-      if (options.sideEffectsFail) throw new Error("queue failed");
+      if (options.notificationsFail) throw new Error("queue failed");
     },
   }) as OrdersService;
 }

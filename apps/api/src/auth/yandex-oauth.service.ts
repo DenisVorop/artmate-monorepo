@@ -19,7 +19,7 @@ import {
   YANDEX_TOKEN_URL,
 } from "./auth.constants";
 import type {
-  AuthUser,
+  AuthPrincipal,
   YandexProfileResponse,
   YandexTokenResponse,
 } from "./auth.types";
@@ -55,7 +55,7 @@ export class YandexOAuthService {
     return url.toString();
   }
 
-  async getUserByCode(code: string): Promise<AuthUser> {
+  async getUserByCode(code: string): Promise<AuthPrincipal> {
     const accessToken = await this.exchangeCode(code);
     const profile = await this.getProfile(accessToken);
 
@@ -182,7 +182,7 @@ export class YandexOAuthService {
     return this.mapStoredAccount(account);
   }
 
-  private mapStoredAccount(account: StoredYandexAccount): AuthUser {
+  private mapStoredAccount(account: StoredYandexAccount): AuthPrincipal {
     return {
       id: account.user.id,
       provider: "yandex",
@@ -192,6 +192,7 @@ export class YandexOAuthService {
       phone: account.user.phone ?? undefined,
       image: account.user.image ?? undefined,
       roles: this.usersService.mapPrismaRoles(account.user.roles),
+      authVersion: account.user.authVersion,
     };
   }
 

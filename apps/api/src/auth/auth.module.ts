@@ -2,6 +2,7 @@ import { forwardRef, Module } from "@nestjs/common";
 import { JwtModule } from "@nestjs/jwt";
 
 import { MailerModule } from "../mailer/mailer.module";
+import { NotificationQueueModule } from "../notifications/notification-queue.module";
 import { UsersModule } from "../users/users.module";
 
 import { AuthController } from "./auth.controller";
@@ -11,6 +12,7 @@ import { CredentialsAuthService } from "./credentials-auth.service";
 import { EmailVerificationService } from "./email-verification.service";
 import { LoginThrottleService } from "./login-throttle.service";
 import { OAuthProvidersService } from "./oauth-providers.service";
+import { OrderActivationService } from "./order-activation.service";
 import { PasswordResetService } from "./password-reset.service";
 import { TelegramLinkService } from "./telegram-link.service";
 import { YandexOAuthService } from "./yandex-oauth.service";
@@ -19,6 +21,7 @@ import { YandexOAuthService } from "./yandex-oauth.service";
   imports: [
     JwtModule.register({}),
     MailerModule,
+    NotificationQueueModule,
     forwardRef(() => UsersModule),
   ],
   controllers: [AuthController],
@@ -29,10 +32,11 @@ import { YandexOAuthService } from "./yandex-oauth.service";
     EmailVerificationService,
     LoginThrottleService,
     OAuthProvidersService,
+    OrderActivationService,
     PasswordResetService,
     TelegramLinkService,
     YandexOAuthService,
   ],
-  exports: [AuthGuard, AuthService],
+  exports: [AuthGuard, AuthService, OrderActivationService],
 })
 export class AuthModule {}

@@ -1,12 +1,16 @@
+import crypto from "node:crypto";
+
 import {
   BadRequestException,
   HttpException,
   Injectable,
   Logger,
+  ServiceUnavailableException,
   UnauthorizedException,
 } from "@nestjs/common";
 
 import type { AuthUser } from "../auth/auth.types";
+import { parseYandexAttribution } from "../analytics/yandex-attribution";
 import type { CartDTO } from "../cart/dto";
 import { CartService } from "../cart/cart.service";
 import { DeliveryService } from "../delivery/delivery.service";
@@ -23,7 +27,7 @@ import {
 } from "../mailer/branded-email";
 import { NotificationQueueService } from "../notifications/notification-queue.service";
 import { OzonAcquiringService } from "../ozon/ozon-acquiring.service";
-import { OzonLogisticsService } from "../ozon/ozon-logistics.service";
+import { normalizePromoCodeValue } from "../promocodes/promo-code";
 import { calculatePromoPricing } from "../promocodes/pricing";
 import {
   PromocodesService,
@@ -45,7 +49,6 @@ import type {
   OrderDTO,
   OrderShipmentDTO,
   OrderStateDTO,
-  PickupPointDTO,
 } from "./dto";
 import { OrdersTelegramService } from "./orders-telegram.service";
 import {
@@ -60,6 +63,10 @@ const CDEK_SHIPMENT_TRACK_NUMBER_ATTEMPTS = 3;
 const CDEK_SHIPMENT_TRACK_NUMBER_RETRY_DELAY_MS = 1000;
 const ozonDeliveryUnavailableMessage =
   "данный товар не можем доставить через озон";
+const deliveryCalculationErrorMessage =
+  "Не удалось рассчитать доставку. Попробуйте еще раз.";
+const paymentInitializationErrorMessage =
+  "Не удалось начать оплату. Попробуйте еще раз.";
 const finalCdekShipmentStatusCodes = new Set([
   "DELIVERED",
   "INVALID",
@@ -116,16 +123,11 @@ export class OrdersService {
     private readonly deliveryService: DeliveryService,
     private readonly notificationQueueService: NotificationQueueService,
     private readonly ozonAcquiringService: OzonAcquiringService,
-    private readonly ozonLogisticsService: OzonLogisticsService,
     private readonly tbankAcquiringService: TBankAcquiringService,
     private readonly ordersStorage: OrdersStorage,
     private readonly ordersTelegramService: OrdersTelegramService,
     private readonly promocodesService: PromocodesService,
   ) {}
-
-  getPickupPoints(): Promise<PickupPointDTO[]> {
-    return this.ozonLogisticsService.getPickupPoints();
-  }
 
   async getOrder(orderId: string, user: AuthUser): Promise<OrderDTO> {
     const parsedOrderId = this.parseOrderId(orderId);
@@ -218,7 +220,7 @@ export class OrdersService {
 
     this.assertOzonDeliveryAvailable(deliverySelection, cartDTO);
 
-    const delivery = await this.deliveryService.calculatePickupPointDelivery(
+    const delivery = await this.calculateCheckoutDelivery(
       deliverySelection,
       cartDTO.items,
     );
@@ -249,8 +251,71 @@ export class OrdersService {
   async createOrder(
     cartId: string | undefined,
     request: CreateOrderRequestDTO,
-    user: AuthUser,
+    user?: AuthUser,
   ): Promise<OrderDTO> {
+    const checkoutAttemptId = this.parseRequiredString(
+      request.checkoutAttemptId,
+      "checkoutAttemptId",
+    );
+    if (checkoutAttemptId.length > 128) {
+      throw new BadRequestException(
+        "checkoutAttemptId must be 128 characters or less",
+      );
+    }
+    if (!cartId) throw new BadRequestException("Cart is required");
+
+    const paymentMethod = request.payment?.method ?? "ozon_acquiring";
+    if (
+      paymentMethod !== "ozon_acquiring" &&
+      paymentMethod !== "tbank_acquiring"
+    ) {
+      throw new BadRequestException(
+        "payment.method must be ozon_acquiring or tbank_acquiring",
+      );
+    }
+    if (request.acceptedLegal !== true) {
+      throw new BadRequestException("Legal terms must be accepted");
+    }
+    if (request.acceptedPersonalDataConsent !== true) {
+      throw new BadRequestException("Personal data consent must be accepted");
+    }
+
+    const customer = this.parseCustomer(request.customer);
+    const deliverySelection = this.parseDeliverySelection(request.delivery);
+    const comment = this.parseComment(request.comment);
+    const promoCode = request.promoCode
+      ? normalizePromoCodeValue(request.promoCode)
+      : undefined;
+    const attribution = parseYandexAttribution(request.attribution);
+    const checkoutPayloadFingerprint = this.createCheckoutPayloadFingerprint({
+      acceptedLegal: true,
+      acceptedPersonalDataConsent: true,
+      comment: comment ?? null,
+      customer: {
+        email: customer.email,
+        name: customer.name,
+        phone: customer.phone,
+      },
+      delivery: {
+        cityCode: deliverySelection.cityCode ?? null,
+        pickupPointAddress: deliverySelection.pickupPointAddress ?? null,
+        pickupPointId: deliverySelection.pickupPointId ?? null,
+        provider: deliverySelection.provider,
+      },
+      paymentMethod,
+      promoCode: promoCode ?? null,
+    });
+
+    const existingOrder = await this.ordersStorage.getOrderByCheckoutAttempt?.(
+      checkoutAttemptId,
+      cartId,
+      user?.id,
+      checkoutPayloadFingerprint,
+    );
+    if (existingOrder) {
+      return this.initializePaymentForOrder(existingOrder, user?.id);
+    }
+
     const cartDTO = await this.cartService.getCart(cartId);
 
     if (cartDTO.items.length === 0) {
@@ -259,40 +324,16 @@ export class OrdersService {
 
     await this.cartService.assertItemsInStock(cartDTO.items);
 
-    const customer = this.parseCustomer(request.customer);
-    const deliverySelection = this.parseDeliverySelection(request.delivery);
-
     this.assertOzonDeliveryAvailable(deliverySelection, cartDTO);
 
-    const delivery = await this.deliveryService.calculatePickupPointDelivery(
+    const delivery = await this.calculateCheckoutDelivery(
       deliverySelection,
       cartDTO.items,
     );
-    const paymentMethod = request.payment?.method ?? "ozon_acquiring";
-    const comment = this.parseComment(request.comment);
-
-    if (
-      paymentMethod !== "bank_card_mock" &&
-      paymentMethod !== "ozon_acquiring" &&
-      paymentMethod !== "tbank_acquiring"
-    ) {
-      throw new BadRequestException(
-        "payment.method must be bank_card_mock, ozon_acquiring, or tbank_acquiring",
-      );
-    }
-
-    if (request.acceptedLegal !== true) {
-      throw new BadRequestException("Legal terms must be accepted");
-    }
-
-    if (request.acceptedPersonalDataConsent !== true) {
-      throw new BadRequestException("Personal data consent must be accepted");
-    }
-
     const promo = await this.calculatePromo(
       cartDTO,
-      request.promoCode,
-      user.id,
+      promoCode,
+      user?.id,
     );
     this.assertSupportedPaymentReceipt(
       promo.pricing,
@@ -301,8 +342,11 @@ export class OrdersService {
     );
 
     const order = await this.ordersStorage.createOrder({
-      userId: user.id,
+      userId: user?.id,
       cartId: cartDTO.id,
+      checkoutAttemptId,
+      checkoutPayloadFingerprint,
+      attribution,
       customer,
       delivery: {
         provider: delivery.provider,
@@ -316,18 +360,86 @@ export class OrdersService {
       comment,
     });
 
-    if (paymentMethod === "ozon_acquiring") {
-      return this.createOzonPaymentForOrder(order, user.id);
+    return this.initializePaymentForOrder(order, user?.id);
+  }
+
+  private createCheckoutPayloadFingerprint(payload: object) {
+    return crypto
+      .createHash("sha256")
+      .update(JSON.stringify(payload))
+      .digest("hex");
+  }
+
+  private async calculateCheckoutDelivery(
+    selection: DeliverySelection,
+    items: CartDTO["items"],
+  ) {
+    try {
+      return await this.deliveryService.calculatePickupPointDelivery(
+        selection,
+        items,
+      );
+    } catch (error) {
+      if (error instanceof BadRequestException) {
+        throw error;
+      }
+
+      const diagnostic =
+        error instanceof HttpException
+          ? error.getResponse()
+          : error instanceof Error
+            ? { message: error.message, name: error.name }
+            : error;
+      this.logger.warn(
+        `${selection.provider.toUpperCase()} checkout delivery failed: ${this.stringifyProviderDiagnostic(
+          diagnostic,
+        )}`,
+      );
+      throw new ServiceUnavailableException(deliveryCalculationErrorMessage);
+    }
+  }
+
+  private stringifyProviderDiagnostic(value: unknown) {
+    const sanitize = (item: unknown): unknown => {
+      if (Array.isArray(item)) {
+        return item.map(sanitize);
+      }
+      if (!item || typeof item !== "object") {
+        return item;
+      }
+      return Object.fromEntries(
+        Object.entries(item).map(([key, propertyValue]) => [
+          key,
+          /authorization|secret|token|access.?key|request.?sign/iu.test(key)
+            ? "[redacted]"
+            : sanitize(propertyValue),
+        ]),
+      );
+    };
+
+    try {
+      return JSON.stringify(sanitize(value)).slice(0, 2_000);
+    } catch {
+      return "[unserializable]";
+    }
+  }
+
+  private async initializePaymentForOrder(
+    order: OrderDTO,
+    userId: string | undefined,
+  ) {
+    const shouldInitialize =
+      (await this.ordersStorage.claimPaymentInitialization?.(order.id)) ?? true;
+    if (!shouldInitialize) {
+      const initializedOrder =
+        await this.ordersStorage.waitForPaymentInitialization(order.id);
+      await this.consumeOrderCartSnapshot(initializedOrder.id);
+      return initializedOrder;
     }
 
-    if (paymentMethod === "tbank_acquiring") {
-      return this.createTBankPaymentForOrder(order, user.id);
-    }
-
-    await this.cartService.clearCart(order.cartId);
-    await this.queueOrderCreatedNotifications(order, user.id);
-
-    return order;
+    return order.payment.method === "ozon_acquiring"
+      ? this.createOzonPaymentForOrder(order, userId)
+      : this.createTBankPaymentForOrder(order, userId);
   }
 
   private async calculatePromo(
@@ -359,7 +471,7 @@ export class OrdersService {
   private assertSupportedPaymentReceipt(
     pricing: ReturnType<typeof calculatePromoPricing>,
     deliveryPrice: number,
-    paymentMethod: "bank_card_mock" | "ozon_acquiring" | "tbank_acquiring",
+    paymentMethod: "ozon_acquiring" | "tbank_acquiring",
   ) {
     const deliveryKopecks = rublesToKopecks({
       toString: () => String(deliveryPrice),
@@ -393,13 +505,25 @@ export class OrdersService {
 
     const verified =
       this.ozonAcquiringService.assertValidNotification(notification);
+    const authoritative =
+      await this.ozonAcquiringService.getOrderStatus(verified);
+    const authoritativeVerified = Object.freeze({
+      ...verified,
+      merchantOrderId: authoritative.merchantOrderId,
+      acquiringOrderId: authoritative.acquiringOrderId,
+    });
 
     const parsedNotification = this.ozonAcquiringService.parseNotification(
       notification,
-      verified,
+      authoritativeVerified,
     );
     const result = await this.ordersStorage.applyOzonAcquiringNotification({
       ...parsedNotification,
+      acquiringOrderId: authoritative.acquiringOrderId,
+      amount: authoritative.amount,
+      authoritativeStatus: authoritative.status,
+      currencyCode: authoritative.currencyCode,
+      extOrderId: authoritative.merchantOrderId,
       raw: notification,
     });
 
@@ -426,6 +550,13 @@ export class OrdersService {
     }
 
     return { ok: true };
+  }
+
+  recoverPayment(orderId: string, cartId: string | undefined) {
+    return this.ordersStorage.recoverGuestPayment(
+      this.parseOrderId(orderId),
+      cartId,
+    );
   }
 
   async handleTBankPaymentNotification(body: unknown) {
@@ -481,19 +612,9 @@ export class OrdersService {
     return { ok: true };
   }
 
-  async confirmPayment(orderId: string, user: AuthUser): Promise<OrderDTO> {
-    const order = await this.ordersStorage.markOrderAsPaid(
-      this.parseOrderId(orderId),
-      user.id,
-    );
-    await this.cartService.clearCart(order.cartId);
-
-    return order;
-  }
-
   private async createOzonPaymentForOrder(
     order: OrderDTO,
-    userId: string,
+    userId: string | undefined,
   ): Promise<OrderDTO> {
     let orderWithPayment: OrderDTO;
     try {
@@ -524,9 +645,13 @@ export class OrdersService {
         },
       );
     } catch (error) {
+      const diagnostic = this.getInternalErrorDiagnostic(error);
+      this.logger.warn(
+        `Ozon Acquiring payment initialization failed for order ${order.id}: ${diagnostic}`,
+      );
       await this.ordersStorage
         .markOzonAcquiringPaymentFailed(order.id, {
-          errorMessage: this.getErrorMessage(error),
+          errorMessage: diagnostic,
         })
         .catch((storageError) => {
           this.logger.warn(
@@ -538,12 +663,9 @@ export class OrdersService {
           );
         });
 
-      throw error;
+      throw new ServiceUnavailableException(paymentInitializationErrorMessage);
     }
-    await this.runPaymentSideEffect(
-      `clear cart after Ozon payment init for order ${order.id}`,
-      () => this.cartService.clearCart(order.cartId),
-    );
+    await this.consumeOrderCartSnapshot(order.id);
     await this.runPaymentSideEffect(
       `queue created notifications after Ozon payment init for order ${order.id}`,
       () => this.queueOrderCreatedNotifications(orderWithPayment, userId),
@@ -553,7 +675,7 @@ export class OrdersService {
 
   private async createTBankPaymentForOrder(
     order: OrderDTO,
-    userId: string,
+    userId: string | undefined,
   ): Promise<OrderDTO> {
     let orderWithPayment: OrderDTO;
     try {
@@ -583,9 +705,13 @@ export class OrdersService {
         },
       );
     } catch (error) {
+      const diagnostic = this.getInternalErrorDiagnostic(error);
+      this.logger.warn(
+        `T-Bank Acquiring payment initialization failed for order ${order.id}: ${diagnostic}`,
+      );
       await this.ordersStorage
         .markTBankAcquiringPaymentFailed(order.id, {
-          errorMessage: this.getErrorMessage(error),
+          errorMessage: diagnostic,
         })
         .catch((storageError) => {
           this.logger.warn(
@@ -597,12 +723,9 @@ export class OrdersService {
           );
         });
 
-      throw error;
+      throw new ServiceUnavailableException(paymentInitializationErrorMessage);
     }
-    await this.runPaymentSideEffect(
-      `clear cart after T-Bank payment init for order ${order.id}`,
-      () => this.cartService.clearCart(order.cartId),
-    );
+    await this.consumeOrderCartSnapshot(order.id);
     await this.runPaymentSideEffect(
       `queue created notifications after T-Bank payment init for order ${order.id}`,
       () => this.queueOrderCreatedNotifications(orderWithPayment, userId),
@@ -623,6 +746,13 @@ export class OrdersService {
         }`,
       );
     }
+  }
+
+  private consumeOrderCartSnapshot(orderId: string) {
+    return this.runPaymentSideEffect(
+      `consume cart snapshot after payment init for order ${orderId}`,
+      () => this.ordersStorage.consumeOrderCartSnapshot(orderId),
+    );
   }
 
   private parseOzonNotificationBody(value: unknown): Record<string, unknown> {
@@ -755,6 +885,22 @@ export class OrdersService {
     return error instanceof Error ? error.message : String(error);
   }
 
+  private getInternalErrorDiagnostic(error: unknown) {
+    if (error instanceof HttpException) {
+      return this.stringifyProviderDiagnostic({
+        cause: error.cause,
+        response: error.getResponse(),
+        status: error.getStatus(),
+      });
+    }
+
+    return this.stringifyProviderDiagnostic(
+      error instanceof Error
+        ? { message: error.message, name: error.name }
+        : error,
+    );
+  }
+
   private getHttpExceptionMessage(response: string | object) {
     if (typeof response === "string" && response.trim()) {
       return response.trim();
@@ -789,11 +935,24 @@ export class OrdersService {
 
     const customer = value as Record<string, unknown>;
 
-    return {
-      name: this.parseRequiredString(customer.name, "customer.name"),
-      phone: this.parseRequiredString(customer.phone, "customer.phone"),
-      email: this.parseEmail(customer.email),
-    };
+    const name = this.parseRequiredString(customer.name, "customer.name");
+    const phone = this.parseRequiredString(customer.phone, "customer.phone");
+    const email = this.parseEmail(customer.email);
+
+    if (name.length > 120) {
+      throw new BadRequestException("customer.name must be 120 characters or less");
+    }
+    if (!/^[А-ЯЁа-яё]+(?:[ -][А-ЯЁа-яё]+)*$/.test(name)) {
+      throw new BadRequestException("customer.name must contain only Russian letters and single separators");
+    }
+    if (phone.length > 18 || !/^\+7 \(\d{3}\) \d{3}-\d{2}-\d{2}$/.test(phone)) {
+      throw new BadRequestException("customer.phone must match +7 (999) 999-99-99");
+    }
+    if (email.length > 254) {
+      throw new BadRequestException("customer.email must be 254 characters or less");
+    }
+
+    return { name, phone, email };
   }
 
   private parseDeliverySelection(value: unknown): DeliverySelection {
@@ -1113,6 +1272,11 @@ export class OrdersService {
     }
 
     try {
+      const customerPhone = order.customer.phone;
+      if (!customerPhone) {
+        throw new BadRequestException("CDEK shipment requires customer phone");
+      }
+
       const claim = await this.ordersStorage.claimOrderShipmentCreation(
         order.id,
         "cdek",
@@ -1131,7 +1295,7 @@ export class OrdersService {
 
       const shipment = await this.deliveryService.createCdekOrder({
         id: order.id,
-        customer: order.customer,
+        customer: { ...order.customer, phone: customerPhone },
         delivery: order.delivery,
         items: order.items,
         comment: order.comment,
@@ -1400,11 +1564,17 @@ export class OrdersService {
     return process.env.CDEK_ORDER_CREATION_ENABLED === "true";
   }
 
-  private queueOrderCreatedNotifications(order: OrderDTO, userId: string) {
+  private queueOrderCreatedNotifications(
+    order: OrderDTO,
+    userId: string | undefined,
+  ) {
     return this.notifyOrderCreated(order, userId);
   }
 
-  private async notifyOrderCreated(order: OrderDTO, userId: string) {
+  private async notifyOrderCreated(
+    order: OrderDTO,
+    userId: string | undefined,
+  ) {
     await Promise.all([
       this.notifyAdminAboutOrderCreated(order),
       this.notifyCustomerAboutOrderCreated(order, userId),
@@ -1413,11 +1583,11 @@ export class OrdersService {
 
   private async notifyCustomerAboutOrderCreated(
     order: OrderDTO,
-    userId: string,
+    userId: string | undefined,
   ) {
     await Promise.all([
       this.sendOrderCreatedEmail(order),
-      this.sendOrderCreatedTelegram(order, userId),
+      userId ? this.sendOrderCreatedTelegram(order, userId) : undefined,
     ]);
   }
 
@@ -1532,10 +1702,12 @@ export class OrdersService {
       `Доставка: ${this.formatMoney(order.deliveryPrice)}`,
       `Итого: ${this.formatMoney(order.total)}`,
       "",
-      `Телефон: ${order.customer.phone}`,
+      order.customer.phone ? `Телефон: ${order.customer.phone}` : undefined,
       "",
       renderSupportEmailFooterText(),
-    ].join("\n");
+    ]
+      .filter((line): line is string => typeof line === "string")
+      .join("\n");
   }
 
   private renderOrderCreatedHtmlEmail(order: OrderDTO) {
@@ -1556,7 +1728,9 @@ export class OrdersService {
           { label: "Товары", value: this.formatMoney(order.subtotal) },
           { label: "Доставка", value: this.formatMoney(order.deliveryPrice) },
           { label: "Итого", value: this.formatMoney(order.total) },
-          { label: "Телефон", value: order.customer.phone },
+          ...(order.customer.phone
+            ? [{ label: "Телефон", value: order.customer.phone }]
+            : []),
         ])}
       `,
       footerHtml: renderSupportEmailFooter(),

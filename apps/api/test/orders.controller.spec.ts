@@ -4,8 +4,10 @@ import assert from "node:assert/strict";
 import { describe, it } from "node:test";
 
 import { HttpException, HttpStatus } from "@nestjs/common";
-import { MODULE_METADATA } from "@nestjs/common/constants";
+import { GUARDS_METADATA, MODULE_METADATA } from "@nestjs/common/constants";
 
+import { AuthGuard } from "../src/auth/auth.guard";
+import type { AuthService } from "../src/auth/auth.service";
 import type { AuthUser } from "../src/auth/auth.types";
 import { DeliveryModule } from "../src/delivery/delivery.module";
 import { DeliveryProxyThrottleService } from "../src/delivery/delivery-proxy-throttle.service";
@@ -13,9 +15,12 @@ import type {
   CalculateCheckoutRequestDTO,
   CreateOrderRequestDTO,
 } from "../src/orders/dto";
+import { CreateOrderResponseDTO } from "../src/orders/dto";
 import { OrdersController } from "../src/orders/orders.controller";
+import { CheckoutThrottleService } from "../src/orders/checkout-throttle.service";
 import { OrdersModule } from "../src/orders/orders.module";
-import type { OrdersService } from "../src/orders/orders.service";
+import { OrdersService } from "../src/orders/orders.service";
+import { OrdersStorage } from "../src/orders/orders.storage";
 import type { UsersService } from "../src/users/users.service";
 
 type ProtectedOrdersController = {
@@ -30,10 +35,14 @@ type ProtectedOrdersController = {
   createOrder(
     request: CreateOrderRequestDTO,
     cookieHeader: string | undefined,
-    authRequest: { user: AuthUser },
     forwardedFor: string | undefined,
     realIp: string | undefined,
     requestIp: string | undefined,
+    authorization: string | undefined,
+  ): Promise<unknown>;
+  recoverPayment(
+    orderId: string,
+    cookieHeader: string | undefined,
   ): Promise<unknown>;
 };
 
@@ -55,13 +64,14 @@ const ozonCheckoutRequest = {
 const ozonOrderRequest = {
   acceptedLegal: true,
   acceptedPersonalDataConsent: true,
+  checkoutAttemptId: "attempt-1",
   customer: {
     email: "customer@example.com",
     name: "Customer",
     phone: "+79990000000",
   },
   delivery: { pickupPointId: "ozon-1", provider: "ozon" as const },
-  payment: { method: "bank_card_mock" as const },
+  payment: { method: "tbank_acquiring" as const },
 };
 
 describe("OrdersController Ozon proxy protection", () => {
@@ -87,10 +97,10 @@ describe("OrdersController Ozon proxy protection", () => {
     await fixture.controller.createOrder(
       ozonOrderRequest,
       identity.cookieHeader,
-      { user },
       identity.forwardedFor,
       identity.realIp,
       identity.requestIp,
+      undefined,
     );
 
     assert.deepEqual(fixture.events, ["throttle", "createOrder"]);
@@ -120,10 +130,10 @@ describe("OrdersController Ozon proxy protection", () => {
       fixture.controller.createOrder(
         ozonOrderRequest,
         identity.cookieHeader,
-        { user },
         identity.forwardedFor,
         identity.realIp,
         identity.requestIp,
+        undefined,
       ),
       (error) => error === throttleError,
     );
@@ -152,14 +162,150 @@ describe("OrdersController Ozon proxy protection", () => {
     await fixture.controller.createOrder(
       { ...ozonOrderRequest, delivery: cdekDelivery },
       identity.cookieHeader,
-      { user },
       identity.forwardedFor,
       identity.realIp,
       identity.requestIp,
+      undefined,
     );
 
     assert.deepEqual(fixture.events, ["calculateCheckout", "createOrder"]);
     assert.deepEqual(fixture.throttleCalls, []);
+  });
+
+  it("resolves optional auth for create and forwards guest identity to persistent throttle", async () => {
+    const fixture = createFixture(undefined, undefined);
+
+    await fixture.controller.createOrder(
+      ozonOrderRequest,
+      identity.cookieHeader,
+      identity.forwardedFor,
+      identity.realIp,
+      identity.requestIp,
+      undefined,
+    );
+
+    assert.deepEqual(fixture.checkoutThrottleCalls, [
+      {
+        cartId: "cart-1",
+        forwardedFor: identity.forwardedFor,
+        realIp: identity.realIp,
+        requestIp: identity.requestIp,
+      },
+    ]);
+    assert.equal(fixture.createOrderUsers[0], undefined);
+  });
+
+  it("keeps reads and status guarded while create is public and mock confirmation is absent", () => {
+    assert.equal(getGuards("createOrder").includes(AuthGuard), false);
+    assert.equal(getGuards("recoverPayment").includes(AuthGuard), false);
+    for (const method of ["getMyOrders", "getOrder", "getOrderState"]) {
+      assert.equal(getGuards(method).includes(AuthGuard), true);
+    }
+    assert.equal("confirmPayment" in OrdersController.prototype, false);
+    assert.equal("confirmPayment" in OrdersService.prototype, false);
+    assert.equal("markOrderAsPaid" in OrdersStorage.prototype, false);
+
+    const routes = Object.getOwnPropertyNames(OrdersController.prototype).flatMap(
+      (property) => {
+        const handler = Object.getOwnPropertyDescriptor(
+          OrdersController.prototype,
+          property,
+        )?.value as unknown;
+
+        return typeof handler === "function"
+          ? [Reflect.getMetadata("path", handler) as unknown]
+          : [];
+      },
+    );
+    assert.equal(routes.includes(":orderId/confirm-payment"), false);
+  });
+
+  it("forwards only the cart cookie identity to public payment recovery", async () => {
+    const fixture = createFixture();
+
+    const response = await fixture.controller.recoverPayment(
+      "AM-PUBLIC1",
+      "artmate_access_token=ignored; cart_id=cart-owner",
+    );
+
+    assert.deepEqual(fixture.recoveryCalls, [
+      { cartId: "cart-owner", orderId: "AM-PUBLIC1" },
+    ]);
+    assert.deepEqual(response, { redirectUrl: "https://pay.test/recovery" });
+    assert.deepEqual(Object.keys(response as object), ["redirectUrl"]);
+  });
+
+  it("returns only a safe order id and redirect while masking the internal initialization marker", async () => {
+    const external = createFixture(undefined, undefined, {
+      discount: 100,
+      id: "private-order-id",
+      itemsCount: 3,
+      customer: { email: "private@example.com" },
+      items: [{ id: "private-product" }],
+      payment: { redirectUrl: "https://pay.test/redirect" },
+      status: "waiting_payment",
+      subtotal: 2_997,
+    });
+    const initializing = createFixture(undefined, undefined, {
+      discount: 100,
+      id: "private-order-id",
+      itemsCount: 3,
+      payment: {
+        redirectUrl: "/checkout/payment-initializing?startedAt=1",
+      },
+      subtotal: 2_997,
+    });
+    const unsafe = createFixture(undefined, undefined, {
+      discount: 100,
+      id: "unsafe-order-id",
+      itemsCount: 3,
+      payment: { redirectUrl: "javascript:alert(1)" },
+      subtotal: 2_997,
+    });
+
+    const externalResponse = await external.controller.createOrder(
+      ozonOrderRequest,
+      identity.cookieHeader,
+      identity.forwardedFor,
+      identity.realIp,
+      identity.requestIp,
+      undefined,
+    );
+    const initializingResponse = await initializing.controller.createOrder(
+      ozonOrderRequest,
+      identity.cookieHeader,
+      identity.forwardedFor,
+      identity.realIp,
+      identity.requestIp,
+      undefined,
+    );
+    const unsafeResponse = await unsafe.controller.createOrder(
+      ozonOrderRequest,
+      identity.cookieHeader,
+      identity.forwardedFor,
+      identity.realIp,
+      identity.requestIp,
+      undefined,
+    );
+
+    assert.deepEqual(externalResponse, {
+      itemsCount: 3,
+      orderId: "private-order-id",
+      redirectUrl: "https://pay.test/redirect",
+      revenue: 2_897,
+    } satisfies CreateOrderResponseDTO);
+    assert.deepEqual(initializingResponse, {
+      itemsCount: 3,
+      orderId: "private-order-id",
+      redirectUrl: null,
+      revenue: 2_897,
+    } satisfies CreateOrderResponseDTO);
+    assert.deepEqual(unsafeResponse, {
+      itemsCount: 3,
+      orderId: "unsafe-order-id",
+      redirectUrl: null,
+      revenue: 2_897,
+    } satisfies CreateOrderResponseDTO);
   });
 
   it("exports one shared throttle provider without registering another in OrdersModule", () => {
@@ -192,11 +338,24 @@ describe("OrdersController Ozon proxy protection", () => {
   });
 });
 
-function createFixture(throttleError?: HttpException) {
+function createFixture(
+  throttleError?: HttpException,
+  authenticatedUser = user,
+  createResult: unknown = {
+    discount: 0,
+    id: "order-1",
+    itemsCount: 1,
+    payment: { redirectUrl: "https://pay.test/redirect" },
+    subtotal: 1_000,
+  },
+) {
   const events: string[] = [];
   const throttleCalls: unknown[] = [];
   let calculateCheckoutCalls = 0;
   let createOrderCalls = 0;
+  const createOrderUsers: Array<AuthUser | undefined> = [];
+  const checkoutThrottleCalls: unknown[] = [];
+  const recoveryCalls: unknown[] = [];
   const ordersService = {
     calculateCheckout: async () => {
       events.push("calculateCheckout");
@@ -204,11 +363,16 @@ function createFixture(throttleError?: HttpException) {
 
       return {};
     },
-    createOrder: async () => {
+    createOrder: async (_cartId: unknown, _request: unknown, authUser: AuthUser | undefined) => {
       events.push("createOrder");
       createOrderCalls += 1;
+      createOrderUsers.push(authUser);
 
-      return {};
+      return createResult;
+    },
+    recoverPayment: async (orderId: string, cartId: string | undefined) => {
+      recoveryCalls.push({ cartId, orderId });
+      return { redirectUrl: "https://pay.test/recovery" };
     },
   } as unknown as OrdersService;
   const usersService = {} as UsersService;
@@ -228,20 +392,41 @@ function createFixture(throttleError?: HttpException) {
     throttle,
     {
       getTokenFromRequest: () => undefined,
-    },
-  ]) as ProtectedOrdersController;
+      verifyAccessToken: async () => authenticatedUser,
+    } as unknown as AuthService,
+    {
+      assertAllowed: async (input: unknown) => {
+        checkoutThrottleCalls.push(input);
+      },
+    } as unknown as CheckoutThrottleService,
+  ]) as unknown as ProtectedOrdersController;
 
   return {
     get calculateCheckoutCalls() {
       return calculateCheckoutCalls;
     },
     controller,
+    checkoutThrottleCalls,
+    createOrderUsers,
     events,
+    recoveryCalls,
     get createOrderCalls() {
       return createOrderCalls;
     },
     throttleCalls,
   };
+}
+
+function getGuards(method: string): unknown[] {
+  const descriptor = Object.getOwnPropertyDescriptor(
+    OrdersController.prototype,
+    method,
+  );
+  return (
+    (Reflect.getMetadata(GUARDS_METADATA, descriptor?.value) as
+      | unknown[]
+      | undefined) ?? []
+  );
 }
 
 function getModuleMetadata(module: object, metadataKey: string): unknown[] {

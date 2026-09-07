@@ -61,7 +61,7 @@ describe("promocode order checkout integration", () => {
     const fixture = createFixture({ itemCount: 1 });
     await fixture.service.createOrder(
       "cart-1",
-      orderRequest("bank_card_mock"),
+      orderRequest("tbank_acquiring"),
       {
         id: "user-1",
         provider: "credentials",
@@ -199,13 +199,21 @@ function createFixture(options: {
       createOrder: async (input: Record<string, unknown>) => {
         createOrderCalls += 1;
         createInput = input;
-        return {
-          id: "order-1",
-          cartId: "cart-1",
-          payment: { method: "bank_card_mock" },
-        };
+        return createOrderResult();
       },
+      claimPaymentInitialization: async () => true,
+      getOrderReceiptPricing: async () => undefined,
+      attachTBankAcquiringPayment: async () => createOrderResult(),
+      consumeOrderCartSnapshot: async () => undefined,
     },
+    tbankAcquiringService: {
+      createCheckoutPayment: async () => ({
+        acquiringOrderId: "order-1",
+        paymentId: "payment-1",
+        redirectUrl: "https://pay.test",
+      }),
+    },
+    runPaymentSideEffect: async (_description: string, effect: () => Promise<unknown>) => effect(),
     queueOrderCreatedNotifications: async () => undefined,
   }) as OrdersService;
   return {
@@ -215,16 +223,50 @@ function createFixture(options: {
   };
 }
 
+function createOrderResult() {
+  return {
+    id: "order-1",
+    cartId: "cart-1",
+    customer: {
+      email: "buyer@example.com",
+      name: "Анна Иванова",
+      phone: "+7 (999) 000-00-00",
+    },
+    delivery: {
+      provider: "cdek" as const,
+      pickupPoint: {
+        id: "point-1",
+        title: "Point",
+        address: "Address",
+        workHours: "09:00-21:00",
+        deliveryPrice: 490,
+      },
+    },
+    payment: { method: "tbank_acquiring" as const, status: "pending" as const },
+    items: [],
+    shipments: [],
+    itemsCount: 1,
+    subtotal: 999,
+    discount: 100,
+    deliveryPrice: 490,
+    total: 1_389,
+    currency: "RUB" as const,
+    createdAt: "2026-09-07T00:00:00.000Z",
+    status: "waiting_payment" as const,
+  };
+}
+
 function orderRequest(
-  method: "bank_card_mock" | "ozon_acquiring" | "tbank_acquiring",
+  method: "ozon_acquiring" | "tbank_acquiring",
 ) {
   return {
     acceptedLegal: true,
     acceptedPersonalDataConsent: true,
+    checkoutAttemptId: `attempt-${method}`,
     customer: {
       email: "buyer@example.com",
-      name: "Buyer",
-      phone: "+79990000000",
+      name: "Анна Иванова",
+      phone: "+7 (999) 000-00-00",
     },
     delivery: { provider: "cdek" as const, pickupPointId: "point-1" },
     payment: { method },

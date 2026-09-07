@@ -1,5 +1,12 @@
 /** Artmate's server-owned Ozon pickup delivery tariff in rubles. */
-export const ozonDeliveryPriceRub = 200;
+export const ozonDeliveryPriceRub = 100;
+
+/** Bounds cached provider responses while retaining useful storefront searches. */
+export const providerResponseCacheMaxEntries = 500;
+export const cdekCitySearchCacheTtlMs = 30 * 60_000;
+export const cdekPickupPointsCacheTtlMs = 10 * 60_000;
+export const ozonDeliveryMapCacheTtlMs = 60_000;
+export const ozonDeliveryPointInfoCacheTtlMs = 5 * 60_000;
 
 /** Matches the persisted order pickup-point snapshot columns. */
 export const deliveryPickupPointIdMaxLength = 160;

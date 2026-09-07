@@ -3,6 +3,7 @@ import crypto from "node:crypto";
 import {
   BadGatewayException,
   BadRequestException,
+  GatewayTimeoutException,
   Injectable,
   InternalServerErrorException,
   Logger,
@@ -33,7 +34,7 @@ type OzonAcquiringCreateOrderRequest = {
   enableFiscalization: true;
   extId: string;
   failUrl: string;
-  fiscalizationPhone: string;
+  fiscalizationPhone?: string;
   fiscalizationType: OzonAcquiringFiscalizationType;
   items: OzonAcquiringCreateOrderItem[];
   mode: "MODE_FULL";
@@ -44,6 +45,10 @@ type OzonAcquiringCreateOrderRequest = {
   successUrl: string;
 };
 
+type OzonAcquiringGetOrderStatusRequest =
+  | { accessKey: string; extId: string; requestSign: string }
+  | { accessKey: string; id: string; requestSign: string };
+
 type OzonAcquiringPaymentAlgorithm = "PAY_ALGO_SMS" | "PAY_ALGO_DMS";
 
 type OzonAcquiringFiscalizationType =
@@ -52,6 +57,8 @@ type OzonAcquiringFiscalizationType =
   | "FISCAL_TYPE_UNSPECIFIED";
 
 const fiscalizationType: OzonAcquiringFiscalizationType = "FISCAL_TYPE_SINGLE";
+const checkoutPaymentErrorMessage =
+  "Не удалось начать оплату через Ozon. Попробуйте еще раз.";
 
 export type OzonAcquiringCreateCheckoutPaymentInput = {
   amount: number;
@@ -84,24 +91,13 @@ type OzonAcquiringParsedNotificationFields = {
   extOrderId?: string;
   extTransactionId?: string;
   paymentMethod?: string;
-  status?: string;
-  transactionId?: string;
-  transactionUid?: string;
 };
 
-export type OzonAcquiringVerifiedNotification =
-  | {
-      profile: "canonical";
-      merchantOrderId: string;
-      acquiringOrderId?: string;
-      transactionIdentity?:
-        | { kind: "transactionId"; value: string }
-        | { kind: "transactionUid"; value: string };
-    }
-  | {
-      profile: "secondary";
-      merchantOrderId: string;
-    };
+export type OzonAcquiringVerifiedNotification = {
+  profile: "canonical";
+  merchantOrderId?: string;
+  acquiringOrderId?: string;
+};
 
 export type OzonAcquiringParsedNotification =
   OzonAcquiringParsedNotificationFields & {
@@ -109,6 +105,20 @@ export type OzonAcquiringParsedNotification =
   };
 
 const defaultAcquiringBaseUrl = "https://payapi.ozon.ru";
+const orderStatuses = new Set([
+  "STATUS_UNSPECIFIED",
+  "STATUS_NEW",
+  "STATUS_PAYMENT_PENDING",
+  "STATUS_PAID",
+  "STATUS_PARTITIONAL_REFUND",
+  "STATUS_AUTHORIZED",
+  "STATUS_CANCELED",
+  "STATUS_DISPUTED",
+  "STATUS_EXPIRED",
+  "STATUS_REFUNDED",
+  "STATUS_PARTITION_CANCELED",
+  "STATUS_DISPUTING",
+]);
 
 @Injectable()
 export class OzonAcquiringService {
@@ -138,7 +148,9 @@ export class OzonAcquiringService {
       enableFiscalization: true,
       extId: input.orderId,
       failUrl: input.failUrl,
-      fiscalizationPhone: input.customer.phone,
+      ...(input.customer.phone
+        ? { fiscalizationPhone: input.customer.phone }
+        : {}),
       fiscalizationType,
       items,
       mode: "MODE_FULL",
@@ -158,6 +170,7 @@ export class OzonAcquiringService {
     const responseBody = await this.requestAcquiring(
       "/v1/createOrder",
       requestBody,
+      checkoutPaymentErrorMessage,
     );
     const paymentDetails = this.getObjectProperty(
       responseBody,
@@ -173,10 +186,13 @@ export class OzonAcquiringService {
       this.getStringProperty(sbp, "payload");
 
     if (!redirectUrl) {
-      throw new BadGatewayException({
-        message:
-          "Ozon Acquiring response does not contain payment redirect URL",
-        responseShape: this.getSafeResponseShape(responseBody),
+      this.logger.warn(
+        `Ozon Acquiring /v1/createOrder response does not contain payment redirect URL: ${this.toLogString(
+          this.sanitizeForDiagnostics(responseBody),
+        )}`,
+      );
+      throw this.createPublicBadGatewayException(checkoutPaymentErrorMessage, {
+        body: this.sanitizeForDiagnostics(responseBody),
       });
     }
 
@@ -188,6 +204,75 @@ export class OzonAcquiringService {
     };
   }
 
+  async getOrderStatus(
+    notification: OzonAcquiringVerifiedNotification,
+  ) {
+    const requestId = !notification.merchantOrderId
+      ? notification.acquiringOrderId
+      : undefined;
+    const requestExtId = notification.merchantOrderId;
+    if (!requestId && !requestExtId) {
+      throw new BadGatewayException(
+        "Ozon Acquiring notification order identity is missing",
+      );
+    }
+
+    const accessKey = this.getAccessKey();
+    const requestBody: OzonAcquiringGetOrderStatusRequest = {
+      accessKey,
+      ...(requestExtId ? { extId: requestExtId } : { id: requestId! }),
+      requestSign: this.sha256Hex(
+        (requestId ?? "") +
+          (requestExtId ?? "") +
+          accessKey +
+          this.getSecretKey(),
+      ),
+    };
+    const responseBody = await this.requestAcquiring(
+      "/v1/getOrderStatus",
+      requestBody,
+    );
+    const acquiringOrderId = this.getStringProperty(responseBody, "id");
+    const merchantOrderId = this.getStringProperty(responseBody, "extId");
+    const status = this.getStringProperty(responseBody, "status");
+    const originalAmount = this.getObjectProperty(
+      responseBody,
+      "originalAmount",
+    );
+    const currencyCode = this.getStringProperty(
+      originalAmount,
+      "currencyCode",
+    );
+    const amount = this.getStringProperty(originalAmount, "value");
+
+    if (
+      !acquiringOrderId ||
+      !merchantOrderId ||
+      (requestId !== undefined && acquiringOrderId !== requestId) ||
+      (requestExtId !== undefined && merchantOrderId !== requestExtId) ||
+      (notification.acquiringOrderId !== undefined &&
+        acquiringOrderId !== notification.acquiringOrderId) ||
+      !status ||
+      !orderStatuses.has(status) ||
+      !currencyCode ||
+      !amount ||
+      !/^\d+$/.test(amount)
+    ) {
+      throw this.createPublicBadGatewayException(
+        "Ozon Acquiring order status response is invalid",
+        { body: this.sanitizeForDiagnostics(responseBody) },
+      );
+    }
+
+    return {
+      acquiringOrderId,
+      amount,
+      currencyCode,
+      merchantOrderId,
+      status,
+    };
+  }
+
   parseNotification(
     notification: OzonAcquiringPaymentNotification,
     verified: OzonAcquiringVerifiedNotification,
@@ -196,7 +281,7 @@ export class OzonAcquiringService {
       acquiringOrderId: this.getStringProperty(notification, "orderID"),
       amount: this.getNotificationValue(notification, "amount"),
       currencyCode: this.getStringProperty(notification, "currencyCode"),
-      errorCode: this.getStringProperty(notification, "errorCode"),
+      errorCode: this.getNumberOrStringProperty(notification, "errorCode"),
       errorMessage: this.getStringProperty(notification, "errorMessage"),
       extOrderId: this.getStringProperty(notification, "extOrderID"),
       extTransactionId: this.getStringProperty(
@@ -204,9 +289,6 @@ export class OzonAcquiringService {
         "extTransactionID",
       ),
       paymentMethod: this.getStringProperty(notification, "paymentMethod"),
-      status: this.getStringProperty(notification, "status"),
-      transactionId: this.getNotificationValue(notification, "transactionID"),
-      transactionUid: this.getStringProperty(notification, "transactionUid"),
       verified,
     };
   }
@@ -222,12 +304,8 @@ export class OzonAcquiringService {
       );
     }
 
-    const candidates = this.createNotificationSignatureCandidates(notification);
-    const profile = candidates.find((candidate) =>
-      this.isSafeEqual(candidate.signature, requestSign),
-    )?.profile;
-
-    if (!profile) {
+    const signature = this.createNotificationSignature(notification);
+    if (!this.isSafeEqual(signature, requestSign)) {
       throw new UnauthorizedException(
         "Ozon Acquiring notification signature is invalid",
       );
@@ -238,46 +316,27 @@ export class OzonAcquiringService {
       notification,
       "extTransactionID",
     );
-    const merchantOrderId =
-      profile === "canonical" ? extOrderId : extTransactionId;
-    if (!merchantOrderId) {
+    const merchantOrderId = extOrderId;
+    const acquiringOrderId = this.getStringProperty(notification, "orderID");
+    if (!merchantOrderId && !acquiringOrderId) {
       throw new UnauthorizedException(
-        "Ozon Acquiring signed merchant order identity is missing",
+        "Ozon Acquiring signed merchant order identity or acquiring order id is missing",
       );
     }
-    const otherMerchantOrderId =
-      profile === "canonical" ? extTransactionId : extOrderId;
-    if (otherMerchantOrderId && otherMerchantOrderId !== merchantOrderId) {
+    if (extTransactionId && extTransactionId !== merchantOrderId) {
       throw new UnauthorizedException(
         "Ozon Acquiring merchant order identities conflict",
       );
     }
 
-    if (profile === "secondary") {
-      return { profile, merchantOrderId };
-    }
-
-    const transactionId = this.getNotificationValue(
-      notification,
-      "transactionID",
-    );
-    const transactionUid = this.getStringProperty(
-      notification,
-      "transactionUid",
-    );
-    return {
-      profile,
+    return Object.freeze({
+      profile: "canonical",
       merchantOrderId,
-      acquiringOrderId: this.getStringProperty(notification, "orderID"),
-      transactionIdentity: transactionId
-        ? { kind: "transactionId", value: transactionId }
-        : transactionUid
-          ? { kind: "transactionUid", value: transactionUid }
-          : undefined,
-    };
+      acquiringOrderId,
+    });
   }
 
-  private createNotificationSignatureCandidates(
+  private createNotificationSignature(
     notification: OzonAcquiringPaymentNotification,
   ) {
     const accessKey = this.getAccessKey();
@@ -289,42 +348,21 @@ export class OzonAcquiringService {
       this.getStringProperty(notification, "transactionUid") ??
       "";
     const extOrderId = this.getStringProperty(notification, "extOrderID") ?? "";
-    const extTransactionId =
-      this.getStringProperty(notification, "extTransactionID") ?? "";
     const amount = this.getNotificationValue(notification, "amount") ?? "";
     const currencyCode =
       this.getStringProperty(notification, "currencyCode") ?? "";
 
-    return [
-      {
-        profile: "canonical" as const,
-        signature: this.sha256Hex(
-          [
-            accessKey,
-            acquiringOrderId,
-            transactionId,
-            extOrderId,
-            amount,
-            currencyCode,
-            notificationSecretKey,
-          ].join("|"),
-        ),
-      },
-      {
-        profile: "secondary" as const,
-        signature: this.sha256Hex(
-          [
-            accessKey,
-            "",
-            "",
-            extTransactionId,
-            amount,
-            currencyCode,
-            notificationSecretKey,
-          ].join("|"),
-        ),
-      },
-    ];
+    return this.sha256Hex(
+      [
+        accessKey,
+        acquiringOrderId,
+        transactionId,
+        extOrderId,
+        amount,
+        currencyCode,
+        notificationSecretKey,
+      ].join("|"),
+    );
   }
 
   private signCreateOrder(input: {
@@ -432,37 +470,70 @@ export class OzonAcquiringService {
     return provider === "cdek" ? "Доставка CDEK" : "Доставка Ozon";
   }
 
-  private async requestAcquiring(path: string, body: unknown) {
-    const response = await fetch(`${this.getBaseUrl()}${path}`, {
-      method: "POST",
-      headers: {
-        "content-type": "application/json",
-      },
-      body: JSON.stringify(body),
-    });
-    const responseBody = await this.parseResponseBody(response);
+  private async requestAcquiring(
+    path: string,
+    body: unknown,
+    publicErrorMessage = "Ozon Acquiring request failed",
+  ) {
+    let response: Response;
+    let responseBody: unknown;
+
+    try {
+      response = await fetch(`${this.getBaseUrl()}${path}`, {
+        method: "POST",
+        headers: {
+          "content-type": "application/json",
+        },
+        body: JSON.stringify(body),
+        signal: AbortSignal.timeout(8_000),
+      });
+      responseBody = await this.parseResponseBody(response);
+    } catch (error) {
+      const diagnostic =
+        error instanceof Error
+          ? { message: error.message, name: error.name }
+          : error;
+      this.logger.warn(
+        `Ozon Acquiring ${path} transport failed: ${this.toLogString(diagnostic)}`,
+      );
+      if (
+        error instanceof Error &&
+        (error.name === "TimeoutError" || error.name === "AbortError")
+      ) {
+        throw new GatewayTimeoutException({
+          error: "Gateway Timeout",
+          message: publicErrorMessage,
+          statusCode: 504,
+        });
+      }
+      throw this.createPublicBadGatewayException(
+        publicErrorMessage,
+        diagnostic,
+      );
+    }
 
     if (!response.ok) {
       const diagnosticBody = this.sanitizeForDiagnostics(responseBody);
-      const detail = this.getAcquiringErrorDetail(diagnosticBody);
-      const message = detail
-        ? `Ozon Acquiring request failed: ${detail}`
-        : "Ozon Acquiring request failed";
-
       this.logger.warn(
         `Ozon Acquiring ${path} failed with status ${
           response.status
         }: ${this.toLogString(diagnosticBody)}`,
       );
 
-      throw new BadGatewayException({
-        message,
-        ozonBody: diagnosticBody,
-        ozonStatus: response.status,
+      throw this.createPublicBadGatewayException(publicErrorMessage, {
+        body: diagnosticBody,
+        status: response.status,
       });
     }
 
     return responseBody;
+  }
+
+  private createPublicBadGatewayException(message: string, cause: unknown) {
+    return new BadGatewayException(
+      { error: "Bad Gateway", message, statusCode: 502 },
+      { cause },
+    );
   }
 
   private async parseResponseBody(response: Response) {

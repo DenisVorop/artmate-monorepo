@@ -1,8 +1,11 @@
 import { IsIn } from "class-validator";
 
-import { paymentMethods, type PaymentMethod } from "../orders.constants";
+import {
+  createOrderPaymentMethods,
+  type CreateOrderPaymentMethod,
+} from "../orders.constants";
 
 export class CreateOrderPaymentRequestDTO {
-  @IsIn(paymentMethods)
-  method!: PaymentMethod;
+  @IsIn(createOrderPaymentMethods)
+  method!: CreateOrderPaymentMethod;
 }

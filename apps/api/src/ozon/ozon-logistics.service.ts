@@ -1,7 +1,9 @@
 import {
   BadGatewayException,
   BadRequestException,
+  HttpException,
   Injectable,
+  Logger,
   ServiceUnavailableException,
 } from "@nestjs/common";
 
@@ -32,23 +34,11 @@ import { OzonOAuthService } from "./ozon-oauth.service";
 type OzonLogisticsMode = "mock" | "real";
 
 const MOCK_RESPONSE_DELAY_MS = 450;
-const DEFAULT_MOSCOW_VIEWPORT: OzonDeliveryMapRequestDTO = {
-  viewport: {
-    left_bottom: {
-      lat: 55.55,
-      long: 37.35,
-    },
-    right_top: {
-      lat: 55.95,
-      long: 37.85,
-    },
-  },
-  zoom: 11,
-};
 
 @Injectable()
 export class OzonLogisticsService {
   private activeSellerApiRequests = 0;
+  private readonly logger = new Logger(OzonLogisticsService.name);
 
   constructor(private readonly ozonOAuthService: OzonOAuthService) {}
 
@@ -75,6 +65,20 @@ export class OzonLogisticsService {
   }
 
   async getMapClusters(
+    request: OzonDeliveryMapRequestDTO,
+  ): Promise<StorefrontOzonDeliveryMapClusterDTO[]> {
+    try {
+      return await this.loadMapClusters(request);
+    } catch (error) {
+      throw this.createPublicProviderException(
+        error,
+        "map",
+        "Не удалось загрузить карту пунктов Ozon. Попробуйте еще раз.",
+      );
+    }
+  }
+
+  private async loadMapClusters(
     request: OzonDeliveryMapRequestDTO,
   ): Promise<StorefrontOzonDeliveryMapClusterDTO[]> {
     const response = await this.getDeliveryMap(request);
@@ -148,24 +152,21 @@ export class OzonLogisticsService {
     return [...normalizedClusters, ...leafClusters];
   }
 
-  async getPickupPoints(): Promise<PickupPointDTO[]> {
-    if (this.getMode() === "mock") {
-      return OZON_MOCK_PICKUP_POINTS.filter(
-        (point) => point.type === "PVZ" && this.isMockPointAvailable(point),
-      ).map((point) => this.mapMockPointToPickupPoint(point));
+  async getPickupPointsByIds(
+    mapPointIds: readonly string[],
+  ): Promise<PickupPointDTO[]> {
+    try {
+      return await this.loadPickupPointsByIds(mapPointIds);
+    } catch (error) {
+      throw this.createPublicProviderException(
+        error,
+        "point-info search",
+        "Не удалось загрузить пункты выдачи Ozon. Попробуйте еще раз.",
+      );
     }
-
-    const mapResponse = await this.getDeliveryMap(DEFAULT_MOSCOW_VIEWPORT);
-    const mapPointIds = this.extractMapPointIds(mapResponse).slice(0, 100);
-
-    if (mapPointIds.length === 0) {
-      return [];
-    }
-
-    return this.getPickupPointsByIds(mapPointIds);
   }
 
-  async getPickupPointsByIds(
+  private async loadPickupPointsByIds(
     mapPointIds: readonly string[],
   ): Promise<PickupPointDTO[]> {
     if (this.getMode() === "mock") {
@@ -188,6 +189,26 @@ export class OzonLogisticsService {
   }
 
   async getPickupPoint(pickupPointId: string): Promise<PickupPointDTO> {
+    if (this.getMode() === "mock") {
+      return this.loadPickupPoint(pickupPointId);
+    }
+
+    try {
+      return await this.loadPickupPoint(pickupPointId);
+    } catch (error) {
+      if (error instanceof BadRequestException) {
+        throw error;
+      }
+
+      throw this.createPublicProviderException(
+        error,
+        "selected point",
+        "Не удалось проверить пункт выдачи Ozon. Попробуйте еще раз.",
+      );
+    }
+  }
+
+  private async loadPickupPoint(pickupPointId: string): Promise<PickupPointDTO> {
     if (this.getMode() === "mock") {
       const point = this.findMockPickupPoint(pickupPointId);
 
@@ -499,43 +520,6 @@ export class OzonLogisticsService {
     return record.points;
   }
 
-  private extractMapPointIds(response: unknown) {
-    const { clusters, points } = this.getMapItems(response);
-    const ids = new Set<string>();
-
-    for (const cluster of clusters) {
-      const rawMapPointIds = this.toRecord(cluster).map_point_ids;
-
-      if (!Array.isArray(rawMapPointIds)) {
-        throw this.createInvalidMapResponseException();
-      }
-
-      for (const value of rawMapPointIds) {
-        const mapPointId = this.parseExternalMapPointId(value);
-
-        if (!mapPointId) {
-          throw this.createInvalidMapResponseException();
-        }
-
-        ids.add(mapPointId);
-      }
-    }
-
-    for (const point of points) {
-      const mapPointId = this.parseExternalMapPointId(
-        this.toRecord(point).map_point_id,
-      );
-
-      if (!mapPointId) {
-        throw this.createInvalidMapResponseException();
-      }
-
-      ids.add(mapPointId);
-    }
-
-    return [...ids];
-  }
-
   private isPickupPointDeliveryMethod(point: unknown) {
     const record = this.toRecord(point);
     const deliveryMethod = this.toRecord(record.delivery_method);
@@ -814,6 +798,62 @@ export class OzonLogisticsService {
       return await this.ozonOAuthService.requestSellerApi(path, body);
     } finally {
       this.activeSellerApiRequests -= 1;
+    }
+  }
+
+  private createPublicProviderException(
+    error: unknown,
+    operation: string,
+    publicMessage: string,
+  ) {
+    const status = error instanceof HttpException ? error.getStatus() : undefined;
+    const diagnostic =
+      error instanceof HttpException
+        ? error.getResponse()
+        : error instanceof Error
+          ? { message: error.message, name: error.name }
+          : error;
+
+    this.logger.warn(
+      `Ozon Logistics ${operation} failed${status ? ` with status ${status}` : ""}: ${this.toLogString(
+        this.sanitizeForDiagnostics(diagnostic),
+      )}`,
+    );
+
+    return new BadGatewayException(
+      {
+        error: "Bad Gateway",
+        message: publicMessage,
+        statusCode: 502,
+      },
+      { cause: this.sanitizeForDiagnostics({ diagnostic, status }) },
+    );
+  }
+
+  private sanitizeForDiagnostics(value: unknown): unknown {
+    if (Array.isArray(value)) {
+      return value.map((item) => this.sanitizeForDiagnostics(item));
+    }
+
+    if (!value || typeof value !== "object") {
+      return value;
+    }
+
+    return Object.fromEntries(
+      Object.entries(value).map(([key, propertyValue]) => [
+        key,
+        /authorization|secret|token|access.?key|request.?sign/iu.test(key)
+          ? "[redacted]"
+          : this.sanitizeForDiagnostics(propertyValue),
+      ]),
+    );
+  }
+
+  private toLogString(value: unknown) {
+    try {
+      return JSON.stringify(value).slice(0, 2_000);
+    } catch {
+      return "[unserializable]";
     }
   }
 

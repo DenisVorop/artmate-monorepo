@@ -1,4 +1,5 @@
 import { ApiBody, ApiOkResponse, ApiOperation, ApiTags } from "@nestjs/swagger";
+import { CheckoutThrottleService } from "./checkout-throttle.service";
 import {
   Body,
   Controller,
@@ -28,9 +29,10 @@ import {
   CheckoutCalculationDTO,
   CreateOrderAdminCommentRequestDTO,
   CreateOrderRequestDTO,
+  CreateOrderResponseDTO,
   OrderDTO,
   OrderStateDTO,
-  PickupPointDTO,
+  PaymentRecoveryResponseDTO,
   UpdateOrderStatusRequestDTO,
 } from "./dto";
 import { OrdersService } from "./orders.service";
@@ -49,19 +51,8 @@ export class OrdersController {
     private readonly usersService: UsersService,
     private readonly deliveryProxyThrottleService: DeliveryProxyThrottleService,
     private readonly authService: AuthService,
+    private readonly checkoutThrottleService: CheckoutThrottleService,
   ) {}
-
-  @ValidateResponse(PickupPointDTO, { isArray: true })
-  @ApiOperation({
-    summary: "Get available Ozon pickup points",
-    description:
-      "Compatibility endpoint for checkout. In mock mode returns available mock Ozon points. In real mode reads points through Ozon Logistics map and point-info.",
-  })
-  @ApiOkResponse({ type: [PickupPointDTO] })
-  @Get("pickup-points")
-  getPickupPoints() {
-    return this.ordersService.getPickupPoints();
-  }
 
   @UseGuards(AuthGuard)
   @ValidateResponse(OrderDTO, { isArray: true })
@@ -190,23 +181,30 @@ export class OrdersController {
     );
   }
 
-  @UseGuards(AuthGuard)
-  @ValidateResponse(OrderDTO)
+  @ValidateResponse(CreateOrderResponseDTO)
   @Post()
   @ApiOperation({
     summary: "Create order from the current cart",
     description:
       "Creates an order from the current cart, clears the cart, and queues order notifications.",
   })
-  @ApiOkResponse({ type: OrderDTO })
+  @ApiOkResponse({ type: CreateOrderResponseDTO })
   async createOrder(
     @Body() request: CreateOrderRequestDTO,
     @Headers("cookie") cookieHeader: string | undefined,
-    @Req() authRequest: AuthenticatedRequest,
     @Headers("x-forwarded-for") forwardedFor: string | undefined,
     @Headers("x-real-ip") realIp: string | undefined,
     @Ip() requestIp: string | undefined,
+    @Headers("authorization") authorization: string | undefined,
   ) {
+    const cartId = this.getCartId(cookieHeader);
+    await this.checkoutThrottleService.assertAllowed({
+      cartId,
+      forwardedFor,
+      realIp,
+      requestIp,
+    });
+
     if (request.delivery?.provider === "ozon") {
       this.deliveryProxyThrottleService.assertAllowed({
         cookieHeader,
@@ -216,10 +214,35 @@ export class OrdersController {
       });
     }
 
-    return this.ordersService.createOrder(
+    const token = this.authService.getTokenFromRequest(
+      authorization,
+      cookieHeader,
+    );
+    const user = token
+      ? await this.authService.verifyAccessToken(token)
+      : undefined;
+
+    const order = await this.ordersService.createOrder(cartId, request, user);
+
+    return {
+      itemsCount: order.itemsCount,
+      orderId: order.id,
+      redirectUrl: this.getSafeCreateRedirect(order.payment.redirectUrl),
+      revenue: order.subtotal - order.discount,
+    } satisfies CreateOrderResponseDTO;
+  }
+
+  @ValidateResponse(PaymentRecoveryResponseDTO)
+  @Post(":orderId/payment-recovery")
+  @ApiOperation({ summary: "Recover a guest payment using the original cart cookie" })
+  @ApiOkResponse({ type: PaymentRecoveryResponseDTO })
+  recoverPayment(
+    @Param("orderId") orderId: string,
+    @Headers("cookie") cookieHeader: string | undefined,
+  ) {
+    return this.ordersService.recoverPayment(
+      orderId,
       this.getCartId(cookieHeader),
-      request,
-      authRequest.user,
     );
   }
 
@@ -272,22 +295,6 @@ export class OrdersController {
     return this.ordersService.getOrder(orderId, request.user);
   }
 
-  @UseGuards(AuthGuard)
-  @ValidateResponse(OrderDTO)
-  @Post(":orderId/confirm-payment")
-  @ApiOperation({
-    summary: "Confirm mock payment",
-    description:
-      "Marks the order as paid and clears the cart. This is a mock payment transition without real acquiring.",
-  })
-  @ApiOkResponse({ type: OrderDTO })
-  confirmPayment(
-    @Param("orderId") orderId: string,
-    @Req() request: AuthenticatedRequest,
-  ) {
-    return this.ordersService.confirmPayment(orderId, request.user);
-  }
-
   private getCartId(cookieHeader?: string) {
     if (!cookieHeader) {
       return undefined;
@@ -307,6 +314,16 @@ export class OrdersController {
       return decodeURIComponent(rawCartId);
     } catch {
       return undefined;
+    }
+  }
+
+  private getSafeCreateRedirect(value: string) {
+    if (value.startsWith("/checkout/payment-initializing")) return null;
+    if (value.startsWith("/checkout/success")) return value;
+    try {
+      return new URL(value).protocol === "https:" ? value : null;
+    } catch {
+      return null;
     }
   }
 }

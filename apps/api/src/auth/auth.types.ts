@@ -13,6 +13,11 @@ export type AuthUser = {
   roles: UserRole[];
 };
 
+export type AuthPrincipal = AuthUser & {
+  authVersion: number;
+  envCredentialBinding?: string;
+};
+
 export type AuthTokenPayload = {
   sub: string;
   provider: AuthProvider;
@@ -22,6 +27,8 @@ export type AuthTokenPayload = {
   phone?: string;
   image?: string;
   roles: UserRole[];
+  authVersion?: number;
+  envCredentialBinding?: string;
 };
 
 export type YandexTokenResponse = {
