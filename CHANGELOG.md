@@ -1,5 +1,23 @@
 # Changelog
 
+## [0.37.0](https://github.com/DenisVorop/artmate-monorepo/compare/v0.36.0...v0.37.0) (2026-09-07)
+
+
+### Features
+
+* **api:** add Ozon point list ([02bac71](https://github.com/DenisVorop/artmate-monorepo/commit/02bac71ed7cc42e804a475082258c6067f570f87))
+* **api:** support guest checkout ([de12414](https://github.com/DenisVorop/artmate-monorepo/commit/de1241456337281b21d00a3232a3a3fac76a4320))
+* **site:** redesign guest checkout ([43602e4](https://github.com/DenisVorop/artmate-monorepo/commit/43602e405fd981be1028b2ecb5cc283bf144d8eb))
+* **workshop:** streamline work submissions ([eb44993](https://github.com/DenisVorop/artmate-monorepo/commit/eb449932fb67f39b93ff313f6e213d3cea3c280c))
+
+
+### Bug Fixes
+
+* **api:** harden Ozon point list validation ([170d4df](https://github.com/DenisVorop/artmate-monorepo/commit/170d4df1f2db81434936f475bd03c29fc87cb664))
+* **api:** remove redundant OAuth delegate cast ([70184e5](https://github.com/DenisVorop/artmate-monorepo/commit/70184e5f109d8242b3537214ec54a3dee11d1257))
+* **site:** simplify digital coloring pages ([149fda2](https://github.com/DenisVorop/artmate-monorepo/commit/149fda230f119c5e976627ad53f9a3529b2f2629))
+* **workshop:** accept phone photos ([0ed5ea3](https://github.com/DenisVorop/artmate-monorepo/commit/0ed5ea36ddc1fd9f783742962f523e2cb419ff58))
+
 ## [0.36.0](https://github.com/DenisVorop/artmate-monorepo/compare/v0.35.1...v0.36.0) (2026-09-01)
 
 
