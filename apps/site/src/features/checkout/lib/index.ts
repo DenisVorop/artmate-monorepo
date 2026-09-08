@@ -18,7 +18,15 @@ export {
   resolveCheckoutCalculationState,
   type CheckoutCalculationState,
 } from "./calculation-state";
-export { filterPickupPoints, formatPickupPointCount } from "./delivery-selector";
+export {
+  createPickupPointSearchIndex,
+  formatPickupPointCount,
+  getPickupPointNavigationIndex,
+  getPickupPointsFitKey,
+  includeActivePickupPoint,
+  isPickupPointSelectionCurrent,
+  searchPickupPointIndex,
+} from "./delivery-selector";
 export { formatEstimatedDeliveryDateRange } from "./delivery-date-range";
 export {
   CheckoutProvider,

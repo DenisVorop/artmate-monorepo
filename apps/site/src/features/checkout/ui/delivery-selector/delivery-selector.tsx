@@ -1,7 +1,7 @@
 "use client";
 
 import { CheckCircle2, CircleAlert, LoaderCircle, MapPin } from "lucide-react";
-import { useEffect, useMemo, useState } from "react";
+import { useEffect, useState } from "react";
 
 import type { DeliveryCityDTO, DeliveryPickupPointDTO } from "@/shared/actions/delivery";
 import { cn } from "@/shared/lib";
@@ -10,7 +10,6 @@ import { Button } from "@/shared/ui/button";
 import {
   clearCdekDraftCity,
   clearOzonDraftCity,
-  filterPickupPoints,
   formatPickupPointCount,
   selectDraftCity,
   selectDraftPickupPoint,
@@ -24,6 +23,7 @@ import { ComboboxOption } from "./combobox-option";
 import { DeliveryCompanySelector } from "./delivery-company-selector";
 import { defaultDeliveryCompany, type DeliveryCompanyCode } from "./delivery-options";
 import { MapPlaceholder } from "./map-placeholder";
+import { PickupPointCombobox } from "./pickup-point-combobox";
 import { PickupPointsMap } from "./pickup-points-map";
 
 type DeliverySelectorProps = {
@@ -71,17 +71,9 @@ export function DeliverySelector({
   const selectedCdekPoint =
     drafts.cdek.pickupPoint ??
     cdekPickupPoints.find((point) => point.id === drafts.cdek.pickupPointId);
-  const filteredCdekPickupPoints = useMemo(
-    () => filterPickupPoints(cdekPickupPoints, pickupPointQuery),
-    [cdekPickupPoints, pickupPointQuery],
-  );
   const selectedOzonPoint =
     drafts.ozon.pickupPoint ??
     ozonPickupPointsState.pickupPoints.find((point) => point.id === drafts.ozon.pickupPointId);
-  const filteredOzonPickupPoints = useMemo(
-    () => filterPickupPoints(ozonPickupPointsState.pickupPoints, pickupPointQuery),
-    [ozonPickupPointsState.pickupPoints, pickupPointQuery],
-  );
 
   useEffect(() => {
     if (isOzonDeliveryAvailable || selectedCompany !== "ozon") {
@@ -190,7 +182,8 @@ export function DeliverySelector({
               ))}
             </ComboboxField>
 
-            <ComboboxField
+            <PickupPointCombobox
+              datasetIdentity={`cdek:${cdekCityCode ?? ""}`}
               disabled={!cdekCityCode || areCdekPickupPointsPending || areCdekPickupPointsError}
               emptyText={
                 areCdekPickupPointsError
@@ -201,14 +194,16 @@ export function DeliverySelector({
                       : "Пункты выдачи не найдены"
                     : "Сначала выберите город"
               }
-              inputValue={pickupPointQuery}
               isOpen={isPickupPointOpen}
               isPending={areCdekPickupPointsPending}
               label="Пункт выдачи"
-              onInputChange={setPickupPointQuery}
               onOpenChange={setIsPickupPointOpen}
+              onQueryChange={setPickupPointQuery}
+              onSelect={selectCdekPickupPoint}
+              pickupPoints={cdekPickupPoints}
               placeholder="Адрес или название ПВЗ"
-              selectedLabel={selectedCdekPoint?.address}
+              query={pickupPointQuery}
+              selectedPoint={selectedCdekPoint}
               triggerLabel={
                 selectedCdekPoint
                   ? selectedCdekPoint.address
@@ -216,19 +211,7 @@ export function DeliverySelector({
                     ? "Выберите пункт выдачи"
                     : "Сначала выберите город"
               }
-            >
-              {filteredCdekPickupPoints.slice(0, 80).map((point) => (
-                <ComboboxOption
-                  key={point.id}
-                  description={point.workHours}
-                  icon={<MapPin className="size-4 text-muted-foreground" />}
-                  isSelected={selectedCdekPoint?.id === point.id}
-                  label={point.address}
-                  meta={point.title}
-                  onSelect={() => selectCdekPickupPoint(point)}
-                />
-              ))}
-            </ComboboxField>
+            />
 
             {cdekCityCode && !areCdekPickupPointsPending && !areCdekPickupPointsError ? (
               <p className="text-sm text-muted-foreground">
@@ -324,7 +307,8 @@ export function DeliverySelector({
               </Button>
             ) : null}
 
-            <ComboboxField
+            <PickupPointCombobox
+              datasetIdentity={`ozon:${ozonCityCode ?? ""}`}
               disabled={!ozonCityCode || !ozonCityDetails.city || !ozonPickupPointsState.hasData}
               emptyText={
                 ozonPickupPointsState.isError
@@ -335,14 +319,16 @@ export function DeliverySelector({
                       ? "ПВЗ не найден"
                       : "Пункты выдачи не найдены"
               }
-              inputValue={pickupPointQuery}
               isOpen={isPickupPointOpen}
               isPending={ozonPickupPointsState.isPending}
               label="Пункт выдачи Ozon"
-              onInputChange={setPickupPointQuery}
               onOpenChange={setIsPickupPointOpen}
+              onQueryChange={setPickupPointQuery}
+              onSelect={selectOzonPickupPoint}
+              pickupPoints={ozonPickupPointsState.pickupPoints}
               placeholder="Адрес или название ПВЗ"
-              selectedLabel={selectedOzonPoint?.address}
+              query={pickupPointQuery}
+              selectedPoint={selectedOzonPoint}
               triggerLabel={
                 selectedOzonPoint
                   ? selectedOzonPoint.address
@@ -350,25 +336,11 @@ export function DeliverySelector({
                     ? "Выберите пункт выдачи"
                     : "Сначала выберите город"
               }
-            >
-              {filteredOzonPickupPoints.map((point) => (
-                <ComboboxOption
-                  key={point.id}
-                  description={point.workHours}
-                  icon={<MapPin className="size-4 text-muted-foreground" />}
-                  isSelected={selectedOzonPoint?.id === point.id}
-                  label={point.address}
-                  meta={point.title}
-                  onSelect={() => selectOzonPickupPoint(point)}
-                />
-              ))}
-            </ComboboxField>
+            />
 
-            {ozonPickupPointsState.hasData ? (
+            {ozonPickupPointsState.hasData && ozonPickupPointsState.pickupPoints.length === 0 ? (
               <p className="text-sm text-muted-foreground">
-                {ozonPickupPointsState.pickupPoints.length > 0
-                  ? `Нашли ${formatPickupPointCount(ozonPickupPointsState.pickupPoints.length)}. Поиск работает по всем пунктам города.`
-                  : "Для этого города пункты Ozon не найдены."}
+                Для этого города пункты Ozon не найдены.
               </p>
             ) : null}
 
@@ -404,20 +376,6 @@ export function DeliverySelector({
             ) : null}
 
             {selectedOzonPoint ? <SelectedPickupPoint point={selectedOzonPoint} /> : null}
-
-            {ozonCityCode ? (
-              <p className="text-xs text-muted-foreground">
-                Граница города:{" "}
-                <a
-                  className="underline underline-offset-2"
-                  href="https://www.openstreetmap.org/copyright"
-                  rel="noreferrer"
-                  target="_blank"
-                >
-                  OpenStreetMap
-                </a>
-              </p>
-            ) : null}
 
             {ozonCityDetails.isError ? (
               <Button
