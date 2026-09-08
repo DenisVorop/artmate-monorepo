@@ -370,7 +370,7 @@ export class OrderActivationService {
   ) {
     const now = new Date();
     const key = { scope: subject.scope, subjectHash: subject.hash };
-    await tx.authRecoveryThrottle.upsert({
+    const throttle = await tx.authRecoveryThrottle.upsert({
       where: { scope_subjectHash: key },
       create: {
         ...key,
@@ -379,9 +379,10 @@ export class OrderActivationService {
         lastRequestAt: now,
       },
       update: {},
+      select: { id: true },
     });
     await tx.$queryRaw(
-      Prisma.sql`SELECT "id" FROM "auth_recovery_throttles" WHERE "scope" = ${subject.scope}::"auth_recovery_throttle_scope" AND "subject_hash" = ${subject.hash} FOR UPDATE`,
+      Prisma.sql`SELECT "id" FROM "auth_recovery_throttles" WHERE "id" = ${throttle.id} FOR UPDATE`,
     );
     const bucket = await tx.authRecoveryThrottle.findUnique({
       where: { scope_subjectHash: key },
