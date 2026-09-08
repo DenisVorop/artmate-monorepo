@@ -6,6 +6,12 @@
 ### Bug Fixes
 
 * **delivery:** load Ozon points by CDEK city ([9b46427](https://github.com/DenisVorop/artmate-monorepo/commit/9b46427ff83d4ba72fb4a23fb6862da510b45f4b))
+* **ozon:** handle empty pickup schedules ([e78d851](https://github.com/DenisVorop/artmate-monorepo/commit/e78d85168069c8f75166b8a528ea8f0c0e10b3aa))
+
+
+### Performance Improvements
+
+* **checkout:** optimize pickup point search ([74a1809](https://github.com/DenisVorop/artmate-monorepo/commit/74a18095ee99f1a2145bea631a81c4d6db64eb29))
 
 ## [0.37.1](https://github.com/DenisVorop/artmate-monorepo/compare/v0.37.0...v0.37.1) (2026-09-07)
 
