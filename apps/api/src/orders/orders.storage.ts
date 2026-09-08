@@ -269,6 +269,7 @@ export class OrdersStorage {
             data: {
               id,
               userId,
+              checkoutActorUserId: userId,
               cartId: input.cartId,
               checkoutAttemptId: input.checkoutAttemptId,
               checkoutPayloadFingerprint: input.checkoutPayloadFingerprint,
@@ -319,6 +320,21 @@ export class OrdersStorage {
               },
             },
           });
+          // Lock the account before a promo, matching the historical paid-guest
+          // attachment path. Provisioning and its outbox still roll back if the
+          // promo reservation fails later in this transaction.
+          if (!userId) {
+            if (!this.orderActivationService) {
+              throw new Error("OrderActivationService is not configured");
+            }
+            await this.orderActivationService.attachGuestOrderInTransaction(tx, {
+              id,
+              userId: null,
+              customerEmail: input.customer.email,
+              customerName: input.customer.name,
+              customerPhone: input.customer.phone,
+            });
+          }
           if (input.promoCode) {
             const reservation =
               await this.promocodesService.reserveInTransaction(tx, {
@@ -373,7 +389,7 @@ export class OrdersStorage {
   async getOrderByCheckoutAttempt(
     checkoutAttemptId: string,
     cartId: string,
-    userId: string | undefined,
+    checkoutActorUserId: string | undefined,
     checkoutPayloadFingerprint: string,
   ): Promise<OrderDTO | undefined> {
     const order = await this.prisma.order.findUnique({
@@ -384,7 +400,7 @@ export class OrdersStorage {
 
     if (
       order.cartId !== cartId ||
-      (order.userId ?? undefined) !== userId ||
+      (order.checkoutActorUserId ?? undefined) !== checkoutActorUserId ||
       order.checkoutPayloadFingerprint !== checkoutPayloadFingerprint
     ) {
       throw new ConflictException(
@@ -502,10 +518,12 @@ export class OrdersStorage {
         throw new NotFoundException("Order not found");
       }
 
+      if (order.checkoutActorUserId) {
+        throw new NotFoundException("Order not found");
+      }
       if (order.paymentStatus === PrismaOrderPaymentStatus.PAID) {
         return { redirectUrl: CHECKOUT_SUCCESS_PATH };
       }
-      if (order.userId) throw new NotFoundException("Order not found");
 
       if (order.terminalPaymentFailedAt) {
         if (!order.cartRestoredAt) {
@@ -1936,10 +1954,12 @@ export class OrdersStorage {
       }
     }
     if (!order.userId) {
+      // New guest orders are attached during creation. This fallback is only
+      // for historical production orders that are still unlinked at paid time.
       if (!this.orderActivationService) {
         throw new Error("OrderActivationService is not configured");
       }
-      await this.orderActivationService.attachPaidGuestOrderInTransaction(
+      await this.orderActivationService.attachGuestOrderInTransaction(
         tx,
         order,
       );

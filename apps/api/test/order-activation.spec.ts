@@ -33,7 +33,7 @@ import type { PasswordResetService } from "../src/auth/password-reset.service";
 import type { PrismaService } from "../src/prisma/prisma.service";
 import type { UsersService } from "../src/users/users.service";
 
-describe("paid guest order attachment", () => {
+describe("guest order attachment", () => {
   it("attaches an existing active user by normalized email without overwriting profile", async () => {
     const fixture = createFixture({
       user: {
@@ -49,7 +49,7 @@ describe("paid guest order attachment", () => {
     });
     const order = createGuestOrder({ customerEmail: " Buyer@Example.COM " });
 
-    const userId = await fixture.service.attachPaidGuestOrderInTransaction(
+    const userId = await fixture.service.attachGuestOrderInTransaction(
       fixture.tx,
       order,
     );
@@ -64,11 +64,11 @@ describe("paid guest order attachment", () => {
     assert.doesNotMatch(fixture.emails[0]!.text, /token=/i);
   });
 
-  it("reuses the active activation for a repeat paid order on an active passwordless credentials account", async () => {
+  it("reuses the active activation for a repeat order on an active passwordless credentials account", async () => {
     const oldToken = createTestActivationToken("old-active-token");
     const fixture = createFixture({ activationToken: oldToken });
 
-    const userId = await fixture.service.attachPaidGuestOrderInTransaction(
+    const userId = await fixture.service.attachGuestOrderInTransaction(
       fixture.tx,
       createGuestOrder({ id: "repeat-order" }),
     );
@@ -95,7 +95,7 @@ describe("paid guest order attachment", () => {
         credential: account.credential,
       });
 
-      await fixture.service.attachPaidGuestOrderInTransaction(fixture.tx, createGuestOrder());
+      await fixture.service.attachGuestOrderInTransaction(fixture.tx, createGuestOrder());
 
       assert.equal(fixture.emails.length, 1);
       assert.match(fixture.emails[0]!.text, /войдите|войти/i);
@@ -104,7 +104,7 @@ describe("paid guest order attachment", () => {
     }
   });
 
-  it("does not automatically reactivate blocked or deleted users after payment", async () => {
+  it("does not automatically reactivate blocked or deleted users", async () => {
     for (const status of [UserStatus.BLOCKED, UserStatus.DELETED]) {
       const fixture = createFixture({
         user: {
@@ -118,7 +118,7 @@ describe("paid guest order attachment", () => {
         },
       });
 
-      const userId = await fixture.service.attachPaidGuestOrderInTransaction(
+      const userId = await fixture.service.attachGuestOrderInTransaction(
         fixture.tx,
         createGuestOrder(),
       );
@@ -131,11 +131,11 @@ describe("paid guest order attachment", () => {
     }
   });
 
-  it("rechecks user status after locking before attaching a paid order", async () => {
+  it("rechecks user status after locking before attaching an order", async () => {
     for (const status of [UserStatus.BLOCKED, UserStatus.DELETED]) {
       const fixture = createFixture({ userStatusAfterLock: status });
 
-      const userId = await fixture.service.attachPaidGuestOrderInTransaction(
+      const userId = await fixture.service.attachGuestOrderInTransaction(
         fixture.tx,
         createGuestOrder(),
       );
@@ -152,7 +152,7 @@ describe("paid guest order attachment", () => {
     process.env.SITE_URL = "https://artmate.example";
 
     try {
-      const email = new RuntimeMailerService().createPaidOrderLoginEmail(
+      const email = new RuntimeMailerService().createOrderLoginEmail(
         "buyer@example.com",
       );
       const content = `${email.text}\n${email.html}`;
@@ -160,23 +160,24 @@ describe("paid guest order attachment", () => {
       assert.match(email.text, /Войти: https:\/\/artmate\.example\/auth\n/);
       assert.match(content, /https:\/\/artmate\.example\/auth\/recovery/);
       assert.doesNotMatch(content, /\/auth\/login/);
+      assert.doesNotMatch(content, /оплачен|оплата подтверждена/i);
     } finally {
       if (previousSiteUrl === undefined) delete process.env.SITE_URL;
       else process.env.SITE_URL = previousSiteUrl;
     }
   });
 
-  it("creates one passwordless credentials account for concurrent paid orders", async () => {
+  it("creates one passwordless credentials account for concurrent orders", async () => {
     const fixture = createFixture({ userStatus: "missing" });
     const first = createGuestOrder({ id: "order-1" });
     const second = createGuestOrder({ id: "order-2" });
 
     const [firstUserId, secondUserId] = await Promise.all([
       fixture.transaction((tx) =>
-        fixture.service.attachPaidGuestOrderInTransaction(tx, first),
+        fixture.service.attachGuestOrderInTransaction(tx, first),
       ),
       fixture.transaction((tx) =>
-        fixture.service.attachPaidGuestOrderInTransaction(tx, second),
+        fixture.service.attachGuestOrderInTransaction(tx, second),
       ),
     ]);
 
@@ -198,13 +199,13 @@ describe("paid guest order attachment", () => {
     );
   });
 
-  it("provisions paid guest credentials for a valid email longer than 191 characters", async () => {
+  it("provisions guest credentials for a valid email longer than 191 characters", async () => {
     const email = `${"a".repeat(64)}@${"b".repeat(63)}.${"c".repeat(63)}.${"d".repeat(61)}`;
     const fixture = createFixture({ userStatus: "missing" });
 
     assert.equal(email.length, 254);
 
-    const userId = await fixture.service.attachPaidGuestOrderInTransaction(
+    const userId = await fixture.service.attachGuestOrderInTransaction(
       fixture.tx,
       createGuestOrder({ customerEmail: email }),
     );
@@ -221,7 +222,7 @@ describe("paid guest order attachment", () => {
         userStatus: "missing",
       });
 
-      const userId = await fixture.service.attachPaidGuestOrderInTransaction(
+      const userId = await fixture.service.attachGuestOrderInTransaction(
         fixture.tx,
         createGuestOrder(),
       );
@@ -240,7 +241,7 @@ describe("paid guest order attachment", () => {
         userStatus: "missing",
       });
 
-      const userId = await fixture.service.attachPaidGuestOrderInTransaction(
+      const userId = await fixture.service.attachGuestOrderInTransaction(
         fixture.tx,
         createGuestOrder(),
       );
@@ -618,14 +619,14 @@ describe("order activation and recovery", () => {
     );
   });
 
-  it("reuses one active activation token across repeat paid purchases", async () => {
+  it("reuses one active activation token across repeat purchases", async () => {
     const fixture = createFixture();
 
-    await fixture.service.attachPaidGuestOrderInTransaction(
+    await fixture.service.attachGuestOrderInTransaction(
       fixture.tx,
       createGuestOrder({ id: "repeat-order-1" }),
     );
-    await fixture.service.attachPaidGuestOrderInTransaction(
+    await fixture.service.attachGuestOrderInTransaction(
       fixture.tx,
       createGuestOrder({ id: "repeat-order-2" }),
     );
@@ -641,7 +642,7 @@ describe("order activation and recovery", () => {
     );
   });
 
-  for (const source of ["recovery", "repeat paid purchase"] as const) {
+  for (const source of ["recovery", "repeat purchase"] as const) {
     it(`replaces an active activation with a hash from another JWT secret during ${source}`, async () => {
       const currentToken = createTestActivationToken(`rotated-secret-${source}`);
       const tokenId = verifyOrderActivationToken(currentToken, "test-jwt-secret");
@@ -662,7 +663,7 @@ describe("order activation and recovery", () => {
       if (source === "recovery") {
         await fixture.service.requestRecovery({ email: "buyer@example.com" });
       } else {
-        await fixture.service.attachPaidGuestOrderInTransaction(
+        await fixture.service.attachGuestOrderInTransaction(
           fixture.tx,
           createGuestOrder({ id: "rotated-secret-repeat-order" }),
         );
@@ -683,7 +684,7 @@ describe("order activation and recovery", () => {
     });
   }
 
-  it("does not enqueue a stale activation link during concurrent recovery and paid purchase", async () => {
+  it("does not enqueue a stale activation link during concurrent recovery and purchase", async () => {
     let releaseFirstEnqueue: (() => void) | undefined;
     let markFirstEnqueued: (() => void) | undefined;
     const firstEnqueued = new Promise<void>((resolve) => {
@@ -703,13 +704,13 @@ describe("order activation and recovery", () => {
       },
     });
 
-    const paidPurchase = fixture.service.attachPaidGuestOrderInTransaction(
+    const purchase = fixture.service.attachGuestOrderInTransaction(
       fixture.tx,
       createGuestOrder({ id: "concurrent-paid-order" }),
     );
     await firstEnqueued;
     const recovery = fixture.service.requestRecovery({ email: "buyer@example.com" });
-    await Promise.all([paidPurchase, recovery]);
+    await Promise.all([purchase, recovery]);
 
     const activationPayloads = fixture.notificationPayloads.filter(
       (payload) => payload.kind === "order_activation",
@@ -1151,7 +1152,7 @@ describe("order activation and recovery", () => {
     assert.equal(smtpInsideTransaction, false, "SMTP must run after the transaction commits");
   });
 
-  it("uses the exact activation email subject, payment copy and CTA", () => {
+  it("uses the exact activation email subject, prepayment copy and CTA", () => {
     const email = new RuntimeMailerService().createOrderActivationEmail(
       "buyer@example.com",
       "https://artmate.example/auth/activate-order?token=opaque",
@@ -1161,7 +1162,7 @@ describe("order activation and recovery", () => {
     assert.equal(email.subject, "Завершите регистрацию в Artmate");
     assert.match(
       content,
-      /Оплата подтверждена\. Завершите регистрацию, чтобы войти и посмотреть заказ/u,
+      /Подтвердите почту и задайте пароль, чтобы увидеть и оплатить заказ в личном кабинете\./u,
     );
     assert.match(content, />\s*Завершить регистрацию\s*</u);
   });
@@ -1513,7 +1514,7 @@ function createFixture(options: FixtureOptions = {}) {
       subject: "Активируйте аккаунт для заказа",
       text: url,
     }),
-    createPaidOrderLoginEmail: () => ({
+    createOrderLoginEmail: () => ({
       to: "buyer@example.com",
       subject: "Заказ добавлен в аккаунт",
       text: "Войдите в аккаунт или восстановите пароль",

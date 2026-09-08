@@ -50,6 +50,7 @@ enum OrderCheckoutThrottleScope {
 model Order {
   id                          String                @id @db.VarChar(32)
   userId                      String?               @map("user_id")
+  checkoutActorUserId         String?               @map("checkout_actor_user_id")
   cartId                      String                @map("cart_id") @db.VarChar(128)
   checkoutAttemptId           String?               @unique @map("checkout_attempt_id") @db.VarChar(128)
   checkoutPayloadFingerprint  String?               @map("checkout_payload_fingerprint") @db.Char(64)
