@@ -102,6 +102,7 @@ model Order {
   history       OrderHistory[]
   user          User?               @relation(fields: [userId], references: [id], onDelete: SetNull)
   promoRedemption PromoRedemption?
+  ozonPaymentRecheck OrderOzonPaymentRecheck?
 
   @@index([userId, createdAt])
   @@index([cartId])
@@ -113,6 +114,24 @@ model Order {
   @@index([tbankAcquiringOrderId])
   @@index([tbankAcquiringPaymentId])
   @@map("orders")
+}
+
+model OrderOzonPaymentRecheck {
+  orderId                 String    @id @map("order_id") @db.VarChar(32)
+  attempts                Int       @default(0)
+  nextAttemptAt           DateTime  @map("next_attempt_at")
+  leaseToken              String?   @map("lease_token") @db.Uuid
+  lockedUntil             DateTime? @map("locked_until")
+  finishedAt              DateTime? @map("finished_at")
+  lastAuthoritativeStatus String?   @map("last_authoritative_status") @db.VarChar(120)
+  lastError               String?   @map("last_error") @db.VarChar(120)
+  createdAt               DateTime  @default(now()) @map("created_at")
+  updatedAt               DateTime  @default(now()) @updatedAt @map("updated_at")
+
+  order Order @relation(fields: [orderId], references: [id], onDelete: Cascade)
+
+  @@index([finishedAt, nextAttemptAt, lockedUntil], map: "order_ozon_payment_rechecks_due_idx")
+  @@map("order_ozon_payment_rechecks")
 }
 
 model OrderCheckoutThrottle {
