@@ -158,6 +158,7 @@ describe("promocode payment state integrity", () => {
   it("provisions a paid guest exactly once for duplicate T-Bank callbacks", async () => {
     const fixture = createFixture({
       paymentMethod: OrderPaymentMethod.TBANK_ACQUIRING,
+      checkoutActorUserId: null,
       userId: null,
     });
     const notification = {
@@ -177,9 +178,34 @@ describe("promocode payment state integrity", () => {
     assert.equal(fixture.analyticsCount(), 1);
   });
 
+  it("does not activate a new prelinked guest again for duplicate paid callbacks", async () => {
+    const fixture = createFixture({
+      checkoutActorUserId: null,
+      paymentMethod: OrderPaymentMethod.TBANK_ACQUIRING,
+      userId: "prelinked-guest",
+    });
+    const notification = {
+      amount: "338700",
+      orderId: fixture.state.id,
+      paymentId: "7001",
+      raw: {},
+      rawStatus: "CONFIRMED",
+      status: "paid",
+      success: true,
+    };
+
+    await fixture.storage.applyTBankAcquiringNotification(notification);
+    await fixture.storage.applyTBankAcquiringNotification(notification);
+
+    assert.equal(fixture.activationCount(), 0);
+    assert.equal(fixture.analyticsCount(), 1);
+    assert.equal(fixture.state.userId, "prelinked-guest");
+  });
+
   it("provisions a paid guest exactly once for duplicate Ozon callbacks", async () => {
     const fixture = createFixture({
       paymentMethod: OrderPaymentMethod.OZON_ACQUIRING,
+      checkoutActorUserId: null,
       userId: null,
     });
     await withOzonKeys(async () => {
@@ -384,6 +410,7 @@ describe("promocode payment state integrity", () => {
       cartRestoredAt: null,
       paymentMethod: OrderPaymentMethod.TBANK_ACQUIRING,
       terminalPaymentFailedAt: new Date(),
+      checkoutActorUserId: null,
       userId: null,
     });
     fixture.cartItems.set("product-1", 3);
@@ -483,6 +510,7 @@ describe("promocode payment state integrity", () => {
       paymentMethod: OrderPaymentMethod.TBANK_ACQUIRING,
       paymentRedirectUrl: "https://pay.test",
       terminalPaymentFailedAt: null,
+      checkoutActorUserId: null,
       userId: null,
     });
     fixture.cartItems.set("product-1", 2);
@@ -509,6 +537,7 @@ describe("promocode payment state integrity", () => {
       paymentMethod: OrderPaymentMethod.TBANK_ACQUIRING,
       paymentRedirectUrl: "https://pay.test",
       terminalPaymentFailedAt: null,
+      checkoutActorUserId: null,
       userId: null,
     });
 
@@ -532,6 +561,7 @@ describe("promocode payment state integrity", () => {
         paymentMethod: OrderPaymentMethod.TBANK_ACQUIRING,
         paymentRedirectUrl: "https://pay.test",
         terminalPaymentFailedAt: null,
+        checkoutActorUserId: null,
         userId: null,
       },
       { cartItems, cartLock },
@@ -545,6 +575,7 @@ describe("promocode payment state integrity", () => {
         paymentMethod: OrderPaymentMethod.TBANK_ACQUIRING,
         paymentRedirectUrl: "https://pay.test",
         terminalPaymentFailedAt: null,
+        checkoutActorUserId: null,
         userId: null,
       },
       { cartItems, cartLock },
@@ -579,6 +610,7 @@ describe("promocode payment state integrity", () => {
       paymentMethod: OrderPaymentMethod.TBANK_ACQUIRING,
       paymentRedirectUrl: "https://pay.test",
       terminalPaymentFailedAt: null,
+      checkoutActorUserId: null,
       userId: null,
     });
     fixture.cartItems.set("product-1", 5);
@@ -601,6 +633,7 @@ describe("promocode payment state integrity", () => {
       cartRestoredAt: null,
       paymentMethod: OrderPaymentMethod.TBANK_ACQUIRING,
       terminalPaymentFailedAt: new Date(),
+      checkoutActorUserId: null,
       userId: null,
     });
     fixture.cartItems.set("product-1", 5);
@@ -614,6 +647,7 @@ describe("promocode payment state integrity", () => {
     const fixture = createFixture({
       cartConsumedAt: null,
       paymentMethod: OrderPaymentMethod.TBANK_ACQUIRING,
+      checkoutActorUserId: null,
       userId: null,
     });
     fixture.cartItems.set("product-1", 5);
@@ -641,6 +675,7 @@ describe("promocode payment state integrity", () => {
       cartRestoredAt: null,
       paymentMethod: OrderPaymentMethod.TBANK_ACQUIRING,
       terminalPaymentFailedAt: new Date(),
+      checkoutActorUserId: null,
       userId: null,
     });
     fixture.state.items[0]!.quantity = 120;
@@ -657,6 +692,7 @@ describe("promocode payment state integrity", () => {
       cartRestoredAt: null,
       paymentMethod: OrderPaymentMethod.TBANK_ACQUIRING,
       terminalPaymentFailedAt: new Date(),
+      checkoutActorUserId: null,
       userId: null,
     });
     fixture.cartItems.set("product-1", 98);
@@ -679,6 +715,7 @@ describe("promocode payment state integrity", () => {
   it("does not restore when paid wins and consumes after recovery beats delayed cleanup", async () => {
     const paidFirst = createFixture({
       paymentMethod: OrderPaymentMethod.TBANK_ACQUIRING,
+      checkoutActorUserId: null,
       userId: null,
     });
     await paidFirst.storage.applyTBankAcquiringNotification({
@@ -703,6 +740,7 @@ describe("promocode payment state integrity", () => {
       cartRestoredAt: null,
       paymentMethod: OrderPaymentMethod.TBANK_ACQUIRING,
       terminalPaymentFailedAt: new Date(),
+      checkoutActorUserId: null,
       userId: null,
     });
     restoredFirst.cartItems.set("unrelated", 4);
@@ -1065,6 +1103,7 @@ describe("Ozon canonical callback status confirmation", () => {
       const originalFetch = globalThis.fetch;
       const fixture = createFixture({
         paymentMethod: OrderPaymentMethod.OZON_ACQUIRING,
+        checkoutActorUserId: null,
         userId: null,
       });
       let requestUrl: string | undefined;
@@ -1165,6 +1204,7 @@ describe("Ozon canonical callback status confirmation", () => {
         for (const scenario of ["non-paid", "mismatch", "provider-error"] as const) {
           const fixture = createFixture({
             paymentMethod: OrderPaymentMethod.OZON_ACQUIRING,
+            checkoutActorUserId: null,
             userId: null,
           });
           let paidNotifications = 0;
@@ -1307,6 +1347,7 @@ describe("Ozon canonical callback status confirmation", () => {
           const fixture = createFixture({
             id: "order-A",
             paymentMethod: OrderPaymentMethod.OZON_ACQUIRING,
+            checkoutActorUserId: null,
             userId: null,
           });
           let paidNotifications = 0;
@@ -1433,6 +1474,7 @@ describe("durable Ozon status rechecks", () => {
       const originalFetch = globalThis.fetch;
       const fixture = createFixture({
         paymentMethod: OrderPaymentMethod.OZON_ACQUIRING,
+        checkoutActorUserId: null,
         userId: null,
       });
       const notification = createSignedOzonNotification("canonical", {
@@ -1486,6 +1528,7 @@ describe("durable Ozon status rechecks", () => {
       const originalFetch = globalThis.fetch;
       const fixture = createFixture({
         paymentMethod: OrderPaymentMethod.OZON_ACQUIRING,
+        checkoutActorUserId: null,
         userId: null,
       });
       let bankStatus = "STATUS_PAYMENT_PENDING";
@@ -1684,6 +1727,7 @@ describe("durable Ozon status rechecks", () => {
         ] as const) {
           const fixture = createFixture({
             paymentMethod: OrderPaymentMethod.OZON_ACQUIRING,
+            checkoutActorUserId: null,
             userId: null,
           });
           const service = createOzonNotificationServiceWithStorage(
@@ -1768,6 +1812,7 @@ describe("durable Ozon status rechecks", () => {
         for (const change of ["replacement", "expiry"] as const) {
           const fixture = createFixture({
             paymentMethod: OrderPaymentMethod.OZON_ACQUIRING,
+            checkoutActorUserId: null,
             userId: null,
           });
           const service = createOzonNotificationServiceWithStorage(
@@ -1825,6 +1870,7 @@ describe("durable Ozon status rechecks", () => {
       const originalFetch = globalThis.fetch;
       const fixture = createFixture({
         paymentMethod: OrderPaymentMethod.OZON_ACQUIRING,
+        checkoutActorUserId: null,
         userId: null,
       });
       const service = createOzonNotificationServiceWithStorage(fixture, () => {
@@ -2307,6 +2353,7 @@ function createFixture(
     user: {
       findUnique: async () => ({ id: "admin-1" }),
     },
+    order: tx.order,
   } as unknown as PrismaService;
   const promos = {
     consumeInTransaction: async () => {
@@ -2319,7 +2366,7 @@ function createFixture(
     },
   } as unknown as PromocodesService;
   const orderActivationService = {
-    attachPaidGuestOrderInTransaction: async () => {
+    attachGuestOrderInTransaction: async () => {
       activations += 1;
       state.userId = "activated-user";
       return state.userId;
@@ -2427,6 +2474,7 @@ function createOrderState() {
   return {
     id: "order-acceptance-1",
     userId: "user-1" as string | null,
+    checkoutActorUserId: "user-1" as string | null,
     cartId: "cart-1",
     checkoutAttemptId: "attempt-1" as string | null,
     status: OrderStatus.PENDING_PAYMENT as OrderStatus,

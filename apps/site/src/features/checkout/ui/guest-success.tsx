@@ -15,8 +15,7 @@ export function GuestCheckoutSuccess() {
           <div className="space-y-2">
             <CardTitle className="text-2xl">Оплата проверяется</CardTitle>
             <CardDescription className="text-base leading-6">
-              Чек и информация о покупке придут на email. Если аккаунта ещё нет, отдельным письмом
-              пришлём инструкции для завершения регистрации.
+              Информация о заказе и письмо для входа или восстановления доступа отправлены на email.
             </CardDescription>
           </div>
         </CardHeader>

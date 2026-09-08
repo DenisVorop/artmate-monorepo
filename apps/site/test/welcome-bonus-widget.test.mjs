@@ -853,6 +853,7 @@ test("site wiring keeps welcome bonus out of service banners and uses the new no
 });
 
 test("identity transitions cancel and clear personalized data before publishing new identity state", async () => {
+  const ordersQueryKey = ["orders"];
   const featureBannersQueryKey = ["feature-banners"];
   const welcomeOfferQueryKey = ["cart-pricing", "welcome-offer"];
   const cartPricingQueryKey = ["cart-pricing"];
@@ -916,6 +917,7 @@ test("identity transitions cancel and clear personalized data before publishing 
         sessionQuery: { baseKey: ["session"], getSession: () => ({ queryKey: sessionKey }) },
         telegramLinkStatusQueryKey: ["telegram-link"],
       },
+      "@/entities/orders": { ordersQuery: { baseKey: ordersQueryKey } },
       "@/shared/actions/auth": {
         confirmEmailVerification: async () => undefined,
         confirmTelegramLink: async () => undefined,
@@ -934,20 +936,24 @@ test("identity transitions cancel and clear personalized data before publishing 
     });
 
     evaluatedModule[exportName]();
-    mutationOptions.onSuccess(response);
+    await mutationOptions.onSuccess(response);
 
-    assert.deepEqual(calls.slice(0, 4), [
+    const includesOrders = exportName === "useLoginMutation";
+    const expectedCleanup = [
+      ...(includesOrders ? [["cancel", ordersQueryKey]] : []),
       ["cancel", featureBannersQueryKey],
       ["cancel", welcomeOfferQueryKey],
+      ...(includesOrders ? [["remove", ordersQueryKey]] : []),
       [clearMethod, featureBannersQueryKey],
       [clearMethod, welcomeOfferQueryKey],
-    ]);
+    ];
+    assert.deepEqual(calls.slice(0, expectedCleanup.length), expectedCleanup);
     const identityPublishIndex = calls.findIndex(([kind]) => kind === "set");
     const pricingInvalidationIndex = calls.findIndex(
       ([kind, key]) => kind === "invalidate" && key === cartPricingQueryKey,
     );
-    assert.ok(identityPublishIndex === -1 || identityPublishIndex >= 4, path);
-    assert.ok(pricingInvalidationIndex >= 4, path);
+    assert.ok(identityPublishIndex === -1 || identityPublishIndex >= expectedCleanup.length, path);
+    assert.ok(pricingInvalidationIndex >= expectedCleanup.length, path);
   }
 });
 

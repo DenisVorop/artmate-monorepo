@@ -88,7 +88,7 @@ export class MailerService {
       text: [
         "ARTMATE",
         "",
-        "Оплата подтверждена. Завершите регистрацию, чтобы войти и посмотреть заказ",
+        "Подтвердите почту и задайте пароль, чтобы увидеть и оплатить заказ в личном кабинете.",
         "",
         `Ссылка для завершения регистрации: ${activationUrl}`,
         "",
@@ -97,10 +97,10 @@ export class MailerService {
         renderSupportEmailFooterText(),
       ].join("\n"),
       html: renderBrandedEmail({
-        title: "Ваш заказ оплачен",
+        title: "Завершите регистрацию",
         previewText: "Завершите регистрацию в Artmate.",
         contentHtml: `
-          ${renderEmailParagraph("Оплата подтверждена. Завершите регистрацию, чтобы войти и посмотреть заказ")}
+          ${renderEmailParagraph("Подтвердите почту и задайте пароль, чтобы увидеть и оплатить заказ в личном кабинете.")}
           ${renderEmailButton({ href: activationUrl, label: "Завершить регистрацию" })}
           ${renderEmailNotice("Ссылка одноразовая. Если срок действия истек, запросите восстановление доступа.")}
         `,
@@ -144,17 +144,17 @@ export class MailerService {
     };
   }
 
-  createPaidOrderLoginEmail(email: string): SendMailInput {
+  createOrderLoginEmail(email: string): SendMailInput {
     const loginUrl = `${this.getSiteUrl()}/auth`;
     const recoveryUrl = `${this.getSiteUrl()}/auth/recovery`;
 
     return {
       to: email,
-      subject: "Оплаченный заказ добавлен в ваш аккаунт Artmate",
+      subject: "Заказ добавлен в ваш аккаунт Artmate",
       text: [
         "ARTMATE",
         "",
-        "Оплаченный заказ добавлен в ваш аккаунт.",
+        "Заказ добавлен в ваш аккаунт.",
         `Войти: ${loginUrl}`,
         `Восстановить доступ: ${recoveryUrl}`,
         "",
@@ -162,9 +162,9 @@ export class MailerService {
       ].join("\n"),
       html: renderBrandedEmail({
         title: "Заказ в вашем аккаунте",
-        previewText: "Оплаченный заказ добавлен в ваш аккаунт Artmate.",
+        previewText: "Заказ добавлен в ваш аккаунт Artmate.",
         contentHtml: `
-          ${renderEmailParagraph("Оплаченный заказ добавлен в ваш аккаунт. Войдите с обычными учетными данными или восстановите доступ.")}
+          ${renderEmailParagraph("Заказ добавлен в ваш аккаунт. Войдите с обычными учетными данными или восстановите доступ.")}
           ${renderEmailButton({ href: loginUrl, label: "Войти" })}
           ${renderEmailParagraph(`<a href="${recoveryUrl}">Восстановить доступ</a>`)}
         `,

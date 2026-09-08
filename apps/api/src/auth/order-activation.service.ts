@@ -36,7 +36,7 @@ const activationMaxSendsPerHour = 5;
 const activationIpMaxSendsPerHour = 20;
 const recoveryThrottleWindowMs = 60 * 60 * 1000;
 
-export type PaidGuestOrder = {
+export type GuestOrder = {
   readonly id: string;
   readonly userId: string | null;
   readonly customerEmail: string;
@@ -73,9 +73,9 @@ export class OrderActivationService {
     private readonly usersService: UsersService,
   ) {}
 
-  async attachPaidGuestOrderInTransaction(
+  async attachGuestOrderInTransaction(
     tx: Prisma.TransactionClient,
-    order: PaidGuestOrder,
+    order: GuestOrder,
   ): Promise<string | undefined> {
     if (order.userId) return order.userId;
 
@@ -84,7 +84,7 @@ export class OrderActivationService {
 
     if (existingUser) {
       if (existingUser.status !== UserStatus.ACTIVE) return undefined;
-      return this.attachPaidOrderToUser(tx, order.id, existingUser.id, email);
+      return this.attachOrderToUser(tx, order.id, existingUser.id, email);
     }
 
     const user = await tx.user.upsert({
@@ -100,7 +100,7 @@ export class OrderActivationService {
       },
     });
 
-    return this.attachPaidOrderToUser(tx, order.id, user.id, email, true);
+    return this.attachOrderToUser(tx, order.id, user.id, email, true);
   }
 
   async requestRecovery(input: RecoveryInput) {
@@ -314,7 +314,7 @@ export class OrderActivationService {
     });
   }
 
-  private async attachPaidOrderToUser(
+  private async attachOrderToUser(
     tx: Prisma.TransactionClient,
     orderId: string,
     userId: string,
@@ -357,7 +357,7 @@ export class OrderActivationService {
       await this.createAndQueueToken(tx, userId, email);
     } else {
       await this.notificationQueueService.enqueueEmail(
-        this.mailerService.createPaidOrderLoginEmail(email),
+        this.mailerService.createOrderLoginEmail(email),
         tx,
       );
     }
