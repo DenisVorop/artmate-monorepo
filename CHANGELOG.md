@@ -1,5 +1,12 @@
 # Changelog
 
+## [0.37.2](https://github.com/DenisVorop/artmate-monorepo/compare/v0.37.1...v0.37.2) (2026-09-08)
+
+
+### Bug Fixes
+
+* **delivery:** load Ozon points by CDEK city ([9b46427](https://github.com/DenisVorop/artmate-monorepo/commit/9b46427ff83d4ba72fb4a23fb6862da510b45f4b))
+
 ## [0.37.1](https://github.com/DenisVorop/artmate-monorepo/compare/v0.37.0...v0.37.1) (2026-09-07)
 
 
