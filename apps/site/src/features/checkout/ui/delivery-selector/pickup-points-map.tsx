@@ -5,8 +5,9 @@ import { MapPin } from "lucide-react";
 import { useEffect, useMemo, useRef, useState } from "react";
 
 import type { DeliveryPickupPointDTO } from "@/shared/actions/delivery";
-import { clusterPickupPoints } from "../../lib";
 import { cn } from "@/shared/lib";
+
+import { clusterPickupPoints, getPickupPointsFitKey } from "../../lib";
 
 import styles from "./pickup-points-map.module.css";
 
@@ -68,8 +69,8 @@ export function PickupPointsMap({
   const initialLatitude = initialCoordinate?.lat;
   const initialLongitude = initialCoordinate?.long;
   const geoPointsFitKey = useMemo(
-    () => getGeoPointsFitKey(initialCenter, geoPoints),
-    [geoPoints, initialCenter],
+    () => getPickupPointsFitKey(fitPoints, initialLatitude, initialLongitude, geoPoints),
+    [fitPoints, geoPoints, initialLatitude, initialLongitude],
   );
 
   useEffect(() => {
@@ -246,7 +247,7 @@ export function PickupPointsMap({
   useEffect(() => {
     const map = mapRef.current;
 
-    if (!leaflet || !map || selectedPickupPointId || !fitPoints) {
+    if (!leaflet || !map || selectedPickupPointId || !fitPoints || !geoPointsFitKey) {
       return;
     }
 
@@ -310,17 +311,6 @@ function isGeoPickupPoint(point: DeliveryPickupPointDTO): point is GeoPickupPoin
     typeof point.longitude === "number" &&
     Number.isFinite(point.longitude)
   );
-}
-
-function getGeoPointsFitKey(
-  initialCenter: { lat: number; long: number } | undefined,
-  geoPoints: readonly GeoPickupPoint[],
-) {
-  const points = geoPoints
-    .map((point) => [point.id, point.latitude, point.longitude] as const)
-    .sort(([leftId], [rightId]) => leftId.localeCompare(rightId));
-
-  return JSON.stringify([initialCenter?.lat, initialCenter?.long, points]);
 }
 
 function fitMapToGeoPointsOnce(

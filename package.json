@@ -25,6 +25,9 @@
     "node": ">=18"
   },
   "packageManager": "yarn@1.22.22",
+  "resolutions": {
+    "**/vaul/@radix-ui/react-dialog": "1.1.15"
+  },
   "workspaces": [
     "apps/*",
     "packages/*"
