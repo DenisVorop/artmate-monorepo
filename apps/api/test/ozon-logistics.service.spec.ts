@@ -154,6 +154,95 @@ describe("OzonLogisticsService pickup index and live validation", () => {
     });
   });
 
+  it("accepts an explicit empty schedule for a live selected point", async () => {
+    await withMode("real", async () => {
+      const point = createLivePoint("2655484", { workingHours: [] });
+      const service = createService(async () => ({ points: [point] }));
+
+      assert.equal(
+        (await service.getPickupPoint("2655484")).workHours,
+        "График работы уточняется",
+      );
+    });
+  });
+
+  it("strictly parses structured live schedules", async () => {
+    await withMode("real", async () => {
+      const point = createLivePoint("point-1", {
+        workingHours: [
+          { periods: [] },
+          {
+            periods: [
+              {
+                min: { hours: 9, minutes: 5 },
+                max: { hours: 21, minutes: 30 },
+              },
+            ],
+          },
+        ],
+      });
+      const service = createService(async () => ({ points: [point] }));
+
+      assert.equal(
+        (await service.getPickupPoint("point-1")).workHours,
+        "09:05-21:30",
+      );
+    });
+  });
+
+  it("rejects malformed live selected-point schedules", async () => {
+    await withMode("real", async () => {
+      const validPeriod = {
+        min: { hours: 9, minutes: 0 },
+        max: { hours: 21, minutes: 0 },
+      };
+      const invalidSchedules = [
+        undefined,
+        null,
+        {},
+        [null],
+        [{ periods: [] }],
+        [
+          {
+            periods: [{ min: { hours: 24, minutes: 0 }, max: validPeriod.max }],
+          },
+        ],
+        [{ periods: [] }, { periods: [validPeriod, {}] }],
+      ];
+      const missingSchedule = createLivePoint("point-1");
+      const deliveryMethod: Record<string, unknown> = {
+        ...missingSchedule.delivery_method,
+      };
+      delete deliveryMethod.working_hours;
+
+      await assert.rejects(
+        createService(async () => ({
+          points: [
+            {
+              ...missingSchedule,
+              delivery_method: {
+                ...deliveryMethod,
+                work_hours: "09:00-21:00",
+              },
+            },
+          ],
+        })).getPickupPoint("point-1"),
+        BadGatewayException,
+      );
+
+      for (const workingHours of invalidSchedules) {
+        const point = createLivePoint("point-1", { workingHours });
+
+        await assert.rejects(
+          createService(async () => ({ points: [point] })).getPickupPoint(
+            "point-1",
+          ),
+          BadGatewayException,
+        );
+      }
+    });
+  });
+
   it("fails closed for unavailable or malformed live selected points", async () => {
     await withMode("real", async () => {
       await assert.rejects(
@@ -247,7 +336,10 @@ function createSyncPoint(mapPointId: string) {
   };
 }
 
-function createLivePoint(mapPointId: string) {
+function createLivePoint(
+  mapPointId: string,
+  options: { workingHours?: unknown } = {},
+) {
   return {
     enabled: true,
     delivery_method: {
@@ -255,7 +347,18 @@ function createLivePoint(mapPointId: string) {
       delivery_type: { id: 1002 },
       map_point_id: mapPointId,
       name: "Ozon ПВЗ",
-      work_hours: "09:00-21:00",
+      working_hours: Object.hasOwn(options, "workingHours")
+        ? options.workingHours
+        : [
+            {
+              periods: [
+                {
+                  min: { hours: 9, minutes: 0 },
+                  max: { hours: 21, minutes: 0 },
+                },
+              ],
+            },
+          ],
     },
   };
 }

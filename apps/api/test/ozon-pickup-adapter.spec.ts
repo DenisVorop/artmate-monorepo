@@ -105,28 +105,31 @@ describe("Ozon pickup dataset adapter", () => {
     });
   });
 
-  it("parses official point/info fields and returns explicit exclusions without coordinates", async () => {
+  it("accepts an explicit empty schedule and returns explicit exclusions without coordinates", async () => {
     await withOzonLogisticsMode("real", async () => {
       let request: { body: unknown; path: string } | undefined;
       const points = [
         createPointInfo("disabled", { enabled: false }),
         createPointInfo("postamat", { deliveryTypeId: 1003 }),
-        createPointInfo("pvz", {
+        createPointInfo("ordinary"),
+        createPointInfo("empty-hours", {
           city: "Москва",
           region: "Москва",
           title: "Ozon ПВЗ",
+          workingHours: [],
         }),
       ];
       const service = createPickupService(async (path, body) => {
         request = { body, path };
-        return { points: [points[2], points[0], points[1]] };
+        return { points: [points[3], points[0], points[2], points[1]] };
       });
 
       assert.deepEqual(
         await service.getDeliveryPointInfoBatch([
           "disabled",
           "postamat",
-          "pvz",
+          "ordinary",
+          "empty-hours",
         ]),
         [
           {
@@ -142,14 +145,23 @@ describe("Ozon pickup dataset adapter", () => {
           {
             address: "Москва, Тверская, 1",
             eligible: true,
-            mapPointId: "pvz",
+            mapPointId: "ordinary",
             title: "Ozon ПВЗ",
             workHours: "09:00-21:30",
+          },
+          {
+            address: "Москва, Тверская, 1",
+            eligible: true,
+            mapPointId: "empty-hours",
+            title: "Ozon ПВЗ",
+            workHours: "График работы уточняется",
           },
         ],
       );
       assert.deepEqual(request, {
-        body: { map_point_ids: ["disabled", "postamat", "pvz"] },
+        body: {
+          map_point_ids: ["disabled", "postamat", "ordinary", "empty-hours"],
+        },
         path: "/v1/delivery/point/info",
       });
     });
@@ -244,14 +256,28 @@ describe("Ozon pickup dataset adapter", () => {
           ...valid,
           delivery_method: {
             ...valid.delivery_method,
-            working_hours: [{ periods: [] }],
+            working_hours: undefined,
           },
         },
         {
           ...valid,
           delivery_method: {
             ...valid.delivery_method,
-            working_hours: [{}],
+            working_hours: null,
+          },
+        },
+        {
+          ...valid,
+          delivery_method: {
+            ...valid.delivery_method,
+            working_hours: {},
+          },
+        },
+        {
+          ...valid,
+          delivery_method: {
+            ...valid.delivery_method,
+            working_hours: [null],
           },
         },
         {
@@ -259,6 +285,29 @@ describe("Ozon pickup dataset adapter", () => {
           delivery_method: {
             ...valid.delivery_method,
             working_hours: [{ periods: null }],
+          },
+        },
+        {
+          ...valid,
+          delivery_method: {
+            ...valid.delivery_method,
+            working_hours: [{ periods: [] }],
+          },
+        },
+        {
+          ...valid,
+          delivery_method: {
+            ...valid.delivery_method,
+            working_hours: [
+              {
+                periods: [
+                  {
+                    max: { hours: 21, minutes: 30 },
+                    min: { hours: 24, minutes: 0 },
+                  },
+                ],
+              },
+            ],
           },
         },
         {
@@ -329,6 +378,7 @@ function createPointInfo(
     enabled?: boolean;
     region?: string;
     title?: string;
+    workingHours?: unknown[];
   } = {},
 ) {
   return {
@@ -343,7 +393,7 @@ function createPointInfo(
       delivery_type: { id: overrides.deliveryTypeId ?? 1002 },
       map_point_id: mapPointId,
       name: overrides.title ?? "Ozon ПВЗ",
-      working_hours: [
+      working_hours: overrides.workingHours ?? [
         {
           periods: [
             {

@@ -31,6 +31,7 @@ export type OzonPickupPointInfoItem =
 
 const pointInfoBatchMaxSize = 100;
 const staffedPickupPointDeliveryTypeId = 1002;
+const unknownWorkingHours = "График работы уточняется";
 
 export function parseOzonPickupPointList(
   response: unknown,
@@ -158,7 +159,7 @@ export function parseOzonPickupPointInfo(
         undefined,
         "point-info",
       ),
-      workHours: parseWorkingHours(deliveryMethod.working_hours),
+      workHours: parseOzonWorkingHours(deliveryMethod.working_hours),
     });
   }
 
@@ -172,10 +173,12 @@ export function parseOzonPickupPointInfo(
   return requestedMapPointIds.map((mapPointId) => pointsById.get(mapPointId)!);
 }
 
-function parseWorkingHours(value: unknown) {
-  if (!Array.isArray(value) || value.length === 0) {
+export function parseOzonWorkingHours(value: unknown) {
+  if (!Array.isArray(value)) {
     throw createProtocolException("point-info");
   }
+
+  if (value.length === 0) return unknownWorkingHours;
 
   let firstPeriod: string | undefined;
 

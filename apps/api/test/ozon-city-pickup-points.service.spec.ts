@@ -3,9 +3,11 @@ import "reflect-metadata";
 import assert from "node:assert/strict";
 import { describe, it } from "node:test";
 
-import { BadGatewayException } from "@nestjs/common";
+import { BadGatewayException, Logger } from "@nestjs/common";
 
 import { OzonCityPickupPointsService } from "../src/delivery/ozon-city-pickup-points.service";
+import { OzonLogisticsService } from "../src/ozon/ozon-logistics.service";
+import type { OzonOAuthService } from "../src/ozon/ozon-oauth.service";
 
 const city = {
   code: 44,
@@ -68,36 +70,113 @@ describe("Ozon city pickup-point dataset", () => {
     });
   });
 
+  it("publishes complete multi-batch data with empty Petersburg and Sochi schedules through the real parser", async () => {
+    await withRealMode(async () => {
+      const cache = createCache();
+      const ids = [
+        "2655484",
+        ...Array.from({ length: 100 }, (_, index) => `point-${index}`),
+        "2655565",
+      ];
+      const logistics = new OzonLogisticsService({
+        requestSellerApi: async (path: string, body: unknown) => {
+          if (path === "/v1/delivery/point/list") {
+            return {
+              points: ids.map((mapPointId) => ({
+                coordinate: { lat: 1, long: 1 },
+                map_point_id: mapPointId,
+              })),
+            };
+          }
+
+          const requestedIds = (body as { map_point_ids: string[] })
+            .map_point_ids;
+          return {
+            points: requestedIds.map((mapPointId) =>
+              createUpstreamPoint(mapPointId, {
+                address:
+                  mapPointId === "2655484"
+                    ? "Санкт-Петербург, CDEK137"
+                    : mapPointId === "2655565"
+                      ? "Сочи, CDEK437"
+                      : `Адрес ${mapPointId}`,
+                workingHours:
+                  mapPointId === "2655484" || mapPointId === "2655565"
+                    ? []
+                    : undefined,
+              }),
+            ),
+          };
+        },
+      } as unknown as OzonOAuthService);
+      const service = createService(cache, logistics);
+
+      const points = await service.getPickupPoints(city);
+
+      assert.equal(points.length, ids.length);
+      assert.equal(
+        points.find((point) => point.id === "2655484")?.workHours,
+        "График работы уточняется",
+      );
+      assert.equal(
+        points.find((point) => point.id === "2655565")?.workHours,
+        "График работы уточняется",
+      );
+      assert.equal(
+        (cache.entries.get("ozon:city:44")?.payload as unknown[]).length,
+        ids.length,
+      );
+    });
+  });
+
   it("waits for in-flight workers after a later batch fails and never publishes partial data", async () => {
     await withRealMode(async () => {
       const cache = createCache();
+      const warnings: unknown[] = [];
+      const originalWarn = Logger.prototype.warn;
+      Logger.prototype.warn = function (message: unknown) {
+        warnings.push(message);
+      };
       let slowSettled = false;
-      const service = createService(cache, {
-        getDeliveryPointList: async () =>
-          Array.from({ length: 205 }, (_, index) => ({
-            mapPointId: `point-${index}`,
-            latitude: 1,
-            longitude: 1,
-          })),
-        getDeliveryPointInfoBatch: async (ids: string[]) => {
-          if (ids[0] === "point-100")
-            throw new Error("secret-marker-from-upstream");
-          await delay(30);
-          slowSettled = true;
-          return ids.map(pointInfo);
-        },
-      });
+      try {
+        const service = createService(cache, {
+          getDeliveryPointList: async () =>
+            Array.from({ length: 205 }, (_, index) => ({
+              mapPointId: `point-${index}`,
+              latitude: 1,
+              longitude: 1,
+            })),
+          getDeliveryPointInfoBatch: async (ids: string[]) => {
+            if (ids[0] === "point-100")
+              throw new Error("secret-marker-from-upstream");
+            await delay(30);
+            slowSettled = true;
+            return ids.map(pointInfo);
+          },
+        });
 
-      await assert.rejects(
-        service.getPickupPoints(city),
-        (error) =>
-          error instanceof BadGatewayException &&
-          /Не удалось загрузить пункты Ozon/u.test(error.message) &&
-          !/secret-marker/u.test(error.message),
-      );
-      assert.equal(slowSettled, true);
-      assert.equal(cache.entries.has("ozon:city:44"), false);
-      assert.equal(cache.leases.size, 0);
+        await assert.rejects(
+          service.getPickupPoints(city),
+          (error) =>
+            error instanceof BadGatewayException &&
+            /Не удалось загрузить пункты Ozon/u.test(error.message) &&
+            !/secret-marker/u.test(error.message),
+        );
+        assert.equal(slowSettled, true);
+        assert.equal(cache.entries.has("ozon:city:44"), false);
+        assert.equal(cache.leases.size, 0);
+        assert.deepEqual(warnings, [
+          {
+            batchIndex: 1,
+            cityCode: 44,
+            errorType: "error",
+            stage: "point-info",
+          },
+        ]);
+        assert.doesNotMatch(JSON.stringify(warnings), /secret-marker/u);
+      } finally {
+        Logger.prototype.warn = originalWarn;
+      }
     });
   });
 
@@ -241,6 +320,31 @@ function pointInfo(mapPointId: string) {
     title: "Ozon ПВЗ",
     address: `Адрес ${mapPointId}`,
     workHours: "09:00-21:00",
+  };
+}
+
+function createUpstreamPoint(
+  mapPointId: string,
+  options: { address?: string; workingHours?: unknown[] } = {},
+) {
+  return {
+    enabled: true,
+    delivery_method: {
+      address: options.address ?? `Адрес ${mapPointId}`,
+      delivery_type: { id: 1002 },
+      map_point_id: mapPointId,
+      name: "Ozon ПВЗ",
+      working_hours: options.workingHours ?? [
+        {
+          periods: [
+            {
+              min: { hours: 9, minutes: 0 },
+              max: { hours: 21, minutes: 0 },
+            },
+          ],
+        },
+      ],
+    },
   };
 }
 
