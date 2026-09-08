@@ -4,9 +4,11 @@ export type DeliveryCityDTO = {
   name: string;
 };
 
-export type OzonDeliveryCityDTO = {
+export type CdekCityDetailsDTO = {
+  code: number;
   countryCode: string;
-  id: string;
+  latitude: number;
+  longitude: number;
   name: string;
   region: string;
 };

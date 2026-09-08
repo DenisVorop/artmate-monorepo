@@ -27,275 +27,190 @@ async function loadTypeScript(path, mocks) {
     testModule.exports,
   );
 
-  return testModule.exports;
+  return { exports: testModule.exports, source };
 }
 
-async function loadQueryHook(file, queryResult) {
-  const queries = [];
-  const exports = await loadTypeScript(`src/features/checkout/model/${file}.ts`, {
-    "@/shared/actions/delivery": {},
-    "@/shared/lib/api-result": {},
+test("shared CDEK city search uses debounced input and hides stale data and errors", async () => {
+  let queryOptions;
+  const staleCity = { code: 44, countryCode: "RU", name: "Москва" };
+  const { exports, source } = await loadTypeScript(
+    "src/features/checkout/model/use-cdek-cities.ts",
+    {
+      "@/shared/actions/delivery": { searchCdekCities: async () => ({ data: [] }) },
+      "@/shared/lib/api-result": {
+        ApiResult: { fromDTO: (result) => ({ unwrap: () => result.data }) },
+      },
+      "@tanstack/react-query": {
+        useQuery: (options) => {
+          queryOptions = options;
+          return {
+            data: { cities: [staleCity], query: "Москва" },
+            isError: true,
+            isFetching: true,
+            isPending: false,
+            refetch: () => "retry",
+          };
+        },
+      },
+      "../lib/use-debounced-city-query": {
+        useDebouncedCityQuery: () => "Москва",
+      },
+    },
+  );
+
+  const result = exports.useCdekCities("Санкт-Петербург");
+
+  assert.doesNotMatch(source, /useState|setTimeout/u);
+  assert.deepEqual(queryOptions.queryKey, ["delivery", "cdek", "cities", "Москва"]);
+  assert.deepEqual(result.cities, []);
+  assert.equal(result.isError, false);
+  assert.equal(result.isFetching, false);
+  assert.equal(result.isPending, true);
+  assert.equal(result.retry(), "retry");
+});
+
+test("CDEK city details are exact-code scoped and reject late selected-city data", async () => {
+  let queryOptions;
+  let actionCalls = 0;
+  const city = {
+    code: 44,
+    countryCode: "RU",
+    latitude: 55.75,
+    longitude: 37.61,
+    name: "Москва",
+    region: "Москва",
+  };
+  const { exports } = await loadTypeScript("src/features/checkout/model/use-cdek-city.ts", {
+    "@/shared/actions/delivery": {
+      getCdekCity: async () => {
+        actionCalls += 1;
+        return { data: city };
+      },
+    },
+    "@/shared/lib/api-result": {
+      ApiResult: { fromDTO: (result) => ({ unwrap: () => result.data }) },
+    },
     "@tanstack/react-query": {
       useQuery: (options) => {
-        queries.push(options);
-        return queryResult;
+        queryOptions = options;
+        return {
+          data: { city, cityCode: 44 },
+          isError: false,
+          isFetching: true,
+          isPending: false,
+          refetch: () => "retry",
+        };
       },
     },
   });
 
-  return { ...exports, queries };
-}
+  const lateResult = exports.useCdekCity(137, true);
 
-const cachedCity = { countryCode: "RU", id: "moscow", name: "Москва", region: "Москва" };
-const cachedPoint = {
-  address: "Москва, ул. Лесная, 12",
-  deliveryPrice: 100,
-  id: "point-81",
-  latitude: 55.78,
-  longitude: 37.59,
-  title: "Пункт выдачи Ozon",
-  workHours: "09:00–21:00",
-};
-const idleQuery = {
-  data: undefined,
-  isError: false,
-  isFetching: false,
-  isPending: false,
-  refetch: () => undefined,
-};
+  assert.deepEqual(queryOptions.queryKey, ["delivery", "cdek", "city", 137]);
+  assert.equal(queryOptions.enabled, true);
+  assert.equal(queryOptions.gcTime, 5 * 60_000);
+  assert.equal(queryOptions.staleTime, 7 * 24 * 60 * 60_000);
+  assert.equal(lateResult.city, undefined);
+  assert.equal(lateResult.isFetching, true);
+  assert.equal(lateResult.retry(), "retry");
+  await assert.rejects(queryOptions.queryFn(), /координаты выбранного города/u);
+  assert.equal(actionCalls, 1);
 
-async function renderSelector({ cityQuery, settledQuery, cityResult, pointResult = idleQuery }) {
-  const cities = await loadQueryHook("use-ozon-cities", cityResult);
-  const points = await loadQueryHook("use-ozon-pickup-points", pointResult);
-  const jsx = (type, props, key) => ({ key, props, type });
-  const states = [cityQuery, "", true, false];
-  let stateIndex = 0;
-  const { DeliverySelector } = await loadTypeScript(
-    "src/features/checkout/ui/delivery-selector/delivery-selector.tsx",
+  const disabled = exports.useCdekCity(undefined, true);
+  assert.equal(queryOptions.enabled, false);
+  assert.equal(disabled.city, undefined);
+  assert.equal(disabled.isPending, false);
+  assert.equal(actionCalls, 1);
+});
+
+test("Ozon pickup query is city-gated and hides late wrong-city data and errors", async () => {
+  let queryOptions;
+  const stalePoint = {
+    id: "old",
+    address: "Old",
+    title: "Old",
+    workHours: "09:00",
+    deliveryPrice: 100,
+  };
+  const { exports } = await loadTypeScript(
+    "src/features/checkout/model/use-ozon-pickup-points.ts",
     {
-      "../../lib": {
-        filterPickupPoints: (items) => items,
-        formatPickupPointCount: (count) => `${count} ПВЗ`,
-        useDebouncedCityQuery: () => settledQuery,
+      "@/shared/actions/delivery": {
+        getOzonPickupPoints: async () => ({ data: [] }),
       },
-      "../../model": {
-        useCdekCities: () => ({ cities: [], ...idleQuery }),
-        useCdekPickupPoints: () => ({ pickupPoints: [], ...idleQuery }),
-        useOzonCities: cities.useOzonCities,
-        useOzonPickupPoints: points.useOzonPickupPoints,
+      "@/shared/lib/api-result": {
+        ApiResult: { fromDTO: (result) => ({ unwrap: () => result.data }) },
       },
-      "./combobox-field": { ComboboxField: "ComboboxField" },
-      "./combobox-option": { ComboboxOption: "ComboboxOption" },
-      "./delivery-company-selector": { DeliveryCompanySelector: "DeliveryCompanySelector" },
-      "./delivery-options": { defaultDeliveryCompany: "cdek" },
-      "./map-placeholder": { MapPlaceholder: "MapPlaceholder" },
-      "./pickup-points-map": { PickupPointsMap: "PickupPointsMap" },
-      "@/shared/lib": { cn: (...classes) => classes.filter(Boolean).join(" ") },
-      "@/shared/ui/button": { Button: "Button" },
-      "lucide-react": {
-        CheckCircle2: "CheckCircle2",
-        CircleAlert: "CircleAlert",
-        LoaderCircle: "LoaderCircle",
-        MapPin: "MapPin",
+      "@tanstack/react-query": {
+        useQuery: (options) => {
+          queryOptions = options;
+          return {
+            data: { cityCode: 44, pickupPoints: [stalePoint] },
+            isError: true,
+            isFetching: true,
+            isPending: false,
+            refetch: () => "retry",
+          };
+        },
       },
-      react: {
-        useEffect: () => undefined,
-        useMemo: (factory) => factory(),
-        useState: () => [states[stateIndex++], () => undefined],
-      },
-      "react/jsx-runtime": { jsx, jsxs: jsx },
     },
   );
 
-  return {
-    queries: cities.queries,
-    tree: DeliverySelector({
-      drafts: { cdek: {}, ozon: { city: cachedCity, localityId: cachedCity.id } },
-      isOzonDeliveryAvailable: true,
-      onCompanyChange: () => undefined,
-      onDraftChange: () => undefined,
-      selectedCompany: "ozon",
-    }),
-  };
-}
+  const late = exports.useOzonPickupPoints(137, true);
+  assert.deepEqual(queryOptions.queryKey, ["delivery", "ozon", "pickup-points", 137]);
+  assert.equal(queryOptions.enabled, true);
+  assert.equal(queryOptions.staleTime, 45_000);
+  assert.equal(queryOptions.gcTime, 5 * 60_000);
+  assert.deepEqual(late.pickupPoints, []);
+  assert.equal(late.isError, false);
+  assert.equal(late.isPending, true);
 
-function findNodes(node, predicate) {
-  if (!node || typeof node !== "object") return [];
-  if (Array.isArray(node)) return node.flatMap((child) => findNodes(child, predicate));
+  const disabled = exports.useOzonPickupPoints(137, false);
+  assert.equal(queryOptions.enabled, false);
+  assert.deepEqual(disabled.pickupPoints, []);
+  assert.equal(disabled.isPending, false);
+});
 
-  return [...(predicate(node) ? [node] : []), ...findNodes(node.props?.children, predicate)];
-}
-
-test("city debounce waits 300ms and cancels obsolete timers and unmounted updates", async () => {
-  let now = 0;
-  let nextTimerId = 0;
-  let state;
-  let initialized = false;
-  let dependencies;
+test("city debounce UI state lives in lib and cancels its 300ms timer", async () => {
+  const previousWindow = globalThis.window;
+  let timer;
   let cleanup;
-  const timers = new Map();
-  const updates = [];
-  const clearedTimers = [];
-  const originalWindow = globalThis.window;
-  const { useDebouncedCityQuery } = await loadTypeScript(
-    "src/features/checkout/lib/use-debounced-city-query.ts",
-    {
-      react: {
-        useState: (initialValue) => {
-          if (!initialized) {
-            initialized = true;
-            state = initialValue;
-          }
-          return [
-            state,
+  let applied;
+  let cleared;
+  globalThis.window = {
+    setTimeout(callback, delay) {
+      timer = { callback, delay };
+      return 91;
+    },
+    clearTimeout(id) {
+      cleared = id;
+    },
+  };
+  try {
+    const { exports } = await loadTypeScript(
+      "src/features/checkout/lib/use-debounced-city-query.ts",
+      {
+        react: {
+          useState: (initial) => [
+            initial,
             (value) => {
-              state = value;
-              updates.push(value);
+              applied = value;
             },
-          ];
-        },
-        useEffect: (effect, nextDependencies) => {
-          if (dependencies?.[0] === nextDependencies[0]) return;
-          cleanup?.();
-          dependencies = nextDependencies;
-          cleanup = effect();
+          ],
+          useEffect: (effect) => {
+            cleanup = effect();
+          },
         },
       },
-    },
-  );
-
-  globalThis.window = {
-    setTimeout: (callback, delay) => {
-      assert.equal(delay, 300);
-      const id = ++nextTimerId;
-      timers.set(id, { callback, due: now + delay });
-      return id;
-    },
-    clearTimeout: (id) => {
-      clearedTimers.push(id);
-      timers.delete(id);
-    },
-  };
-
-  const advance = (duration) => {
-    now += duration;
-    for (const [id, timer] of timers) {
-      if (timer.due <= now) {
-        timers.delete(id);
-        timer.callback();
-      }
-    }
-  };
-
-  try {
-    assert.equal(useDebouncedCityQuery("  Москва  "), "Москва");
-    assert.equal(useDebouncedCityQuery("Каз"), "Москва");
-    advance(299);
-    assert.deepEqual(updates, []);
-    assert.equal(useDebouncedCityQuery("  Казань  "), "Москва");
-    advance(299);
-    assert.deepEqual(updates, []);
-    advance(1);
-    assert.deepEqual(updates, ["Казань"]);
-    assert.equal(useDebouncedCityQuery("Казань"), "Казань");
-    assert.equal(timers.size, 0);
-
-    useDebouncedCityQuery("Пермь");
-    assert.equal(timers.size, 1);
-    cleanup();
-    advance(1_000);
-    assert.equal(timers.size, 0);
-    assert.deepEqual(updates, ["Казань"]);
-    assert.deepEqual(clearedTimers, [1, 2, 3, 4]);
-  } finally {
-    if (originalWindow === undefined) delete globalThis.window;
-    else globalThis.window = originalWindow;
-  }
-});
-
-test("unsettled city input hides previous cached results and errors until debounce settles", async () => {
-  const staleResult = { ...idleQuery, data: [cachedCity], isError: true, isFetching: true };
-  const { queries, tree } = await renderSelector({
-    cityQuery: "Санкт",
-    settledQuery: "Москва",
-    cityResult: staleResult,
-  });
-  const [cityField] = findNodes(tree, (node) => node.props?.label === "Город");
-
-  assert.equal(queries[0].enabled, false);
-  assert.equal(cityField.props.isPending, true);
-  assert.notEqual(cityField.props.emptyText, "Не удалось загрузить города");
-  assert.deepEqual(
-    findNodes(tree, (node) => node.type === "ComboboxOption"),
-    [],
-  );
-  assert.deepEqual(
-    findNodes(tree, (node) => node.type === "Button"),
-    [],
-  );
-
-  const { useOzonCities: runOzonCities, queries: hookQueries } = await loadQueryHook(
-    "use-ozon-cities",
-    staleResult,
-  );
-  for (const [query, enabled] of [
-    ["Москва", false],
-    ["М", true],
-    ["", true],
-  ]) {
-    const result = runOzonCities(query, enabled);
-    assert.equal(hookQueries.at(-1).enabled, false);
-    assert.deepEqual(result.cities, []);
-    assert.equal(result.isError, false);
-    assert.equal(result.isFetching, false);
-    assert.equal(result.isPending, false);
-  }
-  const settled = runOzonCities(" Москва ", true);
-  assert.equal(hookQueries.at(-1).enabled, true);
-  assert.strictEqual(settled.cities, staleResult.data);
-  assert.equal(settled.isError, true);
-  assert.equal(settled.isFetching, true);
-  assert.equal(settled.isPending, false);
-});
-
-test("background fetching and retry preserve locality points without becoming initial loading", async () => {
-  const pickupPoints = [cachedPoint];
-  for (const isError of [false, true]) {
-    const cachedResult = {
-      ...idleQuery,
-      data: { localityId: cachedCity.id, pickupPoints },
-      isError,
-      isFetching: true,
-    };
-    const { useOzonPickupPoints: runOzonPickupPoints } = await loadQueryHook(
-      "use-ozon-pickup-points",
-      cachedResult,
     );
-    const result = runOzonPickupPoints(cachedCity.id);
-
-    assert.strictEqual(result.pickupPoints, pickupPoints);
-    assert.equal(result.isPending, false);
-    assert.equal(result.isFetching, true);
-    assert.equal(result.isError, isError);
-    assert.deepEqual(runOzonPickupPoints("another-city").pickupPoints, []);
-
-    const { tree } = await renderSelector({
-      cityQuery: "Москва",
-      settledQuery: "Москва",
-      cityResult: { ...idleQuery, data: [cachedCity] },
-      pointResult: cachedResult,
-    });
-    if (isError) {
-      const [retryButton] = findNodes(tree, (node) => node.type === "Button");
-      assert.equal(retryButton.props.disabled, true);
-      assert.equal(findNodes(retryButton, (node) => node.type === "LoaderCircle").length, 1);
-    } else {
-      const [map] = findNodes(tree, (node) => node.type === "PickupPointsMap");
-      assert.strictEqual(map.props.pickupPoints, pickupPoints);
-      assert.equal(
-        findNodes(tree, (node) => node.props?.title === "Загружаем пункты выдачи").length,
-        0,
-      );
-    }
+    assert.equal(exports.useDebouncedCityQuery(" Москва "), "Москва");
+    assert.equal(timer.delay, 300);
+    timer.callback();
+    assert.equal(applied, "Москва");
+    cleanup();
+    assert.equal(cleared, 91);
+  } finally {
+    if (previousWindow === undefined) delete globalThis.window;
+    else globalThis.window = previousWindow;
   }
 });

@@ -224,7 +224,7 @@ test("partial CDEK code survives and changing city clears only its point", async
   assert.strictEqual(drafts.ozon, ozonDraft);
 });
 
-test("Ozon locality stays in its draft and changing it resets only dependent Ozon state", async () => {
+test("Ozon CDEK city stays in its draft and changing it resets dependent Ozon state", async () => {
   const {
     getDeliveryDraftCandidate,
     seedDeliveryPickerDrafts,
@@ -238,10 +238,9 @@ test("Ozon locality stays in its draft and changing it resets only dependent Ozo
     pickupPointId: cdekPointA.id,
   };
   const city = {
+    code: 137,
     countryCode: "RU",
-    id: "locality-137",
     name: "Санкт-Петербург",
-    region: "Санкт-Петербург",
   };
   let drafts = { cdek: cdekDraft, ozon: {} };
 
@@ -249,14 +248,14 @@ test("Ozon locality stays in its draft and changing it resets only dependent Ozo
   drafts = selectOzonDraftCity(drafts, city);
 
   assert.strictEqual(drafts.cdek, cdekDraft);
-  assert.deepEqual(drafts.ozon, { city, localityId: city.id });
+  assert.deepEqual(drafts.ozon, { city, cityCode: city.code });
   assert.equal(drafts.ozon.pickupPoint, undefined);
   assert.equal(drafts.ozon.pickupPointId, undefined);
   assert.equal(getDeliveryDraftCandidate(drafts, "ozon"), undefined);
 
   const confirmed = { pickupPointId: "old-city-point", provider: "ozon" };
   drafts = seedDeliveryPickerDrafts(drafts, confirmed, calculation(confirmed));
-  assert.deepEqual(drafts.ozon, { city, localityId: city.id });
+  assert.deepEqual(drafts.ozon, { city, cityCode: city.code });
   assert.equal(getDeliveryDraftCandidate(drafts, "ozon"), undefined);
 
   drafts = selectDraftPickupPoint(drafts, "ozon", ozonPoint);
@@ -267,7 +266,7 @@ test("Ozon locality stays in its draft and changing it resets only dependent Ozo
   assert.equal("cityCode" in getDeliveryDraftCandidate(drafts, "ozon"), false);
 });
 
-test("restored Ozon point ID cannot bypass locality selection", async () => {
+test("restored Ozon point ID cannot bypass city selection", async () => {
   const { createDeliveryPickerDrafts, getDeliveryDraftCandidate, seedDeliveryPickerDrafts } =
     await loadDraftState();
   const confirmed = { pickupPointId: ozonPoint.id, provider: "ozon" };
@@ -277,20 +276,19 @@ test("restored Ozon point ID cannot bypass locality selection", async () => {
     calculation(confirmed),
   );
 
-  assert.deepEqual(drafts.ozon.pickupPoint, ozonPoint);
-  assert.equal(drafts.ozon.localityId, undefined);
+  assert.deepEqual(drafts.ozon, {});
+  assert.equal(drafts.ozon.cityCode, undefined);
   assert.equal(getDeliveryDraftCandidate(drafts, "ozon"), undefined);
 });
 
-test("background calculation cannot restore an old Ozon point into a newly selected locality", async () => {
+test("background calculation cannot restore an old Ozon point into a newly selected city", async () => {
   const { selectOzonDraftCity, seedDeliveryPickerDrafts, getDeliveryDraftCandidate } =
     await loadDraftState();
   const draft = selectOzonDraftCity(
     { cdek: {}, ozon: {} },
     {
-      id: "city-B",
+      code: 137,
       name: "Санкт-Петербург",
-      region: "Санкт-Петербург",
       countryCode: "RU",
     },
   );
@@ -299,7 +297,7 @@ test("background calculation cannot restore an old Ozon point into a newly selec
     { provider: "ozon", pickupPointId: "point-A" },
     undefined,
   );
-  assert.equal(seeded.ozon.localityId, "city-B");
+  assert.equal(seeded.ozon.cityCode, 137);
   assert.equal(seeded.ozon.pickupPointId, undefined);
   assert.equal(getDeliveryDraftCandidate(seeded, "ozon"), undefined);
 });
@@ -321,10 +319,9 @@ test("point selection changes only draft and produces strict candidates", async 
   assert.equal(getDeliveryDraftCandidate(drafts, "ozon"), undefined);
 
   drafts = selectOzonDraftCity(drafts, {
+    code: 44,
     countryCode: "RU",
-    id: "locality-44",
     name: "Москва",
-    region: "Москва",
   });
   drafts = selectDraftPickupPoint(drafts, "ozon", ozonPoint);
 

@@ -1,9 +1,126 @@
 import assert from "node:assert/strict";
 import { describe, it } from "node:test";
 
+import { BadGatewayException, NotFoundException } from "@nestjs/common";
+
 import type { CdekClientService } from "../src/delivery/providers/cdek/cdek-client.service";
 import { CdekDeliveryProvider } from "../src/delivery/providers/cdek/cdek-delivery.provider";
 import type { CdekOrderInfoResponse } from "../src/delivery/providers/cdek/cdek.types";
+
+describe("CdekDeliveryProvider city details", () => {
+  it("requests and maps the exact Russian city", async () => {
+    const requests: unknown[] = [];
+    const provider = new CdekDeliveryProvider({
+      request: async (path: string, options: unknown) => {
+        requests.push([path, options]);
+        return [
+          {
+            city: "Москва",
+            code: 44,
+            country_code: "RU",
+            latitude: 55.7558,
+            longitude: 37.6176,
+            region: "Москва",
+          },
+        ];
+      },
+    } as unknown as CdekClientService);
+
+    assert.deepEqual(await provider.getCity(44), {
+      code: 44,
+      countryCode: "RU",
+      latitude: 55.7558,
+      longitude: 37.6176,
+      name: "Москва",
+      region: "Москва",
+    });
+    assert.deepEqual(requests, [
+      [
+        "/v2/location/cities",
+        { query: { code: 44, country_codes: "RU", page: 0, size: 1 } },
+      ],
+    ]);
+  });
+
+  it("accepts zero and boundary coordinates", async () => {
+    for (const [latitude, longitude] of [
+      [0, 0],
+      [-90, -180],
+      [90, 180],
+    ]) {
+      const city = await createProviderReturning([
+        {
+          city: "Город",
+          code: 1,
+          country_code: "RU",
+          latitude,
+          longitude,
+          region: "Регион",
+        },
+      ]).getCity(1);
+
+      assert.equal(city.latitude, latitude);
+      assert.equal(city.longitude, longitude);
+    }
+  });
+
+  it("rejects mismatched, non-Russian and unknown city responses", async () => {
+    for (const response of [
+      [],
+      [
+        {
+          city: "Другой",
+          code: 45,
+          country_code: "RU",
+          latitude: 1,
+          longitude: 1,
+          region: "R",
+        },
+      ],
+      [
+        {
+          city: "Минск",
+          code: 44,
+          country_code: "BY",
+          latitude: 1,
+          longitude: 1,
+          region: "R",
+        },
+      ],
+    ]) {
+      await assert.rejects(
+        createProviderReturning(response).getCity(44),
+        NotFoundException,
+      );
+    }
+  });
+
+  it("rejects missing or invalid coordinates and required names", async () => {
+    const base = {
+      city: "Москва",
+      code: 44,
+      country_code: "RU",
+      latitude: 55,
+      longitude: 37,
+      region: "Москва",
+    };
+    const invalid = [
+      { ...base, latitude: undefined },
+      { ...base, longitude: Number.NaN },
+      { ...base, latitude: 91 },
+      { ...base, longitude: -181 },
+      { ...base, city: "" },
+      { ...base, region: undefined },
+    ];
+
+    for (const city of invalid) {
+      await assert.rejects(
+        createProviderReturning([city]).getCity(44),
+        BadGatewayException,
+      );
+    }
+  });
+});
 
 describe("CdekDeliveryProvider order status selection", () => {
   it("selects the latest status from a newest-first response", async () => {
@@ -130,9 +247,8 @@ describe("CdekDeliveryProvider order status selection", () => {
     ];
 
     for (const response of responses) {
-      const order = await createProviderReturning(response).getOrder(
-        "order-uuid",
-      );
+      const order =
+        await createProviderReturning(response).getOrder("order-uuid");
 
       assert.equal(order.statusCode, undefined);
       assert.equal(order.statusName, undefined);
@@ -183,18 +299,19 @@ describe("CdekDeliveryProvider order creation", () => {
       });
 
       assert.equal(
-        (requestBody as { recipient: { phones: Array<{ number: string }> } }).recipient.phones[0]
-          ?.number,
+        (requestBody as { recipient: { phones: Array<{ number: string }> } })
+          .recipient.phones[0]?.number,
         "+79991234567",
       );
     } finally {
-      if (previousShipmentPoint === undefined) delete process.env.CDEK_SHIPMENT_POINT_CODE;
+      if (previousShipmentPoint === undefined)
+        delete process.env.CDEK_SHIPMENT_POINT_CODE;
       else process.env.CDEK_SHIPMENT_POINT_CODE = previousShipmentPoint;
     }
   });
 });
 
-function createProviderReturning(response: CdekOrderInfoResponse) {
+function createProviderReturning(response: unknown) {
   const cdekClient = {
     request: async () => response,
   } as unknown as CdekClientService;

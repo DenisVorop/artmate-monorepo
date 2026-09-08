@@ -8,16 +8,16 @@ import { BadGatewayException, GatewayTimeoutException } from "@nestjs/common";
 import { OzonLogisticsService } from "../src/ozon/ozon-logistics.service";
 import type { OzonOAuthService } from "../src/ozon/ozon-oauth.service";
 
-type SyncLogisticsService = {
-  getDeliveryPointInfoForSync(mapPointIds: readonly string[]): Promise<unknown>;
-  getDeliveryPointListForSync(): Promise<unknown>;
+type PickupLogisticsService = {
+  getDeliveryPointInfoBatch(mapPointIds: readonly string[]): Promise<unknown>;
+  getDeliveryPointList(): Promise<unknown>;
 };
 
-describe("Ozon pickup-index sync adapter", () => {
+describe("Ozon pickup dataset adapter", () => {
   it("strictly parses point/list and permits an explicit empty list", async () => {
     await withOzonLogisticsMode("real", async () => {
       const opaqueId = createOpaqueId(160);
-      const service = createSyncServiceReturning([
+      const service = createPickupServiceReturning([
         {
           points: [
             {
@@ -33,11 +33,11 @@ describe("Ozon pickup-index sync adapter", () => {
         { points: [] },
       ]);
 
-      assert.deepEqual(await service.getDeliveryPointListForSync(), [
+      assert.deepEqual(await service.getDeliveryPointList(), [
         { mapPointId: opaqueId, latitude: -90, longitude: -180 },
         { mapPointId: "42", latitude: 90, longitude: 180 },
       ]);
-      assert.deepEqual(await service.getDeliveryPointListForSync(), []);
+      assert.deepEqual(await service.getDeliveryPointList(), []);
     });
   });
 
@@ -98,7 +98,7 @@ describe("Ozon pickup-index sync adapter", () => {
 
       for (const response of invalidResponses) {
         await assert.rejects(
-          createSyncServiceReturning([response]).getDeliveryPointListForSync(),
+          createPickupServiceReturning([response]).getDeliveryPointList(),
           /Ozon Logistics point-list response is invalid/,
         );
       }
@@ -117,13 +117,13 @@ describe("Ozon pickup-index sync adapter", () => {
           title: "Ozon ПВЗ",
         }),
       ];
-      const service = createSyncService(async (path, body) => {
+      const service = createPickupService(async (path, body) => {
         request = { body, path };
         return { points: [points[2], points[0], points[1]] };
       });
 
       assert.deepEqual(
-        await service.getDeliveryPointInfoForSync([
+        await service.getDeliveryPointInfoBatch([
           "disabled",
           "postamat",
           "pvz",
@@ -141,10 +141,8 @@ describe("Ozon pickup-index sync adapter", () => {
           },
           {
             address: "Москва, Тверская, 1",
-            city: "Москва",
             eligible: true,
             mapPointId: "pvz",
-            region: "Москва",
             title: "Ozon ПВЗ",
             workHours: "09:00-21:30",
           },
@@ -157,24 +155,20 @@ describe("Ozon pickup-index sync adapter", () => {
     });
   });
 
-  it("accepts 160-character localities and skips closed working-hours days", async () => {
+  it("does not require city grouping fields and skips closed working-hours days", async () => {
     await withOzonLogisticsMode("real", async () => {
-      const city = "c".repeat(160);
-      const region = "r".repeat(160);
-      const point = createPointInfo("point-1", { city, region });
+      const point = createPointInfo("point-1", { city: "", region: "" });
       point.delivery_method.working_hours.unshift({ periods: [] });
 
       assert.deepEqual(
-        await createSyncServiceReturning([
+        await createPickupServiceReturning([
           { points: [point] },
-        ]).getDeliveryPointInfoForSync(["point-1"]),
+        ]).getDeliveryPointInfoBatch(["point-1"]),
         [
           {
             address: "Москва, Тверская, 1",
-            city,
             eligible: true,
             mapPointId: "point-1",
-            region,
             title: "Ozon ПВЗ",
             workHours: "09:00-21:30",
           },
@@ -186,7 +180,7 @@ describe("Ozon pickup-index sync adapter", () => {
   it("enforces point/info request size and unique valid IDs before calling upstream", async () => {
     await withOzonLogisticsMode("real", async () => {
       let callCount = 0;
-      const service = createSyncService(async () => {
+      const service = createPickupService(async () => {
         callCount += 1;
         return { points: [] };
       });
@@ -200,7 +194,7 @@ describe("Ozon pickup-index sync adapter", () => {
 
       for (const mapPointIds of invalidRequests) {
         await assert.rejects(
-          service.getDeliveryPointInfoForSync(mapPointIds),
+          service.getDeliveryPointInfoBatch(mapPointIds),
           /Ozon Logistics point-info request is invalid/,
         );
       }
@@ -226,7 +220,7 @@ describe("Ozon pickup-index sync adapter", () => {
 
       for (const response of invalidResponses) {
         await assert.rejects(
-          createSyncServiceReturning([response]).getDeliveryPointInfoForSync([
+          createPickupServiceReturning([response]).getDeliveryPointInfoBatch([
             "point-1",
             "point-2",
           ]),
@@ -246,15 +240,6 @@ describe("Ozon pickup-index sync adapter", () => {
           ...valid,
           delivery_method: { ...valid.delivery_method, address: null },
         },
-        {
-          ...valid,
-          delivery_method: {
-            ...valid.delivery_method,
-            address_details: { city: "Москва", region: "" },
-          },
-        },
-        createPointInfo("point-1", { city: "c".repeat(161) }),
-        createPointInfo("point-1", { region: "r".repeat(161) }),
         {
           ...valid,
           delivery_method: {
@@ -290,9 +275,9 @@ describe("Ozon pickup-index sync adapter", () => {
 
       for (const point of invalidPoints) {
         await assert.rejects(
-          createSyncServiceReturning([
+          createPickupServiceReturning([
             { points: [point] },
-          ]).getDeliveryPointInfoForSync(["point-1"]),
+          ]).getDeliveryPointInfoBatch(["point-1"]),
           /Ozon Logistics point-info response is invalid/,
         );
       }
@@ -302,38 +287,38 @@ describe("Ozon pickup-index sync adapter", () => {
   it("does not add service-layer wrapping to normalized OAuth errors", async () => {
     await withOzonLogisticsMode("real", async () => {
       const timeout = new GatewayTimeoutException("upstream timeout");
-      const listService = createSyncService(async () => {
+      const listService = createPickupService(async () => {
         throw timeout;
       });
       const pointInfoError = new BadGatewayException("upstream failure");
-      const infoService = createSyncService(async () => {
+      const infoService = createPickupService(async () => {
         throw pointInfoError;
       });
 
       await assert.rejects(
-        listService.getDeliveryPointListForSync(),
+        listService.getDeliveryPointList(),
         (error) => error === timeout,
       );
       await assert.rejects(
-        infoService.getDeliveryPointInfoForSync(["point-1"]),
+        infoService.getDeliveryPointInfoBatch(["point-1"]),
         (error) => error === pointInfoError,
       );
     });
   });
 });
 
-function createSyncService(
+function createPickupService(
   requestSellerApi: (path: string, body: unknown) => Promise<unknown>,
 ) {
   return new OzonLogisticsService({
     requestSellerApi,
-  } as unknown as OzonOAuthService) as unknown as SyncLogisticsService;
+  } as unknown as OzonOAuthService) as unknown as PickupLogisticsService;
 }
 
-function createSyncServiceReturning(responses: unknown[]) {
+function createPickupServiceReturning(responses: unknown[]) {
   let responseIndex = 0;
 
-  return createSyncService(async () => responses[responseIndex++]);
+  return createPickupService(async () => responses[responseIndex++]);
 }
 
 function createPointInfo(

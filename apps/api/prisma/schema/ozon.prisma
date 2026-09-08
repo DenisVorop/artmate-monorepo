@@ -13,64 +13,27 @@ model OzonOAuthToken {
   @@map("ozon_oauth_tokens")
 }
 
-enum OzonPickupIndexGenerationStatus {
-  BUILDING  @map("building")
-  READY     @map("ready")
-  PUBLISHED @map("published")
-  FAILED    @map("failed")
+model DeliveryCacheEntry {
+  key         String    @id @db.VarChar(200)
+  payload     Json?
+  byteSize    Int       @default(0) @map("byte_size")
+  refreshedAt DateTime? @map("refreshed_at")
+  freshUntil  DateTime? @map("fresh_until")
+  expiresAt   DateTime? @map("expires_at")
+  leaseToken  String?   @map("lease_token") @db.Uuid
+  leaseUntil  DateTime? @map("lease_until")
+  createdAt   DateTime  @default(now()) @map("created_at")
+  updatedAt   DateTime  @default(now()) @updatedAt @map("updated_at")
 
-  @@map("ozon_pickup_index_generation_status")
+  @@index([expiresAt])
+  @@index([refreshedAt])
+  @@map("delivery_cache_entries")
 }
 
-model OzonPickupIndexGeneration {
-  id                 String                          @id @default(cuid())
-  sequence           BigInt                          @unique @default(autoincrement())
-  status             OzonPickupIndexGenerationStatus @default(BUILDING)
-  leaseSlot          String?                         @unique @map("lease_slot") @db.VarChar(32)
-  startedAt          DateTime                        @default(now()) @map("started_at")
-  heartbeatAt        DateTime                        @default(now()) @map("heartbeat_at")
-  readyAt            DateTime?                       @map("ready_at")
-  publishedAt        DateTime?                       @map("published_at")
-  sourcePointCount   Int                             @default(0) @map("source_point_count")
-  eligiblePointCount Int                             @default(0) @map("eligible_point_count")
-  excludedPointCount Int                             @default(0) @map("excluded_point_count")
-  lastError          String?                         @map("last_error") @db.Text
-  createdAt          DateTime                        @default(now()) @map("created_at")
-  updatedAt          DateTime                        @default(now()) @updatedAt @map("updated_at")
-  pickupPoints       OzonPickupPointSnapshot[]
+model NominatimRateLimit {
+  key           String   @id @db.VarChar(32)
+  nextAllowedAt DateTime @map("next_allowed_at")
+  updatedAt     DateTime @default(now()) @updatedAt @map("updated_at")
 
-  @@index([status, sequence(sort: Desc), id(sort: Desc)])
-  @@map("ozon_pickup_index_generations")
-}
-
-model OzonLocality {
-  id               String                    @id @default(cuid())
-  countryCode      String                    @map("country_code") @db.VarChar(2)
-  name             String                    @db.VarChar(160)
-  region           String                    @db.VarChar(160)
-  nameNormalized   String                    @map("name_normalized") @db.VarChar(160)
-  regionNormalized String                    @map("region_normalized") @db.VarChar(160)
-  pickupPoints     OzonPickupPointSnapshot[]
-
-  @@unique([countryCode, regionNormalized, nameNormalized])
-  @@index([countryCode, nameNormalized(ops: raw("varchar_pattern_ops"))], map: "ozon_localities_country_code_name_normalized_prefix_idx")
-  @@map("ozon_localities")
-}
-
-model OzonPickupPointSnapshot {
-  generationId String                    @map("generation_id")
-  mapPointId   String                    @map("map_point_id") @db.VarChar(160)
-  localityId   String                    @map("locality_id")
-  title        String                    @db.VarChar(180)
-  address      String                    @db.Text
-  workHours    String                    @map("work_hours") @db.VarChar(120)
-  latitude     Float                     @db.DoublePrecision
-  longitude    Float                     @db.DoublePrecision
-  generation   OzonPickupIndexGeneration @relation(fields: [generationId], references: [id], onDelete: Cascade)
-  locality     OzonLocality              @relation(fields: [localityId], references: [id], onDelete: Restrict)
-
-  @@id([generationId, mapPointId])
-  @@index([generationId, localityId])
-  @@index([localityId])
-  @@map("ozon_pickup_point_snapshots")
+  @@map("nominatim_rate_limits")
 }

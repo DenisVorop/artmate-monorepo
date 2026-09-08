@@ -4,6 +4,7 @@ export const ozonDeliveryPriceRub = 100;
 /** Bounds cached provider responses while retaining useful storefront searches. */
 export const providerResponseCacheMaxEntries = 500;
 export const cdekCitySearchCacheTtlMs = 30 * 60_000;
+export const cdekCityDetailsCacheTtlMs = 7 * 24 * 60 * 60_000;
 export const cdekPickupPointsCacheTtlMs = 10 * 60_000;
 
 /** Matches the persisted order pickup-point snapshot columns. */

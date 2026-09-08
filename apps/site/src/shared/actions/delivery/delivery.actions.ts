@@ -5,21 +5,21 @@ import { cookies, headers } from "next/headers";
 import { ApiResult, type ApiResultDTO } from "@/shared/lib/api-result";
 import { apiCsrfHeader, getForwardedIpHeaders } from "@/shared/lib/api-security";
 
-import type {
-  DeliveryCityDTO,
-  DeliveryPickupPointDTO,
-  OzonDeliveryCityDTO,
-} from "./delivery.types";
+import type { CdekCityDetailsDTO, DeliveryCityDTO, DeliveryPickupPointDTO } from "./delivery.types";
 
 const defaultApiBaseUrl = "http://localhost:3002";
 const cartCookieName = "cart_id";
-const ozonCitiesErrorMessage = "Не удалось загрузить города Ozon. Попробуйте еще раз.";
-const ozonPointsErrorMessage = "Не удалось загрузить пункты выдачи Ozon. Попробуйте еще раз.";
+const cdekCitiesErrorMessage = "Не удалось загрузить города. Попробуйте еще раз.";
+const cdekCityErrorMessage = "Не удалось загрузить данные города. Попробуйте еще раз.";
+const ozonPickupPointsErrorMessage = "Не удалось загрузить пункты Ozon. Попробуйте еще раз.";
+const boundaryErrorCodes = new Set(["DELIVERY_BOUNDARY_AMBIGUOUS", "DELIVERY_BOUNDARY_MISSING"]);
 
 export async function searchCdekCities(query: string): Promise<ApiResultDTO<DeliveryCityDTO[]>> {
   const result = await ApiResult.prepareApi(async () =>
     requestDelivery<DeliveryCityDTO[]>(
       `/delivery/cdek/cities?query=${encodeURIComponent(query)}&countryCode=RU`,
+      {},
+      cdekCitiesErrorMessage,
     ),
   )();
 
@@ -38,28 +38,27 @@ export async function getCdekPickupPoints(
   return result.toDTO() as ApiResultDTO<DeliveryPickupPointDTO[]>;
 }
 
-export async function searchOzonCities(
-  query: string,
-): Promise<ApiResultDTO<OzonDeliveryCityDTO[]>> {
+export async function getCdekCity(cityCode: number): Promise<ApiResultDTO<CdekCityDetailsDTO>> {
   const result = await ApiResult.prepareApi(async () =>
-    requestDelivery<OzonDeliveryCityDTO[]>(
-      `/delivery/ozon/cities?query=${encodeURIComponent(query)}`,
+    requestDelivery<CdekCityDetailsDTO>(
+      `/delivery/cdek/city?cityCode=${encodeURIComponent(cityCode)}`,
       {},
-      ozonCitiesErrorMessage,
+      cdekCityErrorMessage,
     ),
   )();
 
-  return result.toDTO() as ApiResultDTO<OzonDeliveryCityDTO[]>;
+  return result.toDTO() as ApiResultDTO<CdekCityDetailsDTO>;
 }
 
 export async function getOzonPickupPoints(
-  localityId: string,
+  cityCode: number,
 ): Promise<ApiResultDTO<DeliveryPickupPointDTO[]>> {
   const result = await ApiResult.prepareApi(async () =>
     requestDelivery<DeliveryPickupPointDTO[]>(
-      `/delivery/ozon/pickup-points?localityId=${encodeURIComponent(localityId)}`,
+      `/delivery/ozon/pickup-points?cityCode=${encodeURIComponent(cityCode)}`,
       {},
-      ozonPointsErrorMessage,
+      ozonPickupPointsErrorMessage,
+      boundaryErrorCodes,
     ),
   )();
 
@@ -70,6 +69,7 @@ async function requestDelivery<T>(
   path: string,
   init: RequestInit = {},
   serverErrorMessage?: string,
+  safeServerErrorCodes?: ReadonlySet<string>,
 ) {
   const cookieStore = await cookies();
   const headerStore = await headers();
@@ -97,10 +97,11 @@ async function requestDelivery<T>(
   }
 
   if (!response.ok) {
+    const error = await getError(response);
     throw new Error(
-      response.status >= 500 && serverErrorMessage
+      response.status >= 500 && serverErrorMessage && !safeServerErrorCodes?.has(error.code ?? "")
         ? serverErrorMessage
-        : await getErrorMessage(response),
+        : error.message,
     );
   }
 
@@ -111,22 +112,22 @@ function getApiBaseUrl() {
   return process.env.API_BASE_URL ?? defaultApiBaseUrl;
 }
 
-async function getErrorMessage(response: Response) {
+async function getError(response: Response) {
   const fallback = `Delivery API request failed with status ${response.status}`;
 
   try {
-    const body = (await response.json()) as { message?: unknown };
+    const body = (await response.json()) as { code?: unknown; message?: unknown };
 
     if (typeof body.message === "string") {
-      return body.message;
+      return { code: typeof body.code === "string" ? body.code : undefined, message: body.message };
     }
 
     if (Array.isArray(body.message)) {
-      return body.message.join(", ");
+      return { code: undefined, message: body.message.join(", ") };
     }
   } catch {
-    return fallback;
+    return { code: undefined, message: fallback };
   }
 
-  return fallback;
+  return { code: undefined, message: fallback };
 }

@@ -1,8 +1,9 @@
-import { IsNotEmpty, IsString, MaxLength } from "class-validator";
+import { Type } from "class-transformer";
+import { IsInt, Min } from "class-validator";
 
 export class SearchOzonPickupPointsQueryDTO {
-  @IsString()
-  @IsNotEmpty()
-  @MaxLength(160)
-  localityId!: string;
+  @Type(() => Number)
+  @IsInt()
+  @Min(1)
+  cityCode!: number;
 }

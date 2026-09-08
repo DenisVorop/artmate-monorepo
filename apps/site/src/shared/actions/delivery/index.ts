@@ -1,11 +1,7 @@
 export {
+  getCdekCity,
   getCdekPickupPoints,
   getOzonPickupPoints,
   searchCdekCities,
-  searchOzonCities,
 } from "./delivery.actions";
-export type {
-  DeliveryCityDTO,
-  DeliveryPickupPointDTO,
-  OzonDeliveryCityDTO,
-} from "./delivery.types";
+export type { CdekCityDetailsDTO, DeliveryCityDTO, DeliveryPickupPointDTO } from "./delivery.types";
