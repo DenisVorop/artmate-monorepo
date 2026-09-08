@@ -29,6 +29,7 @@ import { OzonOAuthService } from "./ozon-oauth.service";
 import {
   parseOzonPickupPointInfo,
   parseOzonPickupPointList,
+  parseOzonWorkingHours,
   type OzonPickupListItem,
   type OzonPickupPointInfoItem,
   validateOzonPickupPointInfoRequest,
@@ -268,9 +269,10 @@ export class OzonLogisticsService {
       this.getString(record, "address") ??
       this.getNestedString(record, ["address", "full_address"]);
     const workHours =
-      this.getString(record, "work_hours") ??
-      this.getString(record, "workHours") ??
-      this.formatWorkingHours(record.working_hours);
+      hasDeliveryMethod || Object.hasOwn(record, "working_hours")
+        ? parseOzonWorkingHours(record.working_hours)
+        : (this.getString(record, "work_hours") ??
+          this.getString(record, "workHours"));
 
     if (
       !mapPointId ||
@@ -456,41 +458,6 @@ export class OzonLogisticsService {
     }
 
     return undefined;
-  }
-
-  private formatWorkingHours(value: unknown) {
-    if (!Array.isArray(value)) {
-      return undefined;
-    }
-
-    const periods = value.flatMap((day) => {
-      const dayRecord = this.toRecord(day);
-      const dayPeriods = Array.isArray(dayRecord.periods)
-        ? dayRecord.periods
-        : [];
-
-      return dayPeriods.flatMap((period) => {
-        const periodRecord = this.toRecord(period);
-        const from = this.formatWorkingTime(periodRecord.min);
-        const to = this.formatWorkingTime(periodRecord.max);
-
-        return from && to ? [`${from}-${to}`] : [];
-      });
-    });
-
-    return periods[0];
-  }
-
-  private formatWorkingTime(value: unknown) {
-    const record = this.toRecord(value);
-    const hours = this.getNumber(record, "hours");
-    const minutes = this.getNumber(record, "minutes");
-
-    if (hours === undefined || minutes === undefined) {
-      return undefined;
-    }
-
-    return `${String(hours).padStart(2, "0")}:${String(minutes).padStart(2, "0")}`;
   }
 
   private getMode(): OzonLogisticsMode {

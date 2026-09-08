@@ -1,6 +1,7 @@
 import {
   BadGatewayException,
   Injectable,
+  Logger,
   ServiceUnavailableException,
 } from "@nestjs/common";
 
@@ -22,8 +23,12 @@ const waitMaxMs = 5_000;
 const pointInfoBatchSize = 100;
 const pointInfoConcurrency = 2;
 
+type BuildStage = "locality-boundary" | "point-list" | "point-info" | "publish";
+
 @Injectable()
 export class OzonCityPickupPointsService {
+  private readonly logger = new Logger(OzonCityPickupPointsService.name);
+
   constructor(
     private readonly cache: DeliveryCacheRepository,
     private readonly logistics: OzonLogisticsService,
@@ -78,8 +83,12 @@ export class OzonCityPickupPointsService {
     }
 
     try {
-      const boundary = await this.nominatim.resolve(city);
-      const allPoints = await this.getPointList();
+      const boundary = await runBuildStage("locality-boundary", () =>
+        this.nominatim.resolve(city),
+      );
+      const allPoints = await runBuildStage("point-list", () =>
+        this.getPointList(),
+      );
       const selected = allPoints.filter((point) =>
         containsPoint(boundary, point.longitude, point.latitude),
       );
@@ -93,42 +102,62 @@ export class OzonCityPickupPointsService {
       const batchResults = await mapConcurrent(
         batches,
         pointInfoConcurrency,
-        (batch) => this.logistics.getDeliveryPointInfoBatch(batch),
+        (batch, batchIndex) =>
+          runBuildStage(
+            "point-info",
+            () => this.logistics.getDeliveryPointInfoBatch(batch),
+            batchIndex,
+          ),
       );
-      const points: DeliveryPickupPointDTO[] = batchResults
-        .flat()
-        .flatMap((point) => {
-          if (!point.eligible) return [];
-          const coordinate = coordinates.get(point.mapPointId);
-          if (!coordinate)
-            throw new Error("Ozon point-info has no selected coordinate");
-          return [
-            {
-              id: point.mapPointId,
-              title: point.title,
-              address: point.address,
-              workHours: point.workHours,
-              latitude: coordinate.latitude,
-              longitude: coordinate.longitude,
-              deliveryPrice: ozonDeliveryPriceRub,
-              minimumDeliveryPrice: ozonDeliveryPriceRub,
-            },
-          ];
-        });
-      points.sort(
-        (left, right) =>
-          left.address.localeCompare(right.address, "ru") ||
-          left.id.localeCompare(right.id),
-      );
-      if (
-        !(await this.cache.publish(key, token, points, freshTtlMs, maxTtlMs))
-      ) {
-        throw new Error("Ozon city cache lease was lost");
-      }
+      await runBuildStage("publish", async () => {
+        const points: DeliveryPickupPointDTO[] = batchResults
+          .flat()
+          .flatMap((point) => {
+            if (!point.eligible) return [];
+            const coordinate = coordinates.get(point.mapPointId);
+            if (!coordinate)
+              throw new Error("Ozon point-info has no selected coordinate");
+            return [
+              {
+                id: point.mapPointId,
+                title: point.title,
+                address: point.address,
+                workHours: point.workHours,
+                latitude: coordinate.latitude,
+                longitude: coordinate.longitude,
+                deliveryPrice: ozonDeliveryPriceRub,
+                minimumDeliveryPrice: ozonDeliveryPriceRub,
+              },
+            ];
+          });
+        points.sort(
+          (left, right) =>
+            left.address.localeCompare(right.address, "ru") ||
+            left.id.localeCompare(right.id),
+        );
+        if (
+          !(await this.cache.publish(key, token, points, freshTtlMs, maxTtlMs))
+        ) {
+          throw new Error("Ozon city cache lease was lost");
+        }
+      });
       return true;
     } catch (error) {
+      const failure =
+        error instanceof OzonCityBuildFailure
+          ? error
+          : new OzonCityBuildFailure("publish", error);
+      this.logger.warn({
+        stage: failure.stage,
+        cityCode: city.code,
+        ...(failure.batchIndex === undefined
+          ? {}
+          : { batchIndex: failure.batchIndex }),
+        errorType: getBuildErrorType(failure.cause),
+      });
       await this.cache.releaseLease(key, token);
-      if (error instanceof LocalityBoundaryException) throw error;
+      if (failure.cause instanceof LocalityBoundaryException)
+        throw failure.cause;
       throw new BadGatewayException(
         "Не удалось загрузить пункты Ozon. Попробуйте ещё раз.",
       );
@@ -313,7 +342,7 @@ function chunk<T>(items: readonly T[], size: number) {
 async function mapConcurrent<T, R>(
   items: readonly T[],
   concurrency: number,
-  mapper: (item: T) => Promise<R>,
+  mapper: (item: T, index: number) => Promise<R>,
 ) {
   const results = new Array<R>(items.length);
   let next = 0;
@@ -324,7 +353,7 @@ async function mapConcurrent<T, R>(
       while (!stopped && next < items.length) {
         const index = next++;
         try {
-          results[index] = await mapper(items[index]!);
+          results[index] = await mapper(items[index]!, index);
         } catch (error) {
           stopped = true;
           firstError ??= error;
@@ -334,6 +363,37 @@ async function mapConcurrent<T, R>(
   );
   if (firstError !== undefined) throw firstError;
   return results;
+}
+
+class OzonCityBuildFailure extends Error {
+  constructor(
+    readonly stage: BuildStage,
+    readonly cause: unknown,
+    readonly batchIndex?: number,
+  ) {
+    super("Ozon city dataset build failed");
+  }
+}
+
+async function runBuildStage<T>(
+  stage: BuildStage,
+  operation: () => Promise<T>,
+  batchIndex?: number,
+) {
+  try {
+    return await operation();
+  } catch (error) {
+    throw new OzonCityBuildFailure(stage, error, batchIndex);
+  }
+}
+
+function getBuildErrorType(error: unknown) {
+  if (error instanceof LocalityBoundaryException) return "locality-boundary";
+  if (error instanceof ServiceUnavailableException)
+    return "service-unavailable";
+  if (error instanceof BadGatewayException) return "bad-gateway";
+  if (error instanceof Error) return "error";
+  return "unknown";
 }
 
 function delay(ms: number) {
