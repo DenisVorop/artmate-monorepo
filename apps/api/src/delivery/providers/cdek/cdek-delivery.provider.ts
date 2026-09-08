@@ -2,6 +2,7 @@ import {
   BadGatewayException,
   BadRequestException,
   Injectable,
+  NotFoundException,
 } from "@nestjs/common";
 
 import type {
@@ -18,6 +19,7 @@ import type {
 import { CdekClientService } from "./cdek-client.service";
 import type {
   CdekCalculatorResponse,
+  CdekCityResponseItem,
   CdekDeliveryPointResponseItem,
   CdekOrderCreateResponse,
   CdekOrderDeleteResponse,
@@ -78,6 +80,60 @@ export class CdekDeliveryProvider implements DeliveryProviderAdapter {
         name: this.getRequiredString(city.full_name, "CDEK city full_name"),
       }))
       .slice(0, 10);
+  }
+
+  async getCity(cityCode: number) {
+    const cities = await this.cdekClient.request<CdekCityResponseItem[]>(
+      "/v2/location/cities",
+      {
+        query: {
+          code: cityCode,
+          country_codes: defaultCountryCode,
+          page: 0,
+          size: 1,
+        },
+      },
+    );
+
+    if (
+      !Array.isArray(cities) ||
+      cities.some(
+        (item) => !item || typeof item !== "object" || Array.isArray(item),
+      )
+    ) {
+      throw new BadGatewayException("CDEK cities response is invalid");
+    }
+
+    const city = cities.find(
+      (item) =>
+        item.code === cityCode && item.country_code === defaultCountryCode,
+    );
+
+    if (!city) {
+      throw new NotFoundException("CDEK city not found");
+    }
+
+    const latitude = this.getBoundedCoordinate(
+      city.latitude,
+      -90,
+      90,
+      "latitude",
+    );
+    const longitude = this.getBoundedCoordinate(
+      city.longitude,
+      -180,
+      180,
+      "longitude",
+    );
+
+    return {
+      code: cityCode,
+      countryCode: defaultCountryCode,
+      latitude,
+      longitude,
+      name: this.getRequiredString(city.city, "CDEK city name"),
+      region: this.getRequiredString(city.region, "CDEK city region"),
+    };
   }
 
   async getPickupPoints(cityCode: number) {
@@ -179,10 +235,7 @@ export class CdekDeliveryProvider implements DeliveryProviderAdapter {
       "/v2/orders",
       {
         query: {
-          cdek_number: this.getRequiredString(
-            cdekNumber,
-            "CDEK order number",
-          ),
+          cdek_number: this.getRequiredString(cdekNumber, "CDEK order number"),
         },
       },
     );
@@ -250,9 +303,7 @@ export class CdekDeliveryProvider implements DeliveryProviderAdapter {
       1,
     );
 
-    return Array.from({ length: packageCount }, () =>
-      this.buildBasePackage(),
-    );
+    return Array.from({ length: packageCount }, () => this.buildBasePackage());
   }
 
   private buildBasePackage() {
@@ -589,6 +640,24 @@ export class CdekDeliveryProvider implements DeliveryProviderAdapter {
     return parsedValue;
   }
 
+  private getBoundedCoordinate(
+    value: unknown,
+    min: number,
+    max: number,
+    field: string,
+  ) {
+    if (
+      typeof value !== "number" ||
+      !Number.isFinite(value) ||
+      value < min ||
+      value > max
+    ) {
+      throw new BadGatewayException(`CDEK city ${field} is invalid`);
+    }
+
+    return value;
+  }
+
   private getString(value: unknown) {
     return typeof value === "string" && value.trim() ? value.trim() : undefined;
   }
@@ -627,10 +696,7 @@ export class CdekDeliveryProvider implements DeliveryProviderAdapter {
     return trimmedValue.slice(0, maxLength);
   }
 
-  private truncateOptionalString(
-    value: string | undefined,
-    maxLength: number,
-  ) {
+  private truncateOptionalString(value: string | undefined, maxLength: number) {
     const trimmedValue = value?.trim();
 
     return trimmedValue ? trimmedValue.slice(0, maxLength) : undefined;

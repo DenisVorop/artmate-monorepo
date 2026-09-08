@@ -8,9 +8,11 @@ import { DeliveryService } from "../src/delivery/delivery.service";
 import { CdekClientService } from "../src/delivery/providers/cdek/cdek-client.service";
 import { CdekDeliveryProvider } from "../src/delivery/providers/cdek/cdek-delivery.provider";
 import { ProviderResponseCacheService } from "../src/delivery/provider-response-cache.service";
+import { DeliveryCacheRepository } from "../src/delivery/delivery-cache.repository";
+import { NominatimLocalityService } from "../src/delivery/nominatim-locality.service";
+import { OzonCityPickupPointsService } from "../src/delivery/ozon-city-pickup-points.service";
 import { OzonLogisticsService } from "../src/ozon/ozon-logistics.service";
 import { OzonOAuthService } from "../src/ozon/ozon-oauth.service";
-import { OzonPickupIndexReadService } from "../src/ozon/ozon-pickup-index-read.service";
 
 @Module({
   providers: [
@@ -18,8 +20,10 @@ import { OzonPickupIndexReadService } from "../src/ozon/ozon-pickup-index-read.s
     CdekDeliveryProvider,
     DeliveryService,
     OzonLogisticsService,
+    NominatimLocalityService,
+    OzonCityPickupPointsService,
     ProviderResponseCacheService,
-    { provide: OzonPickupIndexReadService, useValue: {} },
+    { provide: DeliveryCacheRepository, useValue: {} },
     { provide: OzonOAuthService, useValue: {} },
   ],
 })

@@ -10,6 +10,15 @@ export type CdekSuggestCityResponseItem = {
   full_name?: unknown;
 };
 
+export type CdekCityResponseItem = {
+  city?: unknown;
+  code?: unknown;
+  country_code?: unknown;
+  latitude?: unknown;
+  longitude?: unknown;
+  region?: unknown;
+};
+
 export type CdekDeliveryPointResponseItem = {
   code?: unknown;
   name?: unknown;

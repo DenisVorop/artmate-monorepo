@@ -1,14 +1,20 @@
-import { BadRequestException, Injectable } from "@nestjs/common";
+import {
+  BadGatewayException,
+  BadRequestException,
+  Injectable,
+  NotFoundException,
+} from "@nestjs/common";
 
 import { OzonLogisticsService } from "../ozon/ozon-logistics.service";
-import { OzonPickupIndexReadService } from "../ozon/ozon-pickup-index-read.service";
 
 import {
+  cdekCityDetailsCacheTtlMs,
   cdekCitySearchCacheTtlMs,
   cdekPickupPointsCacheTtlMs,
   ozonDeliveryPriceRub,
 } from "./delivery.constants";
 import { CdekDeliveryProvider } from "./providers/cdek/cdek-delivery.provider";
+import { OzonCityPickupPointsService } from "./ozon-city-pickup-points.service";
 import { ProviderResponseCacheService } from "./provider-response-cache.service";
 import type {
   DeliveryCartItem,
@@ -23,7 +29,7 @@ export class DeliveryService {
     private readonly cdekDeliveryProvider: CdekDeliveryProvider,
     private readonly ozonLogisticsService: OzonLogisticsService,
     private readonly providerResponseCache: ProviderResponseCacheService,
-    private readonly ozonPickupIndexReadService: OzonPickupIndexReadService,
+    private readonly ozonCityPickupPointsService: OzonCityPickupPointsService,
   ) {}
 
   async searchCdekCities(query: string, countryCode?: string) {
@@ -41,7 +47,28 @@ export class DeliveryService {
           ),
       );
     } catch {
-      return [];
+      throw new BadGatewayException(
+        "Не удалось загрузить города. Попробуйте ещё раз.",
+      );
+    }
+  }
+
+  async getCdekCity(cityCode: number) {
+    try {
+      return await this.providerResponseCache.getOrSet(
+        `cdek:city:${cityCode}`,
+        cdekCityDetailsCacheTtlMs,
+        () => this.cdekDeliveryProvider.getCity(cityCode),
+      );
+    } catch (error) {
+      if (error instanceof NotFoundException) {
+        throw new NotFoundException(
+          "Город не найден. Выберите другой населённый пункт.",
+        );
+      }
+      throw new BadGatewayException(
+        "Не удалось загрузить координаты города. Попробуйте ещё раз.",
+      );
     }
   }
 
@@ -57,14 +84,9 @@ export class DeliveryService {
     }
   }
 
-  searchOzonCities(query: string) {
-    return this.ozonPickupIndexReadService.searchCities(query);
-  }
-
-  async getOzonPickupPoints(localityId: string) {
-    const points =
-      await this.ozonPickupIndexReadService.getPickupPoints(localityId);
-
+  async getOzonPickupPoints(cityCode: number) {
+    const city = await this.getCdekCity(cityCode);
+    const points = await this.ozonCityPickupPointsService.getPickupPoints(city);
     return points.map((point) => ({
       ...point,
       deliveryPrice: ozonDeliveryPriceRub,

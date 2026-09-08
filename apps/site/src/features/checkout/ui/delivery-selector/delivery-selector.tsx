@@ -3,11 +3,7 @@
 import { CheckCircle2, CircleAlert, LoaderCircle, MapPin } from "lucide-react";
 import { useEffect, useMemo, useState } from "react";
 
-import type {
-  DeliveryCityDTO,
-  DeliveryPickupPointDTO,
-  OzonDeliveryCityDTO,
-} from "@/shared/actions/delivery";
+import type { DeliveryCityDTO, DeliveryPickupPointDTO } from "@/shared/actions/delivery";
 import { cn } from "@/shared/lib";
 import { Button } from "@/shared/ui/button";
 
@@ -19,15 +15,9 @@ import {
   selectDraftCity,
   selectDraftPickupPoint,
   selectOzonDraftCity,
-  useDebouncedCityQuery,
   type DeliveryPickerDrafts,
 } from "../../lib";
-import {
-  useCdekCities,
-  useCdekPickupPoints,
-  useOzonCities,
-  useOzonPickupPoints,
-} from "../../model";
+import { useCdekCity, useCdekCities, useCdekPickupPoints, useOzonPickupPoints } from "../../model";
 
 import { ComboboxField } from "./combobox-field";
 import { ComboboxOption } from "./combobox-option";
@@ -55,36 +45,29 @@ export function DeliverySelector({
   const [pickupPointQuery, setPickupPointQuery] = useState("");
   const [isCityOpen, setIsCityOpen] = useState(false);
   const [isPickupPointOpen, setIsPickupPointOpen] = useState(false);
-  const ozonCityQuery = useDebouncedCityQuery(selectedCompany === "ozon" ? cityQuery : "");
   const selectedCity = drafts.cdek.city;
   const cdekCityCode = drafts.cdek.cityCode;
   const selectedOzonCity = drafts.ozon.city;
-  const ozonLocalityId = drafts.ozon.localityId;
+  const ozonCityCode = drafts.ozon.cityCode;
   const {
-    cities: cdekCities,
-    isError: areCdekCitiesError,
-    isPending: areCdekCitiesPending,
-  } = useCdekCities(selectedCompany === "cdek" ? cityQuery : "");
-  const {
-    cities: ozonCities,
-    isError: areOzonCitiesError,
-    isPending: areOzonCitiesPending,
-    isFetching: areOzonCitiesFetching,
-    retry: retryOzonCities,
-  } = useOzonCities(
-    ozonCityQuery,
-    selectedCompany === "ozon" && ozonCityQuery === cityQuery.trim(),
+    cities,
+    isError: areCitiesError,
+    isFetching: areCitiesFetching,
+    isPending: areCitiesPending,
+    retry: retryCities,
+  } = useCdekCities(cityQuery);
+  const ozonCityDetails = useCdekCity(ozonCityCode, selectedCompany === "ozon");
+  const ozonPickupPointsState = useOzonPickupPoints(
+    ozonCityCode,
+    selectedCompany === "ozon" &&
+      Boolean(ozonCityCode) &&
+      ozonCityDetails.city?.code === ozonCityCode,
   );
   const {
     isError: areCdekPickupPointsError,
     isPending: areCdekPickupPointsPending,
     pickupPoints: cdekPickupPoints,
   } = useCdekPickupPoints(cdekCityCode);
-  const ozonPickupPoints = useOzonPickupPoints(
-    selectedCompany === "ozon" && isOzonDeliveryAvailable && ozonLocalityId
-      ? ozonLocalityId
-      : undefined,
-  );
   const selectedCdekPoint =
     drafts.cdek.pickupPoint ??
     cdekPickupPoints.find((point) => point.id === drafts.cdek.pickupPointId);
@@ -92,22 +75,13 @@ export function DeliverySelector({
     () => filterPickupPoints(cdekPickupPoints, pickupPointQuery),
     [cdekPickupPoints, pickupPointQuery],
   );
-  const selectedOzonPoint = ozonLocalityId
-    ? ozonPickupPoints.pickupPoints.find((point) => point.id === drafts.ozon.pickupPointId)
-    : undefined;
-  const visibleOzonPoints = useMemo(
-    () => filterPickupPoints(ozonPickupPoints.pickupPoints, pickupPointQuery),
-    [ozonPickupPoints.pickupPoints, pickupPointQuery],
+  const selectedOzonPoint =
+    drafts.ozon.pickupPoint ??
+    ozonPickupPointsState.pickupPoints.find((point) => point.id === drafts.ozon.pickupPointId);
+  const filteredOzonPickupPoints = useMemo(
+    () => filterPickupPoints(ozonPickupPointsState.pickupPoints, pickupPointQuery),
+    [ozonPickupPointsState.pickupPoints, pickupPointQuery],
   );
-  const ozonStatusMessage = !ozonLocalityId
-    ? "Сначала выберите город, чтобы увидеть доступные ПВЗ."
-    : ozonPickupPoints.isError
-      ? "Не удалось загрузить ПВЗ. Попробуйте ещё раз."
-      : ozonPickupPoints.isPending
-        ? "Загружаем ПВЗ выбранного города."
-        : ozonPickupPoints.pickupPoints.length > 0
-          ? `Нашли ${formatPickupPointCount(ozonPickupPoints.pickupPoints.length)}. Выберите адрес в списке или на карте.`
-          : "Для этого города пункты выдачи пока не найдены.";
 
   useEffect(() => {
     if (isOzonDeliveryAvailable || selectedCompany !== "ozon") {
@@ -137,7 +111,7 @@ export function DeliverySelector({
     onDraftChange((current) => selectDraftCity(current, city));
   };
 
-  const selectOzonCity = (city: OzonDeliveryCityDTO) => {
+  const selectOzonCity = (city: DeliveryCityDTO) => {
     setCityQuery(city.name);
     setIsCityOpen(false);
     setPickupPointQuery("");
@@ -156,10 +130,7 @@ export function DeliverySelector({
   };
 
   const selectOzonPickupPoint = (point: DeliveryPickupPointDTO) => {
-    if (!ozonLocalityId || !ozonPickupPoints.pickupPoints.some(({ id }) => id === point.id)) {
-      return;
-    }
-
+    if (!ozonCityCode || ozonCityDetails.city?.code !== ozonCityCode) return;
     setPickupPointQuery("");
     setIsPickupPointOpen(false);
     onDraftChange((current) => selectDraftPickupPoint(current, "ozon", point));
@@ -185,7 +156,7 @@ export function DeliverySelector({
           <div className="space-y-4">
             <ComboboxField
               emptyText={
-                areCdekCitiesError
+                areCitiesError
                   ? "Не удалось загрузить города"
                   : cityQuery.trim().length < 2
                     ? "Введите минимум 2 символа"
@@ -193,7 +164,7 @@ export function DeliverySelector({
               }
               inputValue={cityQuery}
               isOpen={isCityOpen}
-              isPending={areCdekCitiesPending}
+              isPending={areCitiesPending}
               label="Город"
               onInputChange={(value) => {
                 setCityQuery(value);
@@ -208,7 +179,7 @@ export function DeliverySelector({
                 selectedCity?.name ?? (cdekCityCode ? "Город выбран" : "Выберите город")
               }
             >
-              {cdekCities.map((city) => (
+              {cities.map((city) => (
                 <ComboboxOption
                   key={city.code}
                   icon={<MapPin className="size-4 text-muted-foreground" />}
@@ -306,7 +277,7 @@ export function DeliverySelector({
           <div className="min-w-0 space-y-4">
             <ComboboxField
               emptyText={
-                areOzonCitiesError
+                areCitiesError
                   ? "Не удалось загрузить города"
                   : cityQuery.trim().length < 2
                     ? "Введите минимум 2 символа"
@@ -314,10 +285,7 @@ export function DeliverySelector({
               }
               inputValue={cityQuery}
               isOpen={isCityOpen}
-              isPending={
-                areOzonCitiesPending ||
-                (cityQuery.trim().length >= 2 && ozonCityQuery !== cityQuery.trim())
-              }
+              isPending={areCitiesPending}
               label="Город"
               onInputChange={(value) => {
                 setCityQuery(value);
@@ -327,74 +295,63 @@ export function DeliverySelector({
               }}
               onOpenChange={setIsCityOpen}
               placeholder="Начните вводить город"
-              selectedLabel={
-                selectedOzonCity?.name ?? (ozonLocalityId ? "Город выбран" : undefined)
-              }
+              selectedLabel={selectedOzonCity?.name ?? (ozonCityCode ? "Город выбран" : undefined)}
               triggerLabel={
-                selectedOzonCity?.name ?? (ozonLocalityId ? "Город выбран" : "Выберите город")
+                selectedOzonCity?.name ?? (ozonCityCode ? "Город выбран" : "Выберите город")
               }
             >
-              {ozonCities.map((city) => (
+              {cities.map((city) => (
                 <ComboboxOption
-                  key={city.id}
+                  key={city.code}
                   icon={<MapPin className="size-4 text-muted-foreground" />}
-                  isSelected={selectedOzonCity?.id === city.id}
+                  isSelected={selectedOzonCity?.code === city.code}
                   label={city.name}
-                  meta={city.region}
                   onSelect={() => selectOzonCity(city)}
                 />
               ))}
             </ComboboxField>
 
-            {areOzonCitiesError ? (
+            {areCitiesError ? (
               <Button
                 type="button"
                 variant="outline"
                 size="sm"
-                disabled={areOzonCitiesFetching}
-                onClick={() => void retryOzonCities()}
+                disabled={areCitiesFetching}
+                onClick={() => void retryCities()}
               >
-                {areOzonCitiesFetching ? <LoaderCircle className="size-4 animate-spin" /> : null}
-                {areOzonCitiesFetching ? "Загружаем города" : "Повторить поиск города"}
+                {areCitiesFetching ? <LoaderCircle className="size-4 animate-spin" /> : null}
+                {areCitiesFetching ? "Загружаем города" : "Повторить поиск города"}
               </Button>
             ) : null}
 
-            <p
-              role="status"
-              aria-atomic={true}
-              aria-live="polite"
-              className="h-5 min-w-0 truncate text-sm leading-5 text-muted-foreground"
-              title={ozonStatusMessage}
-            >
-              {ozonStatusMessage}
-            </p>
-
             <ComboboxField
-              disabled={!ozonLocalityId || ozonPickupPoints.isPending || ozonPickupPoints.isError}
+              disabled={!ozonCityCode || !ozonCityDetails.city || !ozonPickupPointsState.hasData}
               emptyText={
-                !ozonLocalityId
-                  ? "Сначала выберите город"
-                  : ozonPickupPoints.isError
-                    ? "Не удалось загрузить ПВЗ"
+                ozonPickupPointsState.isError
+                  ? "Не удалось загрузить ПВЗ Ozon"
+                  : !ozonCityCode
+                    ? "Сначала выберите город"
                     : pickupPointQuery
                       ? "ПВЗ не найден"
                       : "Пункты выдачи не найдены"
               }
               inputValue={pickupPointQuery}
               isOpen={isPickupPointOpen}
-              isPending={ozonPickupPoints.isPending}
+              isPending={ozonPickupPointsState.isPending}
               label="Пункт выдачи Ozon"
               onInputChange={setPickupPointQuery}
               onOpenChange={setIsPickupPointOpen}
               placeholder="Адрес или название ПВЗ"
-              selectedLabel={ozonLocalityId ? selectedOzonPoint?.address : undefined}
+              selectedLabel={selectedOzonPoint?.address}
               triggerLabel={
-                ozonLocalityId
-                  ? (selectedOzonPoint?.address ?? "Выберите пункт выдачи")
-                  : "Сначала выберите город"
+                selectedOzonPoint
+                  ? selectedOzonPoint.address
+                  : ozonCityCode
+                    ? "Выберите пункт выдачи"
+                    : "Сначала выберите город"
               }
             >
-              {visibleOzonPoints.map((point) => (
+              {filteredOzonPickupPoints.map((point) => (
                 <ComboboxOption
                   key={point.id}
                   description={point.workHours}
@@ -407,56 +364,111 @@ export function DeliverySelector({
               ))}
             </ComboboxField>
 
-            {ozonPickupPoints.isError ? (
+            {ozonPickupPointsState.hasData ? (
+              <p className="text-sm text-muted-foreground">
+                {ozonPickupPointsState.pickupPoints.length > 0
+                  ? `Нашли ${formatPickupPointCount(ozonPickupPointsState.pickupPoints.length)}. Поиск работает по всем пунктам города.`
+                  : "Для этого города пункты Ozon не найдены."}
+              </p>
+            ) : null}
+
+            {ozonPickupPointsState.isFetching ? (
+              <p role="status" className="flex items-center gap-2 text-sm text-muted-foreground">
+                <LoaderCircle aria-hidden className="size-4 animate-spin" />
+                {ozonPickupPointsState.hasData
+                  ? "Обновляем пункты Ozon. Уже загруженные пункты доступны для выбора."
+                  : "Загружаем пункты Ozon для выбранного города."}
+              </p>
+            ) : null}
+
+            {ozonPickupPointsState.isError ? (
+              <p role="alert" className="text-sm text-destructive">
+                {ozonPickupPointsState.errorMessage ??
+                  "Не удалось загрузить пункты Ozon. Попробуйте ещё раз."}
+              </p>
+            ) : null}
+
+            {ozonPickupPointsState.isError ? (
               <Button
                 type="button"
                 variant="outline"
                 size="sm"
-                disabled={ozonPickupPoints.isFetching}
-                onClick={() => void ozonPickupPoints.retry()}
+                disabled={ozonPickupPointsState.isFetching}
+                onClick={() => void ozonPickupPointsState.retry()}
               >
-                {ozonPickupPoints.isFetching ? (
+                {ozonPickupPointsState.isFetching ? (
                   <LoaderCircle className="size-4 animate-spin" />
                 ) : null}
-                {ozonPickupPoints.isFetching ? "Загружаем ПВЗ" : "Повторить загрузку ПВЗ"}
+                {ozonPickupPointsState.isFetching ? "Загружаем ПВЗ" : "Повторить загрузку ПВЗ"}
               </Button>
             ) : null}
 
             {selectedOzonPoint ? <SelectedPickupPoint point={selectedOzonPoint} /> : null}
+
+            {ozonCityCode ? (
+              <p className="text-xs text-muted-foreground">
+                Граница города:{" "}
+                <a
+                  className="underline underline-offset-2"
+                  href="https://www.openstreetmap.org/copyright"
+                  rel="noreferrer"
+                  target="_blank"
+                >
+                  OpenStreetMap
+                </a>
+              </p>
+            ) : null}
+
+            {ozonCityDetails.isError ? (
+              <Button
+                type="button"
+                variant="outline"
+                size="sm"
+                disabled={ozonCityDetails.isFetching}
+                onClick={() => void ozonCityDetails.retry()}
+              >
+                {ozonCityDetails.isFetching ? (
+                  <LoaderCircle className="size-4 animate-spin" />
+                ) : null}
+                {ozonCityDetails.isFetching ? "Загружаем город" : "Повторить загрузку города"}
+              </Button>
+            ) : null}
           </div>
 
-          {ozonLocalityId ? (
-            ozonPickupPoints.isError ? (
+          {ozonCityCode ? (
+            ozonCityDetails.isError && !ozonCityDetails.city ? (
               <MapPlaceholder
                 compact
                 icon={<CircleAlert className="size-4" />}
-                title="ПВЗ Ozon не загрузились"
+                title="Пункты Ozon не загрузились"
               >
                 Повторите загрузку или выберите другой город.
               </MapPlaceholder>
-            ) : ozonPickupPoints.isPending ? (
+            ) : !ozonCityDetails.city && ozonCityDetails.isPending ? (
               <MapPlaceholder
                 icon={<LoaderCircle className="size-4 animate-spin" />}
-                title="Загружаем пункты выдачи"
+                title="Находим город на карте"
               >
-                Карта появится после загрузки всех ПВЗ Ozon выбранного города.
+                После этого загрузим пункты выдачи Ozon.
               </MapPlaceholder>
-            ) : ozonPickupPoints.pickupPoints.length === 0 ? (
-              <MapPlaceholder compact icon={<MapPin className="size-4" />} title="ПВЗ не найдены">
-                Выберите другой город или повторите загрузку позже.
-              </MapPlaceholder>
-            ) : (
+            ) : ozonCityDetails.city ? (
               <PickupPointsMap
-                key="ozon-pickup-points-map"
-                ariaLabel="Карта пунктов выдачи Ozon"
+                key={`ozon-city-map-${ozonCityCode}`}
+                ariaLabel={`Карта города ${ozonCityDetails.city.name}`}
+                fitPoints={false}
+                initialCenter={{
+                  lat: ozonCityDetails.city.latitude,
+                  long: ozonCityDetails.city.longitude,
+                }}
+                initialZoom={12}
                 onSelect={selectOzonPickupPoint}
-                pickupPoints={ozonPickupPoints.pickupPoints}
+                pickupPoints={ozonPickupPointsState.pickupPoints}
                 selectedPickupPointId={selectedOzonPoint?.id}
               />
-            )
+            ) : null
           ) : (
             <MapPlaceholder compact icon={<MapPin className="size-4" />} title="Начните с города">
-              После выбора города покажем доступные ПВЗ и карту рядом со списком.
+              После выбора города покажем его на карте.
             </MapPlaceholder>
           )}
         </div>

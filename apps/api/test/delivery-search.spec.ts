@@ -1,10 +1,16 @@
 import assert from "node:assert/strict";
 import { describe, it } from "node:test";
 
+import { BadGatewayException } from "@nestjs/common";
+import { PATH_METADATA } from "@nestjs/common/constants";
+import { plainToInstance } from "class-transformer";
+import { validateSync } from "class-validator";
+
 import * as deliveryConstants from "../src/delivery/delivery.constants";
 import { DeliveryController } from "../src/delivery/delivery.controller";
 import { DeliveryProxyThrottleService } from "../src/delivery/delivery-proxy-throttle.service";
 import { DeliveryService } from "../src/delivery/delivery.service";
+import { CdekCityDetailsDTO, GetCdekCityQueryDTO } from "../src/delivery/dto";
 import type { CdekDeliveryProvider } from "../src/delivery/providers/cdek/cdek-delivery.provider";
 import { ProviderResponseCacheService } from "../src/delivery/provider-response-cache.service";
 import { OrdersController } from "../src/orders/orders.controller";
@@ -39,7 +45,7 @@ describe("delivery provider search", () => {
     assert.equal(citySearches, 1);
   });
 
-  it("turns CDEK provider failures into neutral responses", async () => {
+  it("keeps suggestion failures explicit while pickup-point failures stay neutral", async () => {
     const providerFailure = async () => {
       throw new Error("provider unavailable");
     };
@@ -48,8 +54,34 @@ describe("delivery provider search", () => {
       searchCities: providerFailure,
     });
 
-    assert.deepEqual(await service.searchCdekCities("Москва", "RU"), []);
+    await assert.rejects(
+      service.searchCdekCities("Москва", "RU"),
+      BadGatewayException,
+    );
     assert.deepEqual(await service.getCdekPickupPoints(44), []);
+  });
+
+  it("caches city details by exact code and does not cache errors", async () => {
+    let calls = 0;
+    const service = createService({
+      getCity: async (cityCode: number) => {
+        calls += 1;
+        if (calls === 1) throw new Error("temporary failure");
+        return {
+          code: cityCode,
+          countryCode: "RU",
+          latitude: 55.75,
+          longitude: 37.61,
+          name: "Москва",
+          region: "Москва",
+        };
+      },
+    });
+
+    await assert.rejects(service.getCdekCity(44), BadGatewayException);
+    const city = await service.getCdekCity(44);
+    assert.strictEqual(await service.getCdekCity(44), city);
+    assert.equal(calls, 2);
   });
 });
 
@@ -131,6 +163,10 @@ describe("delivery provider throttle", () => {
           events.push("pickup-points");
           return [];
         },
+        getCdekCity: async () => {
+          events.push("city");
+          return {};
+        },
         searchCdekCities: async () => {
           events.push("cities");
           return [];
@@ -151,6 +187,10 @@ describe("delivery provider throttle", () => {
         query: { cityCode: number },
         ...identity: StorefrontIdentityTuple
       ): Promise<unknown>;
+      getCdekCity(
+        query: { cityCode: number },
+        ...identity: StorefrontIdentityTuple
+      ): Promise<unknown>;
       searchCdekCities(
         query: { countryCode?: string; query: string },
         ...identity: StorefrontIdentityTuple
@@ -165,13 +205,56 @@ describe("delivery provider throttle", () => {
       { cityCode: 44 },
       ...identity,
     );
+    await throttledController.getCdekCity({ cityCode: 44 }, ...identity);
 
     assert.deepEqual(events, [
       "throttle",
       "cities",
       "throttle",
       "pickup-points",
+      "throttle",
+      "city",
     ]);
+  });
+
+  it("declares the city route and validates its query and response contracts", () => {
+    assert.equal(
+      Reflect.getMetadata(
+        PATH_METADATA,
+        DeliveryController.prototype.getCdekCity,
+      ),
+      "cdek/city",
+    );
+
+    for (const cityCode of [undefined, 0, -1, 1.5, "not-a-number"]) {
+      assert.notEqual(
+        validateSync(plainToInstance(GetCdekCityQueryDTO, { cityCode })).length,
+        0,
+      );
+    }
+    assert.deepEqual(
+      validateSync(plainToInstance(GetCdekCityQueryDTO, { cityCode: "44" })),
+      [],
+    );
+
+    const validCity = {
+      code: 44,
+      countryCode: "RU",
+      latitude: 0,
+      longitude: 180,
+      name: "Москва",
+      region: "Москва",
+    };
+    assert.deepEqual(
+      validateSync(plainToInstance(CdekCityDetailsDTO, validCity)),
+      [],
+    );
+    assert.notEqual(
+      validateSync(
+        plainToInstance(CdekCityDetailsDTO, { ...validCity, latitude: 91 }),
+      ).length,
+      0,
+    );
   });
 
   it("returns a provider-neutral throttle error", () => {

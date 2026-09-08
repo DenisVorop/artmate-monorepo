@@ -177,12 +177,12 @@ test("checkout Server Actions replace provider errors with operation-safe DTOs",
         "Не удалось рассчитать заказ. Попробуйте еще раз.",
       ],
       [
-        () => deliveryActions.searchOzonCities("Мос"),
-        "Не удалось загрузить города Ozon. Попробуйте еще раз.",
+        () => deliveryActions.searchCdekCities("Мос"),
+        "Не удалось загрузить города. Попробуйте еще раз.",
       ],
       [
-        () => deliveryActions.getOzonPickupPoints("city-1"),
-        "Не удалось загрузить пункты выдачи Ozon. Попробуйте еще раз.",
+        () => deliveryActions.getCdekCity(44),
+        "Не удалось загрузить данные города. Попробуйте еще раз.",
       ],
     ];
 
@@ -269,12 +269,12 @@ test("checkout Server Actions sanitize transport error messages", async () => {
         "Не удалось рассчитать заказ. Попробуйте еще раз.",
       ],
       [
-        () => deliveryActions.searchOzonCities("Мос"),
-        "Не удалось загрузить города Ozon. Попробуйте еще раз.",
+        () => deliveryActions.searchCdekCities("Мос"),
+        "Не удалось загрузить города. Попробуйте еще раз.",
       ],
       [
-        () => deliveryActions.getOzonPickupPoints("city-1"),
-        "Не удалось загрузить пункты выдачи Ozon. Попробуйте еще раз.",
+        () => deliveryActions.getCdekCity(44),
+        "Не удалось загрузить данные города. Попробуйте еще раз.",
       ],
     ];
 

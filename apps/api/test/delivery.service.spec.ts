@@ -12,7 +12,7 @@ import type {
   DeliverySelection,
 } from "../src/delivery/providers/delivery-provider.interface";
 import type { OzonLogisticsService } from "../src/ozon/ozon-logistics.service";
-import type { OzonPickupIndexReadService } from "../src/ozon/ozon-pickup-index-read.service";
+import type { OzonCityPickupPointsService } from "../src/delivery/ozon-city-pickup-points.service";
 
 describe("DeliveryService", () => {
   it("uses the fixed Ozon price and point-info details for delivery calculation", async () => {
@@ -195,10 +195,7 @@ describe("DeliveryService", () => {
     assert.equal(ozonLookupCount, 0);
   });
 
-  it("delegates Ozon city and full-locality reads to the published index", async () => {
-    const cities = [
-      { id: "city-1", name: "Москва", region: "Москва", countryCode: "RU" },
-    ];
+  it("resolves the selected CDEK city before loading its complete Ozon dataset", async () => {
     const points = [
       {
         address: "Москва, Тверская, 1",
@@ -208,35 +205,33 @@ describe("DeliveryService", () => {
       },
     ];
     const calls: unknown[] = [];
+    const city = {
+      code: 44,
+      countryCode: "RU",
+      latitude: 55.75,
+      longitude: 37.61,
+      name: "Москва",
+      region: "Москва",
+    };
     const service = createDeliveryService(
-      {},
+      { getCity: async () => (calls.push(["city", 44]), city) },
       {},
       {
-        searchCities: async (query: string) => (
-          calls.push(["cities", query]),
-          cities
-        ),
-        getPickupPoints: async (localityId: string) => (
-          calls.push(["points", localityId]),
+        getPickupPoints: async (resolvedCity: unknown) => (
+          calls.push(["points", resolvedCity]),
           points
         ),
       },
     );
 
-    const resolvedCities = await service.searchOzonCities("мо");
-    const resolvedPoints = await service.getOzonPickupPoints("city-1");
+    const resolvedPoints = await service.getOzonPickupPoints(44);
 
-    assert.deepEqual(resolvedCities, cities);
     assert.deepEqual(resolvedPoints, [
-      {
-        ...points[0],
-        deliveryPrice: 100,
-        minimumDeliveryPrice: 100,
-      },
+      { ...points[0], deliveryPrice: 100, minimumDeliveryPrice: 100 },
     ]);
     assert.deepEqual(calls, [
-      ["cities", "мо"],
-      ["points", "city-1"],
+      ["city", 44],
+      ["points", city],
     ]);
   });
 });
@@ -244,12 +239,12 @@ describe("DeliveryService", () => {
 function createDeliveryService(
   cdek: object,
   ozonLogistics: object,
-  ozonPickupIndex: object = {},
+  ozonCityPickupPoints: object = {},
 ): DeliveryService {
   return new DeliveryService(
     cdek as CdekDeliveryProvider,
     ozonLogistics as OzonLogisticsService,
     new ProviderResponseCacheService(),
-    ozonPickupIndex as OzonPickupIndexReadService,
+    ozonCityPickupPoints as OzonCityPickupPointsService,
   );
 }

@@ -1,33 +1,35 @@
 "use client";
 
 import { useQuery } from "@tanstack/react-query";
-import { useEffect, useState } from "react";
 
 import { searchCdekCities } from "@/shared/actions/delivery";
 import { ApiResult } from "@/shared/lib/api-result";
+import { useDebouncedCityQuery } from "../lib/use-debounced-city-query";
 
-export function useCdekCities(query: string) {
+export function useCdekCities(query: string, enabled = true) {
   const normalizedQuery = query.trim();
-  const [debouncedQuery, setDebouncedQuery] = useState(normalizedQuery);
+  const debouncedQuery = useDebouncedCityQuery(normalizedQuery);
 
-  useEffect(() => {
-    const timeout = window.setTimeout(() => setDebouncedQuery(normalizedQuery), 300);
-
-    return () => window.clearTimeout(timeout);
-  }, [normalizedQuery]);
-
+  const shouldSearch = enabled && debouncedQuery.length >= 2;
+  const isSettled = debouncedQuery === normalizedQuery;
   const result = useQuery({
-    enabled: debouncedQuery.length >= 2,
-    queryFn: async () => ApiResult.fromDTO(await searchCdekCities(debouncedQuery)).unwrap() ?? [],
+    enabled: shouldSearch,
+    gcTime: 5 * 60_000,
+    queryFn: async () => ({
+      cities: ApiResult.fromDTO(await searchCdekCities(debouncedQuery)).unwrap() ?? [],
+      query: debouncedQuery,
+    }),
     queryKey: ["delivery", "cdek", "cities", debouncedQuery] as const,
     staleTime: 1000 * 60 * 30,
   });
+  const data = result.data;
+  const hasCurrentResult = shouldSearch && isSettled && data?.query === normalizedQuery;
 
   return {
-    cities:
-      debouncedQuery === normalizedQuery && normalizedQuery.length >= 2 ? (result.data ?? []) : [],
-    isError: result.isError,
-    isPending:
-      normalizedQuery.length >= 2 && (debouncedQuery !== normalizedQuery || result.isPending),
+    cities: hasCurrentResult ? data.cities : [],
+    isError: shouldSearch && isSettled && result.isError,
+    isFetching: shouldSearch && isSettled && result.isFetching,
+    isPending: enabled && normalizedQuery.length >= 2 && (!isSettled || result.isPending),
+    retry: result.refetch,
   };
 }

@@ -27,18 +27,18 @@ import {
 import { ozonSellerApiMaxConcurrentRequests } from "./ozon.constants";
 import { OzonOAuthService } from "./ozon-oauth.service";
 import {
-  parseOzonPickupSyncPointInfo,
-  parseOzonPickupSyncPointList,
-  type OzonPickupSyncListItem,
-  type OzonPickupSyncPointInfoItem,
-  validateOzonPickupSyncPointInfoRequest,
-} from "./ozon-pickup-sync.adapter";
+  parseOzonPickupPointInfo,
+  parseOzonPickupPointList,
+  type OzonPickupListItem,
+  type OzonPickupPointInfoItem,
+  validateOzonPickupPointInfoRequest,
+} from "./ozon-pickup.adapter";
 
 export type {
-  OzonPickupSyncEligiblePointInfo,
-  OzonPickupSyncExcludedPointInfo,
-  OzonPickupSyncPointInfoItem,
-} from "./ozon-pickup-sync.adapter";
+  OzonPickupEligiblePointInfo,
+  OzonPickupExcludedPointInfo,
+  OzonPickupPointInfoItem,
+} from "./ozon-pickup.adapter";
 
 type OzonLogisticsMode = "mock" | "real";
 
@@ -63,26 +63,25 @@ export class OzonLogisticsService {
     return this.getMockDeliveryPointInfo(request);
   }
 
-  async getDeliveryPointListForSync(): Promise<OzonPickupSyncListItem[]> {
-    this.assertSyncAvailable();
+  async getDeliveryPointList(): Promise<OzonPickupListItem[]> {
+    this.assertDatasetAvailable();
 
     const response = await this.requestSellerApi("/v1/delivery/point/list", {});
 
-    return parseOzonPickupSyncPointList(response);
+    return parseOzonPickupPointList(response);
   }
 
-  async getDeliveryPointInfoForSync(
+  async getDeliveryPointInfoBatch(
     mapPointIds: readonly string[],
-  ): Promise<OzonPickupSyncPointInfoItem[]> {
-    this.assertSyncAvailable();
+  ): Promise<OzonPickupPointInfoItem[]> {
+    this.assertDatasetAvailable();
 
-    const validMapPointIds =
-      validateOzonPickupSyncPointInfoRequest(mapPointIds);
+    const validMapPointIds = validateOzonPickupPointInfoRequest(mapPointIds);
     const response = await this.requestSellerApi("/v1/delivery/point/info", {
       map_point_ids: validMapPointIds,
     });
 
-    return parseOzonPickupSyncPointInfo(response, validMapPointIds);
+    return parseOzonPickupPointInfo(response, validMapPointIds);
   }
 
   async getPickupPoint(pickupPointId: string): Promise<PickupPointDTO> {
@@ -498,11 +497,11 @@ export class OzonLogisticsService {
     return process.env.OZON_LOGISTICS_MODE === "real" ? "real" : "mock";
   }
 
-  private assertSyncAvailable() {
+  private assertDatasetAvailable() {
     if (this.getMode() === "mock") {
       throw new ServiceUnavailableException({
-        code: "OZON_PICKUP_SYNC_UNAVAILABLE_IN_MOCK_MODE",
-        message: "Ozon pickup sync is unavailable in mock mode",
+        code: "OZON_PICKUP_DATASET_UNAVAILABLE_IN_MOCK_MODE",
+        message: "Ozon pickup dataset is unavailable in mock mode",
       });
     }
   }

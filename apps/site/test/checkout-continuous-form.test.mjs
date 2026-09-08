@@ -127,7 +127,11 @@ test("checkout name validation accepts Russian names and rejects invalid separat
   const form = evaluateTypeScript(await readSource("src/features/checkout/lib/checkout-form.ts"));
 
   for (const value of ["Анна Иванова", "Анна-Мария", "Ёлкина", "А".repeat(120)]) {
-    assert.equal(form.checkoutFormValidationSchema.shape.name.safeParse(value).success, true, value);
+    assert.equal(
+      form.checkoutFormValidationSchema.shape.name.safeParse(value).success,
+      true,
+      value,
+    );
   }
   for (const value of ["Anna Maria", "Анна2", "Анна_Мария", "Анна  Мария", "-Анна", "Анна-"]) {
     const invalid = form.checkoutFormValidationSchema.shape.name.safeParse(value);
@@ -146,10 +150,7 @@ test("checkout email validation accepts 254 characters and rejects 255", async (
 
   assert.equal(maximumEmail.length, 254);
   assert.equal(oversizedEmail.length, 255);
-  assert.equal(
-    form.checkoutFormValidationSchema.shape.email.safeParse(maximumEmail).success,
-    true,
-  );
+  assert.equal(form.checkoutFormValidationSchema.shape.email.safeParse(maximumEmail).success, true);
   const oversized = form.checkoutFormValidationSchema.shape.email.safeParse(oversizedEmail);
   assert.equal(oversized.success, false);
   assert.equal(oversized.error.issues[0].message, "Email должен быть не длиннее 254 символов");
@@ -499,15 +500,17 @@ test("checkout attempt id is reused for an identical payload and rotated after p
 });
 
 test("CDEK search is debounced by 300ms and client map clustering is deterministic runtime logic", async () => {
-  const [cities, map, clusteringSource, packageJson] = await Promise.all([
+  const [cities, debounce, map, clusteringSource, packageJson] = await Promise.all([
     readSource("src/features/checkout/model/use-cdek-cities.ts"),
+    readSource("src/features/checkout/lib/use-debounced-city-query.ts"),
     readSource("src/features/checkout/ui/delivery-selector/pickup-points-map.tsx"),
     readSource("src/features/checkout/lib/cluster-pickup-points.ts"),
     readSource("package.json"),
   ]);
 
-  assert.match(cities, /300/u);
-  assert.match(cities, /setTimeout/u);
+  assert.match(cities, /useDebouncedCityQuery\(normalizedQuery\)/u);
+  assert.match(debounce, /300/u);
+  assert.match(debounce, /setTimeout/u);
   assert.match(map, /clusterPickupPoints/u);
   assert.doesNotMatch(packageJson, /markercluster|supercluster/u);
 

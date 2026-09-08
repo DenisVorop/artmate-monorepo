@@ -29,7 +29,7 @@ describe("OzonLogisticsService pickup index and live validation", () => {
         };
       });
 
-      assert.deepEqual(await service.getDeliveryPointListForSync(), [
+      assert.deepEqual(await service.getDeliveryPointList(), [
         { latitude: 55.75, longitude: 37.61, mapPointId: "point-1" },
       ]);
       assert.deepEqual(calls, [["/v1/delivery/point/list", {}]]);
@@ -52,7 +52,7 @@ describe("OzonLogisticsService pickup index and live validation", () => {
         ],
       }));
 
-      const points = await service.getDeliveryPointInfoForSync([
+      const points = await service.getDeliveryPointInfoBatch([
         "eligible",
         "disabled",
         "postamat",
@@ -73,13 +73,13 @@ describe("OzonLogisticsService pickup index and live validation", () => {
   it("rejects invalid and non-bijective sync responses", async () => {
     await withMode("real", async () => {
       await assert.rejects(
-        createService(async () => ({ points: [] })).getDeliveryPointInfoForSync(
-          ["point-1"],
-        ),
+        createService(async () => ({ points: [] })).getDeliveryPointInfoBatch([
+          "point-1",
+        ]),
         BadGatewayException,
       );
       await assert.rejects(
-        createService(async () => ({ points: [] })).getDeliveryPointInfoForSync(
+        createService(async () => ({ points: [] })).getDeliveryPointInfoBatch(
           [],
         ),
         BadRequestException,
@@ -90,7 +90,7 @@ describe("OzonLogisticsService pickup index and live validation", () => {
             { coordinate: { lat: 55, long: 37 }, map_point_id: "duplicate" },
             { coordinate: { lat: 56, long: 38 }, map_point_id: "duplicate" },
           ],
-        })).getDeliveryPointListForSync(),
+        })).getDeliveryPointList(),
         BadGatewayException,
       );
     });
@@ -105,11 +105,11 @@ describe("OzonLogisticsService pickup index and live validation", () => {
         });
 
         await assert.rejects(
-          service.getDeliveryPointListForSync(),
+          service.getDeliveryPointList(),
           (error) => error === upstream,
         );
         await assert.rejects(
-          service.getDeliveryPointInfoForSync(["point-1"]),
+          service.getDeliveryPointInfoBatch(["point-1"]),
           (error) => error === upstream,
         );
       }
@@ -125,11 +125,11 @@ describe("OzonLogisticsService pickup index and live validation", () => {
       });
 
       await assert.rejects(
-        service.getDeliveryPointListForSync(),
+        service.getDeliveryPointList(),
         ServiceUnavailableException,
       );
       await assert.rejects(
-        service.getDeliveryPointInfoForSync(["point-1"]),
+        service.getDeliveryPointInfoBatch(["point-1"]),
         ServiceUnavailableException,
       );
       assert.equal(calls, 0);
@@ -195,7 +195,7 @@ describe("OzonLogisticsService pickup index and live validation", () => {
       });
       const requests = Array.from(
         { length: ozonSellerApiMaxConcurrentRequests + 1 },
-        () => service.getDeliveryPointListForSync(),
+        () => service.getDeliveryPointList(),
       );
       const settled = Promise.allSettled(requests);
 
@@ -211,7 +211,7 @@ describe("OzonLogisticsService pickup index and live validation", () => {
       }
 
       timeout = false;
-      assert.deepEqual(await service.getDeliveryPointListForSync(), []);
+      assert.deepEqual(await service.getDeliveryPointList(), []);
     });
   });
 });

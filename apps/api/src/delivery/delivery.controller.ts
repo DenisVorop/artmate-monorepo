@@ -4,12 +4,12 @@ import { ApiOkResponse, ApiOperation, ApiTags } from "@nestjs/swagger";
 import { ValidateResponse } from "../common/response-validation.interceptor";
 
 import {
+  CdekCityDetailsDTO,
   DeliveryCityDTO,
   DeliveryPickupPointDTO,
-  OzonDeliveryCityDTO,
+  GetCdekCityQueryDTO,
   SearchDeliveryCitiesQueryDTO,
   SearchDeliveryPickupPointsQueryDTO,
-  SearchOzonCitiesQueryDTO,
   SearchOzonPickupPointsQueryDTO,
 } from "./dto";
 import { DeliveryProxyThrottleService } from "./delivery-proxy-throttle.service";
@@ -23,29 +23,8 @@ export class DeliveryController {
     private readonly deliveryProxyThrottleService: DeliveryProxyThrottleService,
   ) {}
 
-  @ValidateResponse(OzonDeliveryCityDTO, { isArray: true })
-  @ApiOperation({ summary: "Search Ozon localities by name prefix" })
-  @ApiOkResponse({ type: [OzonDeliveryCityDTO] })
-  @Get("ozon/cities")
-  searchOzonCities(
-    @Query() query: SearchOzonCitiesQueryDTO,
-    @Headers("cookie") cookieHeader: string | undefined,
-    @Headers("x-forwarded-for") forwardedFor: string | undefined,
-    @Headers("x-real-ip") realIp: string | undefined,
-    @Ip() requestIp: string | undefined,
-  ) {
-    this.deliveryProxyThrottleService.assertAllowed({
-      cookieHeader,
-      forwardedFor,
-      realIp,
-      requestIp,
-    });
-
-    return this.deliveryService.searchOzonCities(query.query);
-  }
-
   @ValidateResponse(DeliveryPickupPointDTO, { isArray: true })
-  @ApiOperation({ summary: "Get all Ozon pickup points for a locality" })
+  @ApiOperation({ summary: "Get all Ozon pickup points for a CDEK city" })
   @ApiOkResponse({ type: [DeliveryPickupPointDTO] })
   @Get("ozon/pickup-points")
   getOzonPickupPoints(
@@ -62,7 +41,7 @@ export class DeliveryController {
       requestIp,
     });
 
-    return this.deliveryService.getOzonPickupPoints(query.localityId);
+    return this.deliveryService.getOzonPickupPoints(query.cityCode);
   }
 
   @ValidateResponse(DeliveryCityDTO, { isArray: true })
@@ -87,6 +66,27 @@ export class DeliveryController {
       query.query,
       query.countryCode,
     );
+  }
+
+  @ValidateResponse(CdekCityDetailsDTO)
+  @ApiOperation({ summary: "Get CDEK city details" })
+  @ApiOkResponse({ type: CdekCityDetailsDTO })
+  @Get("cdek/city")
+  getCdekCity(
+    @Query() query: GetCdekCityQueryDTO,
+    @Headers("cookie") cookieHeader: string | undefined,
+    @Headers("x-forwarded-for") forwardedFor: string | undefined,
+    @Headers("x-real-ip") realIp: string | undefined,
+    @Ip() requestIp: string | undefined,
+  ) {
+    this.deliveryProxyThrottleService.assertAllowed({
+      cookieHeader,
+      forwardedFor,
+      realIp,
+      requestIp,
+    });
+
+    return this.deliveryService.getCdekCity(query.cityCode);
   }
 
   @ValidateResponse(DeliveryPickupPointDTO, { isArray: true })

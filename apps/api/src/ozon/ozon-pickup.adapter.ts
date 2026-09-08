@@ -5,40 +5,36 @@ import {
   deliveryPickupPointTitleMaxLength,
   deliveryPickupPointWorkHoursMaxLength,
 } from "../delivery/delivery.constants";
-import { ozonPickupLocalityValueMaxLength } from "./ozon-pickup-index.policy";
-
-export type OzonPickupSyncListItem = {
+export type OzonPickupListItem = {
   mapPointId: string;
   latitude: number;
   longitude: number;
 };
 
-export type OzonPickupSyncExcludedPointInfo = {
+export type OzonPickupExcludedPointInfo = {
   mapPointId: string;
   eligible: false;
   reason: "disabled" | "unsupported_delivery_type";
 };
 
-export type OzonPickupSyncEligiblePointInfo = {
+export type OzonPickupEligiblePointInfo = {
   mapPointId: string;
   eligible: true;
-  city: string;
-  region: string;
   title: string;
   address: string;
   workHours: string;
 };
 
-export type OzonPickupSyncPointInfoItem =
-  | OzonPickupSyncExcludedPointInfo
-  | OzonPickupSyncEligiblePointInfo;
+export type OzonPickupPointInfoItem =
+  | OzonPickupExcludedPointInfo
+  | OzonPickupEligiblePointInfo;
 
 const pointInfoBatchMaxSize = 100;
 const staffedPickupPointDeliveryTypeId = 1002;
 
-export function parseOzonPickupSyncPointList(
+export function parseOzonPickupPointList(
   response: unknown,
-): OzonPickupSyncListItem[] {
+): OzonPickupListItem[] {
   const record = parseResponseRecord(response, "point-list");
 
   if (!Array.isArray(record.points)) {
@@ -64,7 +60,7 @@ export function parseOzonPickupSyncPointList(
   });
 }
 
-export function validateOzonPickupSyncPointInfoRequest(
+export function validateOzonPickupPointInfoRequest(
   mapPointIds: readonly string[],
 ): string[] {
   if (
@@ -88,10 +84,10 @@ export function validateOzonPickupSyncPointInfoRequest(
   return [...mapPointIds];
 }
 
-export function parseOzonPickupSyncPointInfo(
+export function parseOzonPickupPointInfo(
   response: unknown,
   requestedMapPointIds: readonly string[],
-): OzonPickupSyncPointInfoItem[] {
+): OzonPickupPointInfoItem[] {
   const record = parseResponseRecord(response, "point-info");
 
   if (!Array.isArray(record.points)) {
@@ -99,7 +95,7 @@ export function parseOzonPickupSyncPointInfo(
   }
 
   const requestedIds = new Set(requestedMapPointIds);
-  const pointsById = new Map<string, OzonPickupSyncPointInfoItem>();
+  const pointsById = new Map<string, OzonPickupPointInfoItem>();
 
   for (const point of record.points) {
     const pointRecord = parseItemRecord(point, "point-info");
@@ -149,23 +145,9 @@ export function parseOzonPickupSyncPointInfo(
       continue;
     }
 
-    const addressDetails = parseItemRecord(
-      deliveryMethod.address_details,
-      "point-info",
-    );
     pointsById.set(mapPointId, {
       mapPointId,
       eligible: true,
-      city: parseRequiredString(
-        addressDetails.city,
-        ozonPickupLocalityValueMaxLength,
-        "point-info",
-      ),
-      region: parseRequiredString(
-        addressDetails.region,
-        ozonPickupLocalityValueMaxLength,
-        "point-info",
-      ),
       title: parseRequiredString(
         deliveryMethod.name,
         deliveryPickupPointTitleMaxLength,

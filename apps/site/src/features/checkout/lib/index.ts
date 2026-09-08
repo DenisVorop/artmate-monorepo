@@ -19,7 +19,6 @@ export {
   type CheckoutCalculationState,
 } from "./calculation-state";
 export { filterPickupPoints, formatPickupPointCount } from "./delivery-selector";
-export { useDebouncedCityQuery } from "./use-debounced-city-query";
 export { formatEstimatedDeliveryDateRange } from "./delivery-date-range";
 export {
   CheckoutProvider,

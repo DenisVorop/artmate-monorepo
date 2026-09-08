@@ -6,11 +6,10 @@ import type { DeliveryProxyThrottleService } from "../src/delivery/delivery-prox
 import type { DeliveryService } from "../src/delivery/delivery.service";
 
 describe("DeliveryController Ozon proxy protection", () => {
-  it("throttles both public Ozon index handlers before delegation", async () => {
+  it("throttles the public Ozon pickup-point handler before delegation", async () => {
     const throttleCalls: unknown[] = [];
     const deliveryService = {
       getOzonPickupPoints: async () => [],
-      searchOzonCities: async () => [],
     } as unknown as DeliveryService;
     const throttle = {
       assertAllowed: (input: unknown) => throttleCalls.push(input),
@@ -23,21 +22,14 @@ describe("DeliveryController Ozon proxy protection", () => {
       requestIp: "127.0.0.1",
     };
 
-    await controller.searchOzonCities(
-      { query: "Москва" },
-      identity.cookieHeader,
-      identity.forwardedFor,
-      identity.realIp,
-      identity.requestIp,
-    );
     await controller.getOzonPickupPoints(
-      { localityId: "locality-1" },
+      { cityCode: 44 },
       identity.cookieHeader,
       identity.forwardedFor,
       identity.realIp,
       identity.requestIp,
     );
 
-    assert.deepEqual(throttleCalls, [identity, identity]);
+    assert.deepEqual(throttleCalls, [identity]);
   });
 });

@@ -1,8 +1,4 @@
-import type {
-  DeliveryCityDTO,
-  DeliveryPickupPointDTO,
-  OzonDeliveryCityDTO,
-} from "@/shared/actions/delivery";
+import type { DeliveryCityDTO, DeliveryPickupPointDTO } from "@/shared/actions/delivery";
 import type { CheckoutCalculationDTO } from "@/shared/actions/orders";
 
 import type { CheckoutDeliverySelection } from "./checkout-form";
@@ -15,8 +11,8 @@ export type CdekDeliveryDraft = {
 };
 
 export type OzonDeliveryDraft = {
-  city?: OzonDeliveryCityDTO;
-  localityId?: string;
+  city?: DeliveryCityDTO;
+  cityCode?: number;
   pickupPoint?: DeliveryPickupPointDTO;
   pickupPointId?: string;
 };
@@ -50,7 +46,7 @@ export function createDeliveryPickerDrafts(
       confirmed?.provider === "cdek"
         ? { cityCode: confirmed.cityCode, pickupPointId: confirmed.pickupPointId }
         : {},
-    ozon: confirmed?.provider === "ozon" ? { pickupPointId: confirmed.pickupPointId } : {},
+    ozon: {},
   };
 }
 
@@ -109,11 +105,11 @@ export function clearCdekDraftCity(drafts: DeliveryPickerDrafts): DeliveryPicker
 
 export function selectOzonDraftCity(
   drafts: DeliveryPickerDrafts,
-  city: OzonDeliveryCityDTO,
+  city: DeliveryCityDTO,
 ): DeliveryPickerDrafts {
   return {
     ...drafts,
-    ozon: { city, localityId: city.id },
+    ozon: { city, cityCode: city.code },
   };
 }
 
@@ -157,7 +153,7 @@ export function getDeliveryDraftCandidate(
     return cityCode && pickupPointId ? { cityCode, pickupPointId, provider: "cdek" } : undefined;
   }
 
-  return drafts.ozon.localityId && drafts.ozon.pickupPointId
+  return drafts.ozon.cityCode && drafts.ozon.pickupPointId
     ? { pickupPointId: drafts.ozon.pickupPointId, provider: "ozon" }
     : undefined;
 }
@@ -314,13 +310,6 @@ function seedConfirmedTechnicalSelection(
         cityCode: confirmed.cityCode,
         pickupPointId: confirmed.pickupPointId,
       },
-    };
-  }
-
-  if (confirmed.provider === "ozon" && !drafts.ozon.localityId && !drafts.ozon.pickupPointId) {
-    return {
-      ...drafts,
-      ozon: { ...drafts.ozon, pickupPointId: confirmed.pickupPointId },
     };
   }
 
