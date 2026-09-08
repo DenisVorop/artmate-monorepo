@@ -45,6 +45,13 @@ import type {
   PaymentMethod,
 } from "./orders.constants";
 import { ORDER_PAYMENT_INITIALIZATION_WAIT_TIMEOUT_MS } from "./orders.constants";
+import {
+  ozonPaymentRecheckDelayMs,
+  ozonPaymentRecheckLeaseMs,
+  type OzonPaymentRecheckLease,
+  ozonPaymentRecheckMaxAttempts,
+  ozonPaymentRecheckRetryableStatuses,
+} from "./ozon-payment-recheck";
 import type { OrderReceiptItemPricing } from "./payment-receipt";
 
 const CHECKOUT_SUCCESS_PATH = "/checkout/success";
@@ -137,6 +144,7 @@ type ApplyOzonAcquiringNotificationInput = {
   extTransactionId?: string;
   paymentMethod?: string;
   raw: Record<string, unknown>;
+  recheckLease?: OzonPaymentRecheckLease;
   verified: OzonAcquiringVerifiedNotification;
 };
 
@@ -979,12 +987,149 @@ export class OrdersStorage {
     return this.mapOrder(order);
   }
 
+  async claimOzonPaymentRecheck(): Promise<
+    OzonPaymentRecheckLease | undefined
+  > {
+    const leaseToken = randomUUID();
+
+    return this.prisma.$transaction(async (tx) => {
+      await tx.$executeRaw(Prisma.sql`
+        UPDATE "order_ozon_payment_rechecks"
+        SET
+          "finished_at" = CURRENT_TIMESTAMP,
+          "lease_token" = NULL,
+          "locked_until" = NULL,
+          "last_error" = 'attempts_exhausted',
+          "updated_at" = CURRENT_TIMESTAMP
+        WHERE "finished_at" IS NULL
+          AND "attempts" >= ${ozonPaymentRecheckMaxAttempts}
+          AND ("locked_until" IS NULL OR "locked_until" <= CURRENT_TIMESTAMP)
+      `);
+
+      const claimed = await tx.$queryRaw<
+        Array<{ orderId: string; leaseToken: string }>
+      >(Prisma.sql`
+        WITH candidate AS (
+          SELECT "order_id"
+          FROM "order_ozon_payment_rechecks"
+          WHERE "finished_at" IS NULL
+            AND "attempts" < ${ozonPaymentRecheckMaxAttempts}
+            AND "next_attempt_at" <= CURRENT_TIMESTAMP
+            AND ("locked_until" IS NULL OR "locked_until" <= CURRENT_TIMESTAMP)
+          ORDER BY "next_attempt_at", "created_at"
+          FOR UPDATE SKIP LOCKED
+          LIMIT 1
+        )
+        UPDATE "order_ozon_payment_rechecks" AS recheck
+        SET
+          "attempts" = recheck."attempts" + 1,
+          "lease_token" = ${leaseToken}::uuid,
+          "locked_until" = CURRENT_TIMESTAMP
+            + (${ozonPaymentRecheckLeaseMs} * INTERVAL '1 millisecond'),
+          "last_error" = NULL,
+          "updated_at" = CURRENT_TIMESTAMP
+        FROM candidate
+        WHERE recheck."order_id" = candidate."order_id"
+        RETURNING
+          recheck."order_id" AS "orderId",
+          recheck."lease_token"::text AS "leaseToken"
+      `);
+
+      return claimed[0];
+    });
+  }
+
+  async getOzonPaymentRecheckNotification(
+    lease: OzonPaymentRecheckLease,
+  ): Promise<Record<string, unknown> | undefined> {
+    return this.prisma.$transaction(async (tx) => {
+      if (!(await this.lockLiveOzonPaymentRecheck(tx, lease))) return undefined;
+      const rows = await tx.$queryRaw<
+        Array<{
+          lastPaymentNotification: Prisma.JsonValue | null;
+          paymentMethod: string;
+          paymentStatus: string;
+        }>
+      >(Prisma.sql`
+        SELECT
+          orders."last_payment_notification" AS "lastPaymentNotification",
+          orders."payment_method"::text AS "paymentMethod",
+          orders."payment_status"::text AS "paymentStatus"
+        FROM "order_ozon_payment_rechecks" AS recheck
+        JOIN "orders" ON orders."id" = recheck."order_id"
+        WHERE recheck."order_id" = ${lease.orderId}
+          AND recheck."lease_token" = ${lease.leaseToken}::uuid
+          AND recheck."locked_until" > clock_timestamp()
+          AND recheck."finished_at" IS NULL
+      `);
+      const row = rows[0];
+      if (!row) return undefined;
+
+      if (row.paymentStatus === "paid") {
+        await this.finishOzonPaymentRecheck(tx, lease);
+        return undefined;
+      }
+      if (row.paymentMethod !== "ozon_acquiring") return undefined;
+
+      const notification = row.lastPaymentNotification;
+      if (
+        !notification ||
+        typeof notification !== "object" ||
+        Array.isArray(notification)
+      ) {
+        return undefined;
+      }
+
+      return notification as Record<string, unknown>;
+    });
+  }
+
+  async failOzonPaymentRecheck(
+    lease: OzonPaymentRecheckLease,
+    errorCode: string,
+  ): Promise<void> {
+    const safeErrorCode = /^[a-z0-9_]{1,120}$/.test(errorCode)
+      ? errorCode
+      : "status_check_failed";
+
+    await this.prisma.$transaction(async (tx) => {
+      const job = await this.lockLiveOzonPaymentRecheck(tx, lease);
+      if (!job) return;
+
+      const exhausted = job.attempts >= ozonPaymentRecheckMaxAttempts;
+      const delayMs = ozonPaymentRecheckDelayMs(job.attempts);
+      await tx.$executeRaw(Prisma.sql`
+        UPDATE "order_ozon_payment_rechecks"
+        SET
+          "next_attempt_at" = CURRENT_TIMESTAMP
+            + (${delayMs} * INTERVAL '1 millisecond'),
+          "lease_token" = NULL,
+          "locked_until" = NULL,
+          "finished_at" = CASE
+            WHEN ${exhausted} THEN CURRENT_TIMESTAMP
+            ELSE NULL
+          END,
+          "last_error" = ${safeErrorCode},
+          "updated_at" = CURRENT_TIMESTAMP
+        WHERE "order_id" = ${lease.orderId}
+          AND "lease_token" = ${lease.leaseToken}::uuid
+          AND "locked_until" > clock_timestamp()
+          AND "finished_at" IS NULL
+      `);
+    });
+  }
+
   async applyOzonAcquiringNotification(
     input: ApplyOzonAcquiringNotificationInput,
   ): Promise<ApplyOzonAcquiringNotificationResult | undefined> {
     const orderId = input.verified.merchantOrderId;
     if (!orderId) {
       throw new BadRequestException("Ozon merchant order id is required");
+    }
+    if (input.recheckLease && input.recheckLease.orderId !== orderId) {
+      throw new BadRequestException(
+        "Ozon merchant order id does not match lease",
+      );
     }
     return this.prisma.$transaction(async (tx) => {
       await this.lockOrder(tx, orderId);
@@ -997,8 +1142,20 @@ export class OrdersStorage {
         order.paymentMethod,
         PrismaOrderPaymentMethod.OZON_ACQUIRING,
       );
+      let recheckAttempts: number | undefined;
+      if (input.recheckLease) {
+        const job = await this.lockLiveOzonPaymentRecheck(
+          tx,
+          input.recheckLease,
+        );
+        if (!job) return undefined;
+        recheckAttempts = job.attempts;
+      }
       const previousStatus = this.mapOrderCrmStatus(order.crmStatus);
       const isPaid = input.authoritativeStatus === "STATUS_PAID";
+      const isRetryable = ozonPaymentRecheckRetryableStatuses.has(
+        input.authoritativeStatus ?? "",
+      );
       this.assertImmutableProviderId(
         "Ozon order id",
         order.ozonAcquiringOrderId,
@@ -1012,7 +1169,7 @@ export class OrdersStorage {
           "Ozon payment currency does not match order",
         );
       }
-      if (isPaid) {
+      if (isPaid || isRetryable) {
         if (!input.acquiringOrderId) {
           throw new BadRequestException(
             "Ozon paid notification identifiers are required",
@@ -1046,6 +1203,72 @@ export class OrdersStorage {
             : {}),
         },
       });
+
+      const orderIsPaid =
+        order.paymentStatus === PrismaOrderPaymentStatus.PAID || isPaid;
+      if (input.recheckLease) {
+        if (isRetryable && !orderIsPaid) {
+          const attempts = recheckAttempts!;
+          const exhausted = attempts >= ozonPaymentRecheckMaxAttempts;
+          const delayMs = ozonPaymentRecheckDelayMs(attempts);
+          const updated = await tx.$executeRaw(Prisma.sql`
+            UPDATE "order_ozon_payment_rechecks"
+            SET
+              "next_attempt_at" = CURRENT_TIMESTAMP
+                + (${delayMs} * INTERVAL '1 millisecond'),
+              "lease_token" = NULL,
+              "locked_until" = NULL,
+              "finished_at" = CASE
+                WHEN ${exhausted} THEN CURRENT_TIMESTAMP
+                ELSE NULL
+              END,
+              "last_authoritative_status" = ${input.authoritativeStatus ?? null},
+              "last_error" = ${exhausted ? "attempts_exhausted" : null},
+              "updated_at" = CURRENT_TIMESTAMP
+            WHERE "order_id" = ${input.recheckLease.orderId}
+              AND "lease_token" = ${input.recheckLease.leaseToken}::uuid
+              AND "locked_until" > clock_timestamp()
+              AND "finished_at" IS NULL
+          `);
+          if (updated !== 1) throw new ConflictException("Ozon payment recheck lease expired");
+        } else {
+          await this.finishOzonPaymentRecheck(
+            tx,
+            input.recheckLease,
+            input.authoritativeStatus,
+          );
+        }
+      } else if (isRetryable && !orderIsPaid) {
+        const delayMs = ozonPaymentRecheckDelayMs(0);
+        await tx.$executeRaw(Prisma.sql`
+          INSERT INTO "order_ozon_payment_rechecks" (
+            "order_id",
+            "next_attempt_at",
+            "last_authoritative_status",
+            "updated_at"
+          ) VALUES (
+            ${order.id},
+            CURRENT_TIMESTAMP + (${delayMs} * INTERVAL '1 millisecond'),
+            ${input.authoritativeStatus ?? null},
+            CURRENT_TIMESTAMP
+          )
+          ON CONFLICT ("order_id") DO NOTHING
+        `);
+      } else {
+        await tx.$executeRaw(Prisma.sql`
+          UPDATE "order_ozon_payment_rechecks"
+          SET
+            "lease_token" = NULL,
+            "locked_until" = NULL,
+            "finished_at" = CURRENT_TIMESTAMP,
+            "last_authoritative_status" = ${input.authoritativeStatus ?? null},
+            "last_error" = NULL,
+            "updated_at" = CURRENT_TIMESTAMP
+          WHERE "order_id" = ${order.id}
+            AND "finished_at" IS NULL
+        `);
+      }
+
       const updatedOrder = await tx.order.findUnique({
         where: { id: order.id },
         include: orderInclude,
@@ -1604,6 +1827,50 @@ export class OrdersStorage {
     return tx.$queryRaw(
       Prisma.sql`SELECT "id" FROM "orders" WHERE "id" = ${orderId} FOR UPDATE`,
     );
+  }
+
+  private async lockLiveOzonPaymentRecheck(
+    tx: Prisma.TransactionClient,
+    lease: OzonPaymentRecheckLease,
+  ) {
+    // Check expiry in a separate statement after any row-lock wait.
+    await tx.$queryRaw(Prisma.sql`
+      SELECT "order_id" FROM "order_ozon_payment_rechecks"
+      WHERE "order_id" = ${lease.orderId} FOR UPDATE
+    `);
+    const rows = await tx.$queryRaw<Array<{ attempts: number }>>(Prisma.sql`
+      SELECT "attempts" FROM "order_ozon_payment_rechecks"
+      WHERE "order_id" = ${lease.orderId}
+        AND "lease_token" = ${lease.leaseToken}::uuid
+        AND "locked_until" > clock_timestamp()
+        AND "finished_at" IS NULL
+    `);
+    return rows[0];
+  }
+
+  private async finishOzonPaymentRecheck(
+    tx: Prisma.TransactionClient,
+    lease: OzonPaymentRecheckLease,
+    authoritativeStatus?: string,
+  ) {
+    const updated = await tx.$executeRaw(Prisma.sql`
+      UPDATE "order_ozon_payment_rechecks"
+      SET
+        "lease_token" = NULL,
+        "locked_until" = NULL,
+        "finished_at" = CURRENT_TIMESTAMP,
+        "last_authoritative_status" = COALESCE(
+          ${authoritativeStatus ?? null},
+          "last_authoritative_status"
+        ),
+        "last_error" = NULL,
+        "updated_at" = CURRENT_TIMESTAMP
+      WHERE "order_id" = ${lease.orderId}
+        AND "lease_token" = ${lease.leaseToken}::uuid
+        AND "locked_until" > clock_timestamp()
+        AND "finished_at" IS NULL
+    `);
+    if (updated !== 1) throw new ConflictException("Ozon payment recheck lease expired");
   }
 
   private lockCart(tx: Prisma.TransactionClient, cartId: string) {
