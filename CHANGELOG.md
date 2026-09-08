@@ -1,5 +1,18 @@
 # Changelog
 
+## [0.38.0](https://github.com/DenisVorop/artmate-monorepo/compare/v0.37.2...v0.38.0) (2026-09-08)
+
+
+### Features
+
+* **checkout:** link accounts before payment ([7ea8f36](https://github.com/DenisVorop/artmate-monorepo/commit/7ea8f36384c1b61ffbbfef6492aa2e0c7dda6737))
+
+
+### Bug Fixes
+
+* **api:** lock throttle rows by id ([ae2799f](https://github.com/DenisVorop/artmate-monorepo/commit/ae2799ffb6a0ae7846e45baa9a861447cf3e9613))
+* **payments:** retry pending Ozon confirmations ([9fe0f1f](https://github.com/DenisVorop/artmate-monorepo/commit/9fe0f1f3403cc57bc7400167290f989a1bbe09f7))
+
 ## [0.37.2](https://github.com/DenisVorop/artmate-monorepo/compare/v0.37.1...v0.37.2) (2026-09-08)
 
 
