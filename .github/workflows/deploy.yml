@@ -68,6 +68,11 @@ jobs:
         env:
           IMAGE_TAG: ${{ steps.image.outputs.tag }}
           ACME_EMAIL: ${{ secrets.ACME_EMAIL || vars.ACME_EMAIL }}
+          COLORING_PUBLIC_URL: ${{ vars.COLORING_PUBLIC_URL || 'https://studio.artmate.ru' }}
+          COLORING_PASSWORD_HASH: ${{ secrets.COLORING_PASSWORD_HASH }}
+          COLORING_STORAGE_MB: ${{ vars.COLORING_STORAGE_MB }}
+          COLORING_PREVIEW_TTL_SECONDS: ${{ vars.COLORING_PREVIEW_TTL_SECONDS }}
+          COLORING_JOB_TIMEOUT_SECONDS: ${{ vars.COLORING_JOB_TIMEOUT_SECONDS }}
           POSTGRES_DB: ${{ secrets.POSTGRES_DB || vars.POSTGRES_DB }}
           POSTGRES_USER: ${{ secrets.POSTGRES_USER || vars.POSTGRES_USER }}
           POSTGRES_PASSWORD: ${{ secrets.POSTGRES_PASSWORD }}
@@ -217,6 +222,11 @@ jobs:
           fi
 
           append_secret ACME_EMAIL "$ACME_EMAIL"
+          append_secret COLORING_PUBLIC_URL "$COLORING_PUBLIC_URL"
+          append_secret COLORING_PASSWORD_HASH "$COLORING_PASSWORD_HASH"
+          append_secret COLORING_STORAGE_MB "$COLORING_STORAGE_MB"
+          append_secret COLORING_PREVIEW_TTL_SECONDS "$COLORING_PREVIEW_TTL_SECONDS"
+          append_secret COLORING_JOB_TIMEOUT_SECONDS "$COLORING_JOB_TIMEOUT_SECONDS"
           append_secret POSTGRES_DB "$POSTGRES_DB"
           append_secret POSTGRES_USER "$POSTGRES_USER"
           append_secret POSTGRES_PASSWORD "$POSTGRES_PASSWORD"

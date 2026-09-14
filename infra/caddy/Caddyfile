@@ -88,3 +88,22 @@ tg.art-mate.ru, tg.artmate.ru {
 		import proxy_headers
 	}
 }
+
+# Standalone coloring studio; no existing Artmate coloring routes or sessions.
+studio.artmate.ru {
+	import security_headers
+	encode zstd gzip
+	request_body {
+		max_size 30MB
+	}
+	handle /api/studio/* {
+		reverse_proxy coloring-api:8000 {
+			import proxy_headers
+		}
+	}
+	handle {
+		reverse_proxy studio:3005 {
+			import proxy_headers
+		}
+	}
+}

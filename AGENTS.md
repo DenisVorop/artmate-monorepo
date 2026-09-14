@@ -19,9 +19,13 @@
 
 Workspaces:
 
+- `apps/studio` - отдельная студия генератора; API только `/api/studio`, порт 3005.
 - `apps/site` - основной Next.js сайт Artmate.
 - `apps/admin` - административная панель Artmate.
 - `apps/api` - backend на NestJS.
+- `services/coloring` - отдельный Python-генератор раскрасок; не Yarn workspace.
+  Не связывать его с существующим модулем раскрасок, каталогами и БД Artmate.
+  Правила и проверки: `services/coloring/AGENTS.md`.
 - `packages/ui` - stub React UI package для shared workspace-компонентов.
 - `packages/eslint-config`, `packages/typescript-config` - общие конфиги.
 
@@ -56,6 +60,7 @@ yarn workspace <workspace> <script>
 - `site` - `3000`.
 - `api` - `3002`, можно переопределить через `PORT`.
 - `admin` - `3003`.
+- `studio` - `3005`, отдельный Python API - `8000`.
 
 Если запускаешь dev-серверы для проверки задачи, после проверки останавливай все процессы, которые сам поднял, и проверяй порт:
 
@@ -112,7 +117,7 @@ docker compose --env-file infra/env.prod.example -f docker-compose.prod.yml conf
 
 ## Frontend
 
-Frontend workspaces: `apps/site`, `apps/admin`. Все frontend-приложения используют одинаковый базовый стек и FSD-подобную архитектуру.
+Frontend workspaces: `apps/site`, `apps/admin`, `apps/studio`. Все frontend-приложения используют одинаковый базовый стек и FSD-подобную архитектуру.
 
 Стек:
 
