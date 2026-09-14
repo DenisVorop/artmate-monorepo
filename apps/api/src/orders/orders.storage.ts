@@ -363,6 +363,17 @@ export class OrdersStorage {
             include: orderInclude,
           });
           if (!createdOrder) throw new NotFoundException("Order not found");
+          if (!this.analyticsOutboxService) {
+            throw new Error("AnalyticsOutboxService is not configured");
+          }
+          await this.analyticsOutboxService.enqueueOrderCreated(tx, {
+            id: createdOrder.id,
+            createdAt: createdOrder.createdAt,
+            subtotal: createdOrder.subtotal,
+            discount: createdOrder.discount,
+            yandexClientId: createdOrder.yandexClientId,
+            yandexYclid: createdOrder.yandexYclid,
+          });
           return createdOrder;
         });
 

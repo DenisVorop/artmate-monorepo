@@ -360,11 +360,11 @@ test("runtime param sanitization removes PII, nested values and invalid scalars"
     ym: (...args) => ymCalls.push(args),
   });
   const analytics = createAnalytics({
-    orderCreated: () =>
-      createGoalCommand("order_created", {
-        order_id: "order-1",
+    checkoutStarted: () =>
+      createGoalCommand("begin_checkout", {
+        cart_id: "cart-1",
         items_count: 2,
-        order_price: 599,
+        value: 599,
         currency: "RUB",
         email: "person@example.com",
         customer_name: "Person",
@@ -383,16 +383,16 @@ test("runtime param sanitization removes PII, nested values and invalid scalars"
       }),
   });
 
-  withWindow(analyticsWindow, () => analytics.send("orderCreated"));
+  withWindow(analyticsWindow, () => analytics.send("checkoutStarted"));
 
   const safeParams = {
-    order_id: "order-1",
+    cart_id: "cart-1",
     items_count: 2,
-    order_price: 599,
+    value: 599,
     currency: "RUB",
   };
-  assert.deepEqual(analyticsWindow.dataLayer, [{ event: "order_created", ...safeParams }]);
-  assert.deepEqual(ymCalls, [[109148727, "reachGoal", "order_created", safeParams]]);
+  assert.deepEqual(analyticsWindow.dataLayer, [{ event: "begin_checkout", ...safeParams }]);
+  assert.deepEqual(ymCalls, [[109148727, "reachGoal", "begin_checkout", safeParams]]);
 });
 
 test("goal runtime allowlist removes structurally valid extra fields", async () => {
@@ -435,7 +435,7 @@ test("invalid required goal params do not create partial conversions or consume 
     localStorage,
     ym: (...args) => ymCalls.push(args),
   });
-  let orderPrice = -1;
+  let cartValue = -1;
   const analytics = createAnalytics({
     productViewed: () =>
       createGoalCommand("product_view", {
@@ -443,35 +443,35 @@ test("invalid required goal params do not create partial conversions or consume 
         price: Number.NaN,
         currency: "USD",
       }),
-    orderCreated: () =>
+    checkoutStarted: () =>
       createGoalCommand(
-        "order_created",
+        "begin_checkout",
         {
-          order_id: "order-runtime-validation",
+          cart_id: "cart-runtime-validation",
           items_count: 1,
-          order_price: orderPrice,
+          value: cartValue,
           currency: "RUB",
         },
-        { scope: "local", entityKey: "order-runtime-validation" },
+        { scope: "local", entityKey: "cart-runtime-validation" },
       ),
   });
 
   withWindow(analyticsWindow, () => {
     analytics.send("productViewed");
-    analytics.send("orderCreated");
+    analytics.send("checkoutStarted");
     assert.equal(localStorage.values.size, 0);
 
-    orderPrice = 599;
-    analytics.send("orderCreated");
-    analytics.send("orderCreated");
+    cartValue = 599;
+    analytics.send("checkoutStarted");
+    analytics.send("checkoutStarted");
   });
 
   assert.deepEqual(analyticsWindow.dataLayer, [
     {
-      event: "order_created",
-      order_id: "order-runtime-validation",
+      event: "begin_checkout",
+      cart_id: "cart-runtime-validation",
       items_count: 1,
-      order_price: 599,
+      value: 599,
       currency: "RUB",
     },
   ]);

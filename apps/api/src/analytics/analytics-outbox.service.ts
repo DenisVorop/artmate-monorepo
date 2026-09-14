@@ -16,27 +16,33 @@ import { PrismaService } from "../prisma/prisma.service";
 import {
   YandexOfflineConversionsService,
   YandexOfflineConversionsHttpError,
-  type YandexOrderPaidPayload,
+  type YandexOrderConversionPayload,
+  type YandexUploading,
 } from "./yandex-offline-conversions.service";
 import {
   parseYandexAttribution,
   parseYandexAttributionIdentifier,
 } from "./yandex-attribution";
 
-type AnalyticsEventWriter = Pick<Prisma.TransactionClient, "analyticsOutboxEvent">;
-type PaidOrderSnapshot = {
+type AnalyticsEventWriter = Pick<
+  Prisma.TransactionClient,
+  "analyticsOutboxEvent"
+>;
+type OrderSnapshot = {
   readonly id: string;
   readonly subtotal: unknown;
   readonly discount: unknown;
-  readonly paidAt: Date | null;
   readonly yandexClientId: string | null;
   readonly yandexYclid: string | null;
 };
+type PaidOrderSnapshot = OrderSnapshot & { readonly paidAt: Date | null };
+type CreatedOrderSnapshot = OrderSnapshot & { readonly createdAt: Date };
 
 const analyticsPollIntervalMs = 5_000;
 const analyticsLeaseTimeoutMs = 5 * 60 * 1_000;
 const analyticsMaxEventsPerRun = 10;
 const diagnosticMaxLength = 2_000;
+const providerProcessingTimeoutMs = 24 * 60 * 60 * 1_000;
 
 @Injectable()
 export class AnalyticsOutboxService implements OnModuleInit, OnModuleDestroy {
@@ -62,9 +68,27 @@ export class AnalyticsOutboxService implements OnModuleInit, OnModuleDestroy {
     this.timer = undefined;
   }
 
-  async enqueueOrderPaid(
+  async enqueueOrderPaid(tx: AnalyticsEventWriter, order: PaidOrderSnapshot) {
+    return this.enqueueOrderConversion(tx, order, "order_paid", order.paidAt);
+  }
+
+  async enqueueOrderCreated(
     tx: AnalyticsEventWriter,
-    order: PaidOrderSnapshot,
+    order: CreatedOrderSnapshot,
+  ) {
+    return this.enqueueOrderConversion(
+      tx,
+      order,
+      "order_created",
+      order.createdAt,
+    );
+  }
+
+  private async enqueueOrderConversion(
+    tx: AnalyticsEventWriter,
+    order: OrderSnapshot,
+    target: YandexOrderConversionPayload["target"],
+    occurredAt: Date | null,
   ) {
     const { clientId, yclid } = parseYandexAttribution({
       clientId: order.yandexClientId,
@@ -72,23 +96,30 @@ export class AnalyticsOutboxService implements OnModuleInit, OnModuleDestroy {
     });
 
     const revenue = Number(order.subtotal) - Number(order.discount);
-    if (!Number.isFinite(revenue) || revenue < 0 || !order.paidAt) {
-      throw new Error(`Cannot create order_paid analytics for order ${order.id}`);
+    if (
+      !Number.isFinite(revenue) ||
+      revenue < 0 ||
+      !occurredAt ||
+      !Number.isFinite(occurredAt.getTime())
+    ) {
+      throw new Error(
+        `Cannot create ${target} analytics for order ${order.id}`,
+      );
     }
     const payload = Object.freeze({
       ...(clientId ? { clientId } : {}),
       currency: "RUB" as const,
-      dateTime: Math.floor(order.paidAt.getTime() / 1_000),
+      dateTime: Math.floor(occurredAt.getTime() / 1_000),
       price: revenue.toFixed(2),
       purchaseId: order.id,
-      target: "order_paid" as const,
+      target,
       ...(yclid ? { yclid } : {}),
     });
 
     await tx.analyticsOutboxEvent.create({
       data: {
         aggregateId: order.id,
-        eventType: "order_paid",
+        eventType: target,
         payload,
       },
     });
@@ -99,7 +130,11 @@ export class AnalyticsOutboxService implements OnModuleInit, OnModuleDestroy {
     this.isProcessing = true;
     try {
       await this.releaseStaleLeases();
-      for (let processed = 0; processed < analyticsMaxEventsPerRun; processed += 1) {
+      for (
+        let processed = 0;
+        processed < analyticsMaxEventsPerRun;
+        processed += 1
+      ) {
         const event = await this.claimDueEvent();
         if (!event) break;
         await this.processEvent(event);
@@ -139,7 +174,9 @@ export class AnalyticsOutboxService implements OnModuleInit, OnModuleDestroy {
     const now = new Date();
     const due = await this.prisma.analyticsOutboxEvent.findMany({
       where: {
-        status: AnalyticsOutboxStatus.PENDING,
+        status: {
+          in: [AnalyticsOutboxStatus.PENDING, AnalyticsOutboxStatus.SENT],
+        },
         nextAttemptAt: { lte: now },
       },
       orderBy: [{ nextAttemptAt: "asc" }, { createdAt: "asc" }],
@@ -151,7 +188,7 @@ export class AnalyticsOutboxService implements OnModuleInit, OnModuleDestroy {
       const result = await this.prisma.analyticsOutboxEvent.updateMany({
         where: {
           id: event.id,
-          status: AnalyticsOutboxStatus.PENDING,
+          status: event.status,
           nextAttemptAt: { lte: now },
         },
         data: {
@@ -174,35 +211,38 @@ export class AnalyticsOutboxService implements OnModuleInit, OnModuleDestroy {
 
   private async processEvent(event: AnalyticsOutboxEvent) {
     try {
+      // Legacy SENT means accepted, not processed. Never re-upload an accepted
+      // event whose remote ID has been lost: doing so could double-count it.
+      if (event.sentAt && !event.providerUploadId) {
+        throw new InvalidAnalyticsPayloadError(
+          "Accepted analytics upload has no provider id",
+        );
+      }
       const payload = this.parsePayload(event);
       const comment = this.uploadComment(event.id);
       const beforeRequest = () => this.renewLease(event);
       const uploading = event.providerUploadId
-        ? await this.yandex.findUploadingById(event.providerUploadId, beforeRequest)
+        ? await this.yandex.findUploadingById(
+            event.providerUploadId,
+            beforeRequest,
+          )
         : await this.yandex.findUploadingByComment(comment, beforeRequest);
-      const reconciled = uploading ??
+      const reconciled =
+        uploading ??
         (event.providerUploadId
           ? null
           : await this.yandex.upload(payload, comment, beforeRequest));
 
       if (!reconciled) {
-        throw new Error(`Yandex upload ${event.providerUploadId} was not found`);
+        throw new Error(
+          `Yandex upload ${event.providerUploadId} was not found`,
+        );
       }
       if (reconciled.comment !== comment) {
         throw new Error("Yandex upload comment does not match outbox event");
       }
 
-      await this.completeLease(event, {
-        attempts: event.attempts + 1,
-        failedAt: null,
-        lastError: null,
-        lockedAt: null,
-        leaseToken: null,
-        providerUploadId: reconciled.id,
-        providerResponse: reconciled.providerResponse.slice(0, diagnosticMaxLength),
-        sentAt: new Date(),
-        status: AnalyticsOutboxStatus.SENT,
-      });
+      await this.recordUploading(event, reconciled);
     } catch (error) {
       if (error instanceof LostAnalyticsLeaseError) {
         return;
@@ -229,6 +269,73 @@ export class AnalyticsOutboxService implements OnModuleInit, OnModuleDestroy {
         throw transitionError;
       }
     }
+  }
+
+  private async recordUploading(
+    event: AnalyticsOutboxEvent,
+    uploading: YandexUploading,
+  ) {
+    const now = new Date();
+    const sentAt = event.sentAt ?? now;
+    const common = {
+      attempts: event.attempts + 1,
+      lockedAt: null,
+      leaseToken: null,
+      providerUploadId: uploading.id,
+      providerStatus: uploading.status,
+      providerResponse: uploading.providerResponse.slice(
+        0,
+        diagnosticMaxLength,
+      ),
+      sentAt,
+    };
+    let failure: string | undefined;
+
+    if (uploading.status === "LINKAGE_FAILURE") {
+      failure =
+        "YANDEX_LINKAGE_FAILURE: conversion was not linked to a visitor";
+    } else if (
+      uploading.status === "PROCESSED" &&
+      !uploading.verificationError
+    ) {
+      if (
+        uploading.sourceQuantity === 1 &&
+        uploading.lineQuantity === 1 &&
+        (uploading.linkedQuantity === undefined ||
+          uploading.linkedQuantity === 1)
+      ) {
+        await this.completeLease(event, {
+          ...common,
+          confirmedAt: now,
+          failedAt: null,
+          lastError: null,
+          status: AnalyticsOutboxStatus.CONFIRMED,
+        });
+        return;
+      }
+      failure =
+        "YANDEX_CONVERSION_COUNT_MISMATCH: expected one processed conversion";
+    } else if (
+      now.getTime() - sentAt.getTime() >=
+      providerProcessingTimeoutMs
+    ) {
+      failure =
+        "YANDEX_PROCESSING_TIMEOUT: upload was not confirmed within 24 hours";
+    }
+
+    await this.completeLease(event, {
+      ...common,
+      confirmedAt: null,
+      failedAt: failure ? now : null,
+      lastError: failure ?? uploading.verificationError ?? null,
+      nextAttemptAt: new Date(
+        now.getTime() + this.retryDelayMs(event.attempts + 1),
+      ),
+      status: failure
+        ? AnalyticsOutboxStatus.FAILED
+        : AnalyticsOutboxStatus.SENT,
+    });
+    if (failure) this.logger.warn(`Analytics event ${event.id}: ${failure}`);
   }
 
   private retryLease(
@@ -291,13 +398,20 @@ export class AnalyticsOutboxService implements OnModuleInit, OnModuleDestroy {
     if (result.count !== 1) throw new LostAnalyticsLeaseError();
   }
 
-  private parsePayload(event: AnalyticsOutboxEvent): YandexOrderPaidPayload {
-    if (event.eventType !== "order_paid") {
+  private parsePayload(
+    event: AnalyticsOutboxEvent,
+  ): YandexOrderConversionPayload {
+    if (
+      event.eventType !== "order_paid" &&
+      event.eventType !== "order_created"
+    ) {
       throw new InvalidAnalyticsPayloadError("Analytics event type is invalid");
     }
     const value = event.payload;
     if (!value || typeof value !== "object" || Array.isArray(value)) {
-      throw new InvalidAnalyticsPayloadError("Analytics payload must be an object");
+      throw new InvalidAnalyticsPayloadError(
+        "Analytics payload must be an object",
+      );
     }
     const payload = value as Record<string, Prisma.JsonValue>;
     const allowed = new Set([
@@ -310,12 +424,14 @@ export class AnalyticsOutboxService implements OnModuleInit, OnModuleDestroy {
       "yclid",
     ]);
     if (Object.keys(payload).some((key) => !allowed.has(key))) {
-      throw new InvalidAnalyticsPayloadError("Analytics payload has unknown fields");
+      throw new InvalidAnalyticsPayloadError(
+        "Analytics payload has unknown fields",
+      );
     }
     const clientId = this.optionalIdentifier(payload.clientId);
     const yclid = this.optionalIdentifier(payload.yclid);
     if (
-      payload.target !== "order_paid" ||
+      payload.target !== event.eventType ||
       payload.currency !== "RUB" ||
       typeof payload.purchaseId !== "string" ||
       !payload.purchaseId ||
@@ -337,7 +453,7 @@ export class AnalyticsOutboxService implements OnModuleInit, OnModuleDestroy {
       dateTime: payload.dateTime,
       price: payload.price,
       purchaseId: payload.purchaseId,
-      target: "order_paid",
+      target: event.eventType,
       ...(yclid ? { yclid } : {}),
     });
   }

@@ -10,6 +10,42 @@ import type { PrismaService } from "../src/prisma/prisma.service";
 import type { YandexOfflineConversionsService } from "../src/analytics/yandex-offline-conversions.service";
 
 describe("analytics order attribution and outbox", () => {
+  it("persists order_created using the saved creation time and revenue without delivery", async () => {
+    const writes: Array<{ data: { eventType: string; payload: object } }> = [];
+    const writer = {
+      analyticsOutboxEvent: {
+        create: async (input: (typeof writes)[number]) => {
+          writes.push(input);
+        },
+      },
+    };
+    await createService().enqueueOrderCreated(writer as never, {
+      id: "AM-CREATED-1",
+      createdAt: new Date("2026-09-08T12:49:58.000Z"),
+      subtotal: 799,
+      discount: 100,
+      yandexClientId: "123456",
+      yandexYclid: null,
+    });
+    assert.deepEqual(writes, [
+      {
+        data: {
+          aggregateId: "AM-CREATED-1",
+          eventType: "order_created",
+          payload: {
+            clientId: "123456",
+            currency: "RUB",
+            dateTime: Date.parse("2026-09-08T12:49:58.000Z") / 1000,
+            price: "699.00",
+            purchaseId: "AM-CREATED-1",
+            target: "order_created",
+          },
+        },
+      },
+    ]);
+    assert.ok(Object.isFrozen(writes[0]?.data.payload));
+  });
+
   it("accepts only bounded ASCII numeric private Yandex attribution", async () => {
     for (const value of ["1", "9".repeat(128)]) {
       const request = createRequest({ clientId: value, yclid: value });
@@ -87,7 +123,8 @@ describe("analytics order attribution and outbox", () => {
     await createService().enqueueOrderPaid(
       {
         analyticsOutboxEvent: {
-          create: async (input: { data: { payload: object } }) => writes.push(input),
+          create: async (input: { data: { payload: object } }) =>
+            writes.push(input),
         },
       } as never,
       {

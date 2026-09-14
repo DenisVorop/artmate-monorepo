@@ -341,6 +341,9 @@ describe("OrdersStorage checkout idempotency", () => {
       fixture.storage.createOrder({ ...createStoredOrderInput(), promoCode: "TEST" }),
       (error) => error === reservationFailure,
     );
+    assert.equal(fixture.orders.length, 0);
+    assert.equal(fixture.createdEvents.length, 0);
+    assert.equal(fixture.activationCount(), 0);
   });
 
   it("prelinks a guest and returns one order for concurrent equivalent attempts", async () => {
@@ -360,6 +363,71 @@ describe("OrdersStorage checkout idempotency", () => {
     assert.equal(fixture.orders[0]?.yandexClientId, "123456");
     assert.equal(fixture.orders[0]?.yandexYclid, "987654");
     assert.equal(fixture.orders[0]?.customerPhone, "+7 (999) 123-45-67");
+    assert.equal(fixture.createdEvents.length, 1);
+    assert.equal(fixture.createdEvents[0]?.id, first.id);
+  });
+
+  it("enqueues the persisted creation snapshot after promo pricing in the same transaction", async () => {
+    const fixture = createStorageFixture({
+      reserveInTransaction: async () => {
+        assert.equal(fixture.createdEvents.length, 0);
+        const stored = fixture.orders[0];
+        assert.ok(stored);
+        stored.discount = 100;
+        stored.total = 1_000;
+        return {
+          pricingSnapshot: {
+            subtotalKopecks: 100_000,
+            discountKopecks: 10_000,
+            totalKopecks: 90_000,
+            items: [{ priceGroups: [{ quantity: 1, unitPriceKopecks: 90_000 }] }],
+          },
+        };
+      },
+    } as never);
+
+    const order = await fixture.storage.createOrder({
+      ...createStoredOrderInput(),
+      promoCode: "TEST",
+    });
+
+    assert.deepEqual(fixture.createdEvents, [{
+      id: order.id,
+      createdAt: new Date("2026-09-08T12:49:58.000Z"),
+      subtotal: 1_000,
+      discount: 100,
+      yandexClientId: "123456",
+      yandexYclid: "987654",
+    }]);
+  });
+
+  it("rolls back the order and guest attachment if creation outbox persistence fails", async () => {
+    const enqueueFailure = new Error("Intentional outbox persistence failure");
+    const fixture = createStorageFixture(undefined, { enqueueFailure });
+
+    await assert.rejects(
+      fixture.storage.createOrder(createStoredOrderInput()),
+      (error) => error === enqueueFailure,
+    );
+
+    assert.equal(fixture.orders.length, 0);
+    assert.equal(fixture.activationCount(), 0);
+    assert.equal(fixture.createdEvents.length, 0);
+  });
+
+  it("rolls back the creation outbox alongside the order if its transaction cannot commit", async () => {
+    const commitFailure = new Error("Intentional transaction commit failure");
+    const fixture = createStorageFixture(undefined, { commitFailure });
+
+    await assert.rejects(
+      fixture.storage.createOrder(createStoredOrderInput()),
+      (error) => error === commitFailure,
+    );
+
+    assert.equal(fixture.orders.length, 0);
+    assert.equal(fixture.activationCount(), 0);
+    assert.equal(fixture.createdEvents.length, 0);
+    assert.equal(fixture.enqueueAttempts(), 1);
   });
 
   it("drops invalid attribution on direct storage calls", async () => {
@@ -406,6 +474,7 @@ describe("OrdersStorage checkout idempotency", () => {
     assert.equal(fixture.orders[0]?.checkoutActorUserId, null);
     assert.equal(fixture.orders[0]?.userId, "guest-user");
     assert.equal(fixture.activationCount(), 1);
+    assert.equal(fixture.createdEvents.length, 1);
   });
 
   it("rejects concurrent attempt reuse with a different payload fingerprint", async () => {
@@ -996,9 +1065,14 @@ function createStoredOrderInput() {
 
 function createStorageFixture(
   promocodesService: ConstructorParameters<typeof OrdersStorage>[1] = {} as never,
+  options: { enqueueFailure?: Error; commitFailure?: Error } = {},
 ) {
   const orders: Array<Record<string, unknown>> = [];
+  const createdEvents: Array<Record<string, unknown>> = [];
   let activations = 0;
+  let enqueueAttempts = 0;
+  let activeTransaction: unknown;
+  let transactionTail = Promise.resolve();
   const order = {
     create: async ({ data }: { data: Record<string, unknown> }) => {
       if (
@@ -1016,6 +1090,8 @@ function createStorageFixture(
         ...data,
         checkoutActorUserId: data.checkoutActorUserId ?? null,
         userId: data.userId ?? null,
+        createdAt: new Date("2026-09-08T12:49:58.000Z"),
+        discount: 0,
       };
       orders.push(stored);
       return stored;
@@ -1033,8 +1109,28 @@ function createStorageFixture(
         where.id === "user-2" ? { id: "user-2" } : null,
     },
     order,
-    $transaction: async (operation: (tx: unknown) => Promise<unknown>) =>
-      operation({ order }),
+    $transaction: (operation: (tx: unknown) => Promise<unknown>) => {
+      const transaction = transactionTail.then(async () => {
+        const previousOrders = orders.map((value) => ({ ...value }));
+        const previousEvents = createdEvents.map((value) => ({ ...value }));
+        const previousActivations = activations;
+        activeTransaction = { order };
+        try {
+          const result = await operation(activeTransaction);
+          if (options.commitFailure) throw options.commitFailure;
+          return result;
+        } catch (error) {
+          orders.splice(0, orders.length, ...previousOrders);
+          createdEvents.splice(0, createdEvents.length, ...previousEvents);
+          activations = previousActivations;
+          throw error;
+        } finally {
+          activeTransaction = undefined;
+        }
+      });
+      transactionTail = transaction.then(() => undefined, () => undefined);
+      return transaction;
+    },
   };
   const storage = new OrdersStorage(
     prisma as unknown as PrismaService,
@@ -1050,11 +1146,29 @@ function createStorageFixture(
         return "guest-user";
       },
     } as never,
+    {
+      enqueueOrderCreated: async (
+        tx: unknown,
+        snapshot: Record<string, unknown>,
+      ) => {
+        assert.ok(activeTransaction);
+        assert.equal(tx, activeTransaction);
+        enqueueAttempts += 1;
+        if (options.enqueueFailure) throw options.enqueueFailure;
+        createdEvents.push(snapshot);
+      },
+    } as never,
   );
   (storage as unknown as { mapOrder: (value: unknown) => unknown }).mapOrder =
     (value) => value;
 
-  return { activationCount: () => activations, orders, storage };
+  return {
+    activationCount: () => activations,
+    createdEvents,
+    enqueueAttempts: () => enqueueAttempts,
+    orders,
+    storage,
+  };
 }
 
 function createThrottlePrisma() {

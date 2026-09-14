@@ -28,23 +28,31 @@ describe("Yandex offline conversions", () => {
   it("posts the exact official URL with OAuth and multipart CSV", async () => {
     process.env.YANDEX_METRIKA_ID = "109148727";
     process.env.YANDEX_METRIKA_OAUTH_TOKEN = "secret-token";
-    let request: { input: string | URL | Request; init?: RequestInit } | undefined;
+    let request:
+      | { input: string | URL | Request; init?: RequestInit }
+      | undefined;
     globalThis.fetch = async (input, init) => {
       request = { input, init };
-      return new Response('{"uploading":{"id":1,"comment":"artmateevent1"}}', {
-        status: 200,
-      });
+      return new Response(
+        '{"uploading":{"id":1,"comment":"artmateevent1","status":"UPLOADED","source_quantity":1,"line_quantity":1}}',
+        {
+          status: 200,
+        },
+      );
     };
 
-    const response = await new YandexOfflineConversionsService().upload({
-      clientId: "123456",
-      currency: "RUB",
-      dateTime: 1788611696,
-      price: "2897.00",
-      purchaseId: "AM-PAID-1",
-      target: "order_paid",
-      yclid: "987654",
-    }, "artmateevent1");
+    const response = await new YandexOfflineConversionsService().upload(
+      {
+        clientId: "123456",
+        currency: "RUB",
+        dateTime: 1788611696,
+        price: "2897.00",
+        purchaseId: "AM-PAID-1",
+        target: "order_paid",
+        yclid: "987654",
+      },
+      "artmateevent1",
+    );
 
     assert.equal(
       String(request?.input),
@@ -66,20 +74,30 @@ describe("Yandex offline conversions", () => {
     assert.deepEqual(response, {
       comment: "artmateevent1",
       id: "1",
-      providerResponse: '{"uploading":{"id":1,"comment":"artmateevent1"}}',
+      status: "UPLOADED",
+      sourceQuantity: 1,
+      lineQuantity: 1,
+      providerResponse: JSON.stringify({
+        id: "1",
+        status: "UPLOADED",
+        sourceQuantity: 1,
+        lineQuantity: 1,
+      }),
     });
   });
 
   it("rejects malformed 2xx upload responses", async () => {
     process.env.YANDEX_METRIKA_ID = "109148727";
     process.env.YANDEX_METRIKA_OAUTH_TOKEN = "secret-token";
-    globalThis.fetch = async () => new Response('{"uploading":{"comment":"comment1"}}');
+    globalThis.fetch = async () =>
+      new Response('{"uploading":{"comment":"comment1"}}');
 
     await assert.rejects(
-      () => new YandexOfflineConversionsService().upload(
-        event().payload as never,
-        "comment1",
-      ),
+      () =>
+        new YandexOfflineConversionsService().upload(
+          event().payload as never,
+          "comment1",
+        ),
       /upload response is invalid/i,
     );
   });
@@ -91,23 +109,26 @@ describe("Yandex offline conversions", () => {
     const beforeRequestCalls: number[] = [];
     globalThis.fetch = async (input) => {
       urls.push(String(input));
-      const uploadings = urls.length === 1
-        ? Array.from({ length: 1_000 }, (_, index) => ({
-            comment: index === 0 ? "comment1suffix" : `other${index}`,
-            id: index + 1,
-          }))
-        : [{ comment: "comment1", id: 1001 }];
+      const uploadings =
+        urls.length === 1
+          ? Array.from({ length: 1_000 }, (_, index) => ({
+              comment: index === 0 ? "comment1suffix" : `other${index}`,
+              id: index + 1,
+            }))
+          : [{ comment: "comment1", id: 1001 }];
       return Response.json({ uploadings });
     };
 
     const service = new YandexOfflineConversionsService();
-    const findUploadingByComment = service.findUploadingByComment.bind(service) as (
+    const findUploadingByComment = service.findUploadingByComment.bind(
+      service,
+    ) as (
       comment: string,
       beforeRequest?: () => Promise<void>,
     ) => Promise<YandexUploading | null>;
     const uploading = await findUploadingByComment("comment1", async () => {
-        beforeRequestCalls.push(urls.length);
-      });
+      beforeRequestCalls.push(urls.length);
+    });
 
     assert.equal(urls.length, 2);
     assert.deepEqual(beforeRequestCalls, [0, 1]);
@@ -138,7 +159,8 @@ describe("Yandex offline conversions", () => {
     await assert.rejects(
       () => new YandexOfflineConversionsService().findUploadingById("42"),
       (error: unknown) =>
-        error instanceof YandexOfflineConversionsHttpError && error.status === 404,
+        error instanceof YandexOfflineConversionsHttpError &&
+        error.status === 404,
     );
   });
 
@@ -189,9 +211,7 @@ describe("Yandex offline conversions", () => {
               firstClaimStarted.resolve();
               await releaseFirstClaim.promise;
             }
-            const due = input.where.nextAttemptAt as
-              | { lte?: Date }
-              | undefined;
+            const due = input.where.nextAttemptAt as { lte?: Date } | undefined;
             if (
               state.status !== AnalyticsOutboxStatus.PENDING ||
               (due?.lte && state.nextAttemptAt > due.lte)
@@ -223,7 +243,7 @@ describe("Yandex offline conversions", () => {
       findUploadingById: async () => null,
       upload: async (_payload: unknown, comment: string) => {
         firstUploads += 1;
-        return { comment, id: "1", providerResponse: "accepted" };
+        return processedUploading(comment, "1");
       },
     } as unknown as YandexOfflineConversionsService);
     const second = new AnalyticsOutboxService(prisma, {
@@ -265,7 +285,7 @@ describe("Yandex offline conversions", () => {
 
     assert.equal(
       fixture.updates[fixture.updates.length - 1]?.data.status,
-      AnalyticsOutboxStatus.SENT,
+      AnalyticsOutboxStatus.CONFIRMED,
     );
   });
 
@@ -286,32 +306,41 @@ describe("Yandex offline conversions", () => {
     let uploadCount = 0;
     let remoteUpload: YandexUploading | undefined;
     let failLocalWrite = true;
-    const prisma = createStatefulPrisma(state, (data: Record<string, unknown>) => {
-      if (data.providerUploadId && failLocalWrite) {
-        failLocalWrite = false;
-        throw new Error("database unavailable after remote upload");
-      }
-    });
+    const prisma = createStatefulPrisma(
+      state,
+      (data: Record<string, unknown>) => {
+        if (data.providerUploadId && failLocalWrite) {
+          failLocalWrite = false;
+          throw new Error("database unavailable after remote upload");
+        }
+      },
+    );
     const yandex = {
       findUploadingByComment: async (comment: string) =>
         remoteUpload?.comment === comment ? remoteUpload : null,
       findUploadingById: async () => null,
       upload: async (_payload: unknown, comment: string) => {
         uploadCount += 1;
-        remoteUpload = { comment, id: "42", providerResponse: "accepted" };
+        remoteUpload = processedUploading(comment, "42");
         return remoteUpload;
       },
     };
 
-    await new AnalyticsOutboxService(prisma as never, yandex as never).processDueEvents();
+    await new AnalyticsOutboxService(
+      prisma as never,
+      yandex as never,
+    ).processDueEvents();
     state.status = AnalyticsOutboxStatus.PENDING;
     state.lockedAt = null;
     state.nextAttemptAt = new Date(0);
-    await new AnalyticsOutboxService(prisma as never, yandex as never).processDueEvents();
+    await new AnalyticsOutboxService(
+      prisma as never,
+      yandex as never,
+    ).processDueEvents();
 
     assert.equal(uploadCount, 1);
     assert.equal(state.providerUploadId, "42");
-    assert.equal(state.status, AnalyticsOutboxStatus.SENT);
+    assert.equal(state.status, AnalyticsOutboxStatus.CONFIRMED);
   });
 
   it("reconciles a known provider upload id by GET without POST", async () => {
@@ -320,11 +349,12 @@ describe("Yandex offline conversions", () => {
     let detailCount = 0;
     const comment = deterministicComment(state.id);
     const yandex = {
-      findUploadingByComment: async () => assert.fail("comment search is not needed"),
+      findUploadingByComment: async () =>
+        assert.fail("comment search is not needed"),
       findUploadingById: async (id: string) => {
         detailCount += 1;
         assert.equal(id, "42");
-        return { comment, id, providerResponse: "reconciled" };
+        return processedUploading(comment, id);
       },
       upload: async () => {
         uploadCount += 1;
@@ -339,7 +369,226 @@ describe("Yandex offline conversions", () => {
 
     assert.equal(detailCount, 1);
     assert.equal(uploadCount, 0);
+    assert.equal(state.status, AnalyticsOutboxStatus.CONFIRMED);
+  });
+
+  it("waits for processing after POST, polls the same id and confirms exactly once", async () => {
+    const state = event();
+    const comment = deterministicComment(state.id);
+    let posts = 0;
+    let gets = 0;
+    const accepted = {
+      ...processedUploading(comment, "42"),
+      status: "UPLOADED" as const,
+    };
+    const yandex = {
+      findUploadingByComment: async () => null,
+      upload: async () => {
+        posts += 1;
+        return accepted;
+      },
+      findUploadingById: async (id: string) => {
+        assert.equal(id, "42");
+        gets += 1;
+        return processedUploading(comment, id);
+      },
+    };
+    const worker = new AnalyticsOutboxService(
+      createStatefulPrisma(state) as never,
+      yandex as never,
+    );
+    await worker.processDueEvents();
     assert.equal(state.status, AnalyticsOutboxStatus.SENT);
+    assert.equal(state.providerStatus, "UPLOADED");
+    assert.equal(state.providerUploadId, "42");
+    assert.equal(state.confirmedAt, null);
+    assert.ok(state.sentAt instanceof Date);
+    const sentAt = state.sentAt;
+    assert.ok(state.nextAttemptAt > new Date());
+    await worker.processDueEvents();
+    assert.equal(gets, 0, "do not poll before backoff expires");
+    state.nextAttemptAt = new Date(0);
+    await worker.processDueEvents();
+    assert.equal(state.status, AnalyticsOutboxStatus.CONFIRMED);
+    assert.equal(state.providerStatus, "PROCESSED");
+    assert.equal(state.sentAt, sentAt);
+    assert.ok((state as AnalyticsOutboxEvent).confirmedAt instanceof Date);
+    await worker.processDueEvents();
+    assert.equal(posts, 1);
+    assert.equal(gets, 1);
+  });
+
+  it("rechecks legacy SENT rows without creating another upload", async () => {
+    const state = event({
+      status: AnalyticsOutboxStatus.SENT,
+      providerUploadId: "42",
+      sentAt: new Date("2026-09-08T13:04:35Z"),
+    });
+    const worker = new AnalyticsOutboxService(
+      createStatefulPrisma(state) as never,
+      {
+        findUploadingByComment: async () => assert.fail("must use existing id"),
+        upload: async () => assert.fail("must not resend a legacy conversion"),
+        findUploadingById: async () => ({
+          ...processedUploading(deterministicComment(state.id), "42"),
+          status: "LINKAGE_FAILURE",
+        }),
+      } as never,
+    );
+    await worker.processDueEvents();
+    assert.equal(state.status, AnalyticsOutboxStatus.FAILED);
+    assert.equal(state.providerStatus, "LINKAGE_FAILURE");
+    assert.match(state.lastError ?? "", /YANDEX_LINKAGE_FAILURE/);
+    assert.equal(state.confirmedAt, null);
+    assert.ok(state.failedAt instanceof Date);
+    await worker.processDueEvents();
+    assert.equal(state.attempts, 1);
+  });
+
+  it("does not POST a legacy accepted event with a missing upload id", async () => {
+    const state = event({
+      status: AnalyticsOutboxStatus.SENT,
+      sentAt: new Date(),
+      providerUploadId: null,
+    });
+    const worker = new AnalyticsOutboxService(
+      createStatefulPrisma(state) as never,
+      {} as never,
+    );
+    await worker.processDueEvents();
+    assert.equal(state.status, AnalyticsOutboxStatus.FAILED);
+    assert.match(state.lastError ?? "", /no provider id/);
+  });
+
+  for (const status of [
+    "PREPARED",
+    "UPLOADED",
+    "EXPORTED",
+    "MATCHED",
+    "UNKNOWN",
+  ] as const) {
+    it(`does not confirm intermediate or unknown provider status ${status}`, async () => {
+      const state = event();
+      const fixture = createWorkerFixture([state], {
+        ...processedUploading(deterministicComment(state.id), "42"),
+        status,
+      });
+      await fixture.service.processDueEvents();
+      assert.equal(state.status, AnalyticsOutboxStatus.SENT);
+      assert.equal(state.providerStatus, status);
+      assert.equal(state.providerUploadId, "42");
+      assert.equal(state.confirmedAt, null);
+      assert.equal(state.failedAt, null);
+      assert.ok(state.nextAttemptAt > new Date());
+    });
+  }
+
+  it("keeps an upload id when provider verification metadata is malformed", async () => {
+    const state = event();
+    const fixture = createWorkerFixture([state], {
+      ...processedUploading(deterministicComment(state.id), "42"),
+      verificationError: "Invalid Yandex line_quantity",
+    });
+    await fixture.service.processDueEvents();
+    assert.equal(state.status, AnalyticsOutboxStatus.SENT);
+    assert.equal(state.providerUploadId, "42");
+    assert.equal(state.lastError, "Invalid Yandex line_quantity");
+    assert.equal(state.confirmedAt, null);
+  });
+
+  for (const counts of [
+    { lineQuantity: 0 },
+    { sourceQuantity: 2 },
+    { linkedQuantity: 0 },
+    { linkedQuantity: 2 },
+    { lineQuantity: undefined },
+  ]) {
+    it(`fails PROCESSED with unexpected conversion counts ${JSON.stringify(counts)}`, async () => {
+      const state = event();
+      const fixture = createWorkerFixture([state], {
+        ...processedUploading(deterministicComment(state.id), "42"),
+        ...counts,
+      });
+      await fixture.service.processDueEvents();
+      assert.equal(state.status, AnalyticsOutboxStatus.FAILED);
+      assert.equal(state.providerStatus, "PROCESSED");
+      assert.equal(state.confirmedAt, null);
+      assert.match(state.lastError ?? "", /COUNT_MISMATCH/);
+    });
+  }
+
+  it("accepts documented PROCESSED success when optional linked_quantity is absent", async () => {
+    const state = event();
+    const fixture = createWorkerFixture([state], {
+      ...processedUploading(deterministicComment(state.id), "42"),
+      linkedQuantity: undefined,
+    });
+    await fixture.service.processDueEvents();
+    assert.equal(state.status, AnalyticsOutboxStatus.CONFIRMED);
+  });
+
+  it("stops checking a non-final upload after 24 hours without another POST", async () => {
+    const state = event({
+      status: AnalyticsOutboxStatus.SENT,
+      providerUploadId: "42",
+      sentAt: new Date(Date.now() - 25 * 60 * 60 * 1000),
+    });
+    const worker = new AnalyticsOutboxService(
+      createStatefulPrisma(state) as never,
+      {
+        findUploadingById: async () => ({
+          ...processedUploading(deterministicComment(state.id), "42"),
+          status: "UPLOADED",
+        }),
+        upload: async () => assert.fail("must not upload again"),
+      } as never,
+    );
+    await worker.processDueEvents();
+    assert.equal(state.status, AnalyticsOutboxStatus.FAILED);
+    assert.match(state.lastError ?? "", /PROCESSING_TIMEOUT/);
+  });
+
+  it("retries temporary status lookup errors without uploading again", async () => {
+    const state = event({
+      status: AnalyticsOutboxStatus.SENT,
+      providerUploadId: "42",
+      sentAt: new Date(),
+    });
+    let gets = 0;
+    const worker = new AnalyticsOutboxService(
+      createStatefulPrisma(state) as never,
+      {
+        findUploadingById: async () => {
+          gets += 1;
+          if (gets === 1)
+            throw new YandexOfflineConversionsHttpError(503, "unavailable");
+          return processedUploading(deterministicComment(state.id), "42");
+        },
+        upload: async () => assert.fail("must not upload again"),
+      } as never,
+    );
+    await worker.processDueEvents();
+    assert.equal(state.status, AnalyticsOutboxStatus.PENDING);
+    assert.equal(state.providerUploadId, "42");
+    state.nextAttemptAt = new Date(0);
+    await worker.processDueEvents();
+    assert.equal(gets, 2);
+    assert.equal(state.status, AnalyticsOutboxStatus.CONFIRMED);
+  });
+
+  it("uploads server order_created with its own target and rejects target mismatch", async () => {
+    const state = event({
+      eventType: "order_created",
+      payload: { ...(event().payload as object), target: "order_created" },
+    });
+    const fixture = createWorkerFixture([state]);
+    await fixture.service.processDueEvents();
+    assert.equal(state.status, AnalyticsOutboxStatus.CONFIRMED);
+    const invalid = event({ eventType: "order_created" });
+    const invalidFixture = createWorkerFixture([invalid]);
+    await invalidFixture.service.processDueEvents();
+    assert.equal(invalid.status, AnalyticsOutboxStatus.FAILED);
+    assert.equal(invalidFixture.uploads(), 0);
   });
 
   for (const status of [408, 429, 500, 503, 599]) {
@@ -354,7 +603,11 @@ describe("Yandex offline conversions", () => {
       const update = fixture.updates[fixture.updates.length - 1]?.data;
       assert.equal(update?.status, AnalyticsOutboxStatus.PENDING);
       assert.equal(update?.attempts, 1);
-      assert.equal((update?.lastError as string).length, 2000);
+      assert.ok((update?.lastError as string).length < 2000);
+      assert.equal(
+        (update?.lastError as string).includes("x".repeat(20)),
+        false,
+      );
       assert.ok(update?.nextAttemptAt instanceof Date);
       assert.equal(state.failedAt, null);
       assert.equal(state.leaseToken, null);
@@ -379,7 +632,10 @@ describe("Yandex offline conversions", () => {
     const state = event();
     const fixture = createWorkerFixture(
       [state],
-      new DOMException("The operation was aborted due to timeout", "TimeoutError"),
+      new DOMException(
+        "The operation was aborted due to timeout",
+        "TimeoutError",
+      ),
     );
     await fixture.service.processDueEvents();
 
@@ -418,31 +674,28 @@ describe("Yandex offline conversions", () => {
   });
 
   for (const status of [400, 401, 403, 404, 418, 422]) {
-    it(
-      `permanently fails HTTP ${status}, clears its lease, and is not retried`,
-      async () => {
-        const state = event();
-        const fixture = createWorkerFixture(
-          [state],
-          new Response("invalid conversion", { status }),
-        );
+    it(`permanently fails HTTP ${status}, clears its lease, and is not retried`, async () => {
+      const state = event();
+      const fixture = createWorkerFixture(
+        [state],
+        new Response("invalid conversion", { status }),
+      );
 
-        await fixture.service.processDueEvents();
-        await fixture.service.processDueEvents();
+      await fixture.service.processDueEvents();
+      await fixture.service.processDueEvents();
 
-        assert.equal(state.status, AnalyticsOutboxStatus.FAILED);
-        assert.equal(state.attempts, 1);
-        assert.ok(state.failedAt instanceof Date);
-        assert.equal(state.leaseToken, null);
-        assert.equal(state.lockedAt, null);
-        assert.equal(fixture.uploads(), 1);
-      },
-    );
+      assert.equal(state.status, AnalyticsOutboxStatus.FAILED);
+      assert.equal(state.attempts, 1);
+      assert.ok(state.failedAt instanceof Date);
+      assert.equal(state.leaseToken, null);
+      assert.equal(state.lockedAt, null);
+      assert.equal(fixture.uploads(), 1);
+    });
   }
 
   it("terminally rejects mismatched outbox identity without contacting Yandex", async () => {
     const fixture = createWorkerFixture([
-      event({ id: "invalid-event-type", eventType: "order_created" }),
+      event({ id: "invalid-event-type", eventType: "order_unknown" }),
       event({
         aggregateId: "AM-PAID-2",
         id: "invalid-purchase-id",
@@ -460,18 +713,32 @@ describe("Yandex offline conversions", () => {
       fixture.updates
         .filter((update) => update.data.status === AnalyticsOutboxStatus.FAILED)
         .map((update) => update.data.lastError),
-      ["Analytics event type is invalid", "Analytics purchase id does not match aggregate"],
+      [
+        "Analytics event type is invalid",
+        "Analytics purchase id does not match aggregate",
+      ],
     );
   });
 });
 
+function processedUploading(comment: string, id: string): YandexUploading {
+  return {
+    comment,
+    id,
+    status: "PROCESSED",
+    sourceQuantity: 1,
+    lineQuantity: 1,
+    linkedQuantity: 1,
+    providerResponse: "processed",
+  };
+}
+
 function createWorkerFixture(
   events: AnalyticsOutboxEvent[],
-  result: Response | Error | YandexUploading = {
-    comment: deterministicComment("event-1"),
-    id: "1",
-    providerResponse: "accepted",
-  },
+  result: Response | Error | YandexUploading = processedUploading(
+    deterministicComment("event-1"),
+    "1",
+  ),
 ) {
   const staleReleaseCalls: Array<{
     where: Record<string, unknown>;
@@ -489,7 +756,8 @@ function createWorkerFixture(
         events
           .filter(
             (event) =>
-              event.status === AnalyticsOutboxStatus.PENDING &&
+              (event.status === AnalyticsOutboxStatus.PENDING ||
+                event.status === AnalyticsOutboxStatus.SENT) &&
               event.nextAttemptAt <= new Date(),
           )
           .slice(0, input.take ?? events.length),
@@ -579,7 +847,9 @@ function event(overrides: Partial<AnalyticsOutboxEvent> = {}) {
       yclid: "987654",
     },
     providerResponse: null,
+    providerStatus: null,
     providerUploadId: null,
+    confirmedAt: null,
     sentAt: null,
     status: AnalyticsOutboxStatus.PENDING,
     updatedAt: new Date("2026-09-05T12:35:00.000Z"),
@@ -595,7 +865,11 @@ function createStatefulPrisma(
   return {
     analyticsOutboxEvent: {
       findMany: async () =>
-        state.status === AnalyticsOutboxStatus.PENDING ? [{ ...state }] : [],
+        (state.status === AnalyticsOutboxStatus.PENDING ||
+          state.status === AnalyticsOutboxStatus.SENT) &&
+        state.nextAttemptAt <= new Date()
+          ? [{ ...state }]
+          : [],
       updateMany: async ({
         where,
         data,
