@@ -190,6 +190,117 @@ services:
       OPENAI_BASE_URL: ${OPENAI_BASE_URL:-}
       OPENAI_RELAY_TOKEN: ${OPENAI_RELAY_TOKEN:-}
 
+  coloring-api:
+    image: ghcr.io/denisvorop/artmate-monorepo-coloring:${IMAGE_TAG:-latest}
+    restart: unless-stopped
+    logging:
+      driver: json-file
+      options:
+        max-size: "10m"
+        max-file: "3"
+    init: true
+    entrypoint: ["coloring-api"]
+    command: []
+    environment: &coloring-environment
+      COLORING_DATA_DIR: /data/studio
+      COLORING_PUBLIC_URL: ${COLORING_PUBLIC_URL:?COLORING_PUBLIC_URL is required}
+      COLORING_PASSWORD_HASH: ${COLORING_PASSWORD_HASH:?COLORING_PASSWORD_HASH is required}
+      COLORING_STORAGE_MB: ${COLORING_STORAGE_MB:-2048}
+      COLORING_PREVIEW_TTL_SECONDS: ${COLORING_PREVIEW_TTL_SECONDS:-3600}
+      COLORING_JOB_TIMEOUT_SECONDS: ${COLORING_JOB_TIMEOUT_SECONDS:-600}
+    volumes:
+      - coloring-data:/data
+    read_only: true
+    tmpfs:
+      - /tmp:size=64m,mode=1777
+    cpus: 0.5
+    mem_limit: 512m
+    memswap_limit: 512m
+    pids_limit: 128
+    cap_drop: [ALL]
+    security_opt: ["no-new-privileges:true"]
+    healthcheck:
+      test:
+        [
+          "CMD",
+          "python",
+          "-c",
+          "import urllib.request; urllib.request.urlopen('http://127.0.0.1:8000/health', timeout=3)",
+        ]
+      interval: 15s
+      timeout: 5s
+      retries: 3
+      start_period: 20s
+
+  coloring-worker:
+    image: ghcr.io/denisvorop/artmate-monorepo-coloring:${IMAGE_TAG:-latest}
+    restart: unless-stopped
+    logging:
+      driver: json-file
+      options:
+        max-size: "10m"
+        max-file: "3"
+    init: true
+    entrypoint: ["coloring-worker"]
+    command: []
+    environment: *coloring-environment
+    volumes:
+      - coloring-data:/data
+    network_mode: none
+    read_only: true
+    tmpfs:
+      - /tmp:size=64m,mode=1777
+    cpus: 2.0
+    mem_limit: 2g
+    memswap_limit: 2g
+    pids_limit: 128
+    cap_drop: [ALL]
+    security_opt: ["no-new-privileges:true"]
+    stop_grace_period: 15s
+    depends_on:
+      coloring-api:
+        condition: service_healthy
+    healthcheck:
+      test:
+        [
+          "CMD",
+          "python",
+          "-c",
+          "import sqlite3,time; db=sqlite3.connect('file:/data/studio/studio.sqlite3?mode=ro',uri=True); row=db.execute('SELECT heartbeat FROM worker_status WHERE id=1').fetchone(); assert row and time.time()-row[0]<15",
+        ]
+      interval: 15s
+      timeout: 5s
+      retries: 3
+      start_period: 20s
+
+  studio:
+    image: ghcr.io/denisvorop/artmate-monorepo-studio:${IMAGE_TAG:-latest}
+    restart: unless-stopped
+    logging:
+      driver: json-file
+      options:
+        max-size: "10m"
+        max-file: "3"
+    environment:
+      NODE_ENV: production
+      PORT: 3005
+      HOSTNAME: 0.0.0.0
+    cpus: 1.0
+    mem_limit: 512m
+    memswap_limit: 512m
+    healthcheck:
+      test:
+        [
+          "CMD",
+          "node",
+          "-e",
+          "fetch('http://127.0.0.1:3005').then(r=>process.exit(r.ok?0:1)).catch(()=>process.exit(1))",
+        ]
+      interval: 15s
+      timeout: 5s
+      retries: 3
+      start_period: 20s
+
   caddy:
     image: caddy:2-alpine
     restart: unless-stopped
@@ -208,8 +319,11 @@ services:
       - admin
       - api
       - tg
+      - studio
+      - coloring-api
 
 volumes:
+  coloring-data:
   postgres-data:
   api-uploads:
   api-private-colorings:

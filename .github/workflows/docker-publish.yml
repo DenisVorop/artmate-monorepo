@@ -39,6 +39,10 @@ jobs:
             dockerfile: apps/edge-proxy/Dockerfile
           - app: tg
             dockerfile: apps/tg/Dockerfile
+          - app: coloring
+            dockerfile: services/coloring/Dockerfile
+          - app: studio
+            dockerfile: apps/studio/Dockerfile
 
     steps:
       - name: Checkout
