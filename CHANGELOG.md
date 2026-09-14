@@ -1,5 +1,18 @@
 # Changelog
 
+## [0.39.0](https://github.com/DenisVorop/artmate-monorepo/compare/v0.38.0...v0.39.0) (2026-09-14)
+
+
+### Features
+
+* **coloring:** add standalone generator service ([fb2ab46](https://github.com/DenisVorop/artmate-monorepo/commit/fb2ab4692c41c4f343c03068959cfbcbd3553122))
+* **studio:** add coloring project workspace ([b165f52](https://github.com/DenisVorop/artmate-monorepo/commit/b165f52553d59c9f6c8c0d96ad19a0559510cfef))
+
+
+### Bug Fixes
+
+* **analytics:** confirm order conversions ([fd569f4](https://github.com/DenisVorop/artmate-monorepo/commit/fd569f4e40d7af2db17dd58a4bb67242cf10cc3b))
+
 ## [0.38.0](https://github.com/DenisVorop/artmate-monorepo/compare/v0.37.2...v0.38.0) (2026-09-08)
 
 
