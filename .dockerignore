@@ -29,3 +29,17 @@ ozon-logistic-flow
 ozon_docs_apps
 apps/api/uploads
 apps/api/private
+
+# Standalone Python generator: exclude local results and development caches.
+**/__pycache__
+**/*.py[cod]
+**/*.egg-info
+**/.venv
+**/.pytest_cache
+**/.ruff_cache
+services/coloring/outputs
+services/coloring/data
+services/coloring/tests
+
+# Model weights are verified and downloaded in the coloring build stage.
+services/coloring/src/mystery_coloring/details/models

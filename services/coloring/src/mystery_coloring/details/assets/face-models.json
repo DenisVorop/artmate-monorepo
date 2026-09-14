@@ -1,0 +1,41 @@
+{
+  "version": "hysts-anime-2021-v1",
+  "runtime": "anime-face-detector==0.1.0",
+  "models": [
+    {
+      "name": "yolov3",
+      "filename": "yolov3.safetensors",
+      "url": "https://huggingface.co/hysts/anime-face-detector-yolov3/resolve/afdd4226a79ae8bb81f334dbcffd34f8cc000c38/model.safetensors",
+      "bytes": 246354512,
+      "sha256": "23bbc708146bcbc1c910f00fe152adbc70d7658d875a0121eaf4ee61d978b2c4",
+      "revision": "afdd4226a79ae8bb81f334dbcffd34f8cc000c38",
+      "card": {
+        "license": "mit",
+        "pipeline_tag": "object-detection",
+        "library_name": "anime-face-detector",
+        "tags": [
+          "anime",
+          "face-detection"
+        ]
+      }
+    },
+    {
+      "name": "hrnetv2",
+      "filename": "hrnetv2.safetensors",
+      "url": "https://huggingface.co/hysts/anime-face-detector-hrnetv2/resolve/9b3435248b26aeb82e2a8578fe9d86d5d57158af/model.safetensors",
+      "bytes": 38917560,
+      "sha256": "e71271376406a743c01528a0460637fcc06e72aeeea583f85007cc72dc8b7a4a",
+      "revision": "9b3435248b26aeb82e2a8578fe9d86d5d57158af",
+      "card": {
+        "license": "mit",
+        "pipeline_tag": "keypoint-detection",
+        "library_name": "anime-face-detector",
+        "tags": [
+          "anime",
+          "face-detection",
+          "facial-landmarks"
+        ]
+      }
+    }
+  ]
+}

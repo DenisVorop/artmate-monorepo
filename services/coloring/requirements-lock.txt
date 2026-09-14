@@ -1,0 +1,7 @@
+-r requirements-runtime.txt
+-r requirements-build.txt
+pytest==9.1.1
+ruff==0.16.7
+iniconfig==2.3.0
+pluggy==1.6.0
+pygments==2.21.0
