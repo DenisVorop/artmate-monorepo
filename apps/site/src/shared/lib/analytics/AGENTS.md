@@ -20,7 +20,7 @@ shared/lib/analytics/create-analytics
 
 ```ts
 const analytics = useAnalytics();
-analytics.orderCreated(order);
+analytics.checkoutStarted(cart, attemptKey);
 ```
 
 - Прямые обращения к `window.dataLayer`, `window.ym`, counter ID и `reachGoal` вне shared transport запрещены.
@@ -42,9 +42,10 @@ analytics.orderCreated(order);
 - page view сущности — только после успешной client-загрузки и прохождения error/404 guards;
 - `begin_checkout` — только после свежего успешного чтения непустой корзины; stale cache
   во время refetch, loading/error и empty cart не являются входом в checkout;
-- `order_created` — первым действием после ответа create-order и до cache cleanup/payment redirect;
+- canonical `order_created` — только server/offline transactional outbox в транзакции
+  создания заказа, независимо от ответа браузеру и payment redirect;
 - canonical `order_paid` — только server/offline transactional outbox после verified paid
-  webhook провайдера; browser никогда не отправляет goal `order_paid`;
+  webhook провайдера; browser никогда не отправляет goals `order_created` / `order_paid`;
 - browser сохраняет только ecommerce `purchase` по свежему полному защищённому `OrderDTO`
   с `order.payment.status === "paid"`; paid из status polling сначала только инвалидирует
   detail query и не является достаточным purchase snapshot;
@@ -79,12 +80,18 @@ analytics.orderCreated(order);
   - `welcome_promo_click`;
   - `sign_up`;
   - `digital_versions_opened`;
-  - `digital_coloring_open`;
-  - `order_created`.
-- `order_paid` не входит в browser goal registry: canonical событие создаётся API в той же
-  транзакции, что и verified paid transition, и доставляется offline outbox worker.
+  - `digital_coloring_open`.
+- `order_created` и `order_paid` не входят в browser goal registry: canonical события
+  создаются API в транзакциях создания заказа / verified paid transition и доставляются
+  offline outbox worker. Приём файла Яндексом ещё не подтверждает обработку конверсии;
+  `LINKAGE_FAILURE` нельзя считать успешной доставкой.
 - CRM-цели заказа остаются серверным/offline источником истины. Не вызывайте их event ID
   или числовые goal ID из браузера.
+- Перед create-order feature ожидает `resolveYandexAttribution()` из shared transport:
+  свежий `getClientID` с ограничением 800 ms, без блокировки покупки при недоступной
+  Метрике. Идентификаторы проходят allowlist и 21-дневный TTL; при заблокированном
+  browser storage используется память текущей страницы. Ошибка storage не должна
+  прерывать вызов `getClientID`. Не подставляйте выдуманный ID или PII вместо ClientID.
 
 ## Ecommerce
 
@@ -127,13 +134,12 @@ URL и referrer перед отправкой проходят через `sanit
   новый key; email, verification code и user ID не входят ни в payload, ни в key;
 - открытия цифрового каталога, тематики и картины — memory key конкретного mount/view;
   Strict Mode и повтор effect не дублируют показ, новый реальный вход создаёт новый key;
-- `order_created` — session key по уникальному `orderId`, но не по `cartId`;
-- browser `purchase` — persistent key по `orderId`; server `order_paid` дедуплицируется
+- browser `purchase` — persistent key по `orderId`; server `order_created` / `order_paid` дедуплицируются
   уникальностью outbox `(eventType, aggregateId)` и безопасным lease/retry;
 - polling и React Strict Mode не должны создавать дубли;
 - одинаковые реальные повторные `add`/`remove` не дедуплицируются глобально;
-- browser goal и ecommerce action используют разные namespaces; server `order_paid` не
-  участвует в browser dedupe.
+- browser goal и ecommerce action используют разные namespaces; server order goals не
+  участвуют в browser dedupe.
 - `entityKey` содержит только публичный/технический ID товара, корзины, заказа или показа; email, телефон, имя, токен и другие персональные данные запрещены даже для ключей в browser storage.
 - Значение промокода и account/user ID не входят ни в promo payload, ни в promo dedupe key.
 
@@ -145,14 +151,15 @@ URL и referrer перед отправкой проходят через `sanit
 
 ```ts
 const analytics = createAnalytics({
-  orderCreated: (order: Order) => [
+  checkoutStarted: (cart: Cart, attemptKey: string) => [
     /* typed goal command */
   ],
 });
 
 export function useAnalytics() {
   return {
-    orderCreated: (order: Order) => analytics.send("orderCreated", order),
+    checkoutStarted: (cart: Cart, attemptKey: string) =>
+      analytics.send("checkoutStarted", cart, attemptKey),
   };
 }
 ```

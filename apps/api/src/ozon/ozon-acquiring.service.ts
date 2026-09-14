@@ -260,7 +260,7 @@ export class OzonAcquiringService {
     ) {
       throw this.createPublicBadGatewayException(
         "Ozon Acquiring order status response is invalid",
-        { body: this.sanitizeForDiagnostics(responseBody) },
+        { code: "status_lookup_invalid_response" },
       );
     }
 
@@ -477,6 +477,7 @@ export class OzonAcquiringService {
   ) {
     let response: Response;
     let responseBody: unknown;
+    const isStatusLookup = path === "/v1/getOrderStatus";
 
     try {
       response = await fetch(`${this.getBaseUrl()}${path}`, {
@@ -489,17 +490,19 @@ export class OzonAcquiringService {
       });
       responseBody = await this.parseResponseBody(response);
     } catch (error) {
+      const isTimeout =
+        error instanceof Error &&
+        (error.name === "TimeoutError" || error.name === "AbortError");
       const diagnostic =
-        error instanceof Error
-          ? { message: error.message, name: error.name }
-          : error;
+        isStatusLookup
+          ? { code: isTimeout ? "status_lookup_timeout" : "status_lookup_failed" }
+          : error instanceof Error
+            ? { message: error.message, name: error.name }
+            : error;
       this.logger.warn(
         `Ozon Acquiring ${path} transport failed: ${this.toLogString(diagnostic)}`,
       );
-      if (
-        error instanceof Error &&
-        (error.name === "TimeoutError" || error.name === "AbortError")
-      ) {
+      if (isTimeout) {
         throw new GatewayTimeoutException({
           error: "Gateway Timeout",
           message: publicErrorMessage,
@@ -513,6 +516,14 @@ export class OzonAcquiringService {
     }
 
     if (!response.ok) {
+      if (isStatusLookup) {
+        this.logger.warn(
+          `Ozon Acquiring ${path} failed with status ${response.status}`,
+        );
+        throw this.createPublicBadGatewayException(publicErrorMessage, {
+          status: response.status,
+        });
+      }
       const diagnosticBody = this.sanitizeForDiagnostics(responseBody);
       this.logger.warn(
         `Ozon Acquiring ${path} failed with status ${

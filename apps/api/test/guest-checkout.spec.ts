@@ -154,7 +154,7 @@ describe("guest checkout", () => {
     assert.equal(rejected.createInputs.length, 0);
   });
 
-  it("creates an unauthenticated order with userId undefined", async () => {
+  it("creates and provisions an unauthenticated order before bank initialization", async () => {
     const fixture = createServiceFixture();
 
     const order = await fixture.service.createOrder("cart-1", request, undefined);
@@ -165,6 +165,7 @@ describe("guest checkout", () => {
     assert.equal(fixture.createInputs[0]?.checkoutAttemptId, "opaque-attempt-1");
     assert.deepEqual(fixture.createInputs[0]?.attribution, request.attribution);
     assert.deepEqual(fixture.createInputs[0]?.customer, request.customer);
+    assert.deepEqual(fixture.events.slice(0, 2), ["create-order", "initialize-payment"]);
   });
 
   it("drops invalid attribution on direct service calls", async () => {
@@ -325,7 +326,27 @@ describe("CDEK shipment customer phone", () => {
 });
 
 describe("OrdersStorage checkout idempotency", () => {
-  it("stores userId null and returns one order for concurrent equivalent attempts", async () => {
+  it("attaches the guest before reserving a promo without granting the owner's promo identity", async () => {
+    const reservationFailure = new Error("Intentional promo failure");
+    const fixture = createStorageFixture({
+      reserveInTransaction: async (_tx: unknown, input: { userId?: string }) => {
+        assert.equal(fixture.activationCount(), 1);
+        assert.equal(fixture.orders[0]?.userId, "guest-user");
+        assert.equal(input.userId, undefined);
+        throw reservationFailure;
+      },
+    } as never);
+
+    await assert.rejects(
+      fixture.storage.createOrder({ ...createStoredOrderInput(), promoCode: "TEST" }),
+      (error) => error === reservationFailure,
+    );
+    assert.equal(fixture.orders.length, 0);
+    assert.equal(fixture.createdEvents.length, 0);
+    assert.equal(fixture.activationCount(), 0);
+  });
+
+  it("prelinks a guest and returns one order for concurrent equivalent attempts", async () => {
     const fixture = createStorageFixture();
     const input = createStoredOrderInput();
 
@@ -336,10 +357,77 @@ describe("OrdersStorage checkout idempotency", () => {
 
     assert.equal(first.id, second.id);
     assert.equal(fixture.orders.length, 1);
-    assert.equal(fixture.orders[0]?.userId, null);
+    assert.equal(fixture.orders[0]?.checkoutActorUserId, null);
+    assert.equal(fixture.orders[0]?.userId, "guest-user");
+    assert.equal(fixture.activationCount(), 1);
     assert.equal(fixture.orders[0]?.yandexClientId, "123456");
     assert.equal(fixture.orders[0]?.yandexYclid, "987654");
     assert.equal(fixture.orders[0]?.customerPhone, "+7 (999) 123-45-67");
+    assert.equal(fixture.createdEvents.length, 1);
+    assert.equal(fixture.createdEvents[0]?.id, first.id);
+  });
+
+  it("enqueues the persisted creation snapshot after promo pricing in the same transaction", async () => {
+    const fixture = createStorageFixture({
+      reserveInTransaction: async () => {
+        assert.equal(fixture.createdEvents.length, 0);
+        const stored = fixture.orders[0];
+        assert.ok(stored);
+        stored.discount = 100;
+        stored.total = 1_000;
+        return {
+          pricingSnapshot: {
+            subtotalKopecks: 100_000,
+            discountKopecks: 10_000,
+            totalKopecks: 90_000,
+            items: [{ priceGroups: [{ quantity: 1, unitPriceKopecks: 90_000 }] }],
+          },
+        };
+      },
+    } as never);
+
+    const order = await fixture.storage.createOrder({
+      ...createStoredOrderInput(),
+      promoCode: "TEST",
+    });
+
+    assert.deepEqual(fixture.createdEvents, [{
+      id: order.id,
+      createdAt: new Date("2026-09-08T12:49:58.000Z"),
+      subtotal: 1_000,
+      discount: 100,
+      yandexClientId: "123456",
+      yandexYclid: "987654",
+    }]);
+  });
+
+  it("rolls back the order and guest attachment if creation outbox persistence fails", async () => {
+    const enqueueFailure = new Error("Intentional outbox persistence failure");
+    const fixture = createStorageFixture(undefined, { enqueueFailure });
+
+    await assert.rejects(
+      fixture.storage.createOrder(createStoredOrderInput()),
+      (error) => error === enqueueFailure,
+    );
+
+    assert.equal(fixture.orders.length, 0);
+    assert.equal(fixture.activationCount(), 0);
+    assert.equal(fixture.createdEvents.length, 0);
+  });
+
+  it("rolls back the creation outbox alongside the order if its transaction cannot commit", async () => {
+    const commitFailure = new Error("Intentional transaction commit failure");
+    const fixture = createStorageFixture(undefined, { commitFailure });
+
+    await assert.rejects(
+      fixture.storage.createOrder(createStoredOrderInput()),
+      (error) => error === commitFailure,
+    );
+
+    assert.equal(fixture.orders.length, 0);
+    assert.equal(fixture.activationCount(), 0);
+    assert.equal(fixture.createdEvents.length, 0);
+    assert.equal(fixture.enqueueAttempts(), 1);
   });
 
   it("drops invalid attribution on direct storage calls", async () => {
@@ -354,7 +442,7 @@ describe("OrdersStorage checkout idempotency", () => {
     assert.equal(fixture.orders[0]?.yandexYclid, undefined);
   });
 
-  it("rejects attempt reuse by another cart or identity", async () => {
+  it("rejects attempt reuse by another cart or checkout actor", async () => {
     const fixture = createStorageFixture();
     await fixture.storage.createOrder(createStoredOrderInput());
 
@@ -374,6 +462,19 @@ describe("OrdersStorage checkout idempotency", () => {
       (error: unknown) =>
         error instanceof HttpException && error.getStatus() === 409,
     );
+  });
+
+  it("keeps a guest retry idempotent after assigning the owner userId", async () => {
+    const fixture = createStorageFixture();
+    const first = await fixture.storage.createOrder(createStoredOrderInput());
+    const second = await fixture.storage.createOrder(createStoredOrderInput());
+
+    assert.equal(first.id, second.id);
+    assert.equal(fixture.orders.length, 1);
+    assert.equal(fixture.orders[0]?.checkoutActorUserId, null);
+    assert.equal(fixture.orders[0]?.userId, "guest-user");
+    assert.equal(fixture.activationCount(), 1);
+    assert.equal(fixture.createdEvents.length, 1);
   });
 
   it("rejects concurrent attempt reuse with a different payload fingerprint", async () => {
@@ -499,6 +600,7 @@ describe("OrdersStorage checkout idempotency", () => {
       cartId: "owner-cart",
       paymentStatus: OrderPaymentStatus.PAID,
       userId: "post-paid-user",
+      checkoutActorUserId: null,
     });
 
     assert.deepEqual(
@@ -507,6 +609,42 @@ describe("OrdersStorage checkout idempotency", () => {
     );
     await assert.rejects(
       storage.recoverGuestPayment("order-1", "foreign-cart"),
+      NotFoundException,
+    );
+  });
+
+  it("recovers a prelinked pending guest only for the original cart and rejects auth-origin orders", async () => {
+    const guest = createRecoveryStorage({
+      cartId: "owner-cart",
+      userId: "prelinked-user",
+      checkoutActorUserId: null,
+    });
+    const authenticated = createRecoveryStorage({
+      cartId: "owner-cart",
+      userId: "authenticated-user",
+      checkoutActorUserId: "authenticated-user",
+    });
+    const paidAuthenticated = createRecoveryStorage({
+      cartId: "owner-cart",
+      userId: "authenticated-user",
+      checkoutActorUserId: "authenticated-user",
+      paymentStatus: OrderPaymentStatus.PAID,
+    });
+
+    assert.deepEqual(
+      await guest.recoverGuestPayment("order-1", "owner-cart"),
+      { redirectUrl: "https://securepay.tinkoff.ru/session" },
+    );
+    await assert.rejects(
+      guest.recoverGuestPayment("order-1", "foreign-cart"),
+      NotFoundException,
+    );
+    await assert.rejects(
+      authenticated.recoverGuestPayment("order-1", "owner-cart"),
+      NotFoundException,
+    );
+    await assert.rejects(
+      paidAuthenticated.recoverGuestPayment("order-1", "owner-cart"),
       NotFoundException,
     );
   });
@@ -595,7 +733,12 @@ describe("OrdersStorage checkout idempotency", () => {
 
   it("scopes order detail and lists behaviorally to the authenticated owner", async () => {
     const queries: unknown[] = [];
-    const storedOrder = { id: "order-1", userId: "owner-1" };
+    const storedOrder = {
+      id: "order-1",
+      userId: "owner-1",
+      checkoutActorUserId: null,
+      paymentStatus: OrderPaymentStatus.PENDING,
+    };
     const storage = new OrdersStorage(
       {
         order: {
@@ -762,6 +905,7 @@ function createServiceFixture(options: {
   existingOrder?: ReturnType<typeof createOrderDTO>;
 } = {}) {
   const createInputs: Array<Record<string, unknown>> = [];
+  const events: string[] = [];
   let getCartCalls = 0;
   let providerCalls = 0;
   let paymentClaimed = false;
@@ -823,6 +967,7 @@ function createServiceFixture(options: {
         return createOrderDTO();
       },
       createOrder: async (input: Record<string, unknown>) => {
+        events.push("create-order");
         createInputs.push(input);
         return createOrderDTO();
       },
@@ -836,6 +981,7 @@ function createServiceFixture(options: {
     promocodesService: {},
     tbankAcquiringService: {
       createCheckoutPayment: async () => {
+        events.push("initialize-payment");
         providerCalls += 1;
         return { redirectUrl: "https://pay.test" };
       },
@@ -846,6 +992,7 @@ function createServiceFixture(options: {
 
   return {
     createInputs,
+    events,
     getCartCalls: () => getCartCalls,
     providerCalls: () => providerCalls,
     service,
@@ -916,8 +1063,16 @@ function createStoredOrderInput() {
   };
 }
 
-function createStorageFixture() {
+function createStorageFixture(
+  promocodesService: ConstructorParameters<typeof OrdersStorage>[1] = {} as never,
+  options: { enqueueFailure?: Error; commitFailure?: Error } = {},
+) {
   const orders: Array<Record<string, unknown>> = [];
+  const createdEvents: Array<Record<string, unknown>> = [];
+  let activations = 0;
+  let enqueueAttempts = 0;
+  let activeTransaction: unknown;
+  let transactionTail = Promise.resolve();
   const order = {
     create: async ({ data }: { data: Record<string, unknown> }) => {
       if (
@@ -931,7 +1086,13 @@ function createStorageFixture() {
           meta: { target: ["checkout_attempt_id"] },
         });
       }
-      const stored = { ...data, userId: data.userId ?? null };
+      const stored = {
+        ...data,
+        checkoutActorUserId: data.checkoutActorUserId ?? null,
+        userId: data.userId ?? null,
+        createdAt: new Date("2026-09-08T12:49:58.000Z"),
+        discount: 0,
+      };
       orders.push(stored);
       return stored;
     },
@@ -948,17 +1109,66 @@ function createStorageFixture() {
         where.id === "user-2" ? { id: "user-2" } : null,
     },
     order,
-    $transaction: async (operation: (tx: unknown) => Promise<unknown>) =>
-      operation({ order }),
+    $transaction: (operation: (tx: unknown) => Promise<unknown>) => {
+      const transaction = transactionTail.then(async () => {
+        const previousOrders = orders.map((value) => ({ ...value }));
+        const previousEvents = createdEvents.map((value) => ({ ...value }));
+        const previousActivations = activations;
+        activeTransaction = { order };
+        try {
+          const result = await operation(activeTransaction);
+          if (options.commitFailure) throw options.commitFailure;
+          return result;
+        } catch (error) {
+          orders.splice(0, orders.length, ...previousOrders);
+          createdEvents.splice(0, createdEvents.length, ...previousEvents);
+          activations = previousActivations;
+          throw error;
+        } finally {
+          activeTransaction = undefined;
+        }
+      });
+      transactionTail = transaction.then(() => undefined, () => undefined);
+      return transaction;
+    },
   };
   const storage = new OrdersStorage(
     prisma as unknown as PrismaService,
-    {} as never,
+    promocodesService,
+    {
+      attachGuestOrderInTransaction: async (
+        _tx: unknown,
+        guestOrder: { id: string },
+      ) => {
+        activations += 1;
+        const stored = orders.find((item) => item.id === guestOrder.id);
+        if (stored) stored.userId = "guest-user";
+        return "guest-user";
+      },
+    } as never,
+    {
+      enqueueOrderCreated: async (
+        tx: unknown,
+        snapshot: Record<string, unknown>,
+      ) => {
+        assert.ok(activeTransaction);
+        assert.equal(tx, activeTransaction);
+        enqueueAttempts += 1;
+        if (options.enqueueFailure) throw options.enqueueFailure;
+        createdEvents.push(snapshot);
+      },
+    } as never,
   );
   (storage as unknown as { mapOrder: (value: unknown) => unknown }).mapOrder =
     (value) => value;
 
-  return { orders, storage };
+  return {
+    activationCount: () => activations,
+    createdEvents,
+    enqueueAttempts: () => enqueueAttempts,
+    orders,
+    storage,
+  };
 }
 
 function createThrottlePrisma() {
@@ -1009,6 +1219,7 @@ function createRecoveryStorage(
     id: "order-1",
     cartId: "cart-1",
     userId: null,
+    checkoutActorUserId: null,
     paymentMethod: "TBANK_ACQUIRING",
     paymentStatus: OrderPaymentStatus.PENDING,
     paymentRedirectUrl: "https://securepay.tinkoff.ru/session",

@@ -80,7 +80,7 @@ export class CheckoutThrottleService {
       subjectHash: subject.hash,
     };
 
-    await tx.orderCheckoutThrottle.upsert({
+    const throttle = await tx.orderCheckoutThrottle.upsert({
       where: { scope_subjectHash: key },
       create: {
         ...key,
@@ -89,9 +89,10 @@ export class CheckoutThrottleService {
         lastRequestAt: now,
       },
       update: {},
+      select: { id: true },
     });
     await tx.$queryRaw(
-      Prisma.sql`SELECT "id" FROM "order_checkout_throttles" WHERE "scope" = ${subject.scope}::"order_checkout_throttle_scope" AND "subject_hash" = ${subject.hash} FOR UPDATE`,
+      Prisma.sql`SELECT "id" FROM "order_checkout_throttles" WHERE "id" = ${throttle.id} FOR UPDATE`,
     );
     const bucket = await tx.orderCheckoutThrottle.findUnique({
       where: { scope_subjectHash: key },

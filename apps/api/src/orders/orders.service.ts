@@ -51,6 +51,7 @@ import type {
   OrderStateDTO,
 } from "./dto";
 import { OrdersTelegramService } from "./orders-telegram.service";
+import type { OzonPaymentRecheckLease } from "./ozon-payment-recheck";
 import {
   type ApplyCdekOrderStatusWebhookResult,
   OrdersStorage,
@@ -503,10 +504,46 @@ export class OrdersService {
   async handleOzonPaymentNotification(body: unknown) {
     const notification = this.parseOzonNotificationBody(body);
 
+    await this.processOzonPaymentNotification(notification);
+
+    return { ok: true };
+  }
+
+  async recheckOzonPaymentNotification(
+    lease: OzonPaymentRecheckLease,
+  ): Promise<void> {
+    const notification =
+      await this.ordersStorage.getOzonPaymentRecheckNotification(lease);
+    if (!notification) return;
+
+    await this.processOzonPaymentNotification(notification, lease);
+  }
+
+  private async processOzonPaymentNotification(
+    notification: Record<string, unknown>,
+    recheckLease?: OzonPaymentRecheckLease,
+  ): Promise<void> {
     const verified =
       this.ozonAcquiringService.assertValidNotification(notification);
+    if (
+      recheckLease &&
+      verified.merchantOrderId !== undefined &&
+      verified.merchantOrderId !== recheckLease.orderId
+    ) {
+      throw new BadRequestException(
+        "Ozon merchant order id does not match recheck lease",
+      );
+    }
     const authoritative =
       await this.ozonAcquiringService.getOrderStatus(verified);
+    if (
+      recheckLease &&
+      authoritative.merchantOrderId !== recheckLease.orderId
+    ) {
+      throw new BadRequestException(
+        "Ozon authoritative merchant order id does not match recheck lease",
+      );
+    }
     const authoritativeVerified = Object.freeze({
       ...verified,
       merchantOrderId: authoritative.merchantOrderId,
@@ -525,9 +562,10 @@ export class OrdersService {
       currencyCode: authoritative.currencyCode,
       extOrderId: authoritative.merchantOrderId,
       raw: notification,
+      recheckLease,
     });
 
-    if (!result) {
+    if (!result && !recheckLease) {
       this.logger.warn(
         `Ozon Acquiring notification ignored: order not found for extOrderId=${
           parsedNotification.extOrderId ?? "unknown"
@@ -548,8 +586,6 @@ export class OrdersService {
           ),
       );
     }
-
-    return { ok: true };
   }
 
   recoverPayment(orderId: string, cartId: string | undefined) {

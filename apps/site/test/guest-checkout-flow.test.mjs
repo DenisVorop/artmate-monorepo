@@ -52,7 +52,7 @@ test("guest success and failure UI are neutral and never import order queries or
   assert.doesNotMatch(guestFailure, />\s*\{orderId\}\s*</u);
 });
 
-test("checkout contact and guest success copy explain receipt and registration without activation jargon", async () => {
+test("checkout contact and guest success explain that access mail is sent at checkout, before payment", async () => {
   const [contactFields, guestSuccess, activationForm] = await Promise.all([
     readSource("src/features/checkout/ui/contact-fields.tsx"),
     readSource("src/features/checkout/ui/guest-success.tsx"),
@@ -63,8 +63,10 @@ test("checkout contact and guest success copy explain receipt and registration w
   assert.match(contactFields, /checkout-phone-error/u);
   assert.match(
     contactFields,
-    /Если аккаунта ещё нет, после оплаты пришлём отдельное письмо для завершения регистрации\./u,
+    /После оформления пришлём письмо для входа или завершения регистрации\./u,
   );
+  assert.match(guestSuccess, /письмо для входа или восстановления доступа отправлены на email\./u);
+  assert.doesNotMatch(`${contactFields}\n${guestSuccess}`, /после оплаты|Если аккаунта ещё нет/ui);
   assert.doesNotMatch(guestSuccess, /ссылка активации|создать пароль/ui);
   assert.match(activationForm, /<CardTitle>Завершите регистрацию<\/CardTitle>/u);
 });

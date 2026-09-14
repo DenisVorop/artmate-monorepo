@@ -4,6 +4,7 @@ import { useMutation, useQueryClient } from "@tanstack/react-query";
 import { useRouter } from "next/navigation";
 import { useRef } from "react";
 
+import { ordersQuery } from "@/entities/orders";
 import { sessionQuery } from "@/entities/session";
 import {
   confirmOrderActivation,
@@ -24,11 +25,16 @@ export function useConfirmActivation(currentToken: string) {
   const { mutate, isPending, error, variables } = useMutation({
     mutationFn: async (input: ConfirmOrderActivationInputDTO) =>
       ApiResult.fromDTO(await confirmOrderActivation(input)).unwrap(),
-    onSuccess: (session, input) => {
+    onSuccess: async (session, input) => {
       if (!isCurrentActivationToken(input.token, currentTokenRef.current)) {
         return;
       }
 
+      await queryClient.cancelQueries({ queryKey: ordersQuery.baseKey });
+      if (!isCurrentActivationToken(input.token, currentTokenRef.current)) {
+        return;
+      }
+      queryClient.removeQueries({ queryKey: ordersQuery.baseKey });
       queryClient.setQueryData(sessionQuery.getSession().queryKey, session ?? { user: null });
       analytics.activationCompleted();
       router.replace(routes.account);

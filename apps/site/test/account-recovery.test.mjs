@@ -211,13 +211,126 @@ test("activation confirmation state and success effects are scoped to the curren
   assert.match(activationMutation, /error:\s*isCurrentMutation\s*\?\s*error\s*:\s*undefined/u);
 
   const successBody = activationMutation.match(
-    /onSuccess:\s*\(session,\s*input\)\s*=>\s*\{(?<body>[\s\S]*?)\n\s*\},/u,
+    /onSuccess:\s*async\s*\(session,\s*input\)\s*=>\s*\{(?<body>[\s\S]*?)\n\s*\},/u,
   )?.groups?.body;
   assert.ok(successBody, "activation success callback is missing token scope");
   assert.ok(
     successBody.indexOf("isCurrentActivationToken") < successBody.indexOf("setQueryData"),
     "token scope must be checked before session, analytics and redirect effects",
   );
+});
+
+async function loadIdentityCacheHook(kind) {
+  const operations = [];
+  const ordersKey = ["orders"];
+  const sessionKey = ["session", "data"];
+  const currentTokenRef = { current: "token-a" };
+  let mutationOptions;
+  let finishCancellation;
+  const cancellation = new Promise((resolve) => { finishCancellation = resolve; });
+  const queryClient = {
+    cancelQueries: ({ queryKey }) => {
+      operations.push(["cancel", queryKey]);
+      return queryKey === ordersKey ? cancellation : Promise.resolve();
+    },
+    removeQueries: ({ queryKey }) => operations.push(["remove", queryKey]),
+    setQueryData: (queryKey, value) => operations.push(["session", queryKey, value]),
+    invalidateQueries: ({ queryKey }) => {
+      operations.push(["invalidate", queryKey]);
+      return Promise.resolve();
+    },
+  };
+  const path = kind === "activation"
+    ? "src/features/order-activation/model/use-confirm-activation.ts"
+    : "src/features/auth/model/use-login.ts";
+  const state = evaluateTypeScript(
+    await readSource("src/features/order-activation/lib/activation-state.ts"),
+  );
+  const hook = evaluateTypeScript(await readSource(path), {
+    "@tanstack/react-query": {
+      useQueryClient: () => queryClient,
+      useMutation: (options) => {
+        mutationOptions = options;
+        return { isPending: false, mutate() {}, mutateAsync() {} };
+      },
+    },
+    "next/navigation": { useRouter: () => ({ replace: (path) => operations.push(["navigate", path]) }) },
+    react: { useRef: () => currentTokenRef },
+    "@/entities/orders": { ordersQuery: { baseKey: ordersKey } },
+    "@/entities/session": { sessionQuery: { getSession: () => ({ queryKey: sessionKey }) } },
+    "@/shared/actions/auth": {},
+    "@/shared/constants": { routes: { account: "/account" } },
+    "@/shared/lib/api-result": {},
+    "@/shared/lib/query-keys": {
+      cartPricingQueryKey: ["cart-pricing"],
+      featureBannersQueryKey: ["feature-banners"],
+      welcomeOfferQueryKey: ["welcome-offer"],
+    },
+    "../lib/activation-state": state,
+    "../lib/analytics": { useAnalytics: () => ({ activationCompleted: () => operations.push(["analytics"]) }) },
+  });
+
+  return {
+    operations,
+    ordersKey,
+    sessionKey,
+    finishCancellation,
+    render: (token = "token-a") => {
+      if (kind === "activation") hook.useConfirmActivation(token);
+      else hook.useLoginMutation({ onSuccess: () => operations.push(["navigate", "/account"]) });
+      return mutationOptions;
+    },
+  };
+}
+
+for (const kind of ["login", "activation"]) {
+  test(`${kind} awaits orders cancellation before removing cache, publishing session and navigating`, async () => {
+    const fixture = await loadIdentityCacheHook(kind);
+    const session = { user: { id: "new-owner" } };
+    const mutation = fixture.render();
+    const success = mutation.onSuccess(session, { token: "token-a" });
+
+    await Promise.resolve();
+    assert.ok(fixture.operations.some(([operation, key]) => operation === "cancel" && key === fixture.ordersKey));
+    assert.ok(fixture.operations.every(([operation]) => operation === "cancel"));
+
+    fixture.finishCancellation();
+    await success;
+    const relevant = fixture.operations.filter(([operation, key]) =>
+      (operation === "cancel" || operation === "remove") ? key === fixture.ordersKey :
+        operation === "session" || operation === "navigate" || operation === "analytics",
+    );
+    assert.deepEqual(relevant, [
+      ["cancel", fixture.ordersKey],
+      ["remove", fixture.ordersKey],
+      ["session", fixture.sessionKey, session],
+      ...(kind === "activation" ? [["analytics"]] : []),
+      ["navigate", "/account"],
+    ]);
+  });
+}
+
+test("activation ignores a previous token before starting cache cleanup", async () => {
+  const fixture = await loadIdentityCacheHook("activation");
+  const oldMutation = fixture.render("token-a");
+  fixture.render("token-b");
+
+  await oldMutation.onSuccess({ user: { id: "old-owner" } }, { token: "token-a" });
+
+  assert.deepEqual(fixture.operations, []);
+});
+
+test("activation rechecks its token after awaiting orders cancellation before success effects", async () => {
+  const fixture = await loadIdentityCacheHook("activation");
+  const oldMutation = fixture.render("token-a");
+  const success = oldMutation.onSuccess({ user: { id: "old-owner" } }, { token: "token-a" });
+  assert.deepEqual(fixture.operations, [["cancel", fixture.ordersKey]]);
+
+  fixture.render("token-b");
+  fixture.finishCancellation();
+  await success;
+
+  assert.deepEqual(fixture.operations, [["cancel", fixture.ordersKey]]);
 });
 
 test("activation validates before the form and renders distinct loading, invalid and temporary states", async () => {

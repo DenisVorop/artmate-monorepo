@@ -14,6 +14,7 @@ import { OrdersController } from "./orders.controller";
 import { OrdersTelegramService } from "./orders-telegram.service";
 import { OrdersService } from "./orders.service";
 import { OrdersStorage } from "./orders.storage";
+import { OzonPaymentRecheckService } from "./ozon-payment-recheck.service";
 
 @Module({
   imports: [
@@ -32,6 +33,7 @@ import { OrdersStorage } from "./orders.storage";
     OrdersService,
     OrdersStorage,
     OrdersTelegramService,
+    OzonPaymentRecheckService,
   ],
 })
 export class OrdersModule {}

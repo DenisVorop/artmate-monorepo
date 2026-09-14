@@ -183,7 +183,10 @@ test("Yandex attribution removes malformed, future, legacy, and invalid records"
     for (const value of invalidRecords) {
       const localStorage = createStorage({ "artmate:yandex:client-id": value });
       withBrowserGlobals(
-        { analyticsWindow: { localStorage, location: { href: "https://artmate.ru" } }, document: {} },
+        {
+          analyticsWindow: { localStorage, location: { href: "https://artmate.ru" } },
+          document: {},
+        },
         () => assert.deepEqual(attribution.readYandexAttribution(), {}),
       );
       assert.equal(localStorage.values.has("artmate:yandex:client-id"), false);
@@ -193,7 +196,7 @@ test("Yandex attribution removes malformed, future, legacy, and invalid records"
   }
 });
 
-test("Yandex attribution is empty during SSR and when browser storage is blocked", async () => {
+test("Yandex attribution is SSR-safe and retains identifiers when browser storage is blocked", async () => {
   const attribution = evaluateTypeScript(
     await readSource("src/shared/lib/analytics/yandex-attribution.ts"),
   );
@@ -229,7 +232,7 @@ test("Yandex attribution is empty during SSR and when browser storage is blocked
     },
     () => {
       attribution.captureYandexAttribution(109148727);
-      assert.deepEqual(attribution.readYandexAttribution(), {});
+      assert.deepEqual(attribution.readYandexAttribution(), { clientId: "456", yclid: "123" });
     },
   );
 

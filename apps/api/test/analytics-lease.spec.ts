@@ -34,8 +34,7 @@ describe("analytics outbox lease ownership", () => {
             (state) =>
               (state.status as AnalyticsOutboxStatus) ===
               AnalyticsOutboxStatus.PROCESSING,
-          )
-            .length,
+          ).length,
         );
         return null;
       },
@@ -43,12 +42,17 @@ describe("analytics outbox lease ownership", () => {
       upload: async (_payload: unknown, comment: string) => ({
         comment,
         id: String(processingCounts.length),
-        providerResponse: "accepted",
+        providerResponse: "processed",
+        status: "PROCESSED",
+        sourceQuantity: 1,
+        lineQuantity: 1,
       }),
     };
 
-    await new AnalyticsOutboxService(fixture.prisma as never, yandex as never)
-      .processDueEvents();
+    await new AnalyticsOutboxService(
+      fixture.prisma as never,
+      yandex as never,
+    ).processDueEvents();
 
     assert.deepEqual(processingCounts, [1, 1]);
     assert.ok(fixture.findCalls.length >= 2);
@@ -56,7 +60,9 @@ describe("analytics outbox lease ownership", () => {
   });
 
   it("claims at most ten events per processing run", async () => {
-    const states = Array.from({ length: 11 }, (_, index) => event(`event-${index + 1}`));
+    const states = Array.from({ length: 11 }, (_, index) =>
+      event(`event-${index + 1}`),
+    );
     const fixture = createPrisma(states);
     const processingCounts: number[] = [];
     const yandex = {
@@ -74,22 +80,31 @@ describe("analytics outbox lease ownership", () => {
       upload: async (_payload: unknown, comment: string) => ({
         comment,
         id: String(processingCounts.length),
-        providerResponse: "accepted",
+        providerResponse: "processed",
+        status: "PROCESSED",
+        sourceQuantity: 1,
+        lineQuantity: 1,
       }),
     };
 
-    await new AnalyticsOutboxService(fixture.prisma as never, yandex as never)
-      .processDueEvents();
+    await new AnalyticsOutboxService(
+      fixture.prisma as never,
+      yandex as never,
+    ).processDueEvents();
 
     assert.equal(
       states.filter(
         (state) =>
-          (state.status as AnalyticsOutboxStatus) === AnalyticsOutboxStatus.SENT,
+          (state.status as AnalyticsOutboxStatus) ===
+          AnalyticsOutboxStatus.CONFIRMED,
       ).length,
       10,
     );
     assert.equal(states[10]?.status, AnalyticsOutboxStatus.PENDING);
-    assert.deepEqual(processingCounts, Array.from({ length: 10 }, () => 1));
+    assert.deepEqual(
+      processingCounts,
+      Array.from({ length: 10 }, () => 1),
+    );
     assert.equal(fixture.findCalls.length, 10);
     assert.ok(fixture.findCalls.every((call) => call.take === 1));
   });
@@ -123,19 +138,28 @@ describe("analytics outbox lease ownership", () => {
         beforeRequest?: () => Promise<void>,
       ) => {
         await renew(beforeRequest);
-        return { comment, id: "7", providerResponse: "accepted" };
+        return {
+          comment,
+          id: "7",
+          providerResponse: "processed",
+          status: "PROCESSED",
+          sourceQuantity: 1,
+          lineQuantity: 1,
+        };
       },
     };
 
     try {
-      await new AnalyticsOutboxService(fixture.prisma as never, yandex as never)
-        .processDueEvents();
+      await new AnalyticsOutboxService(
+        fixture.prisma as never,
+        yandex as never,
+      ).processDueEvents();
     } finally {
       Date.now = originalNow;
     }
 
     assert.deepEqual(renewedAt, [now - 2_000, now - 1_000, now]);
-    assert.equal(state.status, AnalyticsOutboxStatus.SENT);
+    assert.equal(state.status, AnalyticsOutboxStatus.CONFIRMED);
   });
 
   it("does not POST when another worker owns the token before upload", async () => {
@@ -159,12 +183,21 @@ describe("analytics outbox lease ownership", () => {
       ) => {
         await beforeRequest?.();
         posts += 1;
-        return { comment, id: "8", providerResponse: "accepted" };
+        return {
+          comment,
+          id: "8",
+          providerResponse: "processed",
+          status: "PROCESSED",
+          sourceQuantity: 1,
+          lineQuantity: 1,
+        };
       },
     };
 
-    await new AnalyticsOutboxService(fixture.prisma as never, yandex as never)
-      .processDueEvents();
+    await new AnalyticsOutboxService(
+      fixture.prisma as never,
+      yandex as never,
+    ).processDueEvents();
 
     assert.equal(posts, 0);
     assert.equal(state.leaseToken, "worker-b");
@@ -191,12 +224,21 @@ describe("analytics outbox lease ownership", () => {
       ) => {
         await beforeRequest?.();
         state.leaseToken = "worker-b";
-        return { comment, id: "9", providerResponse: "accepted" };
+        return {
+          comment,
+          id: "9",
+          providerResponse: "processed",
+          status: "PROCESSED",
+          sourceQuantity: 1,
+          lineQuantity: 1,
+        };
       },
     };
 
-    await new AnalyticsOutboxService(fixture.prisma as never, yandex as never)
-      .processDueEvents();
+    await new AnalyticsOutboxService(
+      fixture.prisma as never,
+      yandex as never,
+    ).processDueEvents();
 
     assert.equal(state.leaseToken, "worker-b");
     assert.equal(state.providerUploadId, null);
@@ -225,17 +267,22 @@ describe("analytics outbox lease ownership", () => {
       upload: async (_payload: unknown, comment: string) => ({
         comment,
         id: "10",
-        providerResponse: "accepted",
+        providerResponse: "processed",
+        status: "PROCESSED",
+        sourceQuantity: 1,
+        lineQuantity: 1,
       }),
     };
 
-    await new AnalyticsOutboxService(fixture.prisma as never, yandex as never)
-      .processDueEvents();
+    await new AnalyticsOutboxService(
+      fixture.prisma as never,
+      yandex as never,
+    ).processDueEvents();
 
     assert.equal(state.leaseToken, "worker-b");
     assert.equal(state.status, AnalyticsOutboxStatus.PROCESSING);
     assert.equal(state.attempts, 0);
-    assert.equal(nextState.status, AnalyticsOutboxStatus.SENT);
+    assert.equal(nextState.status, AnalyticsOutboxStatus.CONFIRMED);
   });
 
   it("does not let a late failure overwrite the new owner", async () => {
@@ -260,17 +307,22 @@ describe("analytics outbox lease ownership", () => {
       upload: async (_payload: unknown, comment: string) => ({
         comment,
         id: "11",
-        providerResponse: "accepted",
+        providerResponse: "processed",
+        status: "PROCESSED",
+        sourceQuantity: 1,
+        lineQuantity: 1,
       }),
     };
 
-    await new AnalyticsOutboxService(fixture.prisma as never, yandex as never)
-      .processDueEvents();
+    await new AnalyticsOutboxService(
+      fixture.prisma as never,
+      yandex as never,
+    ).processDueEvents();
 
     assert.equal(state.leaseToken, "worker-b");
     assert.equal(state.status, AnalyticsOutboxStatus.PROCESSING);
     assert.equal(state.attempts, 0);
-    assert.equal(nextState.status, AnalyticsOutboxStatus.SENT);
+    assert.equal(nextState.status, AnalyticsOutboxStatus.CONFIRMED);
   });
 });
 
@@ -311,7 +363,8 @@ function createPrisma(states: State[]) {
       analyticsOutboxEvent: {
         findMany: async (input: Record<string, unknown>) => {
           findCalls.push(input);
-          const take = typeof input.take === "number" ? input.take : states.length;
+          const take =
+            typeof input.take === "number" ? input.take : states.length;
           return states
             .filter(
               (state) =>
@@ -352,7 +405,10 @@ function createPrisma(states: State[]) {
           }
           const due = where.nextAttemptAt as { lte: Date } | undefined;
           if (due && state.nextAttemptAt > due.lte) return { count: 0 };
-          if (where.lockedAt instanceof Date && state.lockedAt?.getTime() !== where.lockedAt.getTime()) {
+          if (
+            where.lockedAt instanceof Date &&
+            state.lockedAt?.getTime() !== where.lockedAt.getTime()
+          ) {
             return { count: 0 };
           }
           Object.assign(state, data);
