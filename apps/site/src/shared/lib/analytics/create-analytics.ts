@@ -66,7 +66,6 @@ const goalParamKeys = {
   sign_up: [],
   digital_versions_opened: ["collection_slug"],
   digital_coloring_open: ["collection_slug", "coloring_number"],
-  order_created: ["order_id", "items_count", "order_price", "currency"],
 } satisfies {
   [EventId in YandexGoalEventId]: readonly (keyof YandexGoalParams[EventId])[];
 };
@@ -267,13 +266,6 @@ function normalizeGoalParams(command: GoalCommand): SafeParams | null {
     case "digital_coloring_open":
       return isNonEmptyStringParam(params, "collection_slug") &&
         isPositiveIntegerParam(params, "coloring_number")
-        ? params
-        : null;
-    case "order_created":
-      return isNonEmptyStringParam(params, "order_id") &&
-        isPositiveIntegerParam(params, "items_count") &&
-        isNonNegativeNumberParam(params, "order_price") &&
-        hasRubCurrency(params)
         ? params
         : null;
   }

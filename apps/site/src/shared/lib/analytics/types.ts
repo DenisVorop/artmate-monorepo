@@ -7,7 +7,6 @@ export const yandexGoalEventIds = [
   "sign_up",
   "digital_versions_opened",
   "digital_coloring_open",
-  "order_created",
 ] as const;
 
 export type YandexGoalEventId = (typeof yandexGoalEventIds)[number];
@@ -47,12 +46,6 @@ export type YandexGoalParams = {
   digital_coloring_open: {
     collection_slug: string;
     coloring_number: number;
-  };
-  order_created: {
-    order_id: string;
-    items_count: number;
-    order_price: number;
-    currency: RubCurrency;
   };
 };
 

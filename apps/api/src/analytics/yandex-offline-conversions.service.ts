@@ -1,18 +1,33 @@
 import { Injectable } from "@nestjs/common";
 
-export type YandexOrderPaidPayload = Readonly<{
+export type YandexOrderConversionPayload = Readonly<{
   clientId?: string;
   yclid?: string;
   purchaseId: string;
-  target: "order_paid";
+  target: "order_created" | "order_paid";
   dateTime: number;
   price: string;
   currency: "RUB";
 }>;
 
+export type YandexUploadingStatus =
+  | "PREPARED"
+  | "UPLOADED"
+  | "EXPORTED"
+  | "MATCHED"
+  | "PROCESSED"
+  | "LINKAGE_FAILURE"
+  | "UNKNOWN";
+
 export type YandexUploading = Readonly<{
   comment: string;
   id: string;
+  status: YandexUploadingStatus;
+  createTime?: string;
+  sourceQuantity?: number;
+  lineQuantity?: number;
+  linkedQuantity?: number;
+  verificationError?: string;
   providerResponse: string;
 }>;
 
@@ -21,12 +36,19 @@ type BeforeRequest = () => Promise<void>;
 const uploadTimeoutMs = 10_000;
 const uploadingsPageSize = 1_000;
 const maxUploadingsPages = 100;
-const diagnosticMaxLength = 2_000;
+const uploadingStatuses = new Set<string>([
+  "PREPARED",
+  "UPLOADED",
+  "EXPORTED",
+  "MATCHED",
+  "PROCESSED",
+  "LINKAGE_FAILURE",
+]);
 
 @Injectable()
 export class YandexOfflineConversionsService {
   async upload(
-    payload: YandexOrderPaidPayload,
+    payload: YandexOrderConversionPayload,
     comment: string,
     beforeRequest?: BeforeRequest,
   ) {
@@ -52,17 +74,21 @@ export class YandexOfflineConversionsService {
       new File([csv], "offline-conversions.csv", { type: "text/csv" }),
     );
     const query = new URLSearchParams({ comment, type: "BASIC" });
-    const response = await this.request(`upload?${query}`, {
-      method: "POST",
-      body: form,
-    }, beforeRequest);
+    const response = await this.request(
+      `upload?${query}`,
+      {
+        method: "POST",
+        body: form,
+      },
+      beforeRequest,
+    );
     const uploading = this.parseSingleUploading(response.body);
 
     if (uploading.comment !== comment) {
       throw new Error("Yandex upload response comment does not match request");
     }
 
-    return { ...uploading, providerResponse: response.diagnostic };
+    return uploading;
   }
 
   async findUploadingById(id: string, beforeRequest?: BeforeRequest) {
@@ -79,7 +105,7 @@ export class YandexOfflineConversionsService {
     if (uploading.id !== id) {
       throw new Error("Yandex upload response id does not match request");
     }
-    return { ...uploading, providerResponse: response.diagnostic };
+    return uploading;
   }
 
   async findUploadingByComment(comment: string, beforeRequest?: BeforeRequest) {
@@ -91,12 +117,18 @@ export class YandexOfflineConversionsService {
         offset: String(page * uploadingsPageSize),
         type: "BASIC",
       });
-      const response = await this.request(`uploadings?${query}`, {}, beforeRequest);
+      const response = await this.request(
+        `uploadings?${query}`,
+        {},
+        beforeRequest,
+      );
       const uploadings = this.parseUploadings(response.body);
-      const match = uploadings.find((uploading) => uploading.comment === comment);
+      const match = uploadings.find(
+        (uploading) => uploading.comment === comment,
+      );
 
       if (match) {
-        return { ...match, providerResponse: response.diagnostic };
+        return match;
       }
       if (uploadings.length < uploadingsPageSize) {
         return null;
@@ -123,14 +155,12 @@ export class YandexOfflineConversionsService {
       },
     );
     const text = await response.text();
-    const diagnostic = text.slice(0, diagnosticMaxLength);
-
     if (!response.ok) {
-      throw new YandexOfflineConversionsHttpError(response.status, diagnostic);
+      throw new YandexOfflineConversionsHttpError(response.status, text);
     }
 
     try {
-      return { body: JSON.parse(text) as unknown, diagnostic };
+      return { body: JSON.parse(text) as unknown };
     } catch {
       throw new Error("Yandex offline conversions response is not valid JSON");
     }
@@ -154,7 +184,7 @@ export class YandexOfflineConversionsService {
     return uploadings.map((uploading) => this.parseUploading(uploading));
   }
 
-  private parseUploading(value: unknown) {
+  private parseUploading(value: unknown): YandexUploading {
     if (!value || typeof value !== "object" || Array.isArray(value)) {
       throw new Error("Yandex upload response is invalid");
     }
@@ -168,7 +198,78 @@ export class YandexOfflineConversionsService {
     if (!id || typeof uploading.comment !== "string") {
       throw new Error("Yandex upload response is invalid");
     }
-    return { comment: uploading.comment, id };
+    let verificationError: string | undefined;
+    let status: YandexUploadingStatus = "UNKNOWN";
+    if (
+      typeof uploading.status === "string" &&
+      uploadingStatuses.has(uploading.status)
+    ) {
+      status = uploading.status as YandexUploadingStatus;
+    } else {
+      verificationError = "Yandex upload status is missing or unsupported";
+    }
+
+    const quantities: {
+      sourceQuantity?: number;
+      lineQuantity?: number;
+      linkedQuantity?: number;
+    } = {};
+    for (const [source, target] of [
+      ["source_quantity", "sourceQuantity"],
+      ["line_quantity", "lineQuantity"],
+      ["linked_quantity", "linkedQuantity"],
+    ] as const) {
+      if (!(source in uploading)) continue;
+      const quantity = uploading[source];
+      if (
+        typeof quantity !== "number" ||
+        !Number.isSafeInteger(quantity) ||
+        quantity < 0
+      ) {
+        verificationError = "Yandex upload quantity is invalid";
+        continue;
+      }
+      quantities[target] = quantity;
+    }
+    if (
+      quantities.sourceQuantity !== undefined &&
+      quantities.lineQuantity !== undefined &&
+      quantities.lineQuantity > quantities.sourceQuantity
+    ) {
+      verificationError = "Yandex upload quantities are inconsistent";
+    }
+
+    let createTime: string | undefined;
+    if ("create_time" in uploading) {
+      const value = uploading.create_time;
+      if (
+        typeof value === "string" &&
+        /^\d{4}-\d{2}-\d{2}T\d{2}:\d{2}:\d{2}(?:\.\d{1,9})?(?:Z|[+-]\d{2}:\d{2})$/.test(
+          value,
+        ) &&
+        Number.isFinite(Date.parse(value))
+      ) {
+        createTime = new Date(value).toISOString();
+      } else {
+        verificationError = "Yandex upload creation time is invalid";
+      }
+    }
+
+    // Keep a valid upload ID even when metadata is unusable: a later GET can
+    // recover it, whereas throwing here could cause another POST after a crash.
+    if (verificationError) status = "UNKNOWN";
+    const metadata = {
+      id,
+      status,
+      ...(createTime ? { createTime } : {}),
+      ...quantities,
+      ...(verificationError ? { verificationError } : {}),
+    };
+    return {
+      comment: uploading.comment,
+      ...metadata,
+      providerResponse: JSON.stringify(metadata),
+    };
   }
 
   private assertComment(comment: string) {
@@ -189,12 +290,25 @@ export class YandexOfflineConversionsService {
 }
 
 export class YandexOfflineConversionsHttpError extends Error {
+  readonly providerResponse: string;
+
   constructor(
     readonly status: number,
-    readonly providerResponse: string,
+    providerResponse?: string,
   ) {
-    super(
-      `Yandex offline conversion failed: status=${status}, body=${providerResponse}`,
-    );
+    const diagnostic: { httpStatus: number; errorCount?: number } = {
+      httpStatus: status,
+    };
+    try {
+      const body: unknown = JSON.parse(providerResponse ?? "");
+      if (body && typeof body === "object" && !Array.isArray(body)) {
+        const errors = (body as Record<string, unknown>).errors;
+        if (Array.isArray(errors)) diagnostic.errorCount = errors.length;
+      }
+    } catch {
+      // Provider errors can echo CSV rows or credentials. Never persist raw text.
+    }
+    super(`Yandex offline conversion failed: status=${status}`);
+    this.providerResponse = JSON.stringify(diagnostic);
   }
 }

@@ -633,7 +633,13 @@ test("begin_checkout sends the exact payload once in StrictMode and again on re-
   );
 });
 
-async function createOrderMutationHarness({ actionResult, analytics, attribution, effects, onSuccess }) {
+async function createOrderMutationHarness({
+  actionResult,
+  attribution,
+  effects,
+  onSuccess,
+  resolveAttribution,
+}) {
   const cacheWrites = [];
   const createOrderCalls = [];
   const invalidations = [];
@@ -652,7 +658,6 @@ async function createOrderMutationHarness({ actionResult, analytics, attribution
   const { useCreateOrderMutation } = evaluateTypeScript(
     await readSource("src/features/checkout/model/use-create-order.ts"),
     {
-      "../lib/analytics": { useAnalytics: () => analytics },
       "@/entities/cart": { cartQuery: { getCart: () => ({ queryKey: ["cart"] }) } },
       "@/shared/actions/orders": {
         createOrder: async (...args) => {
@@ -660,7 +665,9 @@ async function createOrderMutationHarness({ actionResult, analytics, attribution
           return actionResult;
         },
       },
-      "@/shared/lib/analytics": { readYandexAttribution: () => attribution ?? {} },
+      "@/shared/lib/analytics": {
+        resolveYandexAttribution: resolveAttribution ?? (async () => attribution ?? {}),
+      },
       "@/shared/lib/api-result": {
         ApiResult: {
           fromDTO(dto) {
@@ -714,7 +721,7 @@ async function createOrderMutationHarness({ actionResult, analytics, attribution
   };
 }
 
-test("order creation sends confirmed summary before cleanup and redirect callback", async () => {
+test("order creation passes resolved attribution and cleans up before redirect without a browser goal", async () => {
   const response = {
     itemsCount: 3,
     orderId: "AM-ORDER-1",
@@ -728,7 +735,6 @@ test("order creation sends confirmed summary before cleanup and redirect callbac
 
   const success = await createOrderMutationHarness({
     actionResult: { value: response },
-    analytics: { orderCreated: (summary) => effects.push(["analytics", summary]) },
     attribution,
     effects,
     onSuccess: (createdOrder) => {
@@ -741,7 +747,6 @@ test("order creation sends confirmed summary before cleanup and redirect callbac
   assert.equal(await success.createOrder(order), response);
   assert.deepEqual(success.createOrderCalls, [[order.input, attribution]]);
   assert.deepEqual(effects, [
-    ["analytics", { currency: "RUB", itemsCount: 3, orderId: "AM-ORDER-1", revenue: 2797 }],
     ["cart-cache-cleanup"],
     ["cart-pricing-cleanup"],
     ["promo-cleanup"],
@@ -753,21 +758,14 @@ test("order creation sends confirmed summary before cleanup and redirect callbac
 
   const failed = await createOrderMutationHarness({
     actionResult: { error: "order creation rejected" },
-    analytics: {},
     attribution,
   });
-  await assert.rejects(
-    () => failed.createOrder(order),
-    /order creation rejected/,
-  );
+  await assert.rejects(() => failed.createOrder(order), /order creation rejected/);
 
   const pendingEffects = [];
   const pending = await createOrderMutationHarness({
     actionResult: {
       value: { itemsCount: 4, orderId: "AM-ORDER-2", redirectUrl: null, revenue: 2697 },
-    },
-    analytics: {
-      orderCreated: (summary) => pendingEffects.push(["analytics", summary]),
     },
     attribution,
     effects: pendingEffects,
@@ -776,79 +774,76 @@ test("order creation sends confirmed summary before cleanup and redirect callbac
       pendingEffects.push(["redirect"]);
     },
   });
-  await assert.rejects(
-    () => pending.createOrder(order),
-    /страницу оплаты/u,
-  );
+  await assert.rejects(() => pending.createOrder(order), /страницу оплаты/u);
   assert.equal(pending.createOrderCalls.length, 1);
-  assert.deepEqual(pendingEffects, [
-    [
-      "analytics",
-      { currency: "RUB", itemsCount: 4, orderId: "AM-ORDER-2", revenue: 2697 },
-    ],
-    ["cart-pricing-cleanup"],
-  ]);
+  assert.deepEqual(pendingEffects, [["cart-pricing-cleanup"]]);
   assert.deepEqual(pending.cacheWrites, []);
 });
 
-test("order_created uses session dedupe by orderId and accepts only a safe summary", async () => {
+test("browser registry refuses both server-only order goals", async () => {
   const sharedAnalytics = await loadSharedAnalytics();
   const checkoutAnalytics = await loadCheckoutAnalytics(sharedAnalytics);
   const analyticsWindow = createAnalyticsWindow();
-  const summary = {
-    currency: "RUB",
-    itemsCount: 2,
-    orderId: "AM-ORDER-1",
-    revenue: 2897,
-  };
+  assert.equal(checkoutAnalytics.useAnalytics().orderCreated, undefined);
+  for (const eventId of ["order_created", "order_paid"]) {
+    assert.equal(sharedAnalytics.yandexGoalEventIds.includes(eventId), false);
+    const analytics = sharedAnalytics.createAnalytics({
+      invalidGoal: () =>
+        sharedAnalytics.createGoalCommand(eventId, {
+          order_id: "AM-ORDER-1",
+          items_count: 2,
+          order_price: 2897,
+          currency: "RUB",
+        }),
+    });
+    await withWindow(analyticsWindow, () => analytics.send("invalidGoal"));
+  }
+  assert.deepEqual(analyticsWindow.dataLayer, []);
+});
 
-  await withWindow(analyticsWindow, () => {
-    checkoutAnalytics.useAnalytics().orderCreated(summary);
-    checkoutAnalytics.useAnalytics().orderCreated(summary);
-    checkoutAnalytics.useAnalytics().orderCreated({ ...summary, orderId: "AM-ORDER-2" });
+test("order mutation waits for the attribution snapshot before sending the order", async () => {
+  let finishAttribution;
+  const attribution = new Promise((resolve) => {
+    finishAttribution = resolve;
   });
-
-  assert.deepEqual(analyticsWindow.dataLayer, [
-    {
-      event: "order_created",
-      currency: "RUB",
-      items_count: 2,
-      order_id: "AM-ORDER-1",
-      order_price: 2897,
-    },
-    {
-      event: "order_created",
-      currency: "RUB",
-      items_count: 2,
-      order_id: "AM-ORDER-2",
-      order_price: 2897,
-    },
-  ]);
+  const response = { orderId: "AM-DELAYED", redirectUrl: "https://bank.example/pay" };
+  const mutation = await createOrderMutationHarness({
+    actionResult: { value: response },
+    resolveAttribution: () => attribution,
+  });
+  const creation = mutation.createOrder({ input: { acceptedLegal: true } });
+  assert.deepEqual(mutation.createOrderCalls, []);
+  finishAttribution({ clientId: "123" });
+  assert.equal(await creation, response);
+  assert.deepEqual(mutation.createOrderCalls, [[{ acceptedLegal: true }, { clientId: "123" }]]);
 });
 
 test("payment recovery action forwards cart cookie, CSRF headers, and encoded path", async () => {
   const requests = [];
-  const actions = evaluateTypeScript(await readSource("src/shared/actions/orders/orders.actions.ts"), {
-    "./order.types": {},
-    "@/shared/lib/api-result": {
-      ApiResult: {
-        prepareApi: (callback) => async () => {
-          const value = await callback();
-          return { toDTO: () => ({ value }) };
+  const actions = evaluateTypeScript(
+    await readSource("src/shared/actions/orders/orders.actions.ts"),
+    {
+      "./order.types": {},
+      "@/shared/lib/api-result": {
+        ApiResult: {
+          prepareApi: (callback) => async () => {
+            const value = await callback();
+            return { toDTO: () => ({ value }) };
+          },
         },
       },
+      "@/shared/lib/api-security": {
+        apiCsrfHeader: { "x-artmate-csrf": "1" },
+        getForwardedIpHeaders: () => ({ "x-forwarded-for": "203.0.113.8" }),
+      },
+      "next/headers": {
+        cookies: async () => ({
+          get: (name) => (name === "cart_id" ? { value: "secret cart" } : undefined),
+        }),
+        headers: async () => ({}),
+      },
     },
-    "@/shared/lib/api-security": {
-      apiCsrfHeader: { "x-artmate-csrf": "1" },
-      getForwardedIpHeaders: () => ({ "x-forwarded-for": "203.0.113.8" }),
-    },
-    "next/headers": {
-      cookies: async () => ({
-        get: (name) => (name === "cart_id" ? { value: "secret cart" } : undefined),
-      }),
-      headers: async () => ({}),
-    },
-  });
+  );
   const previousFetch = globalThis.fetch;
   globalThis.fetch = async (url, init) => {
     requests.push({ url, init });
@@ -869,26 +864,29 @@ test("payment recovery action forwards cart cookie, CSRF headers, and encoded pa
 test("create-order action forwards only the private Yandex attribution allowlist", async () => {
   const requests = [];
   const validClientId = "1".repeat(128);
-  const actions = evaluateTypeScript(await readSource("src/shared/actions/orders/orders.actions.ts"), {
-    "./order.types": {},
-    "@/shared/lib/api-result": {
-      ApiResult: {
-        prepareApi: (callback) => async () => {
-          const value = await callback();
+  const actions = evaluateTypeScript(
+    await readSource("src/shared/actions/orders/orders.actions.ts"),
+    {
+      "./order.types": {},
+      "@/shared/lib/api-result": {
+        ApiResult: {
+          prepareApi: (callback) => async () => {
+            const value = await callback();
 
-          return { toDTO: () => ({ value }) };
+            return { toDTO: () => ({ value }) };
+          },
         },
       },
+      "@/shared/lib/api-security": {
+        apiCsrfHeader: {},
+        getForwardedIpHeaders: () => ({}),
+      },
+      "next/headers": {
+        cookies: async () => ({ get: () => undefined }),
+        headers: async () => ({}),
+      },
     },
-    "@/shared/lib/api-security": {
-      apiCsrfHeader: {},
-      getForwardedIpHeaders: () => ({}),
-    },
-    "next/headers": {
-      cookies: async () => ({ get: () => undefined }),
-      headers: async () => ({}),
-    },
-  });
+  );
   const previousFetch = globalThis.fetch;
   globalThis.fetch = async (url, init) => {
     requests.push({ url, init });
