@@ -1,0 +1,1 @@
+"""Numerical detail detection adapters."""

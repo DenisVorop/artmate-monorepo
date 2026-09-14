@@ -1,0 +1,22 @@
+# Local single-job runner. Not the production web application.
+services:
+  coloring:
+    build:
+      context: ../..
+      dockerfile: services/coloring/Dockerfile
+    image: artmate-coloring:local
+    init: true
+    user: "${COLORING_UID:-10001}:${COLORING_GID:-10001}"
+    network_mode: none
+    read_only: true
+    cap_drop: [ALL]
+    security_opt: ["no-new-privileges:true"]
+    cpus: 2.0
+    mem_limit: 2g
+    memswap_limit: 2g
+    pids_limit: 128
+    tmpfs:
+      - /tmp:size=64m,mode=1777
+    volumes:
+      - ./data/input:/input:ro
+      - ./data/results:/results
