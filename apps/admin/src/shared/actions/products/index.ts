@@ -22,6 +22,7 @@ export type {
   CreateProductInputDTO,
   CreateProductTagInputDTO,
   ProductCategoryDTO,
+  ProductCharacteristicDTO,
   ProductCurrencyDTO,
   ProductDTO,
   ProductImageDTO,

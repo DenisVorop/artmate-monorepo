@@ -15,8 +15,9 @@ import {
   type ProductCurrency,
   type ProductStatus,
 } from "../products.types";
+import { ProductContentRequestDTO } from "./product-content-request.dto";
 
-export class CreateProductRequestDTO {
+export class CreateProductRequestDTO extends ProductContentRequestDTO {
   @IsString()
   @MaxLength(220)
   title!: string;

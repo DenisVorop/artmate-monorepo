@@ -20,7 +20,7 @@ export function Related({ products, renderProductCard }: RelatedProps) {
         <SectionTitle id="related-products-title" className="text-foreground">
           Вам также может понравиться
         </SectionTitle>
-        <SectionSubtitle>Похожие темы и&nbsp;другие альбомы Artmate.</SectionSubtitle>
+        <SectionSubtitle>Другие товары Artmate.</SectionSubtitle>
       </div>
 
       <div className="relative right-[50%] left-[50%] -mr-[50vw] -ml-[50vw] w-screen sm:right-auto sm:left-auto sm:mr-0 sm:ml-0 sm:w-auto">

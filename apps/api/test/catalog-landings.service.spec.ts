@@ -10,7 +10,7 @@ import type { PrismaService } from "../src/prisma/prisma.service";
 import { ProductDTO } from "../src/products/dto/product.dto";
 
 describe("CatalogLandingsService", () => {
-  it("includes Ozon delivery availability in mapped landing products", () => {
+  it("includes Ozon availability and product-specific content in mapped landing products", () => {
     const service = new CatalogLandingsService({} as PrismaService);
     const mapProduct = (
       service as unknown as {
@@ -23,6 +23,17 @@ describe("CatalogLandingsService", () => {
       slug: "fantasy-coloring",
       title: "Fantasy coloring",
       description: null,
+      characteristics: [
+        {
+          id: "characteristic-1",
+          productId: "product-1",
+          sortOrder: 0,
+          name: "Количество цветов",
+          value: "168",
+          isHighlighted: true,
+        },
+      ],
+      usageInstructions: "Встряхните маркер.",
       status: ProductStatus.PUBLISHED,
       isHit: false,
       isOutOfStock: false,
@@ -38,6 +49,10 @@ describe("CatalogLandingsService", () => {
     });
 
     assert.equal(mapped.isOzonDeliveryAvailable, false);
+    assert.deepEqual(mapped.characteristics, [
+      { name: "Количество цветов", value: "168", isHighlighted: true },
+    ]);
+    assert.equal(mapped.usageInstructions, "Встряхните маркер.");
     assert.deepEqual(validateSync(plainToInstance(ProductDTO, mapped)), []);
   });
 });

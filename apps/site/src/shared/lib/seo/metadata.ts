@@ -7,7 +7,7 @@ import {
   createCategoryDescription,
   createColoringSeoDescription,
   createColoringSeoTitle,
-  createProductDescription,
+  createProductSeoDescription,
 } from "./text";
 import type {
   LegalSeoInput,
@@ -121,7 +121,7 @@ export function createCatalogLandingMetadata(landing: SeoCatalogLanding): Metada
 
 export function createProductMetadata(product: SeoProduct, category?: SeoCategory): Metadata {
   const title = `${product.title} - Artmate`;
-  const description = createProductDescription(product);
+  const description = createProductSeoDescription(product);
   const canonical = category
     ? `/catalog/raskraski/${category.slug}/${product.slug}`
     : `/catalog/raskraski/${product.slug}`;
@@ -137,14 +137,12 @@ export function createProductMetadata(product: SeoProduct, category?: SeoCategor
       alt: product.title,
     },
     keywords: [
-      "common",
-      "products",
-      "catalog",
+      "Artmate",
+      "Артмейт",
       product.title,
       category?.title,
       product.category,
       `купить ${product.title}`,
-      category ? `раскраска по номерам ${category.title}` : undefined,
     ],
   });
 }

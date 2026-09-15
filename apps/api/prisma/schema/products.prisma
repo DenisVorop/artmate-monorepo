@@ -21,6 +21,7 @@ model Product {
   slug                    String        @unique @db.VarChar(180)
   title                   String        @db.VarChar(220)
   description             String?       @db.Text
+  usageInstructions       String?       @map("usage_instructions") @db.Text
   status                  ProductStatus @default(DRAFT)
   isHit                   Boolean       @default(false) @map("is_hit")
   isOutOfStock            Boolean       @default(false) @map("is_out_of_stock")
@@ -35,6 +36,7 @@ model Product {
 
   category                ProductCategory?                @relation(fields: [categoryId], references: [id], onDelete: Restrict)
   images                  ProductImage[]
+  characteristics         ProductCharacteristic[]
   tags                    ProductTagAssignment[]
   coloringCollection      ColoringCollection?
   catalogLandingOverrides CatalogLandingProductOverride[]
@@ -43,6 +45,20 @@ model Product {
   @@index([status, createdAt])
   @@index([status, isHit, createdAt])
   @@map("products")
+}
+
+model ProductCharacteristic {
+  id            String  @id @default(cuid()) @db.VarChar(32)
+  productId     String  @map("product_id") @db.VarChar(32)
+  name          String  @db.VarChar(80)
+  value         String  @db.VarChar(500)
+  isHighlighted Boolean @default(false) @map("is_highlighted")
+  sortOrder     Int     @map("sort_order")
+
+  product Product @relation(fields: [productId], references: [id], onDelete: Cascade)
+
+  @@unique([productId, sortOrder])
+  @@map("product_characteristics")
 }
 
 model ProductCategory {

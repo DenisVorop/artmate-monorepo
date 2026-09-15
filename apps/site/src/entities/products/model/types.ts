@@ -1,7 +1,7 @@
 export type {
   Product,
   ProductCategory,
-  ProductHighlight,
+  ProductCharacteristic,
   ProductTag,
   ProductsData,
 } from "@/shared/actions/products";

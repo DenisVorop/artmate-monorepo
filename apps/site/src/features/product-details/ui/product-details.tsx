@@ -88,10 +88,10 @@ export function ProductDetails({ productId }: ProductDetailsProps) {
             {reviewsStats && <ReviewRatingSummary stats={reviewsStats} className="justify-start" />}
             <Summary product={product} />
             <ProductPurchase product={product} onAddToCart={addProductToCart} />
-            <Highlights items={productsData.productHighlights} />
+            <Highlights characteristics={product.characteristics} />
             <DetailsTabs
-              specs={productsData.productSpecs}
-              howItWorks={productsData.productHowItWorks}
+              characteristics={product.characteristics}
+              usageInstructions={product.usageInstructions}
               reviews={<MarketplaceLinks />}
             />
           </div>

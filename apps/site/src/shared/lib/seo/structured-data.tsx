@@ -12,7 +12,7 @@ import {
   createCategoryDescription,
   createColoringSeoDescription,
   createColoringSeoTitle,
-  createProductDescription,
+  createProductSeoDescription,
   normalizeSeoText,
 } from "./text";
 import type {
@@ -222,7 +222,7 @@ function getProductStructuredData(product: SeoProduct, url: string, category?: S
   const productUrl = getAbsoluteUrl(url);
   const productId = `${productUrl}#product`;
   const breadcrumbId = `${productUrl}#breadcrumbs`;
-  const productCategoryTitle = product.category ?? category?.title ?? "Раскраски по номерам";
+  const productCategoryTitle = product.category ?? category?.title;
   const productImages =
     product.images && product.images.length > 0 ? product.images : [product.image];
 
@@ -232,18 +232,20 @@ function getProductStructuredData(product: SeoProduct, url: string, category?: S
       "@type": "Product",
       "@id": productId,
       name: product.title,
-      description: createProductDescription(product),
+      description: createProductSeoDescription(product),
       image: productImages.map(getAbsoluteUrl),
       brand: {
         "@type": "Brand",
         name: siteConfig.name,
       },
       category: productCategoryTitle,
-      countryOfOrigin: {
-        "@type": "Country",
-        name: "Россия",
-      },
-      material: "Бумага 190 г/м²",
+      additionalProperty: product.characteristics?.length
+        ? product.characteristics.map(({ name, value }) => ({
+            "@type": "PropertyValue",
+            name,
+            value,
+          }))
+        : undefined,
       sku: product.sku ?? product.id ?? product.slug,
       url: productUrl,
       breadcrumb: {
