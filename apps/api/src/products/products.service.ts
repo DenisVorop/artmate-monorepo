@@ -27,6 +27,10 @@ import type {
   UpdateProductTagRequestDTO,
 } from "./dto";
 import {
+  parseProductCharacteristics,
+  parseProductUsageInstructions,
+} from "./product-content";
+import {
   productCurrencies,
   productImageMimeTypes,
   productTagGroups,
@@ -45,6 +49,7 @@ export type UploadedProductFile = {
 
 const productInclude = {
   category: true,
+  characteristics: { orderBy: { sortOrder: "asc" } },
   coloringCollection: {
     select: {
       coverUrl: true,
@@ -503,6 +508,18 @@ export class ProductsService {
           title: this.parseRequiredString(input.title, "title"),
           slug: this.parseSlug(input.slug),
           description: this.parseProductDescription(input.description),
+          usageInstructions:
+            input.usageInstructions === undefined
+              ? null
+              : parseProductUsageInstructions(input.usageInstructions),
+          characteristics: {
+            create: parseProductCharacteristics(
+              input.characteristics === undefined ? [] : input.characteristics,
+            ).map((characteristic, sortOrder) => ({
+              ...characteristic,
+              sortOrder,
+            })),
+          },
           status,
           isHit: input.isHit ?? false,
           isOutOfStock: input.isOutOfStock ?? false,
@@ -539,6 +556,22 @@ export class ProductsService {
     if (input.description !== undefined) {
       data.description =
         this.parseProductDescription(input.description) ?? null;
+    }
+
+    if (input.usageInstructions !== undefined) {
+      data.usageInstructions = parseProductUsageInstructions(
+        input.usageInstructions,
+      );
+    }
+
+    if (input.characteristics !== undefined) {
+      // A nested update keeps replacement and product fields in one transaction.
+      data.characteristics = {
+        deleteMany: {},
+        create: parseProductCharacteristics(input.characteristics).map(
+          (characteristic, sortOrder) => ({ ...characteristic, sortOrder }),
+        ),
+      };
     }
 
     if (input.status !== undefined) {
@@ -949,6 +982,10 @@ export class ProductsService {
       description: this.sanitizeProductDescription(
         product.description ?? undefined,
       ),
+      characteristics: product.characteristics.map(
+        ({ name, value, isHighlighted }) => ({ name, value, isHighlighted }),
+      ),
+      usageInstructions: product.usageInstructions ?? undefined,
       status: this.mapPrismaProductStatus(product.status),
       isHit: product.isHit,
       isOutOfStock: product.isOutOfStock,

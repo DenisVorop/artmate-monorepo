@@ -33,6 +33,7 @@ import {
 
 const productInclude = {
   category: true,
+  characteristics: { orderBy: { sortOrder: "asc" } },
   coloringCollection: {
     select: {
       coverUrl: true,
@@ -878,6 +879,10 @@ export class CatalogLandingsService {
       slug: product.slug,
       title: product.title,
       description: product.description ?? undefined,
+      characteristics: product.characteristics.map(
+        ({ name, value, isHighlighted }) => ({ name, value, isHighlighted }),
+      ),
+      usageInstructions: product.usageInstructions ?? undefined,
       status: this.mapProductStatus(product.status),
       isHit: product.isHit,
       isOutOfStock: product.isOutOfStock,

@@ -85,6 +85,8 @@ function mapCatalogLanding(landing: ApiCatalogLandingPageDTO): CatalogLandingPag
           image: primaryImage,
           images: images.length > 0 ? images : [primaryImage],
           description: product.description ?? "",
+          characteristics: product.characteristics,
+          usageInstructions: product.usageInstructions,
           isHit: product.isHit,
           isOutOfStock: product.isOutOfStock,
           createdAt: product.createdAt,

@@ -5,7 +5,15 @@ import { Controller, useForm } from "react-hook-form";
 import { Plus } from "lucide-react";
 
 import type { ProductCategory, ProductTag } from "@/entities/products";
-import { Button, Card, CardContent, CardDescription, CardHeader, CardTitle, Input } from "@/shared/ui";
+import {
+  Button,
+  Card,
+  CardContent,
+  CardDescription,
+  CardHeader,
+  CardTitle,
+  Input,
+} from "@/shared/ui";
 
 import {
   createProductDefaultValues,
@@ -23,6 +31,7 @@ import {
   ProductTagsField,
 } from "./form-controls";
 import { ProductDescriptionEditor } from "./product-description-editor";
+import { ProductCharacteristicsFields } from "./product-characteristics-fields";
 
 type CreateProductCardProps = {
   readonly categories: readonly ProductCategory[];
@@ -35,7 +44,15 @@ export function CreateProductCard({
   onProductsChange,
   tags,
 }: CreateProductCardProps) {
-  const { control, handleSubmit, register, reset } = useForm<ProductFormValues>({
+  const {
+    clearErrors,
+    control,
+    formState: { errors },
+    handleSubmit,
+    register,
+    reset,
+    setError,
+  } = useForm<ProductFormValues>({
     defaultValues: createProductDefaultValues,
     resolver: zodResolver(productFormSchema),
   });
@@ -44,8 +61,14 @@ export function CreateProductCard({
       onSuccess: onProductsChange,
     });
   const submitForm = handleSubmit((values) => {
+    clearErrors("root");
     createProduct(getCreateProductInput(values), {
       onSuccess: () => reset(),
+      onError: () =>
+        setError("root.server", {
+          message:
+            "Не удалось создать товар. Введённые данные остались в форме — попробуйте ещё раз.",
+        }),
     });
   });
 
@@ -59,86 +82,109 @@ export function CreateProductCard({
       </CardHeader>
       <CardContent>
         <form
+          aria-busy={isCreatingProduct}
           className="grid gap-3"
+          noValidate
           onSubmit={submitForm}
         >
-          <div className="grid gap-3 sm:grid-cols-2 xl:grid-cols-[minmax(12rem,1.4fr)_minmax(10rem,1fr)_8rem_11rem_minmax(10rem,1fr)]">
-            <LabeledField label="Название">
-              <Input
-                placeholder="Постер Artmate"
-                required
-                {...register("title")}
-              />
-            </LabeledField>
-            <LabeledField label="Slug">
-              <Input
-                placeholder="artmate-poster"
-                required
-                {...register("slug")}
-              />
-            </LabeledField>
-            <LabeledField label="Цена, ₽">
-              <Input
-                min={0}
-                placeholder="1290"
-                required
-                step={1}
-                type="number"
-                {...register("priceRub", {
-                  valueAsNumber: true,
-                })}
-              />
-            </LabeledField>
-            <LabeledField label="Статус">
-              <ProductStatusSelect
-                defaultValue="draft"
-                selectProps={register("status")}
-              />
-            </LabeledField>
-            <LabeledField label="Категория">
-              <ProductCategorySelect
-                categories={categories}
-                selectProps={register("categoryId")}
-              />
-            </LabeledField>
-          </div>
-          <div className="grid gap-3 sm:grid-cols-2 xl:grid-cols-[6rem_8rem_minmax(12rem,1fr)_auto]">
-            <LabeledCheckbox label="Хит">
-              <input type="checkbox" {...register("isHit")} />
-            </LabeledCheckbox>
-            <LabeledCheckbox label="Нет в наличии">
-              <input type="checkbox" {...register("isOutOfStock")} />
-            </LabeledCheckbox>
-            <LabeledCheckbox label="Доступна доставка Ozon">
-              <input type="checkbox" {...register("isOzonDeliveryAvailable")} />
-            </LabeledCheckbox>
-            <div className="flex items-end">
-              <Button
-                className="w-full xl:w-auto"
-                disabled={isCreatingProduct}
-                type="submit"
-              >
-                <Plus data-icon="inline-start" aria-hidden="true" />
-                Создать
-              </Button>
-            </div>
-          </div>
-          <LabeledField label="Теги">
-            <ProductTagsField inputProps={register("tagIds")} tags={tags} />
-          </LabeledField>
-          <LabeledField label="Описание">
-            <Controller
-              control={control}
-              name="description"
-              render={({ field }) => (
-                <ProductDescriptionEditor
-                  name={field.name}
-                  onValueChange={field.onChange}
-                  value={field.value}
+          <fieldset className="grid min-w-0 gap-3" disabled={isCreatingProduct}>
+            <div className="grid gap-3 sm:grid-cols-2 xl:grid-cols-[minmax(12rem,1.4fr)_minmax(10rem,1fr)_8rem_11rem_minmax(10rem,1fr)]">
+              <LabeledField label="Название" error={errors.title?.message}>
+                <Input
+                  aria-invalid={Boolean(errors.title)}
+                  placeholder="Постер Artmate"
+                  required
+                  {...register("title")}
                 />
-              )}
+              </LabeledField>
+              <LabeledField label="Slug" error={errors.slug?.message}>
+                <Input
+                  aria-invalid={Boolean(errors.slug)}
+                  placeholder="artmate-poster"
+                  required
+                  {...register("slug")}
+                />
+              </LabeledField>
+              <LabeledField label="Цена, ₽" error={errors.priceRub?.message}>
+                <Input
+                  aria-invalid={Boolean(errors.priceRub)}
+                  min={0}
+                  placeholder="1290"
+                  required
+                  step={1}
+                  type="number"
+                  {...register("priceRub", {
+                    valueAsNumber: true,
+                  })}
+                />
+              </LabeledField>
+              <LabeledField label="Статус" error={errors.status?.message}>
+                <ProductStatusSelect
+                  defaultValue="draft"
+                  selectProps={register("status")}
+                />
+              </LabeledField>
+              <LabeledField
+                label="Категория"
+                error={errors.categoryId?.message}
+              >
+                <ProductCategorySelect
+                  categories={categories}
+                  selectProps={register("categoryId")}
+                />
+              </LabeledField>
+            </div>
+            <div className="grid gap-3 sm:grid-cols-2 xl:grid-cols-[6rem_8rem_minmax(12rem,1fr)]">
+              <LabeledCheckbox label="Хит">
+                <input type="checkbox" {...register("isHit")} />
+              </LabeledCheckbox>
+              <LabeledCheckbox label="Нет в наличии">
+                <input type="checkbox" {...register("isOutOfStock")} />
+              </LabeledCheckbox>
+              <LabeledCheckbox label="Доступна доставка Ozon">
+                <input
+                  type="checkbox"
+                  {...register("isOzonDeliveryAvailable")}
+                />
+              </LabeledCheckbox>
+            </div>
+            <LabeledField label="Теги">
+              <ProductTagsField inputProps={register("tagIds")} tags={tags} />
+            </LabeledField>
+            <LabeledField label="Описание">
+              <Controller
+                control={control}
+                name="description"
+                render={({ field }) => (
+                  <ProductDescriptionEditor
+                    disabled={isCreatingProduct}
+                    name={field.name}
+                    onValueChange={field.onChange}
+                    value={field.value}
+                  />
+                )}
+              />
+            </LabeledField>
+            <ProductCharacteristicsFields
+              control={control}
+              disabled={isCreatingProduct}
+              errors={errors}
+              register={register}
             />
-          </LabeledField>
+            <Button
+              className="w-full sm:w-auto sm:justify-self-start"
+              disabled={isCreatingProduct}
+              type="submit"
+            >
+              <Plus data-icon="inline-start" aria-hidden="true" />
+              Создать
+            </Button>
+          </fieldset>
+          {errors.root?.server && (
+            <p className="text-sm text-destructive" role="alert">
+              {errors.root.server.message}
+            </p>
+          )}
         </form>
       </CardContent>
     </Card>

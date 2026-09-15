@@ -5,7 +5,13 @@ export {
   getProductCategoryBySlug,
   getRelatedProducts,
 } from "./lib";
-export type { Product, ProductCategory, ProductHighlight, ProductTag, ProductsData } from "./model";
+export type {
+  Product,
+  ProductCategory,
+  ProductCharacteristic,
+  ProductTag,
+  ProductsData,
+} from "./model";
 export { productsQuery, useProductsData } from "./model";
 export type { ProductsDataResult } from "./model";
 export { Description } from "./ui/description";

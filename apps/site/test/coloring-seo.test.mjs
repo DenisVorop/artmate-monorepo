@@ -112,7 +112,7 @@ async function loadMetadata() {
         `Картина ${number} из цифровой версии раскраски «${collectionTitle}»: контур и цветной пример в палитре маркеров Artmate.`,
       createColoringSeoTitle: (collectionTitle, number) =>
         `Цифровая версия раскраски «${collectionTitle}». Картина ${number}`,
-      createProductDescription: () => "product",
+      createProductSeoDescription: () => "product",
     },
   });
 }
@@ -126,7 +126,7 @@ async function loadStructuredData() {
         `Картина ${number} из цифровой версии раскраски «${collectionTitle}»: контур и цветной пример в палитре маркеров Artmate.`,
       createColoringSeoTitle: (collectionTitle, number) =>
         `Цифровая версия раскраски «${collectionTitle}». Картина ${number}`,
-      createProductDescription: () => "product",
+      createProductSeoDescription: () => "product",
       normalizeSeoText: (value) => value,
     },
   });

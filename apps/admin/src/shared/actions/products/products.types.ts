@@ -39,11 +39,19 @@ export type ProductTagDTO = {
   updatedAt: string;
 };
 
+export type ProductCharacteristicDTO = {
+  name: string;
+  value: string;
+  isHighlighted: boolean;
+};
+
 export type ProductDTO = {
   id: string;
   slug: string;
   title: string;
   description?: string;
+  characteristics: ProductCharacteristicDTO[];
+  usageInstructions?: string;
   status: ProductStatusDTO;
   isHit: boolean;
   isOutOfStock: boolean;
@@ -63,6 +71,8 @@ export type CreateProductInputDTO = {
   title: string;
   slug: string;
   description?: string;
+  characteristics?: ProductCharacteristicDTO[];
+  usageInstructions?: string;
   status?: ProductStatusDTO;
   isHit?: boolean;
   isOutOfStock?: boolean;
@@ -73,7 +83,9 @@ export type CreateProductInputDTO = {
   tagIds?: string[];
 };
 
-export type UpdateProductInputDTO = Partial<Omit<CreateProductInputDTO, "categoryId">> & {
+export type UpdateProductInputDTO = Partial<
+  Omit<CreateProductInputDTO, "categoryId">
+> & {
   categoryId?: string | null;
 };
 
@@ -83,7 +95,8 @@ export type CreateProductCategoryInputDTO = {
   image?: string;
 };
 
-export type UpdateProductCategoryInputDTO = Partial<CreateProductCategoryInputDTO>;
+export type UpdateProductCategoryInputDTO =
+  Partial<CreateProductCategoryInputDTO>;
 
 export type CreateProductTagInputDTO = {
   title: string;

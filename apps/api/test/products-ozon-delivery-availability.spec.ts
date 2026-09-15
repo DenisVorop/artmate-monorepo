@@ -111,6 +111,8 @@ function createStoredProduct(isOzonDeliveryAvailable: boolean) {
     slug: `product-${isOzonDeliveryAvailable}`,
     title: "Лес",
     description: null,
+    characteristics: [],
+    usageInstructions: null,
     status: ProductStatus.DRAFT,
     isHit: false,
     isOutOfStock: false,

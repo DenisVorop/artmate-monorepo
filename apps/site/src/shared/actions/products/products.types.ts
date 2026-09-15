@@ -14,6 +14,12 @@ export type ProductTag = {
   group: "format" | "theme" | "audience" | "mood" | "difficulty";
 };
 
+export type ProductCharacteristic = {
+  name: string;
+  value: string;
+  isHighlighted: boolean;
+};
+
 export type Product = {
   id: string;
   title: string;
@@ -25,6 +31,8 @@ export type Product = {
   image: string;
   images: string[];
   description: string;
+  characteristics: ProductCharacteristic[];
+  usageInstructions?: string;
   isHit: boolean;
   isOutOfStock: boolean;
   digitalCollection?: {
@@ -36,18 +44,9 @@ export type Product = {
   updatedAt: string;
 };
 
-export type ProductHighlight = {
-  id: "delivery" | "paper" | "print";
-  title: string;
-  description: string;
-};
-
 export type ProductsData = {
   categories: ProductCategory[];
   products: Product[];
-  productSpecs: string[];
-  productHowItWorks: string;
-  productHighlights: ProductHighlight[];
 };
 
 export type ApiProductCategoryDTO = {
@@ -81,6 +80,8 @@ export type ApiProductDTO = {
   slug: string;
   title: string;
   description?: string;
+  characteristics: ProductCharacteristic[];
+  usageInstructions?: string;
   status: "draft" | "published" | "archived";
   isHit: boolean;
   isOutOfStock: boolean;

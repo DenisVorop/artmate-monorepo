@@ -2,7 +2,6 @@
 
 import { ApiResult, type ApiResultDTO } from "@/shared/lib/api-result";
 
-import { productHighlights, productHowItWorks, productSpecs } from "./products.data";
 import type { ApiProductDTO, Product, ProductCategory, ProductsData } from "./products.types";
 
 const DEFAULT_API_BASE_URL = "http://localhost:3002";
@@ -16,9 +15,6 @@ export async function getProductsData(): Promise<ApiResultDTO<ProductsData>> {
       return {
         categories: getCategories(apiProducts, products),
         products,
-        productSpecs,
-        productHowItWorks,
-        productHighlights,
       } satisfies ProductsData;
     },
     {
@@ -65,6 +61,8 @@ function mapProducts(products: readonly ApiProductDTO[]): Product[] {
         image: primaryImage,
         images: images.length > 0 ? images : [primaryImage],
         description: product.description ?? "",
+        characteristics: product.characteristics,
+        usageInstructions: product.usageInstructions,
         isHit: product.isHit,
         isOutOfStock: product.isOutOfStock,
         digitalCollection: product.digitalCollection,

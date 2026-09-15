@@ -63,6 +63,7 @@ export type SeoFaqSection = {
 };
 
 export type SeoProduct = {
+  characteristics?: readonly { name: string; value: string }[];
   availability?: string;
   category?: string;
   categorySlug?: string;

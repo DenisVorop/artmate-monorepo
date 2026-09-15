@@ -23,6 +23,7 @@ import {
   ProductTagsField,
 } from "./form-controls";
 import { ProductDescriptionEditor } from "./product-description-editor";
+import { ProductCharacteristicsFields } from "./product-characteristics-fields";
 
 type ProductEditFormProps = {
   readonly categories: readonly ProductCategory[];
@@ -37,7 +38,15 @@ export function ProductEditForm({
   product,
   tags,
 }: ProductEditFormProps) {
-  const { control, handleSubmit, register } = useForm<ProductFormValues>({
+  const {
+    clearErrors,
+    control,
+    formState: { errors },
+    handleSubmit,
+    register,
+    reset,
+    setError,
+  } = useForm<ProductFormValues>({
     defaultValues: getProductDefaultValues(product),
     resolver: zodResolver(productFormSchema),
   });
@@ -46,84 +55,122 @@ export function ProductEditForm({
       onSuccess: onProductsChange,
     });
   const submitForm = handleSubmit((values) => {
-    updateProduct({
-      input: getUpdateProductInput(values),
-      productId: product.id,
-    });
+    clearErrors("root");
+    updateProduct(
+      {
+        input: getUpdateProductInput(values),
+        productId: product.id,
+      },
+      {
+        onSuccess: (savedProduct) =>
+          reset(getProductDefaultValues(savedProduct)),
+        onError: () =>
+          setError("root.server", {
+            message:
+              "Не удалось сохранить товар. Введённые данные остались в форме — попробуйте ещё раз.",
+          }),
+      },
+    );
   });
 
   return (
-    <form className="grid gap-3" onSubmit={submitForm}>
-      <div className="grid gap-3 sm:grid-cols-2 xl:grid-cols-[minmax(12rem,1.4fr)_minmax(10rem,1fr)_8rem_11rem_minmax(10rem,1fr)]">
-        <LabeledField label="Название">
-          <Input required {...register("title")} />
-        </LabeledField>
-        <LabeledField label="Slug">
-          <Input required {...register("slug")} />
-        </LabeledField>
-        <LabeledField label="Цена, ₽">
-          <Input
-            min={0}
-            required
-            step={1}
-            type="number"
-            {...register("priceRub", {
-              valueAsNumber: true,
-            })}
-          />
-        </LabeledField>
-        <LabeledField label="Статус">
-          <ProductStatusSelect
-            defaultValue={product.status}
-            selectProps={register("status")}
-          />
-        </LabeledField>
-        <LabeledField label="Категория">
-          <ProductCategorySelect
-            categories={categories}
-            defaultValue={product.categoryId}
-            selectProps={register("categoryId")}
-          />
-        </LabeledField>
-      </div>
-      <div className="grid gap-3 sm:grid-cols-2 xl:grid-cols-[6rem_8rem_minmax(12rem,1fr)_auto]">
-        <LabeledCheckbox label="Хит">
-          <input type="checkbox" {...register("isHit")} />
-        </LabeledCheckbox>
-        <LabeledCheckbox label="Нет в наличии">
-          <input type="checkbox" {...register("isOutOfStock")} />
-        </LabeledCheckbox>
-        <LabeledCheckbox label="Доступна доставка Ozon">
-          <input type="checkbox" {...register("isOzonDeliveryAvailable")} />
-        </LabeledCheckbox>
-        <div className="flex items-end">
-          <Button
-            className="w-full xl:w-auto"
-            disabled={isUpdatingProduct}
-            type="submit"
-            variant="outline"
-          >
-            <Save data-icon="inline-start" aria-hidden="true" />
-            Сохранить
-          </Button>
-        </div>
-      </div>
-      <LabeledField label="Теги">
-        <ProductTagsField inputProps={register("tagIds")} tags={tags} />
-      </LabeledField>
-      <LabeledField label="Описание">
-        <Controller
-          control={control}
-          name="description"
-          render={({ field }) => (
-            <ProductDescriptionEditor
-              name={field.name}
-              onValueChange={field.onChange}
-              value={field.value}
+    <form
+      aria-busy={isUpdatingProduct}
+      className="grid gap-3"
+      noValidate
+      onSubmit={submitForm}
+    >
+      <fieldset className="grid min-w-0 gap-3" disabled={isUpdatingProduct}>
+        <div className="grid gap-3 sm:grid-cols-2 xl:grid-cols-[minmax(12rem,1.4fr)_minmax(10rem,1fr)_8rem_11rem_minmax(10rem,1fr)]">
+          <LabeledField label="Название" error={errors.title?.message}>
+            <Input
+              aria-invalid={Boolean(errors.title)}
+              required
+              {...register("title")}
             />
-          )}
+          </LabeledField>
+          <LabeledField label="Slug" error={errors.slug?.message}>
+            <Input
+              aria-invalid={Boolean(errors.slug)}
+              required
+              {...register("slug")}
+            />
+          </LabeledField>
+          <LabeledField label="Цена, ₽" error={errors.priceRub?.message}>
+            <Input
+              aria-invalid={Boolean(errors.priceRub)}
+              min={0}
+              required
+              step={1}
+              type="number"
+              {...register("priceRub", {
+                valueAsNumber: true,
+              })}
+            />
+          </LabeledField>
+          <LabeledField label="Статус" error={errors.status?.message}>
+            <ProductStatusSelect
+              defaultValue={product.status}
+              selectProps={register("status")}
+            />
+          </LabeledField>
+          <LabeledField label="Категория" error={errors.categoryId?.message}>
+            <ProductCategorySelect
+              categories={categories}
+              defaultValue={product.categoryId}
+              selectProps={register("categoryId")}
+            />
+          </LabeledField>
+        </div>
+        <div className="grid gap-3 sm:grid-cols-2 xl:grid-cols-[6rem_8rem_minmax(12rem,1fr)]">
+          <LabeledCheckbox label="Хит">
+            <input type="checkbox" {...register("isHit")} />
+          </LabeledCheckbox>
+          <LabeledCheckbox label="Нет в наличии">
+            <input type="checkbox" {...register("isOutOfStock")} />
+          </LabeledCheckbox>
+          <LabeledCheckbox label="Доступна доставка Ozon">
+            <input type="checkbox" {...register("isOzonDeliveryAvailable")} />
+          </LabeledCheckbox>
+        </div>
+        <LabeledField label="Теги">
+          <ProductTagsField inputProps={register("tagIds")} tags={tags} />
+        </LabeledField>
+        <LabeledField label="Описание">
+          <Controller
+            control={control}
+            name="description"
+            render={({ field }) => (
+              <ProductDescriptionEditor
+                disabled={isUpdatingProduct}
+                name={field.name}
+                onValueChange={field.onChange}
+                value={field.value}
+              />
+            )}
+          />
+        </LabeledField>
+        <ProductCharacteristicsFields
+          control={control}
+          disabled={isUpdatingProduct}
+          errors={errors}
+          register={register}
         />
-      </LabeledField>
+        <Button
+          className="w-full sm:w-auto sm:justify-self-start"
+          disabled={isUpdatingProduct}
+          type="submit"
+          variant="outline"
+        >
+          <Save data-icon="inline-start" aria-hidden="true" />
+          Сохранить
+        </Button>
+      </fieldset>
+      {errors.root?.server && (
+        <p className="text-sm text-destructive" role="alert">
+          {errors.root.server.message}
+        </p>
+      )}
     </form>
   );
 }

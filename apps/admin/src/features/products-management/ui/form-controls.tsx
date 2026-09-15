@@ -19,16 +19,25 @@ export const fieldClassName =
 export function LabeledField({
   children,
   className,
+  error,
+  errorId,
   label,
 }: {
   readonly children: ReactNode;
   readonly className?: string;
+  readonly error?: string;
+  readonly errorId?: string;
   readonly label: string;
 }) {
   return (
     <label className={`grid gap-1.5 ${className ?? ""}`}>
       <span className="text-xs font-medium text-muted-foreground">{label}</span>
       {children}
+      {error && (
+        <span className="text-xs text-destructive" id={errorId} role="alert">
+          {error}
+        </span>
+      )}
     </label>
   );
 }

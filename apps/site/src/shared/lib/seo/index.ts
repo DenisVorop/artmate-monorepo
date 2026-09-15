@@ -17,6 +17,7 @@ export {
   createColoringSeoDescription,
   createColoringSeoTitle,
   createProductDescription,
+  createProductSeoDescription,
   normalizeSeoText,
 } from "./text";
 export {

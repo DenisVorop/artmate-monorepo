@@ -103,6 +103,7 @@ export function ProductEditorCard({
       </CardHeader>
       <CardContent className="grid gap-5">
         <ProductEditForm
+          key={product.id}
           categories={categories}
           onProductsChange={onProductsChange}
           product={product}

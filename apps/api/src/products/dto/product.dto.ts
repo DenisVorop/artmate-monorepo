@@ -19,6 +19,7 @@ import {
 } from "../products.types";
 
 import { ProductCategoryDTO } from "./product-category.dto";
+import { ProductCharacteristicDTO } from "./product-characteristic.dto";
 import { ProductImageDTO } from "./product-image.dto";
 import { ProductTagDTO } from "./product-tag.dto";
 
@@ -43,6 +44,15 @@ export class ProductDTO {
   @IsOptional()
   @IsString()
   description?: string;
+
+  @IsArray()
+  @ValidateNested({ each: true })
+  @Type(() => ProductCharacteristicDTO)
+  characteristics!: ProductCharacteristicDTO[];
+
+  @IsOptional()
+  @IsString()
+  usageInstructions?: string;
 
   @IsIn(productStatuses)
   status!: ProductStatus;
