@@ -8,11 +8,12 @@ import {
   CatalogProductsController,
 } from "./products.controller";
 import { ProductsService } from "./products.service";
+import { ProductShippingService } from "./product-shipping.service";
 
 @Module({
   imports: [AuthModule, UsersModule],
   controllers: [AdminProductsController, CatalogProductsController],
-  providers: [ProductsService],
-  exports: [ProductsService],
+  providers: [ProductsService, ProductShippingService],
+  exports: [ProductsService, ProductShippingService],
 })
 export class ProductsModule {}

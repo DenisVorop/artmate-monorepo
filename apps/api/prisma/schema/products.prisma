@@ -16,6 +16,19 @@ enum ProductTagGroup {
   @@map("product_tag_group")
 }
 
+model ShippingPackageProfile {
+  id          String @id @default(cuid()) @db.VarChar(32)
+  code        String @unique @db.VarChar(64)
+  weightGrams Int    @map("weight_grams")
+  lengthCm    Int    @map("length_cm")
+  widthCm     Int    @map("width_cm")
+  heightCm    Int    @map("height_cm")
+
+  products Product[]
+
+  @@map("shipping_package_profiles")
+}
+
 model Product {
   id                      String        @id @default(cuid()) @db.VarChar(32)
   slug                    String        @unique @db.VarChar(180)
@@ -27,6 +40,7 @@ model Product {
   isOutOfStock            Boolean       @default(false) @map("is_out_of_stock")
   isOzonDeliveryAvailable Boolean       @default(true) @map("is_ozon_delivery_available")
   categoryId              String?       @map("category_id") @db.VarChar(32)
+  shippingPackageProfileId String?      @map("shipping_package_profile_id") @db.VarChar(32)
   /// Price is stored in minor currency units.
   /// For RUB this means kopecks: 129000 = 1290 ₽.
   price                   Int
@@ -35,6 +49,7 @@ model Product {
   updatedAt               DateTime      @default(now()) @updatedAt @map("updated_at")
 
   category                ProductCategory?                @relation(fields: [categoryId], references: [id], onDelete: Restrict)
+  shippingPackageProfile  ShippingPackageProfile?         @relation(fields: [shippingPackageProfileId], references: [id], onDelete: Restrict)
   images                  ProductImage[]
   characteristics         ProductCharacteristic[]
   tags                    ProductTagAssignment[]
@@ -42,6 +57,7 @@ model Product {
   catalogLandingOverrides CatalogLandingProductOverride[]
 
   @@index([categoryId])
+  @@index([shippingPackageProfileId])
   @@index([status, createdAt])
   @@index([status, isHit, createdAt])
   @@map("products")
