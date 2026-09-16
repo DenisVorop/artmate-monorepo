@@ -2,11 +2,15 @@ import { queryOptions } from "@tanstack/react-query";
 
 import {
   getAffiliatePartner,
+  getAffiliatePartnerCodes,
   getAffiliatePartnerHistory,
   getAffiliatePartners,
 } from "@/shared/actions/affiliate-partners";
 
-import type { AffiliatePartnersListParams } from "./types";
+import type {
+  AffiliateCodesListParams,
+  AffiliatePartnersListParams,
+} from "./types";
 import { collectAffiliatePartnerSelection } from "./selection";
 
 export const affiliatePartnersQueryKeys = {
@@ -17,6 +21,8 @@ export const affiliatePartnersQueryKeys = {
     [...affiliatePartnersQueryKeys.all, "detail", userId] as const,
   history: (userId: string) =>
     [...affiliatePartnersQueryKeys.all, "history", userId] as const,
+  codes: (userId: string, params: AffiliateCodesListParams) =>
+    [...affiliatePartnersQueryKeys.all, "codes", userId, params] as const,
   selection: () => [...affiliatePartnersQueryKeys.all, "selection"] as const,
 };
 
@@ -47,6 +53,14 @@ export const affiliatePartnersQuery = {
     queryOptions({
       queryKey: affiliatePartnersQueryKeys.history(userId),
       queryFn: () => getAffiliatePartnerHistory(userId),
+      enabled: Boolean(userId),
+      staleTime: 30_000,
+      retryOnMount: false,
+    }),
+  codes: (userId: string, params: AffiliateCodesListParams) =>
+    queryOptions({
+      queryKey: affiliatePartnersQueryKeys.codes(userId, params),
+      queryFn: () => getAffiliatePartnerCodes(userId, params),
       enabled: Boolean(userId),
       staleTime: 30_000,
       retryOnMount: false,

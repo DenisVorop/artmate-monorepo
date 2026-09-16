@@ -21,6 +21,7 @@ model AffiliatePartner {
   user               User                        @relation(fields: [userId], references: [id], onDelete: Restrict)
   partnerApplication PartnerApplication?         @relation(fields: [partnerApplicationId], references: [id], onDelete: SetNull)
   contractRevisions  AffiliateContractRevision[]
+  promoCodes         PromoCode[]
 
   @@index([status, createdAt])
   @@map("affiliate_partners")

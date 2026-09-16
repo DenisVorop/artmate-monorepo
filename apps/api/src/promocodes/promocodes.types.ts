@@ -1,7 +1,7 @@
 export const promoCodeTypes = ["percentage", "fixed"] as const;
 export type PromoCodeType = (typeof promoCodeTypes)[number];
 
-export const promoCodeKinds = ["standard", "welcome"] as const;
+export const promoCodeKinds = ["standard", "welcome", "affiliate"] as const;
 export type PromoCodeKind = (typeof promoCodeKinds)[number];
 
 export const promoRedemptionStatuses = [

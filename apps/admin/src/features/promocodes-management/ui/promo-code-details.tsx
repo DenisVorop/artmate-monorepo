@@ -9,6 +9,7 @@ import { formatPromoCodeDate, usePromoCode } from "@/entities/promocodes";
 import { routes } from "@/shared/constants";
 import {
   Badge,
+  Button,
   Card,
   CardContent,
   CardHeader,
@@ -86,23 +87,37 @@ export function PromoCodeDetails({
             {promoCode.kind === "welcome" ? (
               <Badge variant="outline">Приветственный</Badge>
             ) : null}
+            {promoCode.kind === "affiliate" ? (
+              <Badge variant="outline">Партнёрский</Badge>
+            ) : null}
           </CardTitle>
         </CardHeader>
         <CardContent>
-          <PromoCodeForm
-            codeImmutable
-            form={form}
-            formId={`promo-code-${promoCode.id}`}
-            kind={promoCode.kind}
-            onSubmit={form.handleSubmit((values) =>
-              updatePromoCode({
-                input: getUpdatePromoCodeInput(values, promoCode),
-                promoCodeId: promoCode.id,
-              }),
-            )}
-            submitLabel="Сохранить"
-            submitPending={isUpdating}
-          />
+          {promoCode.kind !== "affiliate" ? (
+            <PromoCodeForm
+              codeImmutable
+              form={form}
+              formId={`promo-code-${promoCode.id}`}
+              kind={promoCode.kind}
+              onSubmit={form.handleSubmit((values) =>
+                updatePromoCode({
+                  input: getUpdatePromoCodeInput(values, promoCode),
+                  promoCodeId: promoCode.id,
+                }),
+              )}
+              submitLabel="Сохранить"
+              submitPending={isUpdating}
+            />
+          ) : (
+            <div className="flex flex-wrap items-center justify-between gap-3 rounded-lg border bg-muted/30 p-4">
+              <p className="text-sm text-muted-foreground">
+                Настройки кода меняются в профиле партнёра.
+              </p>
+              <Button asChild variant="outline">
+                <Link href={routes.partners}>Открыть партнёров</Link>
+              </Button>
+            </div>
+          )}
         </CardContent>
       </Card>
 

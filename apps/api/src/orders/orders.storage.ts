@@ -268,6 +268,18 @@ export class OrdersStorage {
     const userId = input.userId
       ? await this.getExistingUserId(input.userId)
       : undefined;
+    const affiliateOwnerUserId = input.promoCode
+      ? await this.promocodesService.getAffiliateOwnerUserId(input.promoCode)
+      : undefined;
+    const guestUserId =
+      affiliateOwnerUserId && !userId
+        ? await this.getExistingUserIdByEmail(input.customer.email)
+        : undefined;
+    const checkoutUserLockIds = affiliateOwnerUserId
+      ? [...new Set([affiliateOwnerUserId, userId, guestUserId])]
+          .filter((id): id is string => id !== undefined)
+          .sort()
+      : [];
     const deliveryProvider = this.toPrismaDeliveryProvider(
       input.delivery.provider,
     );
@@ -277,6 +289,12 @@ export class OrdersStorage {
 
       try {
         const order = await this.prisma.$transaction(async (tx) => {
+          if (checkoutUserLockIds.length > 0) {
+            // Lock buyer and affiliate owner in one stable order before order FKs.
+            await tx.$queryRaw(
+              Prisma.sql`SELECT "id" FROM "users" WHERE "id" IN (${Prisma.join(checkoutUserLockIds)}) ORDER BY "id" FOR UPDATE`,
+            );
+          }
           await tx.order.create({
             data: {
               id,
@@ -1664,6 +1682,14 @@ export class OrdersStorage {
     }
 
     return user.id;
+  }
+
+  private async getExistingUserIdByEmail(email: string) {
+    const user = await this.prisma.user.findUnique({
+      where: { email: email.trim().toLowerCase() },
+      select: { id: true },
+    });
+    return user?.id;
   }
 
   private mapOrder(order: StoredOrder): OrderDTO {

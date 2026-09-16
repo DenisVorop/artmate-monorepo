@@ -9,11 +9,15 @@ import {
 import type { ActionResult } from "@/shared/lib/action-result";
 
 import type {
+  AffiliateCodeDTO,
+  AffiliateCodesListParamsDTO,
+  AffiliateCodesPageDTO,
   AffiliateContractRevisionDTO,
   AffiliatePartnerDTO,
   AffiliatePartnersListParamsDTO,
   AffiliatePartnersPageDTO,
   UpdateAffiliatePartnerInputDTO,
+  UpdateAffiliateCodeInputDTO,
 } from "./affiliate-partners.types";
 
 const authAccessTokenCookieName = "artmate_access_token";
@@ -54,6 +58,42 @@ export async function getAffiliatePartnerHistory(userId: string) {
   return requestAdminApi<AffiliateContractRevisionDTO[]>(
     `/affiliate/admin/partners/${encodeURIComponent(userId)}/history`,
   );
+}
+
+export async function getAffiliatePartnerCodes(
+  userId: string,
+  params: AffiliateCodesListParamsDTO,
+) {
+  const searchParams = new URLSearchParams({
+    page: String(params.page),
+    pageSize: String(params.pageSize),
+  });
+
+  return requestAdminApi<AffiliateCodesPageDTO>(
+    `/affiliate/admin/partners/${encodeURIComponent(userId)}/codes?${searchParams}`,
+  );
+}
+
+export async function updateAffiliatePartnerCode(
+  userId: string,
+  codeId: string,
+  input: UpdateAffiliateCodeInputDTO,
+): Promise<ActionResult<AffiliateCodeDTO>> {
+  try {
+    return {
+      ok: true,
+      data: await requestAdminApi<AffiliateCodeDTO>(
+        `/affiliate/admin/partners/${encodeURIComponent(userId)}/codes/${encodeURIComponent(codeId)}`,
+        { method: "PATCH", body: JSON.stringify(input) },
+      ),
+    };
+  } catch (error) {
+    return {
+      ok: false,
+      error: error instanceof Error ? error.message : "Request failed",
+      status: error instanceof AdminApiError ? error.status : undefined,
+    };
+  }
 }
 
 export async function updateAffiliatePartner(

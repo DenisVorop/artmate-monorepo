@@ -1,7 +1,12 @@
 "use client";
 
 import Link from "next/link";
-import { ArrowUpRight, FileText, WalletCards } from "lucide-react";
+import {
+  ArrowUpRight,
+  FileText,
+  TicketPercent,
+  WalletCards,
+} from "lucide-react";
 
 import {
   formatKopecks,
@@ -43,8 +48,8 @@ export function PartnerOverview() {
             className="mt-8 bg-white text-ink hover:bg-white/90"
             size="lg"
           >
-            <Link href={routes.cooperation}>
-              Сотрудничество
+            <Link href={routes.codes}>
+              Создать промокод
               <ArrowUpRight aria-hidden="true" />
             </Link>
           </Button>
@@ -52,7 +57,7 @@ export function PartnerOverview() {
       </section>
 
       <section
-        className="mt-6 grid gap-4 sm:grid-cols-2"
+        className="mt-6 grid gap-4 sm:grid-cols-3"
         aria-labelledby="today-heading"
       >
         <h2 className="sr-only" id="today-heading">
@@ -63,6 +68,12 @@ export function PartnerOverview() {
           icon={FileText}
           label="Договор"
           value={`№ ${partner.contract.number}`}
+        />
+        <InfoCard
+          accent="rose"
+          icon={TicketPercent}
+          label="Ваши промокоды"
+          value="Управляйте скидкой"
         />
         <InfoCard
           accent="orange"
@@ -76,17 +87,18 @@ export function PartnerOverview() {
 }
 
 type InfoCardProps = {
-  readonly accent: "orange" | "violet";
+  readonly accent: "orange" | "rose" | "violet";
   readonly icon: typeof FileText;
   readonly label: string;
   readonly value: string;
 };
 
 function InfoCard({ accent, icon: Icon, label, value }: InfoCardProps) {
-  const color =
-    accent === "violet"
-      ? "bg-violet-100 text-violet-700"
-      : "bg-orange-100 text-orange-700";
+  const color = {
+    orange: "bg-orange-100 text-orange-700",
+    rose: "bg-rose-100 text-rose-700",
+    violet: "bg-violet-100 text-violet-700",
+  }[accent];
 
   return (
     <Card>

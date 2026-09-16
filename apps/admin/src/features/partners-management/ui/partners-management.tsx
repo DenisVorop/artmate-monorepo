@@ -43,6 +43,7 @@ import {
 } from "@/shared/ui";
 
 import { getAffiliatePartnerCandidates } from "../lib";
+import { PartnerCodes } from "./partner-codes";
 import { PartnerForm } from "./partner-form";
 
 const pageSize = 25;
@@ -86,7 +87,7 @@ export function PartnersManagement() {
 
   const closeSavedDialog = () => {
     setFormPending(false);
-    setDialog({ open: false });
+    setDialog((current) => ({ ...current, open: false }));
   };
 
   const changeDialog = (open: boolean) => {
@@ -215,7 +216,7 @@ export function PartnersManagement() {
 
       <Dialog open={dialog.open} onOpenChange={changeDialog}>
         <DialogContent
-          className="max-h-[calc(100vh-2rem)] min-w-0 overflow-y-auto sm:max-w-2xl"
+          className="max-h-[calc(100vh-2rem)] min-w-0 overflow-y-auto sm:max-w-3xl"
           showCloseButton={!formPending}
           onEscapeKeyDown={(event) => formPending && event.preventDefault()}
           onPointerDownOutside={(event) =>
@@ -302,12 +303,15 @@ export function PartnersManagement() {
             </>
           )}
           {dialog.userId ? (
-            <ContractHistory
-              history={historyQuery.history}
-              isError={historyQuery.isError}
-              isPending={historyQuery.isPending}
-              onRefetch={() => void historyQuery.refetch()}
-            />
+            <>
+              <PartnerCodes key={dialog.userId} userId={dialog.userId} />
+              <ContractHistory
+                history={historyQuery.history}
+                isError={historyQuery.isError}
+                isPending={historyQuery.isPending}
+                onRefetch={() => void historyQuery.refetch()}
+              />
+            </>
           ) : null}
         </DialogContent>
       </Dialog>

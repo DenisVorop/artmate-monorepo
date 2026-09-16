@@ -7,11 +7,21 @@ import {
   AdminAffiliateController,
   AffiliateController,
 } from "./affiliate.controller";
+import {
+  AdminAffiliateCodesController,
+  AffiliateCodesController,
+} from "./affiliate-codes.controller";
+import { AffiliateCodesService } from "./affiliate-codes.service";
 import { AffiliateService } from "./affiliate.service";
 
 @Module({
   imports: [AuthModule, UsersModule],
-  controllers: [AffiliateController, AdminAffiliateController],
-  providers: [AffiliateService],
+  controllers: [
+    AffiliateController,
+    AdminAffiliateController,
+    AffiliateCodesController,
+    AdminAffiliateCodesController,
+  ],
+  providers: [AffiliateService, AffiliateCodesService],
 })
 export class AffiliateModule {}

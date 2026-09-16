@@ -20,7 +20,7 @@ const mutationSource = await readFile(
 test("dialog pending state resets synchronously before successful close and on open", () => {
   assert.match(
     managementSource,
-    /setFormPending\(false\);\s*setDialog\(\{ open: false \}\)/,
+    /setFormPending\(false\);\s*setDialog\(\(current\) => \(\{ \.\.\.current, open: false \}\)\)/,
   );
   assert.match(
     managementSource,
