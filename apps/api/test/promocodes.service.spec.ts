@@ -123,12 +123,12 @@ describe("PromocodesService", () => {
   });
 
   it("fails reservation immediately when no promo row was locked", async () => {
-    let readAfterLock = false;
+    let promoReads = 0;
     const tx = {
       $queryRaw: async () => [],
       promoCode: {
         findUnique: async () => {
-          readAfterLock = true;
+          promoReads += 1;
           return promo();
         },
       },
@@ -146,7 +146,7 @@ describe("PromocodesService", () => {
         error instanceof BadRequestException &&
         /Промокод не найден/.test(error.message),
     );
-    assert.equal(readAfterLock, false);
+    assert.equal(promoReads, 1);
   });
 
   it("writes order and redemption snapshots through the caller transaction", async () => {
@@ -206,6 +206,168 @@ describe("PromocodesService", () => {
     );
     assert.equal(calls[2]?.data?.discountKopecksSnapshot, 1_000n);
     assert.equal(result.pricingSnapshot.totalKopecks, 9_000);
+  });
+
+  it("rejects an inactive affiliate and snapshots immutable affiliate attribution", async () => {
+    const calls: Array<{ operation: string; data?: Record<string, unknown> }> = [];
+    const affiliatePromo = promo({
+      kind: "AFFILIATE",
+      basisPoints: 1_200,
+      affiliatePartnerId: "partner-1",
+      affiliatePartnerPercent: 8,
+      affiliateComment: "must stay private",
+    });
+    const partner = {
+      id: "partner-1",
+      userId: "partner-user-1",
+      status: "ACTIVE",
+      user: { roles: ["CUSTOMER", "PARTNER"], status: "ACTIVE" },
+    };
+    let persistedOrderUserId = "partner-user-1";
+    const tx = {
+      $queryRaw: async (query: { strings?: readonly string[] }) => {
+        const sql = query.strings?.join("") ?? String(query);
+        calls.push({
+          operation: sql.includes('FROM "users"') ? "user-lock" : "promo-lock",
+        });
+        return [{ id: "locked" }];
+      },
+      affiliatePartner: { findUnique: async () => partner },
+      promoCode: {
+        findUnique: async (args: { select?: unknown }) =>
+          args.select
+            ? {
+                affiliatePartner: { userId: "partner-user-1" },
+                kind: "AFFILIATE",
+              }
+            : affiliatePromo,
+        update: async () => ({}),
+      },
+      promoRedemption: {
+        count: async () => 0,
+        create: async ({ data }: { data: Record<string, unknown> }) => {
+          calls.push({ operation: "redemption", data });
+          return data;
+        },
+      },
+      order: {
+        findUnique: async () => ({
+          checkoutActorUserId: null,
+          userId: persistedOrderUserId,
+        }),
+        update: async ({ data }: { data: Record<string, unknown> }) => {
+          calls.push({ operation: "order", data });
+          return data;
+        },
+      },
+    };
+    const service = new PromocodesService({
+      affiliatePartner: tx.affiliatePartner,
+      cart: {
+        findUnique: async () => ({
+          id: "cart-1",
+          items: [
+            {
+              productId: "item",
+              price: { toString: () => "1000.00" },
+              quantity: 1,
+            },
+          ],
+        }),
+      },
+      promoCode: tx.promoCode,
+      promoRedemption: tx.promoRedemption,
+      telegramAccount: { findUnique: async () => null },
+    } as unknown as PrismaService);
+
+    const preview = await service.preview({
+      code: "AFFILIATE",
+      cartId: "cart-1",
+    });
+    assert.deepEqual(Object.keys(preview).sort(), [
+      "cartId",
+      "code",
+      "currency",
+      "discount",
+      "subtotal",
+      "total",
+    ]);
+    assert.equal(JSON.stringify(preview).includes("must stay private"), false);
+
+    await service.reserveInTransaction(tx as never, {
+      code: "AFFILIATE",
+      deliveryPriceKopecks: 49_000,
+      orderId: "order-1",
+      items: [{ id: "item", unitPriceKopecks: 100_000, quantity: 1 }],
+    });
+
+    assert.deepEqual(
+      calls.slice(0, 2).map(({ operation }) => operation),
+      ["user-lock", "promo-lock"],
+    );
+    const snapshot = calls.find(({ operation }) => operation === "order")?.data
+      ?.promoTermsSnapshot as {
+      affiliate?: Record<string, unknown>;
+      affiliateComment?: string;
+    };
+    assert.deepEqual(snapshot.affiliate, {
+      partnerId: "partner-1",
+      partnerUserId: "partner-user-1",
+      partnerPercent: 8,
+      buyerPercent: 12,
+      isSelfPurchase: true,
+    });
+    assert.equal(snapshot.affiliateComment, undefined);
+    assert.equal(JSON.stringify(snapshot).includes("must stay private"), false);
+
+    persistedOrderUserId = "other-user";
+    calls.splice(0);
+    await service.reserveInTransaction(tx as never, {
+      code: "AFFILIATE",
+      deliveryPriceKopecks: 0,
+      orderId: "order-2",
+      items: [{ id: "item", unitPriceKopecks: 100_000, quantity: 1 }],
+    });
+    const otherSnapshot = calls.find(({ operation }) => operation === "order")
+      ?.data?.promoTermsSnapshot as {
+      affiliate: { isSelfPurchase: boolean };
+    };
+    assert.equal(otherSnapshot.affiliate.isSelfPurchase, false);
+
+    partner.status = "SUSPENDED";
+    await assert.rejects(
+      service.calculate({
+        code: "AFFILIATE",
+        items: [{ id: "item", unitPriceKopecks: 100_000, quantity: 1 }],
+      }),
+      /недоступен/,
+    );
+  });
+
+  it("blocks generic admin updates for affiliate codes", async () => {
+    const service = new PromocodesService({
+      $transaction: async (callback: (tx: unknown) => unknown) =>
+        callback({
+          $queryRaw: async () => [{ id: "promo-1" }],
+          promoCode: {
+            findUnique: async () => promo({ kind: "AFFILIATE" }),
+          },
+        }),
+    } as unknown as PrismaService);
+
+    await assert.rejects(
+      service.updateAdmin("promo-1", {
+        name: "Bypass",
+        type: "percentage",
+        basisPoints: 1_000,
+        maxDiscountKopecks: null,
+        minSubtotalKopecks: 0,
+        maxUses: null,
+        maxUsesPerUser: null,
+        isActive: true,
+      }),
+      /партнёрском разделе/,
+    );
   });
 
   it("allows omitted PATCH code and rejects code changes or lowered occupied limits", async () => {

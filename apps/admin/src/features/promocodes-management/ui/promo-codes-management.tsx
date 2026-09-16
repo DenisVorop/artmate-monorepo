@@ -1,6 +1,6 @@
 "use client";
 
-import { Pause, Pencil, Play } from "lucide-react";
+import { Eye, Pause, Pencil, Play, UsersRound } from "lucide-react";
 import Link from "next/link";
 
 import {
@@ -91,6 +91,11 @@ export function PromoCodesManagement() {
                         Приветственный
                       </Badge>
                     ) : null}
+                    {promoCode.kind === "affiliate" ? (
+                      <Badge className="mt-1" variant="outline">
+                        Партнёрский
+                      </Badge>
+                    ) : null}
                   </TableCell>
                   <TableCell>
                     <Badge variant={status.variant}>{status.label}</Badge>
@@ -117,38 +122,63 @@ export function PromoCodesManagement() {
                   </TableCell>
                   <TableCell>
                     <div className="flex justify-end gap-1">
-                      <Button
-                        aria-label={
-                          promoCode.isActive ? "Поставить на паузу" : "Включить"
-                        }
-                        disabled={isToggling}
-                        onClick={() =>
-                          updatePromoCode({
-                            input: getTogglePromoCodeInput(
-                              promoCode,
-                              !promoCode.isActive,
-                            ),
-                            promoCodeId: promoCode.id,
-                          })
-                        }
-                        size="icon-sm"
-                        type="button"
-                        variant="outline"
-                      >
-                        {promoCode.isActive ? (
-                          <Pause aria-hidden="true" />
-                        ) : (
-                          <Play aria-hidden="true" />
-                        )}
-                      </Button>
-                      <Button asChild size="icon-sm">
-                        <Link
-                          aria-label={`Редактировать ${promoCode.code}`}
-                          href={routes.promoCode(promoCode.id)}
-                        >
-                          <Pencil aria-hidden="true" />
-                        </Link>
-                      </Button>
+                      {promoCode.kind === "affiliate" ? (
+                        <>
+                          <Button asChild size="icon-sm" variant="outline">
+                            <Link
+                              aria-label={`Посмотреть применения ${promoCode.code}`}
+                              href={routes.promoCode(promoCode.id)}
+                            >
+                              <Eye aria-hidden="true" />
+                            </Link>
+                          </Button>
+                          <Button asChild size="icon-sm">
+                            <Link
+                              aria-label="Открыть партнёров"
+                              href={routes.partners}
+                            >
+                              <UsersRound aria-hidden="true" />
+                            </Link>
+                          </Button>
+                        </>
+                      ) : (
+                        <>
+                          <Button
+                            aria-label={
+                              promoCode.isActive
+                                ? "Поставить на паузу"
+                                : "Включить"
+                            }
+                            disabled={isToggling}
+                            onClick={() =>
+                              updatePromoCode({
+                                input: getTogglePromoCodeInput(
+                                  promoCode,
+                                  !promoCode.isActive,
+                                ),
+                                promoCodeId: promoCode.id,
+                              })
+                            }
+                            size="icon-sm"
+                            type="button"
+                            variant="outline"
+                          >
+                            {promoCode.isActive ? (
+                              <Pause aria-hidden="true" />
+                            ) : (
+                              <Play aria-hidden="true" />
+                            )}
+                          </Button>
+                          <Button asChild size="icon-sm">
+                            <Link
+                              aria-label={`Редактировать ${promoCode.code}`}
+                              href={routes.promoCode(promoCode.id)}
+                            >
+                              <Pencil aria-hidden="true" />
+                            </Link>
+                          </Button>
+                        </>
+                      )}
                     </div>
                   </TableCell>
                 </TableRow>

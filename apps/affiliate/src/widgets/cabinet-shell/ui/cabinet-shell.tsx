@@ -1,7 +1,12 @@
 "use client";
 
 import Link from "next/link";
-import { FileText, LayoutDashboard, Sparkles } from "lucide-react";
+import {
+  FileText,
+  LayoutDashboard,
+  Sparkles,
+  TicketPercent,
+} from "lucide-react";
 import type { ReactNode } from "react";
 
 import { useAffiliatePartnerData } from "@/entities/affiliate-partner";
@@ -11,12 +16,13 @@ import { cn } from "@/shared/lib";
 import { DataState } from "@/shared/ui";
 
 type CabinetShellProps = {
-  readonly activeRoute: "/" | "/cooperation";
+  readonly activeRoute: "/" | "/codes" | "/cooperation";
   readonly children: ReactNode;
 };
 
 const navigation = [
   { href: routes.home, icon: LayoutDashboard, label: "Обзор" },
+  { href: routes.codes, icon: TicketPercent, label: "Промокоды" },
   { href: routes.cooperation, icon: FileText, label: "Сотрудничество" },
 ] as const;
 
@@ -71,13 +77,13 @@ export function CabinetShell({ activeRoute, children }: CabinetShellProps) {
             <LogoutButton />
           </div>
           <nav
-            className="mx-auto mt-3 grid max-w-6xl grid-cols-2 gap-2"
+            className="mx-auto mt-3 grid max-w-6xl grid-cols-3 gap-1.5"
             aria-label="Основная навигация"
           >
             {navigation.map(({ href, label }) => (
               <Link
                 className={cn(
-                  "rounded-xl px-3 py-2 text-center text-xs font-bold text-muted-foreground",
+                  "min-w-0 rounded-xl px-1.5 py-2 text-center text-[0.7rem] font-bold text-muted-foreground sm:px-3 sm:text-xs",
                   activeRoute === href && "bg-ink text-white",
                 )}
                 href={href}

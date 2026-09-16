@@ -11,3 +11,5 @@ export {
 export { DataState } from "./data-state";
 export { Input } from "./input";
 export { Separator } from "./separator";
+export { Slider } from "./slider";
+export { Textarea } from "./textarea";

@@ -326,7 +326,83 @@ describe("CDEK shipment customer phone", () => {
 });
 
 describe("OrdersStorage checkout idempotency", () => {
-  it("attaches the guest before reserving a promo without granting the owner's promo identity", async () => {
+  it("locks reciprocal authenticated and guest buyers in the same order before order FKs", async () => {
+    for (const { authenticated, buyerId, ownerId } of [
+      { authenticated: true, buyerId: "user-a", ownerId: "user-b" },
+      { authenticated: true, buyerId: "user-b", ownerId: "user-a" },
+      { authenticated: false, buyerId: "user-a", ownerId: "user-b" },
+      { authenticated: false, buyerId: "user-b", ownerId: "user-a" },
+    ]) {
+      const calls: string[] = [];
+      const fixture = createStorageFixture(
+        {
+          getAffiliateOwnerUserId: async () => ownerId,
+          reserveInTransaction: async () => ({
+            pricingSnapshot: {
+              subtotalKopecks: 100_000,
+              discountKopecks: 0,
+              totalKopecks: 100_000,
+              items: [
+                {
+                  priceGroups: [
+                    { quantity: 1, unitPriceKopecks: 100_000 },
+                  ],
+                },
+              ],
+            },
+          }),
+        } as never,
+        {
+          existingUserIds: authenticated ? [buyerId] : [],
+          guestUserId: authenticated ? undefined : buyerId,
+          lockCalls: calls,
+        },
+      );
+
+      await fixture.storage.createOrder({
+        ...createStoredOrderInput(),
+        promoCode: "AFFILIATE",
+        userId: authenticated ? buyerId : undefined,
+      });
+
+      assert.deepEqual(calls, ["lock:user-a,user-b", "order.create"]);
+    }
+  });
+
+  it("does not add user pre-locks for standard or welcome promo paths", async () => {
+    for (const promoCode of ["STANDARD", "WELCOME"]) {
+      const calls: string[] = [];
+      const fixture = createStorageFixture(
+        {
+          getAffiliateOwnerUserId: async () => undefined,
+          reserveInTransaction: async () => ({
+            pricingSnapshot: {
+              subtotalKopecks: 100_000,
+              discountKopecks: 0,
+              totalKopecks: 100_000,
+              items: [
+                {
+                  priceGroups: [
+                    { quantity: 1, unitPriceKopecks: 100_000 },
+                  ],
+                },
+              ],
+            },
+          }),
+        } as never,
+        { lockCalls: calls },
+      );
+
+      await fixture.storage.createOrder({
+        ...createStoredOrderInput(),
+        checkoutAttemptId: `attempt-${promoCode}`,
+        promoCode,
+      });
+      assert.deepEqual(calls, ["order.create"]);
+    }
+  });
+
+  it("attaches the guest before reserving without granting authenticated promo identity", async () => {
     const reservationFailure = new Error("Intentional promo failure");
     const fixture = createStorageFixture({
       reserveInTransaction: async (_tx: unknown, input: { userId?: string }) => {
@@ -1106,7 +1182,13 @@ function createStoredOrderInput() {
 
 function createStorageFixture(
   promocodesService: ConstructorParameters<typeof OrdersStorage>[1] = {} as never,
-  options: { enqueueFailure?: Error; commitFailure?: Error } = {},
+  options: {
+    enqueueFailure?: Error;
+    commitFailure?: Error;
+    existingUserIds?: string[];
+    guestUserId?: string;
+    lockCalls?: string[];
+  } = {},
 ) {
   const orders: Array<Record<string, unknown>> = [];
   const createdEvents: Array<Record<string, unknown>> = [];
@@ -1116,6 +1198,7 @@ function createStorageFixture(
   let transactionTail = Promise.resolve();
   const order = {
     create: async ({ data }: { data: Record<string, unknown> }) => {
+      options.lockCalls?.push("order.create");
       if (
         orders.some(
           (item) => item.checkoutAttemptId === data.checkoutAttemptId,
@@ -1146,8 +1229,14 @@ function createStorageFixture(
   };
   const prisma = {
     user: {
-      findUnique: async ({ where }: { where: { id: string } }) =>
-        where.id === "user-2" ? { id: "user-2" } : null,
+      findUnique: async ({ where }: { where: { email?: string; id?: string } }) =>
+        where.email
+          ? options.guestUserId
+            ? { id: options.guestUserId }
+            : null
+          : where.id === "user-2" || options.existingUserIds?.includes(where.id!)
+            ? { id: where.id }
+            : null,
     },
     order,
     $transaction: (operation: (tx: unknown) => Promise<unknown>) => {
@@ -1155,7 +1244,14 @@ function createStorageFixture(
         const previousOrders = orders.map((value) => ({ ...value }));
         const previousEvents = createdEvents.map((value) => ({ ...value }));
         const previousActivations = activations;
-        activeTransaction = { order };
+        activeTransaction = {
+          $queryRaw: async (query: { values?: unknown[] }) => {
+            const ids = (query.values ?? []).map(String).sort();
+            options.lockCalls?.push(`lock:${ids.join(",")}`);
+            return ids.map((id) => ({ id }));
+          },
+          order,
+        };
         try {
           const result = await operation(activeTransaction);
           if (options.commitFailure) throw options.commitFailure;
@@ -1175,7 +1271,10 @@ function createStorageFixture(
   };
   const storage = new OrdersStorage(
     prisma as unknown as PrismaService,
-    promocodesService,
+    Object.assign(
+      { getAffiliateOwnerUserId: async () => undefined },
+      promocodesService,
+    ),
     {
       attachGuestOrderInTransaction: async (
         _tx: unknown,
@@ -1183,8 +1282,9 @@ function createStorageFixture(
       ) => {
         activations += 1;
         const stored = orders.find((item) => item.id === guestOrder.id);
-        if (stored) stored.userId = "guest-user";
-        return "guest-user";
+        const guestUserId = options.guestUserId ?? "guest-user";
+        if (stored) stored.userId = guestUserId;
+        return guestUserId;
       },
     } as never,
     {

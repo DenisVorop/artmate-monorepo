@@ -5,6 +5,7 @@ import { getSafeRedirectPath } from "../src/features/auth/lib/safe-redirect.ts";
 
 test("allows only protected affiliate destinations", () => {
   assert.equal(getSafeRedirectPath("/"), "/");
+  assert.equal(getSafeRedirectPath("/codes"), "/codes");
   assert.equal(getSafeRedirectPath("/cooperation"), "/cooperation");
 });
 

@@ -8,6 +8,7 @@ enum PromoCodeType {
 enum PromoCodeKind {
   STANDARD @map("standard")
   WELCOME  @map("welcome")
+  AFFILIATE @map("affiliate")
 
   @@map("promo_code_kind")
 }
@@ -21,29 +22,34 @@ enum PromoRedemptionStatus {
 }
 
 model PromoCode {
-  id                   String        @id @default(cuid())
-  code                 String        @unique(map: "promo_codes_code_key") @db.VarChar(40)
-  kind                 PromoCodeKind @default(STANDARD)
-  name                 String        @db.VarChar(160)
-  description          String?       @db.Text
-  type                 PromoCodeType
-  basisPoints          Int?          @map("basis_points")
-  amountKopecks        BigInt?       @map("amount_kopecks")
-  maxDiscountKopecks   BigInt?       @map("max_discount_kopecks")
-  minSubtotalKopecks   BigInt        @default(0) @map("min_subtotal_kopecks")
-  startsAt             DateTime?     @map("starts_at")
-  endsAt               DateTime?     @map("ends_at")
-  maxUses              Int?          @map("max_uses")
-  maxUsesPerUser       Int?          @map("max_uses_per_user")
-  isActive             Boolean       @default(true) @map("is_active")
-  usedCount            Int           @default(0) @map("used_count")
-  reservedCount        Int           @default(0) @map("reserved_count")
-  createdAt            DateTime      @default(now()) @map("created_at")
-  updatedAt            DateTime      @default(now()) @updatedAt @map("updated_at")
+  id                      String        @id @default(cuid())
+  code                    String        @unique(map: "promo_codes_code_key") @db.VarChar(40)
+  kind                    PromoCodeKind @default(STANDARD)
+  name                    String        @db.VarChar(160)
+  description             String?       @db.Text
+  type                    PromoCodeType
+  basisPoints             Int?          @map("basis_points")
+  amountKopecks           BigInt?       @map("amount_kopecks")
+  maxDiscountKopecks      BigInt?       @map("max_discount_kopecks")
+  minSubtotalKopecks      BigInt        @default(0) @map("min_subtotal_kopecks")
+  startsAt                DateTime?     @map("starts_at")
+  endsAt                  DateTime?     @map("ends_at")
+  maxUses                 Int?          @map("max_uses")
+  maxUsesPerUser          Int?          @map("max_uses_per_user")
+  isActive                Boolean       @default(true) @map("is_active")
+  usedCount               Int           @default(0) @map("used_count")
+  reservedCount           Int           @default(0) @map("reserved_count")
+  affiliatePartnerId      String?       @map("affiliate_partner_id") @db.VarChar(32)
+  affiliatePartnerPercent Int?          @map("affiliate_partner_percent")
+  affiliateComment        String?       @map("affiliate_comment") @db.VarChar(500)
+  createdAt               DateTime      @default(now()) @map("created_at")
+  updatedAt               DateTime      @default(now()) @updatedAt @map("updated_at")
 
-  redemptions PromoRedemption[]
+  redemptions      PromoRedemption[]
+  affiliatePartner AffiliatePartner?  @relation(fields: [affiliatePartnerId], references: [id], onDelete: Restrict, onUpdate: Restrict, map: "promo_codes_affiliate_partner_id_fkey")
 
   @@index([isActive, startsAt, endsAt], map: "promo_codes_active_dates_idx")
+  @@index([affiliatePartnerId, createdAt], map: "promo_codes_affiliate_partner_created_at_idx")
   @@map("promo_codes")
 }
 

@@ -16,3 +16,33 @@ export type AffiliatePartnerDTO = {
     paymentDetails: string;
   };
 };
+
+export type AffiliateCodeDTO = {
+  id: string;
+  code: string;
+  comment: string | null;
+  partnerPercent: number;
+  buyerPercent: number;
+  isActive: boolean;
+  createdAt: string;
+  updatedAt: string;
+};
+
+export type AffiliateCodeListDTO = {
+  items: AffiliateCodeDTO[];
+  total: number;
+  page: number;
+  pageSize: number;
+};
+
+export type CreateAffiliateCodeInputDTO = {
+  code?: string;
+  comment?: string | null;
+  partnerPercent: number;
+};
+
+export type UpdateAffiliateCodeInputDTO = {
+  comment?: string | null;
+  partnerPercent?: number;
+  isActive?: boolean;
+};
