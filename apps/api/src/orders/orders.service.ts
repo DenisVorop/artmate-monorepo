@@ -34,6 +34,8 @@ import {
   rublesToKopecks,
 } from "../promocodes/promocodes.service";
 import { TBankAcquiringService } from "../tbank/tbank-acquiring.service";
+import { ProductShippingService } from "../products/product-shipping.service";
+import { createShippingPackageSnapshot } from "../products/shipping-package-profile";
 
 import { ORDER_COMMENT_MAX_LENGTH } from "./orders.constants";
 import {
@@ -128,6 +130,7 @@ export class OrdersService {
     private readonly ordersStorage: OrdersStorage,
     private readonly ordersTelegramService: OrdersTelegramService,
     private readonly promocodesService: PromocodesService,
+    private readonly productShippingService: ProductShippingService,
   ) {}
 
   async getOrder(orderId: string, user: AuthUser): Promise<OrderDTO> {
@@ -221,9 +224,13 @@ export class OrdersService {
 
     this.assertOzonDeliveryAvailable(deliverySelection, cartDTO);
 
-    const delivery = await this.calculateCheckoutDelivery(
+    const deliveryItems = await this.prepareDeliveryItems(
       deliverySelection,
       cartDTO.items,
+    );
+    const delivery = await this.calculateCheckoutDelivery(
+      deliverySelection,
+      deliveryItems,
     );
     const deliveryPrice = delivery.deliveryPrice;
     const promo = await this.calculatePromo(
@@ -327,9 +334,13 @@ export class OrdersService {
 
     this.assertOzonDeliveryAvailable(deliverySelection, cartDTO);
 
-    const delivery = await this.calculateCheckoutDelivery(
+    const deliveryItems = await this.prepareDeliveryItems(
       deliverySelection,
       cartDTO.items,
+    );
+    const delivery = await this.calculateCheckoutDelivery(
+      deliverySelection,
+      deliveryItems,
     );
     const promo = await this.calculatePromo(
       cartDTO,
@@ -353,7 +364,7 @@ export class OrdersService {
         provider: delivery.provider,
         pickupPoint: delivery.pickupPoint,
       },
-      items: cartDTO.items,
+      items: deliveryItems,
       itemsCount: cartDTO.itemsCount,
       paymentMethod,
       subtotal: cartDTO.subtotal,
@@ -398,6 +409,21 @@ export class OrdersService {
       );
       throw new ServiceUnavailableException(deliveryCalculationErrorMessage);
     }
+  }
+
+  private async prepareDeliveryItems(
+    selection: DeliverySelection,
+    items: CartDTO["items"],
+  ) {
+    if (selection.provider !== "cdek") return items;
+
+    const profiles = await this.productShippingService.resolveForProducts(
+      items.map((item) => item.id),
+    );
+    return items.map((item) => ({
+      ...item,
+      shippingPackage: createShippingPackageSnapshot(profiles.get(item.id)!),
+    }));
   }
 
   private stringifyProviderDiagnostic(value: unknown) {
@@ -1333,7 +1359,7 @@ export class OrdersService {
         id: order.id,
         customer: { ...order.customer, phone: customerPhone },
         delivery: order.delivery,
-        items: order.items,
+        items: await this.ordersStorage.getCdekShipmentItems(order.id),
         comment: order.comment,
       });
 

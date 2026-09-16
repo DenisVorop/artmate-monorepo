@@ -198,6 +198,19 @@ function createOrdersServiceFixture(
           };
         },
       },
+      productShippingService: {
+        resolveForProducts: async (ids: string[]) =>
+          new Map(
+            ids.map((id) => [id, {
+              id: "shipping_album",
+              code: "album",
+              weightGrams: 400,
+              lengthCm: 40,
+              widthCm: 30,
+              heightCm: 1,
+            }]),
+          ),
+      },
       logger: { warn: () => undefined },
       ordersStorage: {
         createOrder: async () => {

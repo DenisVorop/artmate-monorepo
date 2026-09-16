@@ -187,6 +187,7 @@ model OrderItem {
   image        String   @db.Text
   quantity     Int
   lineTotal    Decimal  @map("line_total") @db.Decimal(12, 2)
+  shippingPackageSnapshot Json? @map("shipping_package_snapshot") @db.JsonB
   createdAt    DateTime @default(now()) @map("created_at")
 
   order Order @relation(fields: [orderId], references: [id], onDelete: Cascade)

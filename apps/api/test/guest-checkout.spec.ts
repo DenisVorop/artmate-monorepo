@@ -953,6 +953,19 @@ function createServiceFixture(options: {
         },
       }),
     },
+    productShippingService: {
+      resolveForProducts: async (ids: string[]) =>
+        new Map(
+          ids.map((id) => [id, {
+            id: "shipping_album",
+            code: "album",
+            weightGrams: 400,
+            lengthCm: 40,
+            widthCm: 30,
+            heightCm: 1,
+          }]),
+        ),
+    },
     ordersStorage: {
       getOrderByCheckoutAttempt: async () => options.existingOrder,
       claimPaymentInitialization: async () => {
@@ -1020,6 +1033,25 @@ function createCdekShipmentServiceFixture({
         shouldCreate: true,
         shipment: { provider: "cdek" },
       }),
+      getCdekShipmentItems: async () => [
+        {
+          id: "product-1",
+          slug: "product-1",
+          title: "Product",
+          price: 1000,
+          quantity: 1,
+          lineTotal: 1000,
+          shippingPackage: {
+            version: 1 as const,
+            id: "shipping_album",
+            code: "album",
+            weightGrams: 400,
+            lengthCm: 40,
+            widthCm: 30,
+            heightCm: 1,
+          },
+        },
+      ],
       upsertOrderShipment: async (input: Record<string, unknown>) => {
         shipmentWrites.push(input);
         return { ...input, createdAt: "", updatedAt: "" };
@@ -1054,6 +1086,15 @@ function createStoredOrderInput() {
         quantity: 1,
         slug: "product-1",
         title: "Product",
+        shippingPackage: {
+          version: 1 as const,
+          id: "shipping_album",
+          code: "album",
+          weightGrams: 400,
+          lengthCm: 40,
+          widthCm: 30,
+          heightCm: 1,
+        },
       },
     ],
     itemsCount: 1,

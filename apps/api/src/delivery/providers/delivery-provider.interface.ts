@@ -1,3 +1,5 @@
+import type { ShippingPackageSnapshot } from "../../products/shipping-package-profile";
+
 export type DeliveryProviderCode = "cdek" | "ozon";
 
 export type DeliveryCartItem = {
@@ -7,6 +9,7 @@ export type DeliveryCartItem = {
   price: number;
   quantity: number;
   lineTotal: number;
+  shippingPackage?: ShippingPackageSnapshot;
 };
 
 export type DeliverySelection = {

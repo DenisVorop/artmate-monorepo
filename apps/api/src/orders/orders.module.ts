@@ -6,6 +6,7 @@ import { DeliveryModule } from "../delivery/delivery.module";
 import { NotificationQueueModule } from "../notifications/notification-queue.module";
 import { OzonModule } from "../ozon/ozon.module";
 import { PromocodesModule } from "../promocodes/promocodes.module";
+import { ProductsModule } from "../products/products.module";
 import { TBankModule } from "../tbank/tbank.module";
 import { UsersModule } from "../users/users.module";
 
@@ -24,6 +25,7 @@ import { OzonPaymentRecheckService } from "./ozon-payment-recheck.service";
     NotificationQueueModule,
     OzonModule,
     PromocodesModule,
+    ProductsModule,
     TBankModule,
     UsersModule,
   ],
