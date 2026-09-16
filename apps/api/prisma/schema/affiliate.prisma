@@ -1,0 +1,46 @@
+enum AffiliatePartnerStatus {
+  ACTIVE    @map("active")
+  SUSPENDED @map("suspended")
+
+  @@map("affiliate_partner_status")
+}
+
+model AffiliatePartner {
+  id                     String                 @id @default(cuid()) @db.VarChar(32)
+  userId                 String                 @unique @map("user_id")
+  partnerApplicationId   String?                @unique @map("partner_application_id") @db.VarChar(32)
+  status                 AffiliatePartnerStatus @default(ACTIVE)
+  minimumPayoutKopecks   BigInt?                @map("minimum_payout_kopecks")
+  contractNumber         String                 @map("contract_number") @db.VarChar(120)
+  contractSignedAt       DateTime               @map("contract_signed_at")
+  contractPaymentDetails String                 @map("contract_payment_details") @db.Text
+  contractVersion        Int                    @map("contract_version")
+  createdAt              DateTime               @default(now()) @map("created_at")
+  updatedAt              DateTime               @default(now()) @updatedAt @map("updated_at")
+
+  user               User                        @relation(fields: [userId], references: [id], onDelete: Restrict)
+  partnerApplication PartnerApplication?         @relation(fields: [partnerApplicationId], references: [id], onDelete: SetNull)
+  contractRevisions  AffiliateContractRevision[]
+
+  @@index([status, createdAt])
+  @@map("affiliate_partners")
+}
+
+model AffiliateContractRevision {
+  id              String   @id @default(cuid()) @db.VarChar(32)
+  partnerId       String   @map("partner_id") @db.VarChar(32)
+  version         Int
+  number          String   @db.VarChar(120)
+  signedAt        DateTime @map("signed_at")
+  paymentDetails  String   @map("payment_details") @db.Text
+  changedAt       DateTime @default(now()) @map("changed_at")
+  changedByUserId String   @map("changed_by_user_id")
+
+  partner   AffiliatePartner @relation(fields: [partnerId], references: [id], onDelete: Restrict, onUpdate: Restrict)
+  changedBy User             @relation("AffiliateContractRevisionActor", fields: [changedByUserId], references: [id], onDelete: Restrict, onUpdate: Restrict)
+
+  @@unique([partnerId, version])
+  @@index([partnerId, changedAt])
+  @@index([changedByUserId])
+  @@map("affiliate_contract_revisions")
+}

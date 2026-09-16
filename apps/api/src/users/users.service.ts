@@ -43,6 +43,7 @@ type StoredAdminUser = Prisma.UserGetPayload<{
 const roleLabels: Record<UserRole, string> = {
   admin: "Admin",
   customer: "Customer",
+  partner: "Partner",
 };
 
 @Injectable()
@@ -104,8 +105,42 @@ export class UsersService {
       throw new BadRequestException("Current admin role cannot be removed");
     }
 
-    return this.updateAdminUser(userId, {
-      roles: normalizedRoles.map((role) => this.mapUserRole(role)),
+    return this.prisma.$transaction(async (tx) => {
+      const [lockedUser] = await tx.$queryRaw<Array<{ id: string }>>(
+        Prisma.sql`SELECT "id" FROM "users" WHERE "id" = ${userId} FOR UPDATE`,
+      );
+
+      if (!lockedUser) {
+        throw new NotFoundException("User not found");
+      }
+
+      const storedUser = await tx.user.findUnique({
+        where: { id: userId },
+        select: { roles: true },
+      });
+
+      if (!storedUser) {
+        throw new NotFoundException("User not found");
+      }
+
+      const hasPartnerRole = storedUser.roles.includes(PrismaUserRole.PARTNER);
+      const keepsPartnerRole = normalizedRoles.includes("partner");
+
+      if (hasPartnerRole !== keepsPartnerRole) {
+        throw new BadRequestException(
+          "Partner role can only be changed through the partner profile",
+        );
+      }
+
+      const user = await tx.user.update({
+        where: { id: userId },
+        data: {
+          roles: normalizedRoles.map((role) => this.mapUserRole(role)),
+        },
+        include: adminUserInclude,
+      });
+
+      return this.mapAdminUser(user);
     });
   }
 
@@ -129,6 +164,8 @@ export class UsersService {
         return "admin";
       case PrismaUserRole.CUSTOMER:
         return "customer";
+      case PrismaUserRole.PARTNER:
+        return "partner";
     }
   }
 
@@ -173,6 +210,8 @@ export class UsersService {
         return PrismaUserRole.ADMIN;
       case "customer":
         return PrismaUserRole.CUSTOMER;
+      case "partner":
+        return PrismaUserRole.PARTNER;
     }
   }
 

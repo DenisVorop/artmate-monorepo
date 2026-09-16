@@ -12,3 +12,4 @@ export type {
   PartnerApplicationStatus,
 } from "./types";
 export { usePartnerApplications } from "./use-partner-applications";
+export { usePartnerApplicationSelection } from "./use-partner-application-selection";

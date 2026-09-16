@@ -9,6 +9,7 @@ export {
 export {
   partnerApplicationsQuery,
   partnerApplicationsQueryKeys,
+  usePartnerApplicationSelection,
   usePartnerApplications,
 } from "./model";
 export type {

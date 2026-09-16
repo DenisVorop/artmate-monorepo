@@ -6,3 +6,4 @@ export {
   type UserRolesFormRole,
   type UserRolesFormValues,
 } from "./form-values";
+export { getUpdatedUserRoles } from "./role-mapping";

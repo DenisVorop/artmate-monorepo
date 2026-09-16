@@ -3,6 +3,7 @@ import { MiddlewareConsumer, Module, NestModule } from "@nestjs/common";
 import { AppController } from "./app.controller";
 import { AppService } from "./app.service";
 import { AnalyticsModule } from "./analytics/analytics.module";
+import { AffiliateModule } from "./affiliate/affiliate.module";
 import { AuthModule } from "./auth/auth.module";
 import { BlogModule } from "./blog/blog.module";
 import { CartModule } from "./cart/cart.module";
@@ -27,6 +28,7 @@ import { WorkshopsModule } from "./workshops/workshops.module";
 @Module({
   imports: [
     PrismaModule,
+    AffiliateModule,
     AnalyticsModule,
     UsersModule,
     AuthModule,

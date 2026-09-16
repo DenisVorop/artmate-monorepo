@@ -1,6 +1,6 @@
 import { UserRole as PrismaUserRole } from "../generated/prisma/client";
 
-export const userRoles = ["customer", "admin"] as const;
+export const userRoles = ["customer", "admin", "partner"] as const;
 
 export type UserRole = (typeof userRoles)[number];
 
