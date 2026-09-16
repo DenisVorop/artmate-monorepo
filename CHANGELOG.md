@@ -1,5 +1,17 @@
 # Changelog
 
+## [0.40.0](https://github.com/DenisVorop/artmate-monorepo/compare/v0.39.0...v0.40.0) (2026-09-16)
+
+
+### Features
+
+* **products:** add per-product characteristics ([6f09682](https://github.com/DenisVorop/artmate-monorepo/commit/6f0968258e5548fde55498ef961838a72f5e7be9))
+
+
+### Bug Fixes
+
+* **products:** improve characteristics layout ([e76b57b](https://github.com/DenisVorop/artmate-monorepo/commit/e76b57b03011ebfbaf0983130a79850ec7600ed7))
+
 ## [0.39.0](https://github.com/DenisVorop/artmate-monorepo/compare/v0.38.0...v0.39.0) (2026-09-14)
 
 
