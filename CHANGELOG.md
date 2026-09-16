@@ -1,5 +1,18 @@
 # Changelog
 
+## [0.41.0](https://github.com/DenisVorop/artmate-monorepo/compare/v0.40.0...v0.41.0) (2026-09-16)
+
+
+### Features
+
+* **shipping:** add product package profiles ([08ad530](https://github.com/DenisVorop/artmate-monorepo/commit/08ad530b1c4a590f46d2a3020a55309d325be753))
+
+
+### Bug Fixes
+
+* **cdek:** use saved order package dimensions ([2806b46](https://github.com/DenisVorop/artmate-monorepo/commit/2806b4638875b165c77e6c96c644b6a04c985c1b))
+* **orders:** backfill legacy package snapshot ([8a20dc5](https://github.com/DenisVorop/artmate-monorepo/commit/8a20dc5d092e9bf72711115ec8e7176195d16fdb))
+
 ## [0.40.0](https://github.com/DenisVorop/artmate-monorepo/compare/v0.39.0...v0.40.0) (2026-09-16)
 
 
