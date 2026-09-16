@@ -14,6 +14,7 @@ export type {
 } from "./model";
 export { productsQuery, useProductsData } from "./model";
 export type { ProductsDataResult } from "./model";
+export { Characteristics } from "./ui/characteristics";
 export { Description } from "./ui/description";
 export { DetailsTabs } from "./ui/details-tabs";
 export { Gallery } from "./ui/gallery";

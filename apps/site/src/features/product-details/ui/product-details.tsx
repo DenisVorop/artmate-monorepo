@@ -3,6 +3,7 @@
 import { CartProductCard, useAddProductToCart } from "@/features/cart";
 import { ProductPurchase } from "@/features/product-purchase";
 import {
+  Characteristics,
   Description,
   DetailsTabs,
   Gallery,
@@ -14,7 +15,7 @@ import {
   useProductsData,
 } from "@/entities/products";
 import { ReviewRatingSummary, useReviewsData } from "@/entities/reviews";
-import { DataState, Separator } from "@/shared/ui";
+import { Button, DataState, Separator } from "@/shared/ui";
 
 import { useTrackProductView } from "../lib/use-track-product-view";
 import { Breadcrumbs } from "./breadcrumbs";
@@ -89,8 +90,13 @@ export function ProductDetails({ productId }: ProductDetailsProps) {
             <Summary product={product} />
             <ProductPurchase product={product} onAddToCart={addProductToCart} />
             <Highlights characteristics={product.characteristics} />
+            {product.characteristics.length > 0 && (
+              <Button asChild variant="link" className="min-h-11 px-0 text-foreground">
+                <a href="#product-characteristics">Все характеристики</a>
+              </Button>
+            )}
             <DetailsTabs
-              characteristics={product.characteristics}
+              key={product.id}
               usageInstructions={product.usageInstructions}
               reviews={<MarketplaceLinks />}
             />
@@ -100,6 +106,13 @@ export function ProductDetails({ productId }: ProductDetailsProps) {
         <Separator />
 
         <Description product={product} />
+
+        <Characteristics
+          key={product.id}
+          id="product-characteristics"
+          characteristics={product.characteristics}
+          productTitle={product.title}
+        />
 
         <Separator />
 

@@ -167,7 +167,13 @@ test("site SEO leaves existing YML XML unchanged for empty, short and long descr
 });
 
 const box = ({ children }) => React.createElement("div", null, children);
+const button = ({ children, ...props }) => {
+  delete props.variant;
+  delete props.size;
+  return React.createElement("button", props, children);
+};
 const ui = {
+  Button: button,
   Card: box,
   CardContent: box,
   CardTitle: box,
@@ -202,8 +208,8 @@ test("highlights preserve delivery and use at most two marked values from the sa
   assert.doesNotMatch(empty, /Комплект|Сюжеты/);
 });
 
-test("tabs hide empty sections, fall back from a removed active tab and render escaped ordered content", async () => {
-  let selected = "details";
+test("usage/review tabs exclude characteristics and fall back when instructions are removed", async () => {
+  let selected = "process";
   const { DetailsTabs } = await load("src/entities/products/ui/details-tabs.tsx", {
     "@/shared/ui": ui,
     react: {
@@ -217,19 +223,20 @@ test("tabs hide empty sections, fall back from a removed active tab and render e
     },
   });
   const props = {
-    characteristics,
     usageInstructions: "Встряхните маркер.\nЗакройте колпачок.",
     reviews: "Отзывы покупателей",
   };
   const full = DetailsTabs(props);
   const markup = renderToStaticMarkup(full);
-  assert.equal(full.props.value, "details");
-  assert.match(markup, /Характеристики/);
+  assert.equal(full.props.value, "process");
+  assert.doesNotMatch(markup, /Характеристики|Количество цветов/);
   assert.match(markup, /Как пользоваться/);
-  assert.ok(markup.indexOf("Количество цветов") < markup.indexOf("Основа"));
+  assert.match(markup, /Встряхните маркер/);
+  full.props.onValueChange("reviews");
+  assert.equal(DetailsTabs(props).props.value, "reviews");
   full.props.onValueChange("process");
-  assert.equal(DetailsTabs({ ...props, usageInstructions: " " }).props.value, "details");
-  const empty = DetailsTabs({ ...props, characteristics: [], usageInstructions: "" });
+  assert.equal(DetailsTabs({ ...props, usageInstructions: " " }).props.value, "reviews");
+  const empty = DetailsTabs({ ...props, usageInstructions: "" });
   assert.equal(empty.props.value, "reviews");
   assert.doesNotMatch(renderToStaticMarkup(empty), /Характеристики|Как пользоваться/);
   const escaped = renderToStaticMarkup(
@@ -237,6 +244,206 @@ test("tabs hide empty sections, fall back from a removed active tab and render e
   );
   assert.doesNotMatch(escaped, /<script>/);
   assert.match(escaped, /&lt;script&gt;/);
+});
+
+const makeCharacteristics = (count) =>
+  Array.from({ length: count }, (_, index) => ({
+    name: `Характеристика ${String(index + 1).padStart(2, "0")}`,
+    value: `Значение ${String(index + 1).padStart(2, "0")}`,
+    isHighlighted: index < 2,
+  }));
+
+function findElements(tree, predicate) {
+  if (!React.isValidElement(tree)) return [];
+  const result = predicate(tree) ? [tree] : [];
+  for (const child of React.Children.toArray(tree.props.children)) {
+    result.push(...findElements(child, predicate));
+  }
+  return result;
+}
+
+const classNames = (...values) => values.filter(Boolean).join(" ");
+const loadCharacteristicsList = () =>
+  load("src/entities/products/ui/characteristics-list.tsx", {
+    "@/shared/lib/utils": { cn: classNames },
+  });
+
+function assertOrderedRows(markup, items) {
+  assert.equal((markup.match(/<dt(?:\s|>)/g) ?? []).length, items.length);
+  assert.equal((markup.match(/<dd(?:\s|>)/g) ?? []).length, items.length);
+  for (const [index, item] of items.entries()) {
+    assert.ok(markup.includes(item.name));
+    assert.ok(markup.includes(item.value));
+    if (index > 0) {
+      assert.ok(markup.indexOf(items[index - 1].name) < markup.indexOf(item.name));
+    }
+  }
+}
+
+async function loadCharacteristics({ mobile, drawerOpen = false }) {
+  const drawerUi = {
+    ...ui,
+    Drawer: box,
+    DrawerTrigger: box,
+    // eslint-disable-next-line react/prop-types -- Primitive stub isolates the content contract.
+    DrawerContent: ({ children, ...props }) =>
+      drawerOpen
+        ? React.createElement("div", { ...props, "data-test-drawer": true }, children)
+        : null,
+    DrawerHeader: box,
+    DrawerFooter: box,
+    // eslint-disable-next-line react/prop-types -- Primitive stub isolates the content contract.
+    DrawerTitle: ({ children }) => React.createElement("h3", null, children),
+    // eslint-disable-next-line react/prop-types -- Primitive stub isolates the content contract.
+    DrawerDescription: ({ children }) => React.createElement("p", null, children),
+    DrawerClose: box,
+  };
+  return load("src/entities/products/ui/characteristics.tsx", {
+    "@/shared/ui": drawerUi,
+    "@/shared/lib/device": { useIsMobile: () => mobile },
+    "@/shared/lib/utils": { cn: classNames },
+    "@/shared/ui/typography": await load("src/shared/ui/typography.tsx", {
+      "../lib": { cn: classNames },
+    }),
+    "./characteristics-list": await loadCharacteristicsList(),
+  });
+}
+
+test("read-only characteristics list preserves all ordered rows and escapes long content", async () => {
+  const { CharacteristicsList } = await loadCharacteristicsList();
+  const items = makeCharacteristics(20);
+  for (const columns of [1, 2]) {
+    const markup = renderToStaticMarkup(
+      React.createElement(CharacteristicsList, { characteristics: items, columns }),
+    );
+    assertOrderedRows(markup, items);
+    assert.doesNotMatch(markup, /Все характеристики|Свернуть|<button/);
+    if (columns === 2) assert.match(markup, /grid-cols-2/);
+  }
+  const escaped = renderToStaticMarkup(
+    React.createElement(CharacteristicsList, {
+      characteristics: [
+        { name: "<em>Материал</em>", value: "<script>опасно</script>\n" + "Длинное ".repeat(50) },
+      ],
+    }),
+  );
+  assert.doesNotMatch(escaped, /<script>|<em>/);
+  assert.match(escaped, /&lt;em&gt;Материал&lt;\/em&gt;/);
+  assert.match(escaped, /&lt;script&gt;опасно&lt;\/script&gt;/);
+  assert.match(escaped, /wrap-anywhere/);
+  assert.match(escaped, /whitespace-pre-line/);
+  assert.match(escaped, new RegExp("Длинное ".repeat(50)));
+  const listSource = await source("src/entities/products/ui/characteristics-list.tsx");
+  assert.doesNotMatch(listSource, /useState|useRef|scrollIntoView|aria-expanded|Свернуть/);
+});
+
+test("desktop shows every characteristic; mobile shows six and offers a drawer only for longer lists", async (t) => {
+  for (const mobile of [false, true]) {
+    const { Characteristics } = await loadCharacteristics({ mobile });
+    for (const count of [0, 6, 7, 20]) {
+      await t.test(`${mobile ? "mobile" : "desktop"}: ${count} characteristics`, () => {
+        const items = makeCharacteristics(count);
+        const markup = renderToStaticMarkup(
+          React.createElement(Characteristics, {
+            characteristics: items,
+            productTitle: product.title,
+            id: "product-characteristics",
+          }),
+        );
+        if (!count) {
+          assert.equal(markup, "");
+          return;
+        }
+        assert.match(markup, /<section[^>]*id="product-characteristics"/);
+        assert.match(markup, /<h2[^>]*>Характеристики<\/h2>/);
+        const headingId = markup.match(/<h2[^>]*id="([^"]+)"/)[1];
+        assert.ok(markup.includes(`aria-labelledby="${headingId}"`));
+        assertOrderedRows(markup, mobile ? items.slice(0, 6) : items);
+        if (mobile && count > 6) {
+          assert.match(markup, new RegExp(`Все характеристики \\(${count}\\)`));
+          assert.doesNotMatch(markup, /Характеристика 07|Характеристика 20/);
+        } else {
+          assert.doesNotMatch(markup, /Все характеристики|<button/);
+        }
+        assert.doesNotMatch(markup, /Свернуть/);
+      });
+    }
+  }
+});
+
+test("mobile drawer contains the complete ordered list, product context and an accessible close control", async () => {
+  const { Characteristics } = await loadCharacteristics({ mobile: true, drawerOpen: true });
+  const items = makeCharacteristics(20);
+  const markup = renderToStaticMarkup(
+    React.createElement(Characteristics, {
+      characteristics: items,
+      productTitle: product.title,
+      id: "product-characteristics",
+    }),
+  );
+  const drawerMarkup = markup.slice(markup.indexOf('data-test-drawer="true"'));
+  assertOrderedRows(drawerMarkup, items);
+  assert.match(drawerMarkup, /<h3>Характеристики<\/h3>/);
+  assert.match(drawerMarkup, new RegExp(product.title));
+  assert.match(drawerMarkup, /aria-label="Закрыть характеристики"/);
+  assert.match(drawerMarkup, /overflow-y-auto/);
+  assert.doesNotMatch(drawerMarkup, /Свернуть/);
+});
+
+test("product layout places characteristics below description with a conditional anchor above", async () => {
+  let currentProduct = { ...product, characteristics: makeCharacteristics(20) };
+  const components = Object.fromEntries(
+    [
+      "Description",
+      "DetailsTabs",
+      "Gallery",
+      "Highlights",
+      "Characteristics",
+      "Related",
+      "Summary",
+    ].map((name) => [name, box]),
+  );
+  // Distinct identities allow testing the actual composition instead of matching source strings.
+  for (const name of Object.keys(components)) components[name] = () => null;
+  const { ProductDetails } = await load("src/features/product-details/ui/product-details.tsx", {
+    "@/features/cart": { CartProductCard: box, useAddProductToCart: () => () => {} },
+    "@/features/product-purchase": { ProductPurchase: box },
+    "@/entities/products": {
+      ...components,
+      useProductsData: () => ({ data: { products: [currentProduct] }, isError: false }),
+      getProductById: (items) => items[0],
+      getRelatedProducts: () => [],
+    },
+    "@/entities/reviews": { ReviewRatingSummary: box, useReviewsData: () => ({}) },
+    "@/shared/ui": { ...ui, DataState: box, Separator: box },
+    "../lib/use-track-product-view": { useTrackProductView: () => {} },
+    "./breadcrumbs": { Breadcrumbs: box },
+    "./marketplace-links": { MarketplaceLinks: box },
+  });
+  const tree = ProductDetails({ productId: product.id });
+  const order = findElements(tree, (element) =>
+    [components.Description, components.Characteristics, components.Related].includes(element.type),
+  );
+  assert.deepEqual(
+    order.map((element) => element.type),
+    [components.Description, components.Characteristics, components.Related],
+  );
+  assert.equal(order[1].props.id, "product-characteristics");
+  assert.deepEqual(order[1].props.characteristics, currentProduct.characteristics);
+  assert.equal(order[1].props.productTitle, product.title);
+  assert.equal(
+    findElements(tree, (element) => element.props.href === "#product-characteristics").length,
+    1,
+  );
+  const tabs = findElements(tree, (element) => element.type === components.DetailsTabs)[0];
+  assert.equal(tabs.props.characteristics, undefined);
+
+  currentProduct = { ...product, characteristics: [] };
+  const empty = ProductDetails({ productId: product.id });
+  assert.equal(
+    findElements(empty, (element) => element.props.href === "#product-characteristics").length,
+    0,
+  );
 });
 
 test("catalog API mapping keeps each product's fields without universal defaults", async (t) => {
