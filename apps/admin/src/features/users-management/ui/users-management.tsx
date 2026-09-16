@@ -44,6 +44,7 @@ import {
 import { useUpdateUserRoles, useUpdateUserStatus } from "../model";
 import {
   adminUserRoleOptions,
+  getUpdatedUserRoles,
   userAccountStatusFormSchema,
   userRolesFormSchema,
   type UserAccountStatusFormValues,
@@ -70,7 +71,9 @@ export function UsersManagement({
       <Card>
         <CardHeader>
           <CardTitle>Не удалось загрузить пользователей</CardTitle>
-          <CardDescription>Перезагрузите страницу и повторите действие.</CardDescription>
+          <CardDescription>
+            Перезагрузите страницу и повторите действие.
+          </CardDescription>
         </CardHeader>
       </Card>
     );
@@ -200,11 +203,7 @@ function UserTelegramBadge({ user }: { readonly user: AdminUser }) {
 
   if (!user.telegramAccount) {
     return (
-      <Badge
-        className="text-muted-foreground"
-        title={title}
-        variant="outline"
-      >
+      <Badge className="text-muted-foreground" title={title} variant="outline">
         <MessageCircleOff data-icon="inline-start" aria-hidden="true" />
         {label}
       </Badge>
@@ -239,15 +238,15 @@ function UserRolesForm({
 }) {
   const { handleSubmit, register } = useForm<UserRolesFormValues>({
     defaultValues: {
-      roles: [...user.roles],
+      roles: user.roles.filter(
+        (role): role is UserRolesFormRole => role !== "partner",
+      ),
     },
     resolver: zodResolver(userRolesFormSchema),
   });
   const { isPending, mutate: updateUserRoles } = useUpdateUserRoles();
   const submitForm = handleSubmit((values) => {
-    const roles = isCurrentUser
-      ? Array.from(new Set<UserRolesFormRole>([...values.roles, "admin"]))
-      : values.roles;
+    const roles = getUpdatedUserRoles(user.roles, values.roles, isCurrentUser);
 
     updateUserRoles({
       roles,
@@ -270,6 +269,11 @@ function UserRolesForm({
             />
           );
         })}
+        {user.roles.includes("partner") ? (
+          <Badge variant="secondary" title="Управляется в профиле партнёра">
+            Партнёр · профиль
+          </Badge>
+        ) : null}
       </div>
       <Button
         aria-label={`Сохранить роли: ${getAdminUserDisplayName(user)}`}

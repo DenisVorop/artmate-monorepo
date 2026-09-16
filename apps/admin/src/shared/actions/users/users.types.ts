@@ -1,6 +1,6 @@
 export type AuthProvider = "credentials" | "yandex";
 
-export type UserRole = "customer" | "admin";
+export type UserRole = "customer" | "admin" | "partner";
 
 export type AdminUserStatus = "active" | "blocked" | "deleted";
 

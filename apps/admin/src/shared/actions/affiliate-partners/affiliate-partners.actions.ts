@@ -1,0 +1,126 @@
+"use server";
+
+import { cookies, headers } from "next/headers";
+
+import {
+  apiCsrfHeader,
+  getForwardedIpHeaders,
+} from "@/shared/lib/api-security";
+import type { ActionResult } from "@/shared/lib/action-result";
+
+import type {
+  AffiliateContractRevisionDTO,
+  AffiliatePartnerDTO,
+  AffiliatePartnersListParamsDTO,
+  AffiliatePartnersPageDTO,
+  UpdateAffiliatePartnerInputDTO,
+} from "./affiliate-partners.types";
+
+const authAccessTokenCookieName = "artmate_access_token";
+const defaultApiBaseUrl = "http://localhost:3002";
+
+class AdminApiError extends Error {
+  constructor(
+    message: string,
+    readonly status: number,
+  ) {
+    super(message);
+    this.name = "AdminApiError";
+  }
+}
+
+export async function getAffiliatePartners(
+  params: AffiliatePartnersListParamsDTO,
+): Promise<AffiliatePartnersPageDTO> {
+  const searchParams = new URLSearchParams({
+    page: String(params.page),
+    pageSize: String(params.pageSize),
+  });
+
+  if (params.search?.trim()) {
+    searchParams.set("search", params.search.trim());
+  }
+
+  return requestAdminApi(`/affiliate/admin/partners?${searchParams}`);
+}
+
+export async function getAffiliatePartner(userId: string) {
+  return requestAdminApi<AffiliatePartnerDTO>(
+    `/affiliate/admin/partners/${encodeURIComponent(userId)}`,
+  );
+}
+
+export async function getAffiliatePartnerHistory(userId: string) {
+  return requestAdminApi<AffiliateContractRevisionDTO[]>(
+    `/affiliate/admin/partners/${encodeURIComponent(userId)}/history`,
+  );
+}
+
+export async function updateAffiliatePartner(
+  userId: string,
+  input: UpdateAffiliatePartnerInputDTO,
+): Promise<ActionResult<AffiliatePartnerDTO>> {
+  try {
+    return {
+      ok: true,
+      data: await requestAdminApi<AffiliatePartnerDTO>(
+        `/affiliate/admin/partners/${encodeURIComponent(userId)}`,
+        { method: "PUT", body: JSON.stringify(input) },
+      ),
+    };
+  } catch (error) {
+    return {
+      ok: false,
+      error: error instanceof Error ? error.message : "Request failed",
+      status: error instanceof AdminApiError ? error.status : undefined,
+    };
+  }
+}
+
+async function requestAdminApi<T>(path: string, init: RequestInit = {}) {
+  const cookieStore = await cookies();
+  const headerStore = await headers();
+  const accessToken = cookieStore.get(authAccessTokenCookieName)?.value;
+  const response = await fetch(
+    `${process.env.API_BASE_URL ?? defaultApiBaseUrl}${path}`,
+    {
+      ...init,
+      cache: "no-store",
+      headers: {
+        "content-type": "application/json",
+        ...(accessToken
+          ? {
+              cookie: `${authAccessTokenCookieName}=${encodeURIComponent(accessToken)}`,
+            }
+          : {}),
+        ...getForwardedIpHeaders(headerStore),
+        ...init.headers,
+        ...apiCsrfHeader,
+      },
+    },
+  );
+
+  if (!response.ok) {
+    throw new AdminApiError(
+      await getResponseErrorMessage(response),
+      response.status,
+    );
+  }
+
+  return (await response.json()) as T;
+}
+
+async function getResponseErrorMessage(response: Response) {
+  const fallback = `Affiliate partners API request failed with status ${response.status}`;
+
+  try {
+    const body = (await response.json()) as { message?: unknown };
+    return typeof body.message === "string"
+      ? body.message
+      : Array.isArray(body.message)
+        ? body.message.join(", ")
+        : fallback;
+  } catch {
+    return fallback;
+  }
+}

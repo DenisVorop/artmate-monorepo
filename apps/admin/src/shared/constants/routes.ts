@@ -20,6 +20,7 @@ export const routes = {
   order: (orderId: string) => `/orders/${orderId}`,
   orders: "/orders",
   partnerApplications: "/partner-applications",
+  partners: "/partners",
   product: (productId: string) => `/products/${productId}`,
   productCategories: "/products/categories",
   productTags: "/products/tags",

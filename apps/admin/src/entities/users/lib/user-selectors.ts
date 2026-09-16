@@ -3,6 +3,7 @@ import type { AdminUser, AdminUserRole, UserAccountStatus } from "../model";
 const roleLabels: Record<AdminUserRole, string> = {
   admin: "Админ",
   customer: "Клиент",
+  partner: "Партнёр",
 };
 
 const statusLabels: Record<UserAccountStatus, string> = {

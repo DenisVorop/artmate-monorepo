@@ -9,6 +9,7 @@ enum UserStatus {
 enum UserRole {
   CUSTOMER @map("customer")
   ADMIN    @map("admin")
+  PARTNER  @map("partner")
 
   @@map("user_role")
 }
@@ -46,6 +47,8 @@ model User {
   workshopTools            WorkshopTool[]
   workshopModerationEvents WorkshopModerationEvent[]   @relation("WorkshopModerationActor")
   workshopWorkReports      WorkshopWorkReport[]        @relation("WorkshopReportReporter")
+  affiliatePartner         AffiliatePartner?
+  affiliateContractChanges AffiliateContractRevision[] @relation("AffiliateContractRevisionActor")
 
   @@index([status])
   @@map("users")

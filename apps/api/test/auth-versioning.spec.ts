@@ -13,7 +13,7 @@ import type { AuthTokenPayload, AuthUser } from "../src/auth/auth.types";
 import { YandexOAuthService } from "../src/auth/yandex-oauth.service";
 import { UserStatus } from "../src/generated/prisma/client";
 import type { PrismaService } from "../src/prisma/prisma.service";
-import type { UsersService } from "../src/users/users.service";
+import { UsersService } from "../src/users/users.service";
 
 const migrationPath = resolve(
   __dirname,
@@ -139,6 +139,21 @@ describe("access JWT auth versioning", () => {
         );
       }
     }
+  });
+
+  it("uses current database partner roles instead of stale JWT roles", async () => {
+    const service = createAuthService({
+      payload: {
+        ...toPayload({ ...payloadUser, roles: ["admin"] }),
+        authVersion: 3,
+      },
+      storedAuthVersion: 3,
+      storedRoles: ["CUSTOMER", "PARTNER"],
+    });
+
+    const user = await service.verifyAccessToken("stale-role-token");
+
+    assert.deepEqual(user.roles, ["customer", "partner"]);
   });
 
   it("accepts legacy claim-less JWTs only while the stored version remains zero", async () => {
@@ -619,6 +634,7 @@ function createAuthService(options: {
   onUserRead?: () => unknown;
   payload?: AuthTokenPayload;
   storedAuthVersion?: number;
+  storedRoles?: Array<"ADMIN" | "CUSTOMER" | "PARTNER">;
   storedUserMissing?: boolean;
 } = {}) {
   process.env.AUTH_JWT_SECRET = "test-jwt-secret";
@@ -635,7 +651,7 @@ function createAuthService(options: {
     image: null,
     name: "Buyer",
     phone: null,
-    roles: ["CUSTOMER"],
+    roles: options.storedRoles ?? ["CUSTOMER"],
     status: UserStatus.ACTIVE,
   };
   const prisma = {
@@ -659,9 +675,7 @@ function createAuthService(options: {
       },
     },
   } as unknown as PrismaService;
-  const usersService = {
-    mapPrismaRoles: () => ["customer"],
-  } as unknown as UsersService;
+  const usersService = new UsersService({} as PrismaService);
 
   return new AuthService(
     jwtService as never,
@@ -690,9 +704,13 @@ function createEnvCredentialsService() {
   const prisma = {
     $transaction: async (callback: (tx: unknown) => unknown) =>
       callback({
+        $queryRaw: async () => [{ id: account.user.id }],
         authAccount: {
           findUnique: async () => account,
           update: async () => account,
+        },
+        user: {
+          findUnique: async () => ({ affiliatePartner: null }),
         },
       }),
     authAccount: { findFirst: async () => null },
@@ -741,6 +759,7 @@ function createLegacyEnvVerificationFixture(options: {
     $transaction: async (callback: (tx: unknown) => unknown) => {
       writes.transactions += 1;
       return callback({
+        $queryRaw: async () => [{ id: storedAccount.user.id }],
         authAccount: {
           create: async () => {
             writes.creates += 1;
@@ -756,7 +775,10 @@ function createLegacyEnvVerificationFixture(options: {
           },
         },
         user: {
-          findUnique: async () => ({ id: "user-1" }),
+          findUnique: async () => ({
+            affiliatePartner: null,
+            id: "user-1",
+          }),
           update: async () => {
             writes.updates += 1;
             return storedAccount.user;

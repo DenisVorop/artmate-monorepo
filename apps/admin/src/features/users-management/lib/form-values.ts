@@ -1,7 +1,5 @@
 import { z } from "zod";
 
-import type { AdminUserRole } from "@/entities/users";
-
 export const adminUserRoleOptions = ["customer", "admin"] as const;
 
 const adminUserRoleSchema = z.enum(adminUserRoleOptions);
@@ -16,6 +14,8 @@ export const userAccountStatusFormSchema = z.object({
 
 export type UserRolesFormValues = z.infer<typeof userRolesFormSchema>;
 
-export type UserAccountStatusFormValues = z.infer<typeof userAccountStatusFormSchema>;
+export type UserAccountStatusFormValues = z.infer<
+  typeof userAccountStatusFormSchema
+>;
 
-export type UserRolesFormRole = AdminUserRole;
+export type UserRolesFormRole = (typeof adminUserRoleOptions)[number];

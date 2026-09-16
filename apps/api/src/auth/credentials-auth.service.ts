@@ -8,6 +8,7 @@ import crypto from "node:crypto";
 import { isEmail } from "class-validator";
 
 import {
+  AffiliatePartnerStatus,
   AuthProvider as PrismaAuthProvider,
   Prisma,
   UserRole as PrismaUserRole,
@@ -199,12 +200,18 @@ export class CredentialsAuthService {
       });
 
       if (existingAccount) {
+        const userUpdate = await this.getEnvUserUpdateData(
+          tx,
+          existingAccount.user.id,
+          email,
+        );
+
         return tx.authAccount.update({
           where: { id: existingAccount.id },
           data: {
             providerEmail: email,
             user: {
-              update: this.getEnvUserUpdateData(email),
+              update: userUpdate,
             },
           },
           include: credentialsAccountInclude,
@@ -228,13 +235,19 @@ export class CredentialsAuthService {
         : null;
 
       if (existingUserCredentialsAccount) {
+        const userUpdate = await this.getEnvUserUpdateData(
+          tx,
+          existingUserCredentialsAccount.user.id,
+          email,
+        );
+
         return tx.authAccount.update({
           where: { id: existingUserCredentialsAccount.id },
           data: {
             providerEmail: email,
             providerUserId: email,
             user: {
-              update: this.getEnvUserUpdateData(email),
+              update: userUpdate,
             },
           },
           include: credentialsAccountInclude,
@@ -242,9 +255,15 @@ export class CredentialsAuthService {
       }
 
       if (existingUser) {
+        const userUpdate = await this.getEnvUserUpdateData(
+          tx,
+          existingUser.id,
+          email,
+        );
+
         await tx.user.update({
           where: { id: existingUser.id },
-          data: this.getEnvUserUpdateData(email),
+          data: userUpdate,
         });
       }
 
@@ -395,25 +414,69 @@ export class CredentialsAuthService {
       email,
       emailVerifiedAt: new Date(),
       name: this.getOptionalEnv("AUTH_PASSWORD_NAME"),
-      roles: this.getPrismaRoles(),
+      roles: this.getEnvPrismaRoles(false),
       status: UserStatus.ACTIVE,
     };
   }
 
-  private getEnvUserUpdateData(email: string): Prisma.UserUpdateWithoutAuthAccountsInput {
+  private async getEnvUserUpdateData(
+    tx: Prisma.TransactionClient,
+    userId: string,
+    email: string,
+  ): Promise<Prisma.UserUpdateWithoutAuthAccountsInput> {
+    const [lockedUser] = await tx.$queryRaw<Array<{ id: string }>>(
+      Prisma.sql`SELECT "id" FROM "users" WHERE "id" = ${userId} FOR UPDATE`,
+    );
+
+    if (!lockedUser) {
+      throw new InternalServerErrorException("Credentials user not found");
+    }
+
+    const user = await tx.user.findUnique({
+      where: { id: userId },
+      select: {
+        affiliatePartner: { select: { status: true } },
+      },
+    });
+
+    if (!user) {
+      throw new InternalServerErrorException("Credentials user not found");
+    }
+
     return {
       email,
       emailVerifiedAt: new Date(),
       name: this.getOptionalEnv("AUTH_PASSWORD_NAME"),
-      roles: this.getPrismaRoles(),
+      roles: this.getEnvPrismaRoles(
+        user.affiliatePartner?.status === AffiliatePartnerStatus.ACTIVE,
+      ),
       status: UserStatus.ACTIVE,
     };
   }
 
-  private getPrismaRoles() {
-    return this.getRoles().map((role) =>
-      role === "admin" ? PrismaUserRole.ADMIN : PrismaUserRole.CUSTOMER,
+  private getEnvPrismaRoles(hasActivePartnerProfile: boolean) {
+    const roles: PrismaUserRole[] = this.getPrismaRoles().filter(
+      (role) => role !== PrismaUserRole.PARTNER,
     );
+
+    if (hasActivePartnerProfile) {
+      roles.push(PrismaUserRole.PARTNER);
+    }
+
+    return roles.length > 0 ? roles : this.usersService.getDefaultPrismaRoles();
+  }
+
+  private getPrismaRoles() {
+    return this.getRoles().map((role) => {
+      switch (role) {
+        case "admin":
+          return PrismaUserRole.ADMIN;
+        case "customer":
+          return PrismaUserRole.CUSTOMER;
+        case "partner":
+          return PrismaUserRole.PARTNER;
+      }
+    });
   }
 
   private isUniqueConstraintError(error: unknown) {
