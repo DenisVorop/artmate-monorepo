@@ -294,6 +294,15 @@ describe("CdekDeliveryProvider order creation", () => {
             quantity: 1,
             slug: "product-1",
             title: "Product",
+            shippingPackage: {
+              version: 1,
+              id: "shipping_album",
+              code: "album",
+              weightGrams: 400,
+              lengthCm: 40,
+              widthCm: 30,
+              heightCm: 1,
+            },
           },
         ],
       });

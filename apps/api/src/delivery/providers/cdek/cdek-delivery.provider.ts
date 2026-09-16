@@ -17,6 +17,7 @@ import type {
 } from "../delivery-provider.interface";
 
 import { CdekClientService } from "./cdek-client.service";
+import { buildCdekPackages } from "./cdek-packages";
 import type {
   CdekCalculatorResponse,
   CdekCityResponseItem,
@@ -32,12 +33,7 @@ import type {
 const defaultCountryCode = "RU";
 const defaultFromCityCode = 44;
 const defaultTariffCode = 136;
-const defaultItemWeightGrams = 400;
-const defaultPackageLengthCm = 40;
-const defaultPackageWidthCm = 30;
-const defaultPackageHeightCm = 1;
 const defaultOrderType = 1;
-const maxOrderPackageCount = 255;
 const cdekShipmentCutoffHourMsk = 18;
 const cdekNextDayShipmentHourMsk = 10;
 
@@ -154,6 +150,9 @@ export class CdekDeliveryProvider implements DeliveryProviderAdapter {
     items: DeliveryCartItem[];
     selection: DeliverySelection;
   }): Promise<DeliveryQuote> {
+    const packages = buildCdekPackages(input.items).map(
+      ({ height, length, weight, width }) => ({ height, length, weight, width }),
+    );
     const cityCode = this.parseCityCode(input.selection.cityCode);
     const pickupPointId = this.parsePickupPointId(
       input.selection.pickupPointId,
@@ -172,7 +171,7 @@ export class CdekDeliveryProvider implements DeliveryProviderAdapter {
           from_location: {
             code: this.getFromCityCode(),
           },
-          packages: this.buildCalculationPackages(input.items),
+          packages,
           tariff_code: this.getTariffCode(),
           to_location: {
             code: cityCode,
@@ -297,38 +296,6 @@ export class CdekDeliveryProvider implements DeliveryProviderAdapter {
     return pickupPoint;
   }
 
-  private buildCalculationPackages(items: DeliveryCartItem[]) {
-    const packageCount = Math.max(
-      items.reduce((sum, item) => sum + Math.max(item.quantity, 0), 0),
-      1,
-    );
-
-    return Array.from({ length: packageCount }, () => this.buildBasePackage());
-  }
-
-  private buildBasePackage() {
-    return {
-      height: this.getPositiveIntegerConfig(
-        "CDEK_DEFAULT_PACKAGE_HEIGHT_CM",
-        defaultPackageHeightCm,
-      ),
-      length: this.getPositiveIntegerConfig(
-        "CDEK_DEFAULT_PACKAGE_LENGTH_CM",
-        defaultPackageLengthCm,
-      ),
-      // CDEK calculator takes package weight in grams and dimensions in centimeters.
-      // Each coloring book is shipped as a separate package with env-tuned defaults.
-      weight: this.getPositiveIntegerConfig(
-        "CDEK_DEFAULT_ITEM_WEIGHT_GRAMS",
-        defaultItemWeightGrams,
-      ),
-      width: this.getPositiveIntegerConfig(
-        "CDEK_DEFAULT_PACKAGE_WIDTH_CM",
-        defaultPackageWidthCm,
-      ),
-    };
-  }
-
   private buildCreateOrderPayload(order: DeliveryShipmentOrder) {
     return this.omitUndefined({
       comment: this.truncateOptionalString(order.comment, 255),
@@ -355,39 +322,14 @@ export class CdekDeliveryProvider implements DeliveryProviderAdapter {
   }
 
   private buildOrderPackages(order: DeliveryShipmentOrder) {
-    const packages: Record<string, unknown>[] = [];
-
-    for (const item of order.items) {
-      const quantity = Math.max(item.quantity, 0);
-
-      for (let index = 0; index < quantity; index += 1) {
-        packages.push({
-          ...this.buildBasePackage(),
-          items: [this.buildOrderPackageItem(item)],
-          number: this.createPackageNumber(order.id, packages.length + 1),
-        });
-      }
-    }
-
-    if (packages.length === 0) {
-      throw new BadRequestException("CDEK order packages are empty");
-    }
-
-    if (packages.length > maxOrderPackageCount) {
-      throw new BadRequestException(
-        `CDEK order packages count must be ${maxOrderPackageCount} or less`,
-      );
-    }
-
-    return packages;
+    return buildCdekPackages(order.items).map(({ item, ...dimensions }, index) => ({
+      ...dimensions,
+      items: [this.buildOrderPackageItem(item, dimensions.weight)],
+      number: this.createPackageNumber(order.id, index + 1),
+    }));
   }
 
-  private buildOrderPackageItem(item: DeliveryCartItem) {
-    const weight = this.getPositiveIntegerConfig(
-      "CDEK_DEFAULT_ITEM_WEIGHT_GRAMS",
-      defaultItemWeightGrams,
-    );
-
+  private buildOrderPackageItem(item: DeliveryCartItem, weight: number) {
     return {
       amount: 1,
       cost: 0,

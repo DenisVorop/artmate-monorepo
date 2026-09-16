@@ -348,6 +348,19 @@ function createOrdersServiceWithPaymentFailure(
   };
 
   return Object.assign(Object.create(OrdersService.prototype), {
+    productShippingService: {
+      resolveForProducts: async (ids: string[]) =>
+        new Map(
+          ids.map((id) => [id, {
+            id: "shipping_album",
+            code: "album",
+            weightGrams: 400,
+            lengthCm: 40,
+            widthCm: 30,
+            heightCm: 1,
+          }]),
+        ),
+    },
     logger: { warn: (message: unknown) => logs.push(String(message)) },
     ordersStorage: {
       getOrderReceiptPricing: async () => undefined,
@@ -414,6 +427,19 @@ function createOrdersServiceWithDeliveryFailure(error: Error) {
   };
 
   return Object.assign(Object.create(OrdersService.prototype), {
+    productShippingService: {
+      resolveForProducts: async (ids: string[]) =>
+        new Map(
+          ids.map((id) => [id, {
+            id: "shipping_album",
+            code: "album",
+            weightGrams: 400,
+            lengthCm: 40,
+            widthCm: 30,
+            heightCm: 1,
+          }]),
+        ),
+    },
     cartService: {
       assertItemsInStock: async () => undefined,
       getCart: async () => cart,

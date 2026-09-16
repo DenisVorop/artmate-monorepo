@@ -12,6 +12,7 @@ import { OrderActivationService } from "../auth/order-activation.service";
 import { AnalyticsOutboxService } from "../analytics/analytics-outbox.service";
 import { parseYandexAttribution } from "../analytics/yandex-attribution";
 import type { CartItemDTO } from "../cart/dto";
+import type { DeliveryCartItem } from "../delivery/providers/delivery-provider.interface";
 import {
   OrderDeliveryProvider as PrismaOrderDeliveryProvider,
   OrderCrmStatus as PrismaOrderCrmStatus,
@@ -21,6 +22,10 @@ import {
   Prisma,
 } from "../generated/prisma/client";
 import { PrismaService } from "../prisma/prisma.service";
+import {
+  parseShippingPackageSnapshot,
+  type ShippingPackageSnapshot,
+} from "../products/shipping-package-profile";
 import type { OzonAcquiringVerifiedNotification } from "../ozon/ozon-acquiring.service";
 import { calculatePromoPricing } from "../promocodes/pricing";
 import {
@@ -113,7 +118,7 @@ type CreateStoredOrderInput = {
   attribution?: { clientId?: string; yclid?: string };
   customer: CreateOrderCustomerRequestDTO;
   delivery: OrderDeliveryDTO;
-  items: CartItemDTO[];
+  items: Array<CartItemDTO & { shippingPackage?: ShippingPackageSnapshot }>;
   itemsCount: number;
   paymentMethod: CreateOrderPaymentMethod;
   promoCode?: string;
@@ -250,6 +255,13 @@ export class OrdersStorage {
   ) {}
 
   async createOrder(input: CreateStoredOrderInput): Promise<OrderDTO> {
+    // Validate and copy every snapshot before any database or account operation.
+    const shippingPackages =
+      input.delivery.provider === "cdek"
+        ? input.items.map((item) =>
+            parseShippingPackageSnapshot(item.shippingPackage),
+          )
+        : undefined;
     const attribution = parseYandexAttribution(input.attribution);
     const deliveryPrice = input.delivery.pickupPoint.deliveryPrice;
     const total = input.subtotal + deliveryPrice;
@@ -306,7 +318,7 @@ export class OrdersStorage {
                 },
               },
               items: {
-                create: input.items.map((item) => ({
+                create: input.items.map((item, index) => ({
                   productId: item.id,
                   title: item.title,
                   slug: item.slug,
@@ -316,6 +328,13 @@ export class OrdersStorage {
                   image: item.image,
                   quantity: item.quantity,
                   lineTotal: item.lineTotal,
+                  ...(shippingPackages
+                    ? {
+                        shippingPackageSnapshot: this.toPrismaJson(
+                          shippingPackages[index],
+                        ),
+                      }
+                    : {}),
                 })),
               },
             },
@@ -584,6 +603,35 @@ export class OrdersStorage {
     }
 
     return this.mapOrder(order);
+  }
+
+  async getCdekShipmentItems(orderId: string): Promise<DeliveryCartItem[]> {
+    const order = await this.prisma.order.findUnique({
+      where: { id: orderId },
+      select: {
+        deliveryProvider: true,
+        items: { orderBy: [{ createdAt: "asc" }, { productId: "asc" }] },
+      },
+    });
+    if (!order) throw new NotFoundException("Order not found");
+    if (order.deliveryProvider !== PrismaOrderDeliveryProvider.CDEK) {
+      throw new BadRequestException({
+        code: "ORDER_DELIVERY_PROVIDER_INVALID",
+        message: "Заказ не использует доставку СДЭК.",
+      });
+    }
+
+    return order.items.map((item) => ({
+      id: item.productId,
+      slug: item.slug,
+      title: item.title,
+      price: this.toNumber(item.price),
+      quantity: item.quantity,
+      lineTotal: this.toNumber(item.lineTotal),
+      shippingPackage: parseShippingPackageSnapshot(
+        item.shippingPackageSnapshot,
+      ),
+    }));
   }
 
   async getOrderReceiptPricing(
