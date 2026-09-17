@@ -153,7 +153,7 @@ test("explains available and reversed credit statuses", () => {
 
   assert.equal(
     getLedgerStatusHint({ ...credit, status: "available" }),
-    "14 дней после завершения заказа прошли, вознаграждение учтено в доступном балансе.",
+    "14 дней после завершения заказа прошли, вознаграждение подтверждено. Текущий остаток учитывает заявки и уже проведённые выплаты.",
   );
   assert.equal(
     getLedgerStatusHint({ ...credit, status: "reversed" }),

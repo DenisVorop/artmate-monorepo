@@ -16,6 +16,7 @@ import type {
   AffiliateAnalyticsQueryDTO,
   AffiliateLedgerQueryDTO,
 } from "./dto";
+import { AffiliatePayoutBalanceService } from "./affiliate-payout-balance.service";
 
 const timeZone = "Europe/Moscow" as const;
 const maxSignedInteger = 2_147_483_647;
@@ -27,14 +28,6 @@ type MetricsRow = {
   earned_kopecks: unknown;
   reversed_kopecks: unknown;
   net_kopecks: unknown;
-};
-type BalanceRow = {
-  available_kopecks: unknown;
-  pending_kopecks: unknown;
-  held_kopecks: unknown;
-  reversed_kopecks: unknown;
-  min_remaining_kopecks: unknown;
-  inconsistent_commission_count: unknown;
 };
 type DailyRow = MetricsRow & { date: string };
 type CodeRow = MetricsRow & { code: string };
@@ -59,7 +52,10 @@ type LedgerRow = {
 
 @Injectable()
 export class AffiliateAnalyticsService {
-  constructor(private readonly prisma: PrismaService) {}
+  constructor(
+    private readonly prisma: PrismaService,
+    private readonly payoutBalanceService: AffiliatePayoutBalanceService,
+  ) {}
 
   getOwnAnalytics(user: AuthUser, query: AffiliateAnalyticsQueryDTO) {
     this.assertPartnerRole(user);
@@ -91,8 +87,9 @@ export class AffiliateAnalyticsService {
         await tx.$executeRawUnsafe("SET TRANSACTION READ ONLY");
         const partnerId = await this.getPartnerId(tx, userId, requireActive);
         const period = await this.getPeriod(tx, query.days);
-        const [balance] = await tx.$queryRaw<BalanceRow[]>(
-          balanceQuery(partnerId, period.as_of),
+        const balance = await this.payoutBalanceService.calculateInTransaction(
+          tx,
+          partnerId,
         );
         const [totals] = await tx.$queryRaw<MetricsRow[]>(
           totalsQuery(partnerId, period.period_start, period.as_of),
@@ -118,46 +115,15 @@ export class AffiliateAnalyticsService {
           codeCountQuery(partnerId, period.period_start, period.as_of),
         );
 
-        if (!balance || !totals || !codeCount) {
+        if (!totals || !codeCount) {
           throw new Error("Affiliate analytics query returned no aggregate row");
-        }
-
-        const minRemaining = toSafeInteger(
-          balance.min_remaining_kopecks,
-          "Affiliate remaining balance",
-        );
-        if (minRemaining < 0) {
-          throw new RangeError("Affiliate remaining balance is negative");
-        }
-        if (
-          toSafeNonnegativeInteger(
-            balance.inconsistent_commission_count,
-            "Inconsistent commission count",
-          ) > 0
-        ) {
-          throw new Error("Affiliate commission ledger is inconsistent");
         }
 
         return {
           asOf: period.as_of.toISOString(),
           period: mapPeriod(query.days, period),
           balance: {
-            availableKopecks: toSafeNonnegativeInteger(
-              balance.available_kopecks,
-              "Available balance",
-            ),
-            pendingKopecks: toSafeNonnegativeInteger(
-              balance.pending_kopecks,
-              "Pending balance",
-            ),
-            heldKopecks: toSafeNonnegativeInteger(
-              balance.held_kopecks,
-              "Held balance",
-            ),
-            reversedKopecks: toSafeNonnegativeInteger(
-              balance.reversed_kopecks,
-              "Reversed balance",
-            ),
+            ...balance,
           },
           totals: mapMetrics(totals),
           daily: daily.map((row) => ({ date: row.date, ...mapMetrics(row) })),
@@ -262,8 +228,8 @@ export class AffiliateAnalyticsService {
   ) {
     const [period] = await tx.$queryRaw<PeriodRow[]>(Prisma.sql`
       SELECT
-        CURRENT_TIMESTAMP AS "as_of",
-        (((CURRENT_TIMESTAMP AT TIME ZONE 'Europe/Moscow')::date - ${days - 1}::integer)::timestamp
+        CLOCK_TIMESTAMP() AS "as_of",
+        (((CLOCK_TIMESTAMP() AT TIME ZONE 'Europe/Moscow')::date - ${days - 1}::integer)::timestamp
           AT TIME ZONE 'Europe/Moscow') AS "period_start"
     `);
     if (!period) throw new Error("Could not capture analytics period");
@@ -275,58 +241,6 @@ export class AffiliateAnalyticsService {
       throw new ForbiddenException("Active partner profile required");
     }
   }
-}
-
-function balanceQuery(partnerId: string, asOf: Date) {
-  return Prisma.sql`
-    WITH commission_state AS (
-      SELECT
-        c."earned_kopecks",
-        c."available_at",
-        o."completed_at",
-        o."payment_status"::text AS "payment_status",
-        o."crm_status"::text AS "crm_status",
-        COUNT(*) FILTER (
-          WHERE le."kind"::text = 'credit'
-        )::bigint AS "credit_count",
-        COALESCE(SUM(le."amount_kopecks") FILTER (
-          WHERE le."kind"::text = 'credit'
-        ), 0)::bigint AS "credited_kopecks",
-        COALESCE(SUM(-le."amount_kopecks") FILTER (
-          WHERE le."kind"::text = 'reversal'
-        ), 0)::bigint AS "reversed_kopecks"
-      FROM "affiliate_commissions" c
-      JOIN "orders" o ON o."id" = c."order_id"
-      LEFT JOIN "affiliate_ledger_entries" le
-        ON le."commission_id" = c."id"
-        AND le."partner_id" = ${partnerId}
-        AND le."created_at" <= ${utcTimestamp(asOf)}
-      WHERE c."partner_id" = ${partnerId}
-        AND c."created_at" <= ${utcTimestamp(asOf)}
-      GROUP BY c."id", o."id"
-    ), classified AS (
-      SELECT *,
-        ("credited_kopecks" - "reversed_kopecks")::bigint AS "remaining_kopecks",
-        ${commissionStatusSql(asOf)} AS "status"
-      FROM commission_state
-    )
-    SELECT
-      COALESCE(SUM("remaining_kopecks") FILTER (
-        WHERE "status" = 'available' AND "remaining_kopecks" > 0
-      ), 0)::bigint AS "available_kopecks",
-      COALESCE(SUM("remaining_kopecks") FILTER (
-        WHERE "status" = 'pending' AND "remaining_kopecks" > 0
-      ), 0)::bigint AS "pending_kopecks",
-      COALESCE(SUM("remaining_kopecks") FILTER (
-        WHERE "status" = 'held' AND "remaining_kopecks" > 0
-      ), 0)::bigint AS "held_kopecks",
-      COALESCE(SUM("reversed_kopecks"), 0)::bigint AS "reversed_kopecks",
-      COALESCE(MIN("remaining_kopecks"), 0)::bigint AS "min_remaining_kopecks",
-      COUNT(*) FILTER (
-        WHERE "credit_count" <> 1 OR "credited_kopecks" <> "earned_kopecks"
-      )::bigint AS "inconsistent_commission_count"
-    FROM classified
-  `;
 }
 
 function totalsQuery(partnerId: string, from: Date, asOf: Date) {

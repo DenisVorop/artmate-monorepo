@@ -53,7 +53,7 @@ export function getLedgerStatusHint(item: AffiliateLedgerItem) {
       return `Заказ ещё не завершён или 14 дней после завершения ещё не прошли.${expectedDate}`;
     }
     case "available":
-      return "14 дней после завершения заказа прошли, вознаграждение учтено в доступном балансе.";
+      return "14 дней после завершения заказа прошли, вознаграждение подтверждено. Текущий остаток учитывает заявки и уже проведённые выплаты.";
     case "held":
       return item.holdReason
         ? `Начисление временно недоступно. ${holdReasonLabels[item.holdReason]}.`

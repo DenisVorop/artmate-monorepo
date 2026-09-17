@@ -10,7 +10,10 @@ import type {
   AffiliateCodeListDTO,
   AffiliateLedgerDTO,
   AffiliatePartnerDTO,
+  AffiliatePayoutDTO,
+  AffiliatePayoutListDTO,
   CreateAffiliateCodeInputDTO,
+  CreateAffiliatePayoutInputDTO,
   UpdateAffiliateCodeInputDTO,
 } from "./affiliate.types";
 
@@ -65,6 +68,34 @@ export async function getAffiliateLedger(
       `/affiliate/ledger?${searchParams.toString()}`,
     )
   ).data;
+}
+
+export async function getAffiliatePayouts(page = 1, pageSize = 10) {
+  const searchParams = new URLSearchParams({
+    page: String(page),
+    pageSize: String(pageSize),
+  });
+
+  return (
+    await requestApi<AffiliatePayoutListDTO>(
+      `/affiliate/payouts?${searchParams.toString()}`,
+    )
+  ).data;
+}
+
+export async function createAffiliatePayout(
+  input: CreateAffiliatePayoutInputDTO,
+): Promise<ActionResult<AffiliatePayoutDTO>> {
+  try {
+    const { data } = await requestApi<AffiliatePayoutDTO>(
+      "/affiliate/payouts",
+      { body: JSON.stringify(input), method: "POST" },
+    );
+
+    return { data, ok: true };
+  } catch (error) {
+    return toActionError(error);
+  }
 }
 
 export async function createAffiliateCode(

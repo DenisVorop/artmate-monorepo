@@ -24,3 +24,10 @@ export {
   AffiliateContractInputDTO,
   PutAffiliatePartnerRequestDTO,
 } from "./put-affiliate-partner-request.dto";
+export { AffiliatePayoutDTO, AffiliatePayoutListDTO } from "./affiliate-payout.dto";
+export { AffiliatePayoutQueryDTO } from "./affiliate-payout-query.dto";
+export {
+  CreateAffiliatePayoutRequestDTO,
+  MarkAffiliatePayoutPaidRequestDTO,
+  RejectAffiliatePayoutRequestDTO,
+} from "./affiliate-payout-request.dto";

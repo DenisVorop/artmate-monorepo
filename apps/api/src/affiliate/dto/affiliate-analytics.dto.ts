@@ -34,6 +34,9 @@ export class AffiliatePeriodDTO {
 
 export class AffiliateBalanceDTO {
   @IsDefined() @IsInt() @Min(0) @Max(maxSafeInteger) availableKopecks!: number;
+  @IsDefined() @IsInt() @Min(0) @Max(maxSafeInteger) reservedKopecks!: number;
+  @IsDefined() @IsInt() @Min(0) @Max(maxSafeInteger) paidKopecks!: number;
+  @IsDefined() @IsInt() @Min(0) @Max(maxSafeInteger) debtKopecks!: number;
   @IsDefined() @IsInt() @Min(0) @Max(maxSafeInteger) pendingKopecks!: number;
   @IsDefined() @IsInt() @Min(0) @Max(maxSafeInteger) heldKopecks!: number;
   @IsDefined() @IsInt() @Min(0) @Max(maxSafeInteger) reversedKopecks!: number;

@@ -159,11 +159,12 @@ export class AffiliateService {
 
     try {
       return await this.prisma.$transaction(async (tx) => {
-        const [lockedUser] = await tx.$queryRaw<Array<{ id: string }>>(
-          Prisma.sql`SELECT "id" FROM "users" WHERE "id" = ${userId} FOR UPDATE`,
+        const lockUserIds = [...new Set([userId, actor.id])].sort();
+        const lockedUsers = await tx.$queryRaw<Array<{ id: string }>>(
+          Prisma.sql`SELECT "id" FROM "users" WHERE "id" IN (${Prisma.join(lockUserIds)}) ORDER BY "id" FOR UPDATE`,
         );
 
-        if (!lockedUser) {
+        if (!lockedUsers.some((entry) => entry.id === userId)) {
           throw new NotFoundException("User not found");
         }
 
@@ -222,7 +223,19 @@ export class AffiliateService {
         }
 
         const status = this.toPrismaStatus(input.status);
-        const current = user.affiliatePartner;
+        if (user.affiliatePartner) {
+          await tx.$queryRaw(
+            Prisma.sql`SELECT "id" FROM "affiliate_partners" WHERE "id" = ${user.affiliatePartner.id} FOR UPDATE`,
+          );
+        }
+        const current = user.affiliatePartner
+          ? await tx.affiliatePartner.findUnique({
+              where: { id: user.affiliatePartner.id },
+            })
+          : null;
+        if (user.affiliatePartner && !current) {
+          throw new NotFoundException("Affiliate partner not found");
+        }
         const contractChanged =
           !current ||
           current.contractNumber !== contract.number ||

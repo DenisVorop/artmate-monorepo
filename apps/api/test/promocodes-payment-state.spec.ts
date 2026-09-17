@@ -517,6 +517,7 @@ describe("promocode payment state integrity", () => {
 
     assert.ok(firstCompletedAt);
     assert.equal(fixture.state.completedAt, firstCompletedAt);
+    assert.equal(fixture.eligibilityLossAccountingCount(), 1);
   });
 
   it("does not downgrade a completed order on a late confirmed payment", async () => {
@@ -2455,6 +2456,7 @@ function createFixture(
   let analytics = 0;
   let accounting = 0;
   let completionAccounting = 0;
+  let eligibilityLossAccounting = 0;
   let analyticsShouldFail = false;
   let releaseCartLock: (() => void) | undefined;
   let recheck: OzonRecheckState | null = null;
@@ -2493,6 +2495,9 @@ function createFixture(
         return recheck && recheck.orderId === values[0]
           ? [{ orderId: recheck.orderId }]
           : [];
+      }
+      if (sql.includes("clock_timestamp")) {
+        return [{ now: new Date() }];
       }
       return [];
     },
@@ -2600,15 +2605,27 @@ function createFixture(
     affiliateCommission: {
       findUnique: async ({
         where,
+        select,
       }: {
         where: { id?: string; orderId?: string };
-      }) =>
-        commissions.find(
+        select?: { ledgerEntries?: unknown };
+      }) => {
+        const commission = commissions.find(
           (commission) =>
             (where.id !== undefined && commission.id === where.id) ||
             (where.orderId !== undefined &&
               commission.orderId === where.orderId),
-        ) ?? null,
+        );
+        if (!commission) return null;
+        return select?.ledgerEntries
+          ? {
+              ...commission,
+              ledgerEntries: ledgerEntries.filter(
+                (entry) => entry.commissionId === commission.id,
+              ),
+            }
+          : commission;
+      },
       create: async ({ data }: { data: Record<string, unknown> }) => {
         const commission = {
           id: `commission-${commissions.length + 1}`,
@@ -2731,13 +2748,18 @@ function createFixture(
     },
   };
   const affiliateFinancialAccountingService = options.realAccounting
-    ? new AffiliateFinancialAccountingService()
+    ? new AffiliateFinancialAccountingService({
+        cancelPendingInTransaction: async () => undefined,
+      } as never)
     : {
         recordPaidOrderInTransaction: async () => {
           accounting += 1;
         },
         recordCompletionInTransaction: async () => {
           completionAccounting += 1;
+        },
+        recordEligibilityLossInTransaction: async () => {
+          eligibilityLossAccounting += 1;
         },
       };
   const storage = new OrdersStorage(
@@ -2810,6 +2832,7 @@ function createFixture(
     analyticsCount: () => analytics,
     accountingCount: () => accounting,
     completionAccountingCount: () => completionAccounting,
+    eligibilityLossAccountingCount: () => eligibilityLossAccounting,
     rejectAnalytics: () => {
       analyticsShouldFail = true;
     },

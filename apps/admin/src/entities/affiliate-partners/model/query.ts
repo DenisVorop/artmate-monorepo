@@ -7,6 +7,7 @@ import {
   getAffiliatePartnerHistory,
   getAffiliatePartners,
   getAffiliatePartnerLedger,
+  getAffiliatePartnerPayouts,
 } from "@/shared/actions/affiliate-partners";
 
 import type {
@@ -14,12 +15,17 @@ import type {
   AffiliatePartnersListParams,
   AffiliatePartnerAnalyticsParams,
   AffiliatePartnerLedgerParams,
+  AffiliatePartnerPayoutsParams,
 } from "./types";
 import { collectAffiliatePartnerSelection } from "./selection";
 
 export const affiliatePartnersQueryKeys = {
   all: ["admin-affiliate-partners"] as const,
   finance: () => [...affiliatePartnersQueryKeys.all, "finance"] as const,
+  analyticsScope: (userId: string) =>
+    [...affiliatePartnersQueryKeys.finance(), "analytics", userId] as const,
+  payoutsScope: (userId: string) =>
+    [...affiliatePartnersQueryKeys.finance(), "payouts", userId] as const,
   list: (params: AffiliatePartnersListParams) =>
     [...affiliatePartnersQueryKeys.all, "list", params] as const,
   detail: (userId: string) =>
@@ -31,9 +37,7 @@ export const affiliatePartnersQueryKeys = {
   selection: () => [...affiliatePartnersQueryKeys.all, "selection"] as const,
   analytics: (userId: string, params: AffiliatePartnerAnalyticsParams) =>
     [
-      ...affiliatePartnersQueryKeys.finance(),
-      "analytics",
-      userId,
+      ...affiliatePartnersQueryKeys.analyticsScope(userId),
       params,
     ] as const,
   ledger: (userId: string, params: AffiliatePartnerLedgerParams) =>
@@ -43,6 +47,8 @@ export const affiliatePartnersQueryKeys = {
       userId,
       params,
     ] as const,
+  payouts: (userId: string, params: AffiliatePartnerPayoutsParams) =>
+    [...affiliatePartnersQueryKeys.payoutsScope(userId), params] as const,
 };
 
 export const affiliatePartnersQuery = {
@@ -97,6 +103,15 @@ export const affiliatePartnersQuery = {
     queryOptions({
       queryKey: affiliatePartnersQueryKeys.ledger(userId, params),
       queryFn: () => getAffiliatePartnerLedger(userId, params),
+      enabled: Boolean(userId),
+      staleTime: 30_000,
+      refetchOnWindowFocus: true,
+      retryOnMount: false,
+    }),
+  payouts: (userId: string, params: AffiliatePartnerPayoutsParams) =>
+    queryOptions({
+      queryKey: affiliatePartnersQueryKeys.payouts(userId, params),
+      queryFn: () => getAffiliatePartnerPayouts(userId, params),
       enabled: Boolean(userId),
       staleTime: 30_000,
       refetchOnWindowFocus: true,

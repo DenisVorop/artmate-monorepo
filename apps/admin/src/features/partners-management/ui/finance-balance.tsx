@@ -27,7 +27,10 @@ export function FinanceBalance({
         </p>
       </CardHeader>
       <CardContent className="relative min-w-0">
-        <dl className="grid min-w-0 grid-cols-1 gap-2 text-xs sm:grid-cols-3">
+        <dl className="grid min-w-0 grid-cols-2 gap-2 text-xs sm:grid-cols-3">
+          <BalanceValue label="В заявке" value={balance.reservedKopecks} />
+          <BalanceValue label="Выплачено" value={balance.paidKopecks} />
+          <BalanceValue label="Задолженность" value={balance.debtKopecks} />
           <BalanceValue label="Ожидает" value={balance.pendingKopecks} />
           <BalanceValue label="Удержано" value={balance.heldKopecks} />
           <BalanceValue label="Возвращено" value={balance.reversedKopecks} />

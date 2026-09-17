@@ -67,9 +67,76 @@ export type AffiliateAnalyticsPeriodDTO = {
 
 export type AffiliateBalanceDTO = {
   availableKopecks: number;
+  reservedKopecks: number;
+  paidKopecks: number;
+  debtKopecks: number;
   pendingKopecks: number;
   heldKopecks: number;
   reversedKopecks: number;
+};
+
+export type AffiliatePayoutStatusDTO =
+  | "pending"
+  | "paid"
+  | "rejected"
+  | "cancelled";
+
+export type AffiliatePayoutEventDTO = {
+  id: string;
+  status: AffiliatePayoutStatusDTO;
+  createdAt: string;
+  actorUserId: string | null;
+  reason: string | null;
+};
+
+export type AffiliatePayoutDTO = {
+  id: string;
+  status: AffiliatePayoutStatusDTO;
+  amountKopecks: number;
+  minimumPayoutKopecks: number;
+  createdAt: string;
+  updatedAt: string;
+  paidAt: string | null;
+  reference: string | null;
+  reason: string | null;
+  contract: {
+    version: number;
+    number: string;
+    signedAt: string;
+    paymentDetails: string;
+  };
+  events: AffiliatePayoutEventDTO[];
+};
+
+export type AffiliatePayoutBlockedReasonDTO =
+  | "partner_inactive"
+  | "open_request"
+  | "debt"
+  | "no_available_balance"
+  | "below_minimum";
+
+export type AffiliatePayoutSummaryDTO = {
+  asOf: string;
+  availableKopecks: number;
+  reservedKopecks: number;
+  paidKopecks: number;
+  debtKopecks: number;
+  minimumPayoutKopecks: number;
+  canRequest: boolean;
+  blockedReason: AffiliatePayoutBlockedReasonDTO | null;
+};
+
+export type AffiliatePayoutListDTO = {
+  summary: AffiliatePayoutSummaryDTO;
+  items: AffiliatePayoutDTO[];
+  total: number;
+  page: number;
+  pageSize: number;
+};
+
+export type CreateAffiliatePayoutInputDTO = {
+  requestId: string;
+  amountKopecks: number;
 };
 
 export type AffiliateAnalyticsDTO = {

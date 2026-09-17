@@ -31,10 +31,7 @@ export function PartnerOverview() {
     <main className="mx-auto w-full max-w-6xl px-4 py-6 sm:px-6 sm:py-9 lg:px-10 lg:py-12">
       <header className="flex flex-col gap-5 sm:flex-row sm:items-end sm:justify-between">
         <div>
-          <p className="text-xs font-extrabold tracking-[0.16em] text-rose-600 uppercase">
-            Artmate partner
-          </p>
-          <h1 className="font-heading mt-2 text-3xl leading-tight font-bold text-ink sm:text-4xl">
+          <h1 className="font-heading text-3xl leading-tight font-bold text-ink sm:text-4xl">
             Финансовый обзор
           </h1>
           <p className="mt-2 max-w-xl text-sm leading-6 text-muted-foreground sm:text-base">

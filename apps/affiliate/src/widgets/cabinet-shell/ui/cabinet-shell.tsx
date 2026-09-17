@@ -6,6 +6,7 @@ import {
   LayoutDashboard,
   Sparkles,
   TicketPercent,
+  WalletCards,
 } from "lucide-react";
 import type { ReactNode } from "react";
 
@@ -16,13 +17,14 @@ import { cn } from "@/shared/lib";
 import { DataState } from "@/shared/ui";
 
 type CabinetShellProps = {
-  readonly activeRoute: "/" | "/codes" | "/cooperation";
+  readonly activeRoute: "/" | "/codes" | "/cooperation" | "/payouts";
   readonly children: ReactNode;
 };
 
 const navigation = [
   { href: routes.home, icon: LayoutDashboard, label: "Обзор" },
   { href: routes.codes, icon: TicketPercent, label: "Промокоды" },
+  { href: routes.payouts, icon: WalletCards, label: "Выплаты" },
   { href: routes.cooperation, icon: FileText, label: "Сотрудничество" },
 ] as const;
 
@@ -77,13 +79,13 @@ export function CabinetShell({ activeRoute, children }: CabinetShellProps) {
             <LogoutButton />
           </div>
           <nav
-            className="mx-auto mt-3 grid max-w-6xl grid-cols-3 gap-1.5"
+            className="mx-auto mt-3 grid max-w-6xl grid-cols-4 gap-1.5"
             aria-label="Основная навигация"
           >
             {navigation.map(({ href, label }) => (
               <Link
                 className={cn(
-                  "min-w-0 rounded-xl px-1.5 py-2 text-center text-[0.7rem] font-bold text-muted-foreground sm:px-3 sm:text-xs",
+                  "min-w-0 rounded-xl px-1.5 py-2 text-center text-[0.7rem] leading-tight font-bold break-words text-muted-foreground [overflow-wrap:anywhere] sm:px-3 sm:text-xs",
                   activeRoute === href && "bg-ink text-white",
                 )}
                 href={href}

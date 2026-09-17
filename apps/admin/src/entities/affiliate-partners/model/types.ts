@@ -11,6 +11,10 @@ import type {
   AffiliatePartnerLedgerEntryDTO,
   AffiliatePartnerLedgerParamsDTO,
   AffiliatePartnerStatusDTO,
+  AffiliatePayoutDTO,
+  AffiliatePayoutListDTO,
+  AffiliatePayoutStatusDTO,
+  AffiliatePartnerPayoutsParamsDTO,
   AffiliatePartnerSummaryDTO,
   AffiliatePartnersListParamsDTO,
   AffiliatePartnersPageDTO,
@@ -32,3 +36,7 @@ export type AffiliatePartnerAnalyticsParams =
 export type AffiliatePartnerLedger = AffiliatePartnerLedgerDTO;
 export type AffiliatePartnerLedgerEntry = AffiliatePartnerLedgerEntryDTO;
 export type AffiliatePartnerLedgerParams = AffiliatePartnerLedgerParamsDTO;
+export type AffiliatePayout = AffiliatePayoutDTO;
+export type AffiliatePayoutList = AffiliatePayoutListDTO;
+export type AffiliatePayoutStatus = AffiliatePayoutStatusDTO;
+export type AffiliatePartnerPayoutsParams = AffiliatePartnerPayoutsParamsDTO;

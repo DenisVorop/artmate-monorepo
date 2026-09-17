@@ -18,10 +18,15 @@ import type {
   AffiliatePartnerAnalyticsParamsDTO,
   AffiliatePartnerLedgerDTO,
   AffiliatePartnerLedgerParamsDTO,
+  AffiliatePayoutDTO,
+  AffiliatePayoutListDTO,
+  AffiliatePartnerPayoutsParamsDTO,
   AffiliatePartnersListParamsDTO,
   AffiliatePartnersPageDTO,
   UpdateAffiliatePartnerInputDTO,
   UpdateAffiliateCodeInputDTO,
+  RecordAffiliatePayoutInputDTO,
+  RejectAffiliatePayoutInputDTO,
 } from "./affiliate-partners.types";
 
 const authAccessTokenCookieName = "artmate_access_token";
@@ -31,6 +36,7 @@ class AdminApiError extends Error {
   constructor(
     message: string,
     readonly status: number,
+    readonly code?: string,
   ) {
     super(message);
     this.name = "AdminApiError";
@@ -108,6 +114,64 @@ export async function getAffiliatePartnerLedger(
   );
 }
 
+export async function getAffiliatePartnerPayouts(
+  userId: string,
+  params: AffiliatePartnerPayoutsParamsDTO,
+) {
+  const searchParams = new URLSearchParams({
+    page: String(params.page),
+    pageSize: String(params.pageSize),
+  });
+
+  return requestAdminApi<AffiliatePayoutListDTO>(
+    `/affiliate/admin/partners/${encodeURIComponent(userId)}/payouts?${searchParams}`,
+  );
+}
+
+export async function markAffiliatePartnerPayoutPaid(
+  userId: string,
+  payoutId: string,
+  input: RecordAffiliatePayoutInputDTO,
+): Promise<ActionResult<AffiliatePayoutDTO>> {
+  return payoutMutation(
+    `/affiliate/admin/partners/${encodeURIComponent(userId)}/payouts/${encodeURIComponent(payoutId)}/paid`,
+    input,
+  );
+}
+
+export async function rejectAffiliatePartnerPayout(
+  userId: string,
+  payoutId: string,
+  input: RejectAffiliatePayoutInputDTO,
+): Promise<ActionResult<AffiliatePayoutDTO>> {
+  return payoutMutation(
+    `/affiliate/admin/partners/${encodeURIComponent(userId)}/payouts/${encodeURIComponent(payoutId)}/reject`,
+    input,
+  );
+}
+
+async function payoutMutation(
+  path: string,
+  input: RecordAffiliatePayoutInputDTO | RejectAffiliatePayoutInputDTO,
+): Promise<ActionResult<AffiliatePayoutDTO>> {
+  try {
+    return {
+      ok: true,
+      data: await requestAdminApi<AffiliatePayoutDTO>(path, {
+        method: "POST",
+        body: JSON.stringify(input),
+      }),
+    };
+  } catch (error) {
+    return {
+      ok: false,
+      error: error instanceof Error ? error.message : "Request failed",
+      status: error instanceof AdminApiError ? error.status : undefined,
+      code: error instanceof AdminApiError ? error.code : undefined,
+    };
+  }
+}
+
 export async function updateAffiliatePartnerCode(
   userId: string,
   codeId: string,
@@ -175,26 +239,28 @@ async function requestAdminApi<T>(path: string, init: RequestInit = {}) {
   );
 
   if (!response.ok) {
-    throw new AdminApiError(
-      await getResponseErrorMessage(response),
-      response.status,
-    );
+    const error = await getResponseError(response);
+    throw new AdminApiError(error.message, response.status, error.code);
   }
 
   return (await response.json()) as T;
 }
 
-async function getResponseErrorMessage(response: Response) {
+async function getResponseError(response: Response) {
   const fallback = `Affiliate partners API request failed with status ${response.status}`;
 
   try {
-    const body = (await response.json()) as { message?: unknown };
-    return typeof body.message === "string"
-      ? body.message
-      : Array.isArray(body.message)
-        ? body.message.join(", ")
-        : fallback;
+    const body = (await response.json()) as { code?: unknown; message?: unknown };
+    return {
+      code: typeof body.code === "string" ? body.code : undefined,
+      message:
+        typeof body.message === "string"
+          ? body.message
+          : Array.isArray(body.message)
+            ? body.message.join(", ")
+            : fallback,
+    };
   } catch {
-    return fallback;
+    return { message: fallback };
   }
 }

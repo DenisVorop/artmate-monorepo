@@ -44,6 +44,7 @@ import {
 
 import { getAffiliatePartnerCandidates } from "../lib";
 import { PartnerFinance } from "./partner-finance";
+import { PartnerPayouts } from "./partner-payouts";
 import { PartnerCodes } from "./partner-codes";
 import { PartnerForm } from "./partner-form";
 
@@ -307,6 +308,11 @@ export function PartnersManagement() {
             <>
               <PartnerFinance
                 key={`finance-${dialog.userId}`}
+                userId={dialog.userId}
+              />
+              <PartnerPayouts
+                key={`payouts-${dialog.userId}`}
+                partnerStatus={detailQuery.data?.status}
                 userId={dialog.userId}
               />
               <PartnerCodes key={dialog.userId} userId={dialog.userId} />
