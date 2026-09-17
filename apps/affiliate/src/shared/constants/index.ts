@@ -1,2 +1,2 @@
 export { routes } from "./routes";
-export { publicSiteAuthUrl, publicSiteUrl } from "./site";
+export { publicSiteRecoveryUrl, publicSiteUrl } from "./site";

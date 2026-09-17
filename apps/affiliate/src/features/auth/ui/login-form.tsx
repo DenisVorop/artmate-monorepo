@@ -1,11 +1,12 @@
 "use client";
 
-import { useState } from "react";
+import { useId, useState } from "react";
 import { useRouter } from "next/navigation";
 import { zodResolver } from "@hookform/resolvers/zod";
 import { ArrowRight, LoaderCircle } from "lucide-react";
 import { useForm } from "react-hook-form";
 
+import { publicSiteRecoveryUrl } from "@/shared/constants";
 import { Button, Input } from "@/shared/ui";
 
 import {
@@ -20,6 +21,7 @@ import { useLogin } from "../model/use-login";
 
 export function LoginForm({ nextPath }: { readonly nextPath?: string }) {
   const router = useRouter();
+  const passwordInputId = useId();
   const [submitError, setSubmitError] = useState<string>();
   const { isPending, mutate: login } = useLogin();
   const {
@@ -63,16 +65,30 @@ export function LoginForm({ nextPath }: { readonly nextPath?: string }) {
         <FieldError message={errors.email?.message} />
       </label>
 
-      <label className="grid gap-2">
-        <span className="text-sm font-bold">Пароль</span>
+      <div className="grid gap-2">
+        <div className="flex flex-wrap items-center justify-between gap-2">
+          <label className="text-sm font-bold" htmlFor={passwordInputId}>
+            Пароль
+          </label>
+          <a
+            aria-label="Забыли пароль? Откроется в новой вкладке"
+            className="rounded-sm text-sm font-bold text-violet-700 underline-offset-4 hover:underline focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-violet-500"
+            href={publicSiteRecoveryUrl}
+            rel="noopener noreferrer"
+            target="_blank"
+          >
+            Забыли пароль?
+          </a>
+        </div>
         <Input
           autoComplete="current-password"
           aria-invalid={Boolean(errors.password)}
+          id={passwordInputId}
           type="password"
           {...register("password")}
         />
         <FieldError message={errors.password?.message} />
-      </label>
+      </div>
 
       {submitError ? (
         <p

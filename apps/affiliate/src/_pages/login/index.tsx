@@ -1,16 +1,13 @@
-import { ArrowUpRight, LockKeyhole, Sparkles } from "lucide-react";
+import { LockKeyhole, Sparkles } from "lucide-react";
 
 import { LoginForm } from "@/features/auth/client";
-import { publicSiteAuthUrl, publicSiteUrl } from "@/shared/constants";
-import { Button } from "@/shared/ui";
+import { publicSiteUrl } from "@/shared/constants";
 
 export function LoginPage({ nextPath }: { readonly nextPath?: string }) {
   return (
     <main className="login-canvas min-h-screen p-3 sm:p-5">
       <div className="mx-auto grid min-h-[calc(100vh-1.5rem)] max-w-7xl overflow-hidden rounded-[2rem] bg-white shadow-shell sm:min-h-[calc(100vh-2.5rem)] lg:grid-cols-[minmax(0,1.08fr)_minmax(25rem,0.92fr)]">
-        <section className="hero-surface relative hidden overflow-hidden p-10 text-white lg:flex lg:flex-col lg:justify-between xl:p-14">
-          <div className="hero-orb hero-orb-rose" aria-hidden="true" />
-          <div className="hero-orb hero-orb-orange" aria-hidden="true" />
+        <section className="relative hidden gap-12 overflow-hidden bg-ink p-10 text-white lg:flex lg:flex-col xl:p-14">
           <a
             className="relative z-10 inline-flex w-fit items-center gap-3 rounded-xl focus-visible:outline-2 focus-visible:outline-offset-4 focus-visible:outline-rose-400"
             href={publicSiteUrl}
@@ -24,16 +21,10 @@ export function LoginPage({ nextPath }: { readonly nextPath?: string }) {
             </span>
           </a>
 
-          <div className="relative z-10 max-w-2xl pb-7">
-            <p className="mb-5 text-sm font-extrabold tracking-[0.18em] text-rose-300 uppercase">
-              Творчество объединяет
-            </p>
+          <div className="relative z-10 my-auto max-w-2xl">
             <h1 className="font-heading text-5xl leading-[1.08] font-bold text-balance xl:text-6xl">
               Пространство для партнёров Artmate
             </h1>
-            <p className="mt-6 max-w-xl text-lg leading-8 text-white/64">
-              Договор и условия сотрудничества в одном кабинете.
-            </p>
           </div>
         </section>
 
@@ -60,19 +51,6 @@ export function LoginPage({ nextPath }: { readonly nextPath?: string }) {
             <div className="mt-8">
               <LoginForm nextPath={nextPath} />
             </div>
-            <div className="my-5 flex items-center gap-3" aria-hidden="true">
-              <span className="h-px flex-1 bg-border" />
-              <span className="text-xs font-bold text-muted-foreground">
-                или
-              </span>
-              <span className="h-px flex-1 bg-border" />
-            </div>
-            <Button asChild className="w-full" size="lg" variant="outline">
-              <a href={publicSiteAuthUrl}>
-                Войти через сайт Artmate
-                <ArrowUpRight aria-hidden="true" />
-              </a>
-            </Button>
           </div>
         </section>
       </div>
