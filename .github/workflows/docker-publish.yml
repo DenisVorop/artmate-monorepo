@@ -35,6 +35,9 @@ jobs:
             dockerfile: apps/site/Dockerfile
           - app: admin
             dockerfile: apps/admin/Dockerfile
+          - app: affiliate
+            dockerfile: apps/affiliate/Dockerfile
+            build_args: NEXT_PUBLIC_SITE_URL=${{ vars.NEXT_PUBLIC_SITE_URL || 'https://artmate.ru' }}
           - app: edge-proxy
             dockerfile: apps/edge-proxy/Dockerfile
           - app: tg
@@ -77,5 +80,6 @@ jobs:
           push: true
           tags: ${{ steps.meta.outputs.tags }}
           labels: ${{ steps.meta.outputs.labels }}
+          build-args: ${{ matrix.build_args || '' }}
           cache-from: type=gha,scope=${{ matrix.app }}
           cache-to: type=gha,mode=max,scope=${{ matrix.app }}

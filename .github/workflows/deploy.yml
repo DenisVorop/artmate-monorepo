@@ -374,6 +374,9 @@ jobs:
             docker compose --env-file .env --env-file .image.env -f docker-compose.prod.yml pull
             docker compose --env-file .env --env-file .image.env -f docker-compose.prod.yml up -d postgres
             docker compose --env-file .env --env-file .image.env -f docker-compose.prod.yml --profile migrate run --rm api-migrate
-            docker compose --env-file .env --env-file .image.env -f docker-compose.prod.yml up -d --remove-orphans
+            docker compose --env-file .env --env-file .image.env -f docker-compose.prod.yml up -d --remove-orphans --wait --wait-timeout 120
+            docker compose --env-file .env --env-file .image.env -f docker-compose.prod.yml exec -T caddy caddy reload --config /etc/caddy/Caddyfile
+            docker compose --env-file .env --env-file .image.env -f docker-compose.prod.yml exec -T affiliate node -e "fetch(\"http://127.0.0.1:3006/health\", { redirect: \"manual\", signal: AbortSignal.timeout(5000) }).then(async (response) => { if (response.status !== 200) process.exit(1); const body = await response.json(); process.exit(JSON.stringify(body) === \"{\\\"status\\\":\\\"ok\\\"}\" ? 0 : 1); }).catch(() => process.exit(1))"
+            docker compose --env-file .env --env-file .image.env -f docker-compose.prod.yml exec -T affiliate node -e "fetch(\"http://127.0.0.1:3006/login\", { redirect: \"manual\", signal: AbortSignal.timeout(5000) }).then((response) => process.exit(response.status === 200 ? 0 : 1)).catch(() => process.exit(1))"
             docker image prune -f
           '

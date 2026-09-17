@@ -93,6 +93,9 @@ jobs:
             dockerfile: apps/site/Dockerfile
           - app: admin
             dockerfile: apps/admin/Dockerfile
+          - app: affiliate
+            dockerfile: apps/affiliate/Dockerfile
+            build_args: NEXT_PUBLIC_SITE_URL=${{ vars.NEXT_PUBLIC_SITE_URL || 'https://artmate.ru' }}
           - app: tg
             dockerfile: apps/tg/Dockerfile
           - app: coloring
@@ -114,5 +117,6 @@ jobs:
           file: ${{ matrix.dockerfile }}
           push: false
           tags: artmate-${{ matrix.app }}:ci
+          build-args: ${{ matrix.build_args || '' }}
           cache-from: type=gha,scope=${{ matrix.app }}
           cache-to: type=gha,mode=max,scope=${{ matrix.app }}
