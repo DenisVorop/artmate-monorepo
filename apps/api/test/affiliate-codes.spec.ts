@@ -19,9 +19,12 @@ import {
 import { AffiliateCodesService } from "../src/affiliate/affiliate-codes.service";
 import {
   CreateAffiliateCodeRequestDTO,
+  AffiliateCodeListDTO,
   ListAffiliateCodesQueryDTO,
   UpdateAffiliateCodeRequestDTO,
 } from "../src/affiliate/dto";
+import { plainToInstance } from "class-transformer";
+import { validate } from "class-validator";
 import { AuthGuard } from "../src/auth/auth.guard";
 import type { AuthUser } from "../src/auth/auth.types";
 import { Prisma } from "../src/generated/prisma/client";
@@ -160,6 +163,7 @@ describe("AffiliateCodesService", () => {
       page: 2,
       pageSize: 20,
     });
+    const response = result as typeof result & { limit: number };
 
     assert.deepEqual(Object.keys(result.items[0]!).sort(), [
       "buyerPercent",
@@ -173,10 +177,124 @@ describe("AffiliateCodesService", () => {
     ]);
     assert.equal(result.items[0]?.comment, "private");
     assert.deepEqual(
-      { total: result.total, page: result.page, pageSize: result.pageSize },
-      { total: 1, page: 2, pageSize: 20 },
+      {
+        total: response.total,
+        page: response.page,
+        pageSize: response.pageSize,
+        limit: response.limit,
+      },
+      { total: 1, page: 2, pageSize: 20, limit: 3 },
+    );
+    assert.deepEqual(
+      await validate(plainToInstance(AffiliateCodeListDTO, response)),
+      [],
+    );
+    assert.equal(
+      (
+        await validate(
+          plainToInstance(AffiliateCodeListDTO, { ...response, limit: 0 }),
+        )
+      ).length > 0,
+      true,
     );
     assert.deepEqual(fixture.listWindow(), { skip: 20, take: 20 });
+
+    const adminResult = await fixture.service.listAdmin("user-1", {
+      page: 1,
+      pageSize: 20,
+    });
+    assert.equal((adminResult as typeof adminResult & { limit: number }).limit, 3);
+  });
+
+  it("allows the third code but rejects partners already at or above the limit", async () => {
+    const belowLimit = createFixture({ existingCodeCount: 2 });
+    await assert.doesNotReject(
+      belowLimit.service.createOwn(partnerUser(), { partnerPercent: 10 }),
+    );
+    assert.equal(belowLimit.createAttempts(), 1);
+
+    for (const existingCodeCount of [3, 4]) {
+      const atLimit = createFixture({ existingCodeCount });
+      await assert.rejects(
+        atLimit.service.createOwn(partnerUser(), { partnerPercent: 10 }),
+        (error: unknown) => {
+          if (!(error instanceof ConflictException)) return false;
+          assert.equal(error.message, "Можно создать не более 3 промокодов");
+          assert.deepEqual(error.getResponse(), {
+            message: "Можно создать не более 3 промокодов",
+            code: "affiliate_code_limit",
+          });
+          return true;
+        },
+      );
+      assert.equal(atLimit.createAttempts(), 0);
+    }
+  });
+
+  it("counts inactive own codes", async () => {
+    const fixture = createFixture({
+      existingCodes: [
+        { affiliatePartnerId: "partner-1", isActive: true },
+        { affiliatePartnerId: "partner-1", isActive: true },
+        { affiliatePartnerId: "partner-1", isActive: false },
+      ],
+    });
+    await assert.rejects(
+      fixture.service.createOwn(partnerUser(), { partnerPercent: 10 }),
+      ConflictException,
+    );
+  });
+
+  it("does not count another partner's codes", async () => {
+    const fixture = createFixture({
+      existingCodes: [
+        { affiliatePartnerId: "partner-1", isActive: true },
+        { affiliatePartnerId: "partner-1", isActive: false },
+        { affiliatePartnerId: "partner-2", isActive: true },
+        { affiliatePartnerId: "partner-2", isActive: true },
+        { affiliatePartnerId: "partner-2", isActive: true },
+        { affiliatePartnerId: "partner-2", isActive: false },
+      ],
+    });
+    await fixture.service.createOwn(partnerUser(), { partnerPercent: 10 });
+
+    assert.deepEqual(fixture.countFilters(), [
+      { affiliatePartnerId: "partner-1", kind: "AFFILIATE" },
+    ]);
+  });
+
+  it("allows updates when the partner is already at the code limit", async () => {
+    const fixture = createFixture({ existingCodeCount: 3 });
+    const result = await fixture.service.updateOwn(partnerUser(), "code-1", {
+      isActive: false,
+    });
+
+    assert.equal(result.isActive, false);
+    assert.deepEqual(fixture.countFilters(), []);
+  });
+
+  it("serializes concurrent creates before counting the partner's codes", async () => {
+    const fixture = createFixture({
+      existingCodeCount: 2,
+      serializeTransactions: true,
+    });
+    const results = await Promise.allSettled([
+      fixture.service.createOwn(partnerUser(), { code: "FIRST", partnerPercent: 10 }),
+      fixture.service.createOwn(partnerUser(), { code: "SECOND", partnerPercent: 10 }),
+    ]);
+
+    assert.deepEqual(
+      results.map((result) => result.status),
+      ["fulfilled", "rejected"],
+    );
+    assert.equal(fixture.createAttempts(), 1);
+    assert.deepEqual(fixture.createFlow(), [
+      "lock:user",
+      "count:2",
+      "create",
+      "lock:user",
+      "count:3",
+    ]);
   });
 
   it("keeps pagination skip within the signed Prisma Int range", async () => {
@@ -379,14 +497,29 @@ function createFixture(
     collisionError?: Error;
     collisions?: number;
     collisionTarget?: unknown;
+    existingCodeCount?: number;
+    existingCodes?: Array<{
+      affiliatePartnerId: string;
+      isActive: boolean;
+    }>;
     hasPartnerRole?: boolean;
     partnerActive?: boolean;
+    serializeTransactions?: boolean;
   } = {},
 ) {
   let collisions = options.collisions ?? 0;
   let attempts = 0;
   let created: Record<string, unknown> | undefined;
   const locks: string[] = [];
+  const countFilters: Array<Record<string, unknown>> = [];
+  const createFlow: string[] = [];
+  const existingCodes =
+    options.existingCodes ??
+    Array.from({ length: options.existingCodeCount ?? 1 }, () => ({
+      affiliatePartnerId: "partner-1",
+      isActive: true,
+    }));
+  let transactionQueue = Promise.resolve();
   let listWindow: { skip: number; take: number } | undefined;
   const storedCode = () => ({
     id: "code-1",
@@ -428,7 +561,10 @@ function createFixture(
   const tx = {
     $queryRaw: async (query: { strings?: readonly string[] }) => {
       const sql = query.strings?.join("") ?? String(query);
-      if (sql.includes('FROM "users"')) locks.push("user");
+      if (sql.includes('FROM "users"')) {
+        locks.push("user");
+        createFlow.push("lock:user");
+      }
       if (sql.includes('FROM "promo_codes"')) locks.push("promo");
       return [{ id: sql.includes('FROM "users"') ? "user-1" : "code-1" }];
     },
@@ -436,8 +572,17 @@ function createFixture(
       findUnique: async () => partner,
     },
     promoCode: {
+      count: async ({ where }: { where: Record<string, unknown> }) => {
+        countFilters.push(where);
+        const existingCodeCount = existingCodes.filter(
+          (code) => code.affiliatePartnerId === where.affiliatePartnerId,
+        ).length;
+        createFlow.push(`count:${existingCodeCount}`);
+        return existingCodeCount;
+      },
       create: async ({ data }: { data: Record<string, unknown> }) => {
         attempts += 1;
+        createFlow.push("create");
         if (collisions > 0) {
           collisions -= 1;
           if (options.collisionError) throw options.collisionError;
@@ -449,6 +594,10 @@ function createFixture(
           throw error;
         }
         created = data;
+        existingCodes.push({
+          affiliatePartnerId: String(data.affiliatePartnerId),
+          isActive: Boolean(data.isActive),
+        });
         return { ...storedCode(), ...data, id: `code-${attempts}` };
       },
       findUnique: async () => storedCode(),
@@ -461,7 +610,16 @@ function createFixture(
   const prisma = {
     $transaction: async (
       input: ((client: typeof tx) => unknown) | Promise<unknown>[],
-    ) => (Array.isArray(input) ? Promise.all(input) : input(tx)),
+    ) => {
+      if (Array.isArray(input)) return Promise.all(input);
+      if (!options.serializeTransactions) return input(tx);
+      const result = transactionQueue.then(() => input(tx));
+      transactionQueue = result.then(
+        () => undefined,
+        () => undefined,
+      );
+      return result;
+    },
     affiliatePartner: {
       findUnique: async () => partner,
     },
@@ -476,6 +634,8 @@ function createFixture(
 
   return {
     createAttempts: () => attempts,
+    countFilters: () => countFilters,
+    createFlow: () => createFlow,
     createdData: () => created,
     locks: () => locks,
     listWindow: () => listWindow,

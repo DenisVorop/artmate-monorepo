@@ -1,5 +1,13 @@
 export { AffiliateContractRevisionDTO } from "./affiliate-contract-revision.dto";
 export {
+  AffiliateAnalyticsDTO,
+  AffiliateLedgerDTO,
+} from "./affiliate-analytics.dto";
+export {
+  AffiliateAnalyticsQueryDTO,
+  AffiliateLedgerQueryDTO,
+} from "./affiliate-analytics-query.dto";
+export {
   AffiliateContractDTO,
   AffiliatePartnerDTO,
   AffiliatePartnerSummaryDTO,

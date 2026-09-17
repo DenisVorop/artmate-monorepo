@@ -1,4 +1,8 @@
 import { affiliateCodesQuery } from "@/entities/affiliate-code";
+import {
+  affiliateAnalyticsQuery,
+  affiliateLedgerQuery,
+} from "@/entities/affiliate-finance";
 import { affiliatePartnerQuery } from "@/entities/affiliate-partner";
 import { requireAffiliateAccess } from "@/features/auth/server";
 import { dehydrateQueryClient } from "@/shared/lib/dehydrate-query-client";
@@ -6,7 +10,10 @@ import { makeQueryClient } from "@/shared/lib/query-client";
 
 export async function buildAffiliateData(
   nextPath: "/" | "/codes" | "/cooperation",
-  options: { readonly includeCodes?: boolean } = {},
+  options: {
+    readonly includeCodes?: boolean;
+    readonly includeFinance?: boolean;
+  } = {},
 ) {
   const { partner, user } = await requireAffiliateAccess(nextPath);
   const queryClient = makeQueryClient();
@@ -15,6 +22,13 @@ export async function buildAffiliateData(
 
   if (options.includeCodes) {
     await queryClient.prefetchQuery(affiliateCodesQuery(user.id));
+  }
+
+  if (options.includeFinance) {
+    await Promise.all([
+      queryClient.prefetchQuery(affiliateAnalyticsQuery(user.id)),
+      queryClient.prefetchQuery(affiliateLedgerQuery(user.id)),
+    ]);
   }
 
   return {

@@ -2,6 +2,7 @@
 
 import { useMutation, useQueryClient } from "@tanstack/react-query";
 
+import { affiliatePartnersQueryKeys } from "@/entities/affiliate-partners";
 import {
   orderRefundsQueryKeys,
   type OrderRefunds,
@@ -49,6 +50,9 @@ export function useRecordOrderRefund({ onError, onSuccess }: Options = {}) {
         }),
         queryClient.invalidateQueries({
           queryKey: ordersQueryKeys.detail(data.orderId),
+        }),
+        queryClient.invalidateQueries({
+          queryKey: affiliatePartnersQueryKeys.finance(),
         }),
       ]);
       onSuccess?.(data);

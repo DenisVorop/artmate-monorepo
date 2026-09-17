@@ -20,3 +20,19 @@ test("normalizes transport failures to service unavailable", () => {
     error: { status: 503 },
   });
 });
+
+test("serializes an optional API error code without exposing its message", () => {
+  assert.deepEqual(
+    toActionError(
+      new ApiError(
+        409,
+        "Можно создать не более 3 промокодов",
+        "affiliate_code_limit",
+      ),
+    ),
+    {
+      ok: false,
+      error: { code: "affiliate_code_limit", status: 409 },
+    },
+  );
+});

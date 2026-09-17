@@ -73,6 +73,22 @@ test("exposes the keyboard slider value as both commission shares", () => {
   assert.match(splitSource, /onValueChange=/);
 });
 
+test("uses neutral value cards and one proportional commission indicator", () => {
+  assert.doesNotMatch(splitSource, /bg-ink px-4 py-4 text-white/);
+  assert.match(splitSource, /split\.partnerPercent/);
+  assert.match(splitSource, /split\.buyerPercent/);
+  assert.match(splitSource, /flexBasis/);
+  assert.doesNotMatch(splitSource, /Array\.from\(\{ length: 20 \}/);
+  assert.doesNotMatch(splitSource, /transition-\[flex-basis\]/);
+});
+
+test("gates code creation with the API total and limit", () => {
+  assert.match(listSource, /data\.total\s*>=\s*data\.limit/);
+  assert.match(listSource, /formatAffiliateCodeUsage\(data\.total, data\.limit\)/);
+  assert.match(listSource, /У вас уже \{data\.limit\} промокода/);
+  assert.match(listSource, /активные и выключенные промокоды/i);
+});
+
 test("keeps an open edit form within the mobile card width", () => {
   assert.match(textareaSource, /field-sizing-fixed/);
   assert.match(textareaSource, /min-w-0/);

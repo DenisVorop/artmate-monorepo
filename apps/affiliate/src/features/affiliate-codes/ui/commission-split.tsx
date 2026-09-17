@@ -31,31 +31,32 @@ export function CommissionSplit({
         Выберите вашу долю. Остальное станет скидкой покупателю.
       </p>
 
-      <div className="mt-4 grid grid-cols-2 overflow-hidden rounded-2xl bg-muted">
-        <div className="min-w-0 bg-ink px-4 py-4 text-white">
-          <p className="text-xs font-bold text-white/60">Вам</p>
-          <p className="font-heading mt-1 text-2xl font-bold">
+      <div className="mt-4 grid grid-cols-2 gap-2">
+        <div className="min-w-0 rounded-2xl border border-border/70 bg-muted/45 px-3 py-4 sm:px-4">
+          <p className="text-xs font-bold text-muted-foreground">Вам</p>
+          <p className="font-heading mt-1 break-words text-2xl font-bold text-ink">
             {split.partnerPercent}%
           </p>
         </div>
-        <div className="min-w-0 px-4 py-4 text-right">
+        <div className="min-w-0 rounded-2xl border border-border/70 bg-muted/45 px-3 py-4 text-right sm:px-4">
           <p className="text-xs font-bold text-muted-foreground">Покупателю</p>
-          <p className="font-heading mt-1 text-2xl font-bold text-rose-600">
+          <p className="font-heading mt-1 break-words text-2xl font-bold text-ink">
             {split.buyerPercent}%
           </p>
         </div>
       </div>
       <div
-        className="mt-2 grid h-2 gap-0.5 overflow-hidden rounded-full"
-        style={{ gridTemplateColumns: "repeat(20, minmax(0, 1fr))" }}
+        className="mt-2 flex h-2 overflow-hidden rounded-full bg-muted"
         aria-hidden="true"
       >
-        {Array.from({ length: 20 }, (_, index) => (
-          <span
-            className={index < value ? "bg-ink" : "bg-rose-400"}
-            key={index}
-          />
-        ))}
+        <span
+          className="shrink-0 bg-ink"
+          style={{ flexBasis: `${split.partnerPercent * 5}%` }}
+        />
+        <span
+          className="shrink-0 bg-rose-400"
+          style={{ flexBasis: `${split.buyerPercent * 5}%` }}
+        />
       </div>
 
       <p className="mt-5 block text-sm font-bold" id={`${fieldId}-label`}>

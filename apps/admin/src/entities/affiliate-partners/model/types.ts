@@ -4,6 +4,12 @@ import type {
   AffiliateCodesPageDTO,
   AffiliateContractRevisionDTO,
   AffiliatePartnerDTO,
+  AffiliateFinanceDaysDTO,
+  AffiliatePartnerAnalyticsDTO,
+  AffiliatePartnerAnalyticsParamsDTO,
+  AffiliatePartnerLedgerDTO,
+  AffiliatePartnerLedgerEntryDTO,
+  AffiliatePartnerLedgerParamsDTO,
   AffiliatePartnerStatusDTO,
   AffiliatePartnerSummaryDTO,
   AffiliatePartnersListParamsDTO,
@@ -19,3 +25,10 @@ export type AffiliatePartnersPage = AffiliatePartnersPageDTO;
 export type AffiliateCode = AffiliateCodeDTO;
 export type AffiliateCodesListParams = AffiliateCodesListParamsDTO;
 export type AffiliateCodesPage = AffiliateCodesPageDTO;
+export type AffiliateFinanceDays = AffiliateFinanceDaysDTO;
+export type AffiliatePartnerAnalytics = AffiliatePartnerAnalyticsDTO;
+export type AffiliatePartnerAnalyticsParams =
+  AffiliatePartnerAnalyticsParamsDTO;
+export type AffiliatePartnerLedger = AffiliatePartnerLedgerDTO;
+export type AffiliatePartnerLedgerEntry = AffiliatePartnerLedgerEntryDTO;
+export type AffiliatePartnerLedgerParams = AffiliatePartnerLedgerParamsDTO;

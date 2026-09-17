@@ -8,6 +8,9 @@ export {
   type AffiliateCodeFormValues,
 } from "./form-values";
 export { generateAffiliateCode } from "./generate-code";
-export { formatAffiliateCodeCount } from "./format-count";
+export {
+  formatAffiliateCodeCount,
+  formatAffiliateCodeUsage,
+} from "./format-count";
 export { useAffiliateCodeForm } from "./form-state";
 export { useAffiliateCodeList } from "./list-state";

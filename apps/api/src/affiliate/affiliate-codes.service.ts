@@ -25,6 +25,7 @@ import type {
   ListAffiliateCodesQueryDTO,
   UpdateAffiliateCodeRequestDTO,
 } from "./dto";
+import { affiliateCodeLimit } from "./affiliate.types";
 
 const generatedCodeAlphabet = "ABCDEFGHJKLMNPQRSTUVWXYZ23456789";
 const generatedCodeAttempts = 8;
@@ -64,6 +65,18 @@ export class AffiliateCodesService {
           await this.lockUser(tx, user.id);
           const partner = await this.getPartnerByUserId(tx, user.id);
           this.assertActivePartner(partner);
+          const codeCount = await tx.promoCode.count({
+            where: {
+              affiliatePartnerId: partner.id,
+              kind: PromoCodeKind.AFFILIATE,
+            },
+          });
+          if (codeCount >= affiliateCodeLimit) {
+            throw new ConflictException({
+              message: `Можно создать не более ${affiliateCodeLimit} промокодов`,
+              code: "affiliate_code_limit",
+            });
+          }
           const promo = await tx.promoCode.create({
             data: {
               code,
@@ -193,6 +206,7 @@ export class AffiliateCodesService {
       total,
       page: query.page,
       pageSize: query.pageSize,
+      limit: affiliateCodeLimit,
     };
   }
 

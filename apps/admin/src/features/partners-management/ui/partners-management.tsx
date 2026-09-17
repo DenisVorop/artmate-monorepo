@@ -43,6 +43,7 @@ import {
 } from "@/shared/ui";
 
 import { getAffiliatePartnerCandidates } from "../lib";
+import { PartnerFinance } from "./partner-finance";
 import { PartnerCodes } from "./partner-codes";
 import { PartnerForm } from "./partner-form";
 
@@ -304,6 +305,10 @@ export function PartnersManagement() {
           )}
           {dialog.userId ? (
             <>
+              <PartnerFinance
+                key={`finance-${dialog.userId}`}
+                userId={dialog.userId}
+              />
               <PartnerCodes key={dialog.userId} userId={dialog.userId} />
               <ContractHistory
                 history={historyQuery.history}
