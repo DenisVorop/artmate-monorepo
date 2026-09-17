@@ -169,6 +169,19 @@ services:
     depends_on:
       - api
 
+  affiliate:
+    image: ghcr.io/denisvorop/artmate-monorepo-affiliate:${IMAGE_TAG:-latest}
+    restart: unless-stopped
+    environment:
+      NODE_ENV: production
+      PORT: 3006
+      HOSTNAME: 0.0.0.0
+      API_BASE_URL: ${API_BASE_URL:?API_BASE_URL is required}
+      AUTH_COOKIE_DOMAIN: ${AUTH_COOKIE_DOMAIN:?AUTH_COOKIE_DOMAIN is required}
+      NEXT_PUBLIC_SITE_URL: ${NEXT_PUBLIC_SITE_URL:?NEXT_PUBLIC_SITE_URL is required}
+    depends_on:
+      - api
+
   tg:
     image: ghcr.io/denisvorop/artmate-monorepo-tg:${IMAGE_TAG:-latest}
     restart: unless-stopped
@@ -313,6 +326,7 @@ services:
     depends_on:
       - site
       - admin
+      - affiliate
       - api
       - tg
       - studio

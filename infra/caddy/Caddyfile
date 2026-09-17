@@ -73,6 +73,15 @@ admin.artmate.ru {
 	}
 }
 
+affiliate.artmate.ru {
+	import security_headers
+	header X-Robots-Tag "noindex, nofollow, noarchive"
+	encode zstd gzip
+	reverse_proxy affiliate:3006 {
+		import proxy_headers
+	}
+}
+
 api.art-mate.ru, api.artmate.ru {
 	import security_headers
 	encode zstd gzip
