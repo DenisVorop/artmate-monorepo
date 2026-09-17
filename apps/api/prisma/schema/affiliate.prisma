@@ -5,6 +5,13 @@ enum AffiliatePartnerStatus {
   @@map("affiliate_partner_status")
 }
 
+enum AffiliateLedgerEntryKind {
+  CREDIT   @map("credit")
+  REVERSAL @map("reversal")
+
+  @@map("affiliate_ledger_entry_kind")
+}
+
 model AffiliatePartner {
   id                     String                 @id @default(cuid()) @db.VarChar(32)
   userId                 String                 @unique @map("user_id")
@@ -22,9 +29,54 @@ model AffiliatePartner {
   partnerApplication PartnerApplication?         @relation(fields: [partnerApplicationId], references: [id], onDelete: SetNull)
   contractRevisions  AffiliateContractRevision[]
   promoCodes         PromoCode[]
+  commissions        AffiliateCommission[]
+  ledgerEntries      AffiliateLedgerEntry[]
 
   @@index([status, createdAt])
   @@map("affiliate_partners")
+}
+
+model AffiliateCommission {
+  id                String   @id @default(cuid()) @db.VarChar(32)
+  orderId           String   @unique @map("order_id") @db.VarChar(32)
+  partnerId         String   @map("partner_id") @db.VarChar(32)
+  codeSnapshot      String   @map("code_snapshot") @db.VarChar(40)
+  partnerPercent    Int      @map("partner_percent")
+  buyerPercent      Int      @map("buyer_percent")
+  isSelfPurchase    Boolean  @map("is_self_purchase")
+  subtotalKopecks   BigInt   @map("subtotal_kopecks")
+  earnedKopecks     BigInt   @map("earned_kopecks")
+  itemSnapshot      Json     @map("item_snapshot") @db.JsonB
+  availableAt       DateTime? @map("available_at")
+  createdAt         DateTime @default(now()) @map("created_at")
+
+  order         Order                    @relation(fields: [orderId], references: [id], onDelete: Restrict, onUpdate: Restrict)
+  partner       AffiliatePartner         @relation(fields: [partnerId], references: [id], onDelete: Restrict, onUpdate: Restrict)
+  ledgerEntries AffiliateLedgerEntry[]
+
+  @@index([partnerId, createdAt])
+  @@map("affiliate_commissions")
+}
+
+model AffiliateLedgerEntry {
+  id             String                   @id @default(cuid()) @db.VarChar(32)
+  commissionId   String                   @map("commission_id") @db.VarChar(32)
+  orderId        String                   @map("order_id") @db.VarChar(32)
+  partnerId      String                   @map("partner_id") @db.VarChar(32)
+  refundId       String?                  @unique @map("refund_id") @db.VarChar(32)
+  kind           AffiliateLedgerEntryKind
+  amountKopecks  BigInt                   @map("amount_kopecks")
+  operationKey   String                   @unique @map("operation_key") @db.VarChar(160)
+  createdAt      DateTime                 @default(now()) @map("created_at")
+
+  commission AffiliateCommission @relation(fields: [commissionId], references: [id], onDelete: Restrict, onUpdate: Restrict)
+  order      Order               @relation(fields: [orderId], references: [id], onDelete: Restrict, onUpdate: Restrict)
+  partner    AffiliatePartner    @relation(fields: [partnerId], references: [id], onDelete: Restrict, onUpdate: Restrict)
+  refund     OrderRefund?        @relation(fields: [refundId], references: [id], onDelete: Restrict, onUpdate: Restrict)
+
+  @@index([partnerId, createdAt])
+  @@index([orderId, createdAt])
+  @@map("affiliate_ledger_entries")
 }
 
 model AffiliateContractRevision {

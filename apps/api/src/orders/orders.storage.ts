@@ -11,6 +11,7 @@ import {
 import { OrderActivationService } from "../auth/order-activation.service";
 import { AnalyticsOutboxService } from "../analytics/analytics-outbox.service";
 import { parseYandexAttribution } from "../analytics/yandex-attribution";
+import { AffiliateFinancialAccountingService } from "../affiliate/financial-accounting.service";
 import type { CartItemDTO } from "../cart/dto";
 import type { DeliveryCartItem } from "../delivery/providers/delivery-provider.interface";
 import {
@@ -250,8 +251,9 @@ export class OrdersStorage {
   constructor(
     private readonly prisma: PrismaService,
     private readonly promocodesService: PromocodesService,
-    private readonly orderActivationService?: OrderActivationService,
-    private readonly analyticsOutboxService?: AnalyticsOutboxService,
+    private readonly orderActivationService: OrderActivationService,
+    private readonly analyticsOutboxService: AnalyticsOutboxService,
+    private readonly affiliateFinancialAccountingService: AffiliateFinancialAccountingService,
   ) {}
 
   async createOrder(input: CreateStoredOrderInput): Promise<OrderDTO> {
@@ -364,13 +366,16 @@ export class OrdersStorage {
             if (!this.orderActivationService) {
               throw new Error("OrderActivationService is not configured");
             }
-            await this.orderActivationService.attachGuestOrderInTransaction(tx, {
-              id,
-              userId: null,
-              customerEmail: input.customer.email,
-              customerName: input.customer.name,
-              customerPhone: input.customer.phone,
-            });
+            await this.orderActivationService.attachGuestOrderInTransaction(
+              tx,
+              {
+                id,
+                userId: null,
+                customerEmail: input.customer.email,
+                customerName: input.customer.name,
+                customerPhone: input.customer.phone,
+              },
+            );
           }
           if (input.promoCode) {
             const reservation =
@@ -546,7 +551,11 @@ export class OrdersStorage {
         return;
       }
 
-      await this.consumeOrderItemsInTransaction(tx, order, "payment_initialization");
+      await this.consumeOrderItemsInTransaction(
+        tx,
+        order,
+        "payment_initialization",
+      );
     });
   }
 
@@ -875,6 +884,7 @@ export class OrdersStorage {
         select: {
           crmStatus: true,
           paymentStatus: true,
+          completedAt: true,
           userId: true,
         },
       });
@@ -896,10 +906,27 @@ export class OrdersStorage {
       const changed = existingOrder.crmStatus !== nextStatus;
 
       if (changed) {
+        const completedAt =
+          nextStatus === PrismaOrderCrmStatus.COMPLETED &&
+          !existingOrder.completedAt
+            ? new Date()
+            : existingOrder.completedAt;
         await tx.order.update({
           where: { id: orderId },
-          data: { crmStatus: nextStatus },
+          data: {
+            crmStatus: nextStatus,
+            ...(completedAt && !existingOrder.completedAt
+              ? { completedAt }
+              : {}),
+          },
         });
+        if (nextStatus === PrismaOrderCrmStatus.COMPLETED && completedAt) {
+          await this.affiliateFinancialAccountingService.recordCompletionInTransaction(
+            tx,
+            orderId,
+            completedAt,
+          );
+        }
         await tx.orderHistory.create({
           data: {
             orderId,
@@ -1325,7 +1352,8 @@ export class OrdersStorage {
               AND "locked_until" > clock_timestamp()
               AND "finished_at" IS NULL
           `);
-          if (updated !== 1) throw new ConflictException("Ozon payment recheck lease expired");
+          if (updated !== 1)
+            throw new ConflictException("Ozon payment recheck lease expired");
         } else {
           await this.finishOzonPaymentRecheck(
             tx,
@@ -1460,7 +1488,7 @@ export class OrdersStorage {
               ? {
                   paymentErrorCode: input.errorCode,
                   paymentErrorMessage: input.errorMessage,
-                   ...(shouldRelease
+                  ...(shouldRelease
                     ? {
                         paymentRedirectUrl: CHECKOUT_FAILURE_PATH,
                         paymentStatus: PrismaOrderPaymentStatus.FAILED,
@@ -1505,35 +1533,38 @@ export class OrdersStorage {
       return undefined;
     }
 
-    const existingOrder = await this.prisma.order.findFirst({
-      where: {
-        id: orderId,
-        deliveryProvider: PrismaOrderDeliveryProvider.CDEK,
-      },
-      select: {
-        crmStatus: true,
-        id: true,
-        userId: true,
-      },
-    });
+    return this.prisma.$transaction(async (tx) => {
+      await this.lockOrder(tx, orderId);
+      const existingOrder = await tx.order.findUnique({
+        where: { id: orderId },
+        include: orderInclude,
+      });
+      if (
+        !existingOrder ||
+        existingOrder.deliveryProvider !== PrismaOrderDeliveryProvider.CDEK
+      ) {
+        return undefined;
+      }
+      const lockedShipment = await tx.orderShipment.findUnique({
+        where: {
+          orderId_provider: {
+            orderId,
+            provider: PrismaOrderDeliveryProvider.CDEK,
+          },
+        },
+      });
+      const previousShipmentStatusCode =
+        lockedShipment?.statusCode ?? undefined;
+      const shipmentStatusChanged =
+        previousShipmentStatusCode !== input.statusCode;
+      const nextOrderStatus = this.getOrderStatusForCdekShipmentStatus(
+        existingOrder.crmStatus,
+        input.statusCode,
+      );
+      const orderStatusChanged =
+        nextOrderStatus !== undefined &&
+        nextOrderStatus !== existingOrder.crmStatus;
 
-    if (!existingOrder) {
-      return undefined;
-    }
-
-    const previousShipmentStatusCode =
-      existingShipment?.statusCode ?? undefined;
-    const shipmentStatusChanged =
-      previousShipmentStatusCode !== input.statusCode;
-    const nextOrderStatus = this.getOrderStatusForCdekShipmentStatus(
-      existingOrder.crmStatus,
-      input.statusCode,
-    );
-    const orderStatusChanged =
-      nextOrderStatus !== undefined &&
-      nextOrderStatus !== existingOrder.crmStatus;
-
-    const order = await this.prisma.$transaction(async (tx) => {
       await tx.orderShipment.upsert({
         where: {
           orderId_provider: {
@@ -1581,12 +1612,26 @@ export class OrdersStorage {
       }
 
       if (orderStatusChanged) {
+        const completedAt =
+          nextOrderStatus === PrismaOrderCrmStatus.COMPLETED
+            ? (existingOrder.completedAt ?? new Date())
+            : existingOrder.completedAt;
         await tx.order.update({
           where: { id: existingOrder.id },
           data: {
             crmStatus: nextOrderStatus,
+            ...(completedAt && !existingOrder.completedAt
+              ? { completedAt }
+              : {}),
           },
         });
+        if (nextOrderStatus === PrismaOrderCrmStatus.COMPLETED && completedAt) {
+          await this.affiliateFinancialAccountingService.recordCompletionInTransaction(
+            tx,
+            existingOrder.id,
+            completedAt,
+          );
+        }
         await tx.orderHistory.create({
           data: {
             orderId: existingOrder.id,
@@ -1609,16 +1654,14 @@ export class OrdersStorage {
         throw new NotFoundException("Order not found");
       }
 
-      return updatedOrder;
+      return {
+        order: this.mapOrder(updatedOrder),
+        previousShipmentStatusCode,
+        nextShipmentStatusCode: input.statusCode,
+        shipmentStatusChanged,
+        userId: existingOrder.userId ?? undefined,
+      };
     });
-
-    return {
-      order: this.mapOrder(order),
-      previousShipmentStatusCode,
-      nextShipmentStatusCode: input.statusCode,
-      shipmentStatusChanged,
-      userId: existingOrder.userId ?? undefined,
-    };
   }
 
   async createAdminOrderComment(
@@ -1973,7 +2016,8 @@ export class OrdersStorage {
         AND "locked_until" > clock_timestamp()
         AND "finished_at" IS NULL
     `);
-    if (updated !== 1) throw new ConflictException("Ozon payment recheck lease expired");
+    if (updated !== 1)
+      throw new ConflictException("Ozon payment recheck lease expired");
   }
 
   private lockCart(tx: Prisma.TransactionClient, cartId: string) {
@@ -2086,10 +2130,40 @@ export class OrdersStorage {
         `Paid order ${order.id} consumed a previously released promocode reservation`,
       );
     }
+    const financialOrder = await tx.order.findUnique({
+      where: { id: order.id },
+      select: {
+        checkoutActorUserId: true,
+        completedAt: true,
+        id: true,
+        items: {
+          select: { price: true, productId: true, quantity: true },
+        },
+        promoCode: true,
+        promoPricingSnapshot: true,
+        promoTermsSnapshot: true,
+        subtotal: true,
+        userId: true,
+      },
+    });
+    if (!financialOrder) throw new NotFoundException("Order not found");
+    await this.affiliateFinancialAccountingService.recordPaidOrderInTransaction(
+      tx,
+      {
+        ...financialOrder,
+        items: financialOrder.items.map((item) => ({
+          id: item.productId,
+          quantity: item.quantity,
+          unitPriceKopecks: rublesToKopecks(item.price),
+        })),
+        subtotalKopecks: rublesToKopecks(financialOrder.subtotal),
+      },
+    );
+    const nextCrmStatus = this.getPaidTransitionCrmStatus(order.crmStatus);
     await tx.order.update({
       where: { id: order.id },
       data: {
-        crmStatus: PrismaOrderCrmStatus.PAID,
+        crmStatus: nextCrmStatus,
         paidAt: order.paidAt ?? input.paidAt ?? new Date(),
         paymentErrorCode: null,
         paymentErrorMessage: null,
@@ -2097,7 +2171,7 @@ export class OrdersStorage {
         status: PrismaOrderStatus.PAID,
       },
     });
-    if (order.crmStatus !== PrismaOrderCrmStatus.PAID) {
+    if (order.crmStatus !== nextCrmStatus) {
       await tx.orderHistory.create({
         data: {
           orderId: order.id,
@@ -2106,7 +2180,7 @@ export class OrdersStorage {
           payload: this.toPrismaJson({
             fromStatus: this.mapOrderCrmStatus(order.crmStatus),
             source: input.source,
-            toStatus: "paid",
+            toStatus: this.mapOrderCrmStatus(nextCrmStatus),
           }),
         },
       });
@@ -2195,10 +2269,7 @@ export class OrdersStorage {
       };
       const existing = await tx.cartItem.findUnique({ where });
       const existingQuantity = existing?.quantity ?? 0;
-      const quantity = Math.min(
-        existingQuantity + consumedQuantity,
-        99,
-      );
+      const quantity = Math.min(existingQuantity + consumedQuantity, 99);
       restoredQuantities[item.productId] = quantity - existingQuantity;
       await tx.cartItem.upsert({
         where,
@@ -2375,6 +2446,14 @@ export class OrdersStorage {
     return (
       status === "paid" || status === "delivering" || status === "completed"
     );
+  }
+
+  private getPaidTransitionCrmStatus(currentStatus: PrismaOrderCrmStatus) {
+    return currentStatus === PrismaOrderCrmStatus.DELIVERING ||
+      currentStatus === PrismaOrderCrmStatus.COMPLETED ||
+      currentStatus === PrismaOrderCrmStatus.CANCELLED
+      ? currentStatus
+      : PrismaOrderCrmStatus.PAID;
   }
 
   private getOrderStatusForCdekShipmentStatus(

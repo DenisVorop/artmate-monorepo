@@ -13,6 +13,7 @@ import {
 } from "./affiliate-codes.controller";
 import { AffiliateCodesService } from "./affiliate-codes.service";
 import { AffiliateService } from "./affiliate.service";
+import { AffiliateFinancialAccountingService } from "./financial-accounting.service";
 
 @Module({
   imports: [AuthModule, UsersModule],
@@ -22,6 +23,11 @@ import { AffiliateService } from "./affiliate.service";
     AffiliateCodesController,
     AdminAffiliateCodesController,
   ],
-  providers: [AffiliateService, AffiliateCodesService],
+  providers: [
+    AffiliateService,
+    AffiliateCodesService,
+    AffiliateFinancialAccountingService,
+  ],
+  exports: [AffiliateFinancialAccountingService],
 })
 export class AffiliateModule {}

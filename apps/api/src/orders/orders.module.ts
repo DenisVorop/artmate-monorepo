@@ -1,6 +1,7 @@
 import { Module } from "@nestjs/common";
 
 import { AuthModule } from "../auth/auth.module";
+import { AffiliateModule } from "../affiliate/affiliate.module";
 import { CartModule } from "../cart/cart.module";
 import { DeliveryModule } from "../delivery/delivery.module";
 import { NotificationQueueModule } from "../notifications/notification-queue.module";
@@ -16,10 +17,12 @@ import { OrdersTelegramService } from "./orders-telegram.service";
 import { OrdersService } from "./orders.service";
 import { OrdersStorage } from "./orders.storage";
 import { OzonPaymentRecheckService } from "./ozon-payment-recheck.service";
+import { OrderRefundsService } from "./refunds/order-refunds.service";
 
 @Module({
   imports: [
     AuthModule,
+    AffiliateModule,
     CartModule,
     DeliveryModule,
     NotificationQueueModule,
@@ -36,6 +39,7 @@ import { OzonPaymentRecheckService } from "./ozon-payment-recheck.service";
     OrdersStorage,
     OrdersTelegramService,
     OzonPaymentRecheckService,
+    OrderRefundsService,
   ],
 })
 export class OrdersModule {}

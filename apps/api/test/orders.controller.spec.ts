@@ -21,7 +21,9 @@ import { CheckoutThrottleService } from "../src/orders/checkout-throttle.service
 import { OrdersModule } from "../src/orders/orders.module";
 import { OrdersService } from "../src/orders/orders.service";
 import { OrdersStorage } from "../src/orders/orders.storage";
-import type { UsersService } from "../src/users/users.service";
+import { OrderRefundsService } from "../src/orders/refunds/order-refunds.service";
+import { AffiliateModule } from "../src/affiliate/affiliate.module";
+import { UsersService } from "../src/users/users.service";
 
 type ProtectedOrdersController = {
   calculateCheckout(
@@ -75,6 +77,72 @@ const ozonOrderRequest = {
 };
 
 describe("OrdersController Ozon proxy protection", () => {
+  it("uses the authenticated current admin as refund actor", async () => {
+    const admin = { ...user, id: "admin-1", roles: ["admin" as const] };
+    const roleChecks: unknown[] = [];
+    const refundCalls: unknown[] = [];
+    const controller = Reflect.construct(OrdersController, [
+      {
+        getAdminOrderRefunds: async (orderId: string) => ({ orderId }),
+        createAdminOrderRefund: async (
+          orderId: string,
+          body: unknown,
+          actor: AuthUser,
+        ) => {
+          refundCalls.push({ actor, body, orderId });
+          return { orderId };
+        },
+      } as unknown as OrdersService,
+      {
+        assertRole: (actor: AuthUser, role: string) =>
+          roleChecks.push({ actor, role }),
+      } as unknown as UsersService,
+      {} as DeliveryProxyThrottleService,
+      {} as AuthService,
+      {} as CheckoutThrottleService,
+    ]) as OrdersController;
+    const body = {
+      requestId: "00000000-0000-4000-8000-000000000001",
+      reference: "reference",
+      reason: "reason",
+      items: [],
+      deliveryKopecks: 1,
+      confirmed: true as const,
+    };
+
+    await controller.getAdminOrderRefunds("order-1", { user: admin });
+    await controller.createAdminOrderRefund("order-1", body, { user: admin });
+
+    assert.deepEqual(roleChecks, [
+      { actor: admin, role: "admin" },
+      { actor: admin, role: "admin" },
+    ]);
+    assert.deepEqual(refundCalls, [{ actor: admin, body, orderId: "order-1" }]);
+  });
+
+  it("rejects non-admin refund access through the real role check", async () => {
+    let called = false;
+    const controller = Reflect.construct(OrdersController, [
+      {
+        getAdminOrderRefunds: async () => {
+          called = true;
+        },
+      } as unknown as OrdersService,
+      new UsersService({} as never),
+      {} as DeliveryProxyThrottleService,
+      {} as AuthService,
+      {} as CheckoutThrottleService,
+    ]) as OrdersController;
+
+    await assert.rejects(
+      async () => controller.getAdminOrderRefunds("order-1", { user }),
+      (error: unknown) =>
+        error instanceof HttpException &&
+        error.getStatus() === HttpStatus.FORBIDDEN,
+    );
+    assert.equal(called, false);
+  });
+
   it("throttles Ozon checkout calculation exactly once before OrdersService", async () => {
     const fixture = createFixture();
 
@@ -198,25 +266,31 @@ describe("OrdersController Ozon proxy protection", () => {
   it("keeps reads and status guarded while create is public and mock confirmation is absent", () => {
     assert.equal(getGuards("createOrder").includes(AuthGuard), false);
     assert.equal(getGuards("recoverPayment").includes(AuthGuard), false);
-    for (const method of ["getMyOrders", "getOrder", "getOrderState"]) {
+    for (const method of [
+      "getMyOrders",
+      "getOrder",
+      "getOrderState",
+      "getAdminOrderRefunds",
+      "createAdminOrderRefund",
+    ]) {
       assert.equal(getGuards(method).includes(AuthGuard), true);
     }
     assert.equal("confirmPayment" in OrdersController.prototype, false);
     assert.equal("confirmPayment" in OrdersService.prototype, false);
     assert.equal("markOrderAsPaid" in OrdersStorage.prototype, false);
 
-    const routes = Object.getOwnPropertyNames(OrdersController.prototype).flatMap(
-      (property) => {
-        const handler = Object.getOwnPropertyDescriptor(
-          OrdersController.prototype,
-          property,
-        )?.value as unknown;
+    const routes = Object.getOwnPropertyNames(
+      OrdersController.prototype,
+    ).flatMap((property) => {
+      const handler = Object.getOwnPropertyDescriptor(
+        OrdersController.prototype,
+        property,
+      )?.value as unknown;
 
-        return typeof handler === "function"
-          ? [Reflect.getMetadata("path", handler) as unknown]
-          : [];
-      },
-    );
+      return typeof handler === "function"
+        ? [Reflect.getMetadata("path", handler) as unknown]
+        : [];
+    });
     assert.equal(routes.includes(":orderId/confirm-payment"), false);
   });
 
@@ -334,6 +408,8 @@ describe("OrdersController Ozon proxy protection", () => {
     );
     assert.equal(deliveryExports.includes(DeliveryProxyThrottleService), true);
     assert.equal(orderImports.includes(DeliveryModule), true);
+    assert.equal(orderImports.includes(AffiliateModule), true);
+    assert.equal(orderProviders.includes(OrderRefundsService), true);
     assert.equal(orderProviders.includes(DeliveryProxyThrottleService), false);
   });
 });
@@ -363,7 +439,11 @@ function createFixture(
 
       return {};
     },
-    createOrder: async (_cartId: unknown, _request: unknown, authUser: AuthUser | undefined) => {
+    createOrder: async (
+      _cartId: unknown,
+      _request: unknown,
+      authUser: AuthUser | undefined,
+    ) => {
       events.push("createOrder");
       createOrderCalls += 1;
       createOrderUsers.push(authUser);

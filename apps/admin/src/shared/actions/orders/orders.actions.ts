@@ -8,6 +8,9 @@ import type {
   AdminOrderMutationResultDTO,
   AdminOrderDTO,
   CreateAdminOrderCommentInputDTO,
+  OrderRefundMutationResultDTO,
+  OrderRefundsDTO,
+  RecordOrderRefundInputDTO,
   UpdateAdminOrderStatusInputDTO,
 } from "./order.types";
 
@@ -58,6 +61,35 @@ export async function createAdminOrderComment(
       body: JSON.stringify(input),
     },
   );
+}
+
+export async function getAdminOrderRefunds(
+  orderId: string,
+): Promise<OrderRefundsDTO> {
+  return requestAdminApi<OrderRefundsDTO>(
+    `/orders/admin/${encodeURIComponent(orderId)}/refunds`,
+  );
+}
+
+export async function recordAdminOrderRefund(
+  orderId: string,
+  input: RecordOrderRefundInputDTO,
+): Promise<OrderRefundMutationResultDTO> {
+  try {
+    return {
+      ok: true,
+      data: await requestAdminApi<OrderRefundsDTO>(
+        `/orders/admin/${encodeURIComponent(orderId)}/refunds`,
+        { method: "POST", body: JSON.stringify(input) },
+      ),
+    };
+  } catch (error) {
+    return {
+      ok: false,
+      error: getActionErrorMessage(error),
+      status: getActionErrorStatus(error),
+    };
+  }
 }
 
 async function requestAdminMutation(

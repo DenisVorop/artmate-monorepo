@@ -75,13 +75,13 @@ export function OrderHistory({ orderId }: OrderHistoryProps) {
   const comments = [...order.adminComments].reverse();
 
   return (
-    <div className="grid gap-4 xl:grid-cols-[minmax(0,1fr)_24rem]">
-      <div className="space-y-4">
+    <div className="grid min-w-0 grid-cols-[minmax(0,1fr)] gap-4 xl:grid-cols-[minmax(0,1fr)_24rem]">
+      <div className="min-w-0 space-y-4">
         <OrderSummary order={order} />
         <HistoryTimeline history={history} />
       </div>
 
-      <aside className="space-y-4">
+      <aside className="min-w-0 space-y-4">
         <CustomerPanel order={order} />
         <ItemsPanel order={order} />
         <CommentsPanel comments={comments} />
@@ -154,7 +154,7 @@ function HistoryTimeline({
   readonly history: readonly AdminOrder["history"][number][];
 }) {
   return (
-    <section className="rounded-lg border bg-background">
+    <section className="min-w-0 rounded-lg border bg-background">
       <div className="flex items-center justify-between gap-3 border-b p-4">
         <div>
           <h2 className="flex items-center gap-2 text-lg font-semibold">
@@ -174,8 +174,8 @@ function HistoryTimeline({
             <li
               className={
                 event.eventType === "promo_used_after_release"
-                  ? "border-l-4 border-l-destructive bg-destructive/5 p-4"
-                  : "p-4"
+                  ? "min-w-0 border-l-4 border-l-destructive bg-destructive/5 p-4"
+                  : "min-w-0 p-4"
               }
               key={event.id}
             >
@@ -194,7 +194,7 @@ function HistoryTimeline({
                 </div>
               </div>
 
-              <pre className="mt-3 overflow-x-auto rounded-lg border bg-muted/40 p-3 text-xs text-muted-foreground">
+              <pre className="mt-3 max-w-full overflow-x-auto rounded-lg border bg-muted/40 p-3 text-xs text-muted-foreground">
                 {formatJson(event.payload)}
               </pre>
             </li>
@@ -209,7 +209,7 @@ function HistoryTimeline({
 
 function CustomerPanel({ order }: { readonly order: AdminOrder }) {
   return (
-    <section className="rounded-lg border bg-background p-4">
+    <section className="min-w-0 rounded-lg border bg-background p-4">
       <h2 className="text-base font-semibold">Клиент</h2>
       <div className="mt-3 space-y-2 text-sm">
         <p className="font-medium">{order.customer.name}</p>
@@ -272,7 +272,7 @@ function CdekShipmentPanel({ order }: { readonly order: AdminOrder }) {
 
 function ItemsPanel({ order }: { readonly order: AdminOrder }) {
   return (
-    <section className="rounded-lg border bg-background p-4">
+    <section className="min-w-0 rounded-lg border bg-background p-4">
       <div className="flex items-center justify-between gap-2">
         <h2 className="flex items-center gap-2 text-base font-semibold">
           <Package className="size-4" aria-hidden="true" />
@@ -281,10 +281,10 @@ function ItemsPanel({ order }: { readonly order: AdminOrder }) {
         <Badge variant="outline">{order.items.length}</Badge>
       </div>
 
-      <div className="mt-3 space-y-3">
+      <div className="mt-3 min-w-0 space-y-3">
         {order.items.map((item) => (
-          <div className="rounded-lg border p-3 text-sm" key={item.id}>
-            <p className="font-medium">{item.title}</p>
+          <div className="min-w-0 rounded-lg border p-3 text-sm" key={item.id}>
+            <p className="break-words font-medium">{item.title}</p>
             <p className="mt-1 text-muted-foreground">
               {item.quantity} шт. x {formatMoney(item.price)} ={" "}
               {formatMoney(item.lineTotal)}
@@ -368,6 +368,10 @@ function getHistoryEventTitle(event: AdminOrder["history"][number]) {
     return "Внимание: оплата после снятия резерва";
   }
 
+  if (event.eventType === "refund_recorded") {
+    return "Возврат учтен";
+  }
+
   return event.eventType;
 }
 
@@ -393,6 +397,10 @@ function getHistoryEventText(event: AdminOrder["history"][number]) {
 
   if (event.eventType === "promo_used_after_release") {
     return "После ручного снятия резерва подтверждена реальная оплата; применение учтено как использованное.";
+  }
+
+  if (event.eventType === "refund_recorded") {
+    return "Администратор зафиксировал подтвержденный возврат покупателю.";
   }
 
   return "Системное событие заказа.";

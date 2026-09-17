@@ -51,9 +51,11 @@ import type {
   OrderDTO,
   OrderShipmentDTO,
   OrderStateDTO,
+  OrderRefundsDTO,
 } from "./dto";
 import { OrdersTelegramService } from "./orders-telegram.service";
 import type { OzonPaymentRecheckLease } from "./ozon-payment-recheck";
+import { OrderRefundsService } from "./refunds/order-refunds.service";
 import {
   type ApplyCdekOrderStatusWebhookResult,
   OrdersStorage,
@@ -131,6 +133,7 @@ export class OrdersService {
     private readonly ordersTelegramService: OrdersTelegramService,
     private readonly promocodesService: PromocodesService,
     private readonly productShippingService: ProductShippingService,
+    private readonly orderRefundsService: OrderRefundsService,
   ) {}
 
   async getOrder(orderId: string, user: AuthUser): Promise<OrderDTO> {
@@ -168,6 +171,22 @@ export class OrdersService {
 
   getAdminOrder(orderId: string): Promise<AdminOrderDTO> {
     return this.ordersStorage.getAdminOrder(this.parseOrderId(orderId));
+  }
+
+  getAdminOrderRefunds(orderId: string): Promise<OrderRefundsDTO> {
+    return this.orderRefundsService.getOrderRefunds(this.parseOrderId(orderId));
+  }
+
+  createAdminOrderRefund(
+    orderId: string,
+    input: unknown,
+    author: AuthUser,
+  ): Promise<OrderRefundsDTO> {
+    return this.orderRefundsService.createOrderRefund(
+      this.parseOrderId(orderId),
+      input,
+      author.id,
+    );
   }
 
   async updateAdminOrderStatus(
@@ -342,11 +361,7 @@ export class OrdersService {
       deliverySelection,
       deliveryItems,
     );
-    const promo = await this.calculatePromo(
-      cartDTO,
-      promoCode,
-      user?.id,
-    );
+    const promo = await this.calculatePromo(cartDTO, promoCode, user?.id);
     this.assertSupportedPaymentReceipt(
       promo.pricing,
       delivery.deliveryPrice,
@@ -1002,16 +1017,24 @@ export class OrdersService {
     const email = this.parseEmail(customer.email);
 
     if (name.length > 120) {
-      throw new BadRequestException("customer.name must be 120 characters or less");
+      throw new BadRequestException(
+        "customer.name must be 120 characters or less",
+      );
     }
     if (!/^[А-ЯЁа-яё]+(?:[ -][А-ЯЁа-яё]+)*$/.test(name)) {
-      throw new BadRequestException("customer.name must contain only Russian letters and single separators");
+      throw new BadRequestException(
+        "customer.name must contain only Russian letters and single separators",
+      );
     }
     if (phone.length > 18 || !/^\+7 \(\d{3}\) \d{3}-\d{2}-\d{2}$/.test(phone)) {
-      throw new BadRequestException("customer.phone must match +7 (999) 999-99-99");
+      throw new BadRequestException(
+        "customer.phone must match +7 (999) 999-99-99",
+      );
     }
     if (email.length > 254) {
-      throw new BadRequestException("customer.email must be 254 characters or less");
+      throw new BadRequestException(
+        "customer.email must be 254 characters or less",
+      );
     }
 
     return { name, phone, email };
@@ -1303,7 +1326,10 @@ export class OrdersService {
     userId: string | undefined,
     previousStatus: OrderStatus,
   ) {
-    const cdekShipment = await this.ensureCdekShipmentForPaidOrder(order);
+    const enteredPaidWorkflow = order.status === "paid";
+    const cdekShipment = enteredPaidWorkflow
+      ? await this.ensureCdekShipmentForPaidOrder(order)
+      : undefined;
     const notificationOrder = cdekShipment
       ? this.withOrderShipment(order, cdekShipment)
       : order;
@@ -1311,15 +1337,17 @@ export class OrdersService {
     await Promise.all([
       this.notifyAdminAboutOrderPaid(notificationOrder),
       this.sendOrderPaidEmail(notificationOrder),
-      this.notifyCustomerAboutStatusChange(
-        {
-          order: notificationOrder,
-          previousStatus,
-          nextStatus: "paid",
-          userId,
-        },
-        { sendEmail: false },
-      ),
+      enteredPaidWorkflow
+        ? this.notifyCustomerAboutStatusChange(
+            {
+              order: notificationOrder,
+              previousStatus,
+              nextStatus: "paid",
+              userId,
+            },
+            { sendEmail: false },
+          )
+        : undefined,
     ]);
   }
 

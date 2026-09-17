@@ -127,3 +127,70 @@ export type AdminOrderMutationResultDTO =
       error: string;
       status?: number;
     };
+
+export type RefundPriceGroupDTO = {
+  unitPriceKopecks: number;
+  quantity: number;
+};
+
+export type OrderRefundsDTO = {
+  orderId: string;
+  canRecord: boolean;
+  blockedReason: string | null;
+  items: Array<{
+    productId: string;
+    title: string;
+    quantity: number;
+    returnedQuantity: number;
+    remainingQuantity: number;
+    refundableKopecks: number;
+    remainingPriceGroups: RefundPriceGroupDTO[];
+  }>;
+  delivery: {
+    paidKopecks: number;
+    returnedKopecks: number;
+    refundableKopecks: number;
+  };
+  totalRefundedKopecks: number;
+  commission: null | {
+    partnerPercent: number;
+    buyerPercent: number;
+    isSelfPurchase: boolean;
+    earnedKopecks: number;
+    reversedKopecks: number;
+    remainingKopecks: number;
+    completedAt: string | null;
+    availableAt: string | null;
+    status: "pending" | "available" | "held" | "reversed" | "not_earned";
+  };
+  refunds: Array<{
+    id: string;
+    requestId: string;
+    reference: string;
+    reason: string;
+    createdAt: string;
+    author: { id: string; name: string | null };
+    items: Array<{
+      productId: string;
+      title: string;
+      quantity: number;
+      amountKopecks: number;
+    }>;
+    deliveryKopecks: number;
+    totalKopecks: number;
+    reversedCommissionKopecks: number;
+  }>;
+};
+
+export type RecordOrderRefundInputDTO = {
+  requestId: string;
+  reference: string;
+  reason: string;
+  items: Array<{ productId: string; quantity: number }>;
+  deliveryKopecks: number;
+  confirmed: true;
+};
+
+export type OrderRefundMutationResultDTO =
+  | { ok: true; data: OrderRefundsDTO }
+  | { ok: false; error: string; status?: number };

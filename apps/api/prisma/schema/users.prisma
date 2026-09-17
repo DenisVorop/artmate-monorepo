@@ -49,6 +49,7 @@ model User {
   workshopWorkReports      WorkshopWorkReport[]        @relation("WorkshopReportReporter")
   affiliatePartner         AffiliatePartner?
   affiliateContractChanges AffiliateContractRevision[] @relation("AffiliateContractRevisionActor")
+  authoredOrderRefunds     OrderRefund[]                 @relation("OrderRefundAuthor")
 
   @@index([status])
   @@map("users")

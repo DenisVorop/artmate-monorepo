@@ -1,7 +1,9 @@
 export {
   createAdminOrderComment,
   getAdminOrder,
+  getAdminOrderRefunds,
   getAdminOrders,
+  recordAdminOrderRefund,
   updateAdminOrderStatus,
 } from "./orders.actions";
 export type {
@@ -15,6 +17,10 @@ export type {
   OrderItemDTO,
   OrderPaymentDTO,
   OrderPaymentStatusDTO,
+  OrderRefundMutationResultDTO,
+  OrderRefundsDTO,
+  RecordOrderRefundInputDTO,
+  RefundPriceGroupDTO,
   OrderStatusDTO,
   UpdateAdminOrderStatusInputDTO,
 } from "./order.types";

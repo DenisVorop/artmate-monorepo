@@ -1,4 +1,10 @@
-import { ApiBody, ApiOkResponse, ApiOperation, ApiTags } from "@nestjs/swagger";
+import {
+  ApiBody,
+  ApiCreatedResponse,
+  ApiOkResponse,
+  ApiOperation,
+  ApiTags,
+} from "@nestjs/swagger";
 import { CheckoutThrottleService } from "./checkout-throttle.service";
 import {
   Body,
@@ -30,8 +36,10 @@ import {
   CreateOrderAdminCommentRequestDTO,
   CreateOrderRequestDTO,
   CreateOrderResponseDTO,
+  CreateOrderRefundRequestDTO,
   OrderDTO,
   OrderStateDTO,
+  OrderRefundsDTO,
   PaymentRecoveryResponseDTO,
   UpdateOrderStatusRequestDTO,
 } from "./dto";
@@ -72,6 +80,37 @@ export class OrdersController {
     this.usersService.assertRole(request.user, "admin");
 
     return this.ordersService.getAdminOrders();
+  }
+
+  @UseGuards(AuthGuard)
+  @ValidateResponse(OrderRefundsDTO)
+  @ApiOperation({ summary: "Get manual refund accounting for an order" })
+  @ApiOkResponse({ type: OrderRefundsDTO })
+  @Get("admin/:orderId/refunds")
+  getAdminOrderRefunds(
+    @Param("orderId") orderId: string,
+    @Req() request: AuthenticatedRequest,
+  ) {
+    this.usersService.assertRole(request.user, "admin");
+    return this.ordersService.getAdminOrderRefunds(orderId);
+  }
+
+  @UseGuards(AuthGuard)
+  @ValidateResponse(OrderRefundsDTO)
+  @ApiOperation({ summary: "Record a confirmed manual order refund" })
+  @ApiCreatedResponse({ type: OrderRefundsDTO })
+  @Post("admin/:orderId/refunds")
+  createAdminOrderRefund(
+    @Param("orderId") orderId: string,
+    @Body() body: CreateOrderRefundRequestDTO,
+    @Req() request: AuthenticatedRequest,
+  ) {
+    this.usersService.assertRole(request.user, "admin");
+    return this.ordersService.createAdminOrderRefund(
+      orderId,
+      body,
+      request.user,
+    );
   }
 
   @UseGuards(AuthGuard)
@@ -234,7 +273,9 @@ export class OrdersController {
 
   @ValidateResponse(PaymentRecoveryResponseDTO)
   @Post(":orderId/payment-recovery")
-  @ApiOperation({ summary: "Recover a guest payment using the original cart cookie" })
+  @ApiOperation({
+    summary: "Recover a guest payment using the original cart cookie",
+  })
   @ApiOkResponse({ type: PaymentRecoveryResponseDTO })
   recoverPayment(
     @Param("orderId") orderId: string,
