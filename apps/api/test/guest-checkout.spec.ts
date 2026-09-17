@@ -20,6 +20,9 @@ import { CreateOrderRequestDTO } from "../src/orders/dto";
 import { OrdersService } from "../src/orders/orders.service";
 import { OrdersStorage } from "../src/orders/orders.storage";
 import type { PrismaService } from "../src/prisma/prisma.service";
+import type { OrderActivationService } from "../src/auth/order-activation.service";
+import type { AnalyticsOutboxService } from "../src/analytics/analytics-outbox.service";
+import type { AffiliateFinancialAccountingService } from "../src/affiliate/financial-accounting.service";
 
 const request = {
   acceptedLegal: true,
@@ -49,9 +52,19 @@ describe("guest checkout", () => {
   });
 
   it("validates Russian recipient names and required exact phones at the DTO boundary", async () => {
-    for (const name of ["Анна Иванова", "Анна-Мария", "Ёлкина", "А".repeat(120)]) {
+    for (const name of [
+      "Анна Иванова",
+      "Анна-Мария",
+      "Ёлкина",
+      "А".repeat(120),
+    ]) {
       assert.deepEqual(
-        await validate(plainToInstance(CreateOrderRequestDTO, { ...request, customer: { ...request.customer, name } })),
+        await validate(
+          plainToInstance(CreateOrderRequestDTO, {
+            ...request,
+            customer: { ...request.customer, name },
+          }),
+        ),
         [],
         name,
       );
@@ -67,15 +80,32 @@ describe("guest checkout", () => {
       "А".repeat(121),
     ]) {
       assert.notDeepEqual(
-        await validate(plainToInstance(CreateOrderRequestDTO, { ...request, customer: { ...request.customer, name } })),
+        await validate(
+          plainToInstance(CreateOrderRequestDTO, {
+            ...request,
+            customer: { ...request.customer, name },
+          }),
+        ),
         [],
         name,
       );
     }
 
-    for (const phone of [undefined, null, "", "+7 (999) 123-45", "+7 (ABC) 123-45-67", "+1 (999) 123-45-67"]) {
+    for (const phone of [
+      undefined,
+      null,
+      "",
+      "+7 (999) 123-45",
+      "+7 (ABC) 123-45-67",
+      "+1 (999) 123-45-67",
+    ]) {
       assert.notDeepEqual(
-        await validate(plainToInstance(CreateOrderRequestDTO, { ...request, customer: { ...request.customer, phone } })),
+        await validate(
+          plainToInstance(CreateOrderRequestDTO, {
+            ...request,
+            customer: { ...request.customer, phone },
+          }),
+        ),
         [],
         String(phone),
       );
@@ -122,7 +152,10 @@ describe("guest checkout", () => {
     ]) {
       const fixture = createServiceFixture();
       await assert.rejects(
-        fixture.service.createOrder("cart-1", { ...request, customer } as never),
+        fixture.service.createOrder("cart-1", {
+          ...request,
+          customer,
+        } as never),
         BadRequestException,
       );
       assert.equal(fixture.createInputs.length, 0);
@@ -143,7 +176,10 @@ describe("guest checkout", () => {
     await assert.rejects(
       rejected.service.createOrder(
         "cart-1",
-        { ...request, customer: { ...request.customer, email: oversizedEmail } },
+        {
+          ...request,
+          customer: { ...request.customer, email: oversizedEmail },
+        },
         undefined,
       ),
       BadRequestException,
@@ -157,15 +193,25 @@ describe("guest checkout", () => {
   it("creates and provisions an unauthenticated order before bank initialization", async () => {
     const fixture = createServiceFixture();
 
-    const order = await fixture.service.createOrder("cart-1", request, undefined);
+    const order = await fixture.service.createOrder(
+      "cart-1",
+      request,
+      undefined,
+    );
 
     assert.equal(order.id, "order-1");
     assert.equal(fixture.createInputs.length, 1);
     assert.equal(fixture.createInputs[0]?.userId, undefined);
-    assert.equal(fixture.createInputs[0]?.checkoutAttemptId, "opaque-attempt-1");
+    assert.equal(
+      fixture.createInputs[0]?.checkoutAttemptId,
+      "opaque-attempt-1",
+    );
     assert.deepEqual(fixture.createInputs[0]?.attribution, request.attribution);
     assert.deepEqual(fixture.createInputs[0]?.customer, request.customer);
-    assert.deepEqual(fixture.events.slice(0, 2), ["create-order", "initialize-payment"]);
+    assert.deepEqual(fixture.events.slice(0, 2), [
+      "create-order",
+      "initialize-payment",
+    ]);
   });
 
   it("drops invalid attribution on direct service calls", async () => {
@@ -211,7 +257,11 @@ describe("guest checkout", () => {
       existingOrder: createOrderDTO(),
     });
 
-    const order = await fixture.service.createOrder("cart-1", request, undefined);
+    const order = await fixture.service.createOrder(
+      "cart-1",
+      request,
+      undefined,
+    );
 
     assert.equal(order.id, "order-1");
     assert.equal(fixture.getCartCalls(), 0);
@@ -285,7 +335,11 @@ describe("guest checkout", () => {
     assert.match(String(firstHash), /^[a-f0-9]{64}$/);
     assert.equal(firstHash, equivalentHash);
     assert.notEqual(firstHash, changedHash);
-    assert.equal(first.createInputs[0]?.customer && (first.createInputs[0].customer as { phone: string }).phone, "+7 (999) 123-45-67");
+    assert.equal(
+      first.createInputs[0]?.customer &&
+        (first.createInputs[0].customer as { phone: string }).phone,
+      "+7 (999) 123-45-67",
+    );
   });
 });
 
@@ -295,7 +349,9 @@ describe("CDEK shipment customer phone", () => {
     const service = createCdekShipmentServiceFixture({ deliveryInputs });
     const ensureShipment = (
       service as unknown as {
-        ensureCdekShipmentForPaidOrder: (order: ReturnType<typeof createOrderDTO>) => Promise<unknown>;
+        ensureCdekShipmentForPaidOrder: (
+          order: ReturnType<typeof createOrderDTO>,
+        ) => Promise<unknown>;
       }
     ).ensureCdekShipmentForPaidOrder.bind(service);
 
@@ -309,7 +365,9 @@ describe("CDEK shipment customer phone", () => {
     const service = createCdekShipmentServiceFixture({ shipmentWrites });
     const ensureShipment = (
       service as unknown as {
-        ensureCdekShipmentForPaidOrder: (order: ReturnType<typeof createOrderDTO>) => Promise<unknown>;
+        ensureCdekShipmentForPaidOrder: (
+          order: ReturnType<typeof createOrderDTO>,
+        ) => Promise<unknown>;
       }
     ).ensureCdekShipmentForPaidOrder.bind(service);
     const order = {
@@ -344,9 +402,7 @@ describe("OrdersStorage checkout idempotency", () => {
               totalKopecks: 100_000,
               items: [
                 {
-                  priceGroups: [
-                    { quantity: 1, unitPriceKopecks: 100_000 },
-                  ],
+                  priceGroups: [{ quantity: 1, unitPriceKopecks: 100_000 }],
                 },
               ],
             },
@@ -382,9 +438,7 @@ describe("OrdersStorage checkout idempotency", () => {
               totalKopecks: 100_000,
               items: [
                 {
-                  priceGroups: [
-                    { quantity: 1, unitPriceKopecks: 100_000 },
-                  ],
+                  priceGroups: [{ quantity: 1, unitPriceKopecks: 100_000 }],
                 },
               ],
             },
@@ -405,7 +459,10 @@ describe("OrdersStorage checkout idempotency", () => {
   it("attaches the guest before reserving without granting authenticated promo identity", async () => {
     const reservationFailure = new Error("Intentional promo failure");
     const fixture = createStorageFixture({
-      reserveInTransaction: async (_tx: unknown, input: { userId?: string }) => {
+      reserveInTransaction: async (
+        _tx: unknown,
+        input: { userId?: string },
+      ) => {
         assert.equal(fixture.activationCount(), 1);
         assert.equal(fixture.orders[0]?.userId, "guest-user");
         assert.equal(input.userId, undefined);
@@ -414,7 +471,10 @@ describe("OrdersStorage checkout idempotency", () => {
     } as never);
 
     await assert.rejects(
-      fixture.storage.createOrder({ ...createStoredOrderInput(), promoCode: "TEST" }),
+      fixture.storage.createOrder({
+        ...createStoredOrderInput(),
+        promoCode: "TEST",
+      }),
       (error) => error === reservationFailure,
     );
     assert.equal(fixture.orders.length, 0);
@@ -456,7 +516,9 @@ describe("OrdersStorage checkout idempotency", () => {
             subtotalKopecks: 100_000,
             discountKopecks: 10_000,
             totalKopecks: 90_000,
-            items: [{ priceGroups: [{ quantity: 1, unitPriceKopecks: 90_000 }] }],
+            items: [
+              { priceGroups: [{ quantity: 1, unitPriceKopecks: 90_000 }] },
+            ],
           },
         };
       },
@@ -467,14 +529,16 @@ describe("OrdersStorage checkout idempotency", () => {
       promoCode: "TEST",
     });
 
-    assert.deepEqual(fixture.createdEvents, [{
-      id: order.id,
-      createdAt: new Date("2026-09-08T12:49:58.000Z"),
-      subtotal: 1_000,
-      discount: 100,
-      yandexClientId: "123456",
-      yandexYclid: "987654",
-    }]);
+    assert.deepEqual(fixture.createdEvents, [
+      {
+        id: order.id,
+        createdAt: new Date("2026-09-08T12:49:58.000Z"),
+        subtotal: 1_000,
+        discount: 100,
+        yandexClientId: "123456",
+        yandexYclid: "987654",
+      },
+    ]);
   });
 
   it("rolls back the order and guest attachment if creation outbox persistence fails", async () => {
@@ -586,6 +650,7 @@ describe("OrdersStorage checkout idempotency", () => {
         },
       } as unknown as PrismaService,
       {} as never,
+      ...createUnusedStorageDependencies(),
     );
     (storage as unknown as { mapOrder: (value: unknown) => unknown }).mapOrder =
       (value) => value;
@@ -615,10 +680,12 @@ describe("OrdersStorage checkout idempotency", () => {
     };
     const storage = new OrdersStorage(
       {
-        $transaction: async (operation: (client: unknown) => Promise<unknown>) =>
-          operation(tx),
+        $transaction: async (
+          operation: (client: unknown) => Promise<unknown>,
+        ) => operation(tx),
       } as unknown as PrismaService,
       {} as never,
+      ...createUnusedStorageDependencies(),
     );
 
     assert.equal(await storage.claimPaymentInitialization("order-1"), true);
@@ -645,10 +712,12 @@ describe("OrdersStorage checkout idempotency", () => {
     };
     const storage = new OrdersStorage(
       {
-        $transaction: async (operation: (client: unknown) => Promise<unknown>) =>
-          operation(tx),
+        $transaction: async (
+          operation: (client: unknown) => Promise<unknown>,
+        ) => operation(tx),
       } as unknown as PrismaService,
       {} as never,
+      ...createUnusedStorageDependencies(),
     );
 
     assert.equal(await storage.claimPaymentInitialization("order-1"), false);
@@ -666,7 +735,8 @@ describe("OrdersStorage checkout idempotency", () => {
       await assert.rejects(
         storage.recoverGuestPayment(orderId, cartId),
         (error: unknown) =>
-          error instanceof NotFoundException && error.message === "Order not found",
+          error instanceof NotFoundException &&
+          error.message === "Order not found",
       );
     }
   });
@@ -707,10 +777,9 @@ describe("OrdersStorage checkout idempotency", () => {
       paymentStatus: OrderPaymentStatus.PAID,
     });
 
-    assert.deepEqual(
-      await guest.recoverGuestPayment("order-1", "owner-cart"),
-      { redirectUrl: "https://securepay.tinkoff.ru/session" },
-    );
+    assert.deepEqual(await guest.recoverGuestPayment("order-1", "owner-cart"), {
+      redirectUrl: "https://securepay.tinkoff.ru/session",
+    });
     await assert.rejects(
       guest.recoverGuestPayment("order-1", "foreign-cart"),
       NotFoundException,
@@ -789,6 +858,7 @@ describe("OrdersStorage checkout idempotency", () => {
         },
       } as unknown as PrismaService,
       {} as never,
+      ...createUnusedStorageDependencies(),
     );
     Date.now = () => now;
     (storage as unknown as { delay: () => Promise<void> }).delay = async () => {
@@ -818,17 +888,24 @@ describe("OrdersStorage checkout idempotency", () => {
     const storage = new OrdersStorage(
       {
         order: {
-          findFirst: async (input: { where: { id: string; userId: string } }) => {
+          findFirst: async (input: {
+            where: { id: string; userId: string };
+          }) => {
             queries.push(input);
-            return input.where.userId === storedOrder.userId ? storedOrder : null;
+            return input.where.userId === storedOrder.userId
+              ? storedOrder
+              : null;
           },
           findMany: async (input: { where: { userId: string } }) => {
             queries.push(input);
-            return input.where.userId === storedOrder.userId ? [storedOrder] : [];
+            return input.where.userId === storedOrder.userId
+              ? [storedOrder]
+              : [];
           },
         },
       } as unknown as PrismaService,
       {} as never,
+      ...createUnusedStorageDependencies(),
     );
     (storage as unknown as { mapOrder: (value: unknown) => unknown }).mapOrder =
       (value) => value;
@@ -976,10 +1053,12 @@ describe("CartStorage payment recovery serialization", () => {
   });
 });
 
-function createServiceFixture(options: {
-  coordinatePaymentInitialization?: boolean;
-  existingOrder?: ReturnType<typeof createOrderDTO>;
-} = {}) {
+function createServiceFixture(
+  options: {
+    coordinatePaymentInitialization?: boolean;
+    existingOrder?: ReturnType<typeof createOrderDTO>;
+  } = {},
+) {
   const createInputs: Array<Record<string, unknown>> = [];
   const events: string[] = [];
   let getCartCalls = 0;
@@ -1032,14 +1111,17 @@ function createServiceFixture(options: {
     productShippingService: {
       resolveForProducts: async (ids: string[]) =>
         new Map(
-          ids.map((id) => [id, {
-            id: "shipping_album",
-            code: "album",
-            weightGrams: 400,
-            lengthCm: 40,
-            widthCm: 30,
-            heightCm: 1,
-          }]),
+          ids.map((id) => [
+            id,
+            {
+              id: "shipping_album",
+              code: "album",
+              weightGrams: 400,
+              lengthCm: 40,
+              widthCm: 30,
+              heightCm: 1,
+            },
+          ]),
         ),
     },
     ordersStorage: {
@@ -1075,7 +1157,10 @@ function createServiceFixture(options: {
         return { redirectUrl: "https://pay.test" };
       },
     },
-    runPaymentSideEffect: async (_description: string, effect: () => Promise<unknown>) => effect(),
+    runPaymentSideEffect: async (
+      _description: string,
+      effect: () => Promise<unknown>,
+    ) => effect(),
     queueOrderCreatedNotifications: async () => undefined,
   }) as OrdersService;
 
@@ -1142,7 +1227,11 @@ function createStoredOrderInput() {
     checkoutAttemptId: "opaque-attempt-1",
     checkoutPayloadFingerprint: "a".repeat(64),
     attribution: { clientId: "123456", yclid: "987654" },
-    customer: { email: "guest@example.com", name: "Анна Иванова", phone: "+7 (999) 123-45-67" },
+    customer: {
+      email: "guest@example.com",
+      name: "Анна Иванова",
+      phone: "+7 (999) 123-45-67",
+    },
     delivery: {
       provider: "cdek" as const,
       pickupPoint: {
@@ -1181,7 +1270,9 @@ function createStoredOrderInput() {
 }
 
 function createStorageFixture(
-  promocodesService: ConstructorParameters<typeof OrdersStorage>[1] = {} as never,
+  promocodesService: ConstructorParameters<
+    typeof OrdersStorage
+  >[1] = {} as never,
   options: {
     enqueueFailure?: Error;
     commitFailure?: Error;
@@ -1200,9 +1291,7 @@ function createStorageFixture(
     create: async ({ data }: { data: Record<string, unknown> }) => {
       options.lockCalls?.push("order.create");
       if (
-        orders.some(
-          (item) => item.checkoutAttemptId === data.checkoutAttemptId,
-        )
+        orders.some((item) => item.checkoutAttemptId === data.checkoutAttemptId)
       ) {
         throw new Prisma.PrismaClientKnownRequestError("Unique constraint", {
           clientVersion: "test",
@@ -1229,12 +1318,17 @@ function createStorageFixture(
   };
   const prisma = {
     user: {
-      findUnique: async ({ where }: { where: { email?: string; id?: string } }) =>
+      findUnique: async ({
+        where,
+      }: {
+        where: { email?: string; id?: string };
+      }) =>
         where.email
           ? options.guestUserId
             ? { id: options.guestUserId }
             : null
-          : where.id === "user-2" || options.existingUserIds?.includes(where.id!)
+          : where.id === "user-2" ||
+              options.existingUserIds?.includes(where.id!)
             ? { id: where.id }
             : null,
     },
@@ -1265,7 +1359,10 @@ function createStorageFixture(
           activeTransaction = undefined;
         }
       });
-      transactionTail = transaction.then(() => undefined, () => undefined);
+      transactionTail = transaction.then(
+        () => undefined,
+        () => undefined,
+      );
       return transaction;
     },
   };
@@ -1299,9 +1396,11 @@ function createStorageFixture(
         createdEvents.push(snapshot);
       },
     } as never,
+    createAccountingMock(),
   );
-  (storage as unknown as { mapOrder: (value: unknown) => unknown }).mapOrder =
-    (value) => value;
+  (storage as unknown as { mapOrder: (value: unknown) => unknown }).mapOrder = (
+    value,
+  ) => value;
 
   return {
     activationCount: () => activations,
@@ -1335,11 +1434,21 @@ function createThrottlePrisma() {
       }
       return rows.get(key);
     },
-    findUnique: async ({ where }: { where: { scope_subjectHash: { scope: string; subjectHash: string } } }) =>
+    findUnique: async ({
+      where,
+    }: {
+      where: { scope_subjectHash: { scope: string; subjectHash: string } };
+    }) =>
       rows.get(
         `${where.scope_subjectHash.scope}:${where.scope_subjectHash.subjectHash}`,
       ) ?? null,
-    update: async ({ where, data }: { where: { id: string }; data: Partial<Row> }) => {
+    update: async ({
+      where,
+      data,
+    }: {
+      where: { id: string };
+      data: Partial<Row>;
+    }) => {
       const entry = [...rows.entries()].find(([, row]) => row.id === where.id);
       if (!entry) throw new Error("Throttle row not found");
       Object.assign(entry[1], data);
@@ -1353,9 +1462,7 @@ function createThrottlePrisma() {
   };
 }
 
-function createRecoveryStorage(
-  overrides: Record<string, unknown> = {},
-) {
+function createRecoveryStorage(overrides: Record<string, unknown> = {}) {
   const state = {
     id: "order-1",
     cartId: "cart-1",
@@ -1388,20 +1495,47 @@ function createRecoveryStorage(
         operation(tx),
     } as unknown as PrismaService,
     {} as never,
+    ...createUnusedStorageDependencies(),
   );
 
   return Object.assign(storage, { state });
 }
 
-function createOrderDTO(options: {
-  method?: "tbank_acquiring";
-  redirectUrl?: string;
-} = {}) {
+function createUnusedStorageDependencies(): [
+  OrderActivationService,
+  AnalyticsOutboxService,
+  AffiliateFinancialAccountingService,
+] {
+  return [
+    {} as OrderActivationService,
+    {} as AnalyticsOutboxService,
+    createAccountingMock(),
+  ];
+}
+
+function createAccountingMock() {
+  return {
+    recordPaidOrderInTransaction: async () => undefined,
+    recordCompletionInTransaction: async () => undefined,
+    recordRefundReversalInTransaction: async () => 0,
+  } as unknown as AffiliateFinancialAccountingService;
+}
+
+function createOrderDTO(
+  options: {
+    method?: "tbank_acquiring";
+    redirectUrl?: string;
+  } = {},
+) {
   return {
     id: "order-1",
     cartId: "cart-1",
     status: "waiting_payment" as const,
-    customer: { email: "guest@example.com", name: "Анна Иванова", phone: "+7 (999) 123-45-67" },
+    customer: {
+      email: "guest@example.com",
+      name: "Анна Иванова",
+      phone: "+7 (999) 123-45-67",
+    },
     delivery: {
       provider: "cdek" as const,
       pickupPoint: {

@@ -94,6 +94,7 @@ model Order {
   currency                    String                @default("RUB") @db.VarChar(3)
   comment                     String?               @db.Text
   paidAt                      DateTime?             @map("paid_at")
+  completedAt                 DateTime?             @map("completed_at")
   createdAt                   DateTime              @default(now()) @map("created_at")
   updatedAt                   DateTime              @default(now()) @updatedAt @map("updated_at")
 
@@ -104,6 +105,9 @@ model Order {
   user          User?               @relation(fields: [userId], references: [id], onDelete: SetNull)
   promoRedemption PromoRedemption?
   ozonPaymentRecheck OrderOzonPaymentRecheck?
+  refunds       OrderRefund[]
+  affiliateCommission AffiliateCommission?
+  affiliateLedgerEntries AffiliateLedgerEntry[]
 
   @@index([userId, createdAt])
   @@index([cartId])
@@ -115,6 +119,43 @@ model Order {
   @@index([tbankAcquiringOrderId])
   @@index([tbankAcquiringPaymentId])
   @@map("orders")
+}
+
+model OrderRefund {
+  id                 String   @id @default(cuid()) @db.VarChar(32)
+  orderId            String   @map("order_id") @db.VarChar(32)
+  authorId           String   @map("author_id")
+  requestId          String   @map("request_id") @db.Uuid
+  requestFingerprint String   @map("request_fingerprint") @db.Char(64)
+  reference          String   @db.VarChar(120)
+  reason             String   @db.VarChar(1000)
+  deliveryKopecks    BigInt   @map("delivery_kopecks")
+  totalKopecks       BigInt   @map("total_kopecks")
+  createdAt          DateTime @default(now()) @map("created_at")
+
+  order       Order                  @relation(fields: [orderId], references: [id], onDelete: Restrict, onUpdate: Restrict)
+  author      User                   @relation("OrderRefundAuthor", fields: [authorId], references: [id], onDelete: Restrict, onUpdate: Restrict)
+  items       OrderRefundItem[]
+  ledgerEntry AffiliateLedgerEntry?
+
+  @@unique([orderId, requestId])
+  @@unique([orderId, reference])
+  @@index([orderId, createdAt])
+  @@index([authorId])
+  @@map("order_refunds")
+}
+
+model OrderRefundItem {
+  refundId      String @map("refund_id") @db.VarChar(32)
+  productId     String @map("product_id") @db.VarChar(191)
+  title         String @db.VarChar(220)
+  quantity      Int
+  amountKopecks BigInt @map("amount_kopecks")
+
+  refund OrderRefund @relation(fields: [refundId], references: [id], onDelete: Restrict, onUpdate: Restrict)
+
+  @@id([refundId, productId])
+  @@map("order_refund_items")
 }
 
 model OrderOzonPaymentRecheck {

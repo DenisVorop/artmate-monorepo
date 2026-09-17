@@ -91,6 +91,35 @@ describe("payment initialization side effects", () => {
   });
 });
 
+describe("late paid notification side effects", () => {
+  for (const status of ["cancelled", "completed", "delivering"] as const) {
+    it(`does not create fulfillment or announce a paid CRM transition for ${status}`, async () => {
+      const events: string[] = [];
+      const order = { ...createOrder("tbank_acquiring"), status };
+      const service = Object.assign(Object.create(OrdersService.prototype), {
+        ensureCdekShipmentForPaidOrder: async () => {
+          events.push("fulfillment");
+        },
+        notifyAdminAboutOrderPaid: async () => events.push("admin-payment"),
+        sendOrderPaidEmail: async () => events.push("customer-payment"),
+        notifyCustomerAboutStatusChange: async () => events.push("crm-status"),
+      }) as OrdersService;
+
+      await (
+        service as unknown as {
+          notifyOrderPaid: (
+            value: typeof order,
+            userId: string,
+            previousStatus: "waiting_payment",
+          ) => Promise<void>;
+        }
+      ).notifyOrderPaid(order, "user-1", "waiting_payment");
+
+      assert.deepEqual(events.sort(), ["admin-payment", "customer-payment"]);
+    });
+  }
+});
+
 function createService(options: {
   order: ReturnType<typeof createOrder>;
   createOzon?: () => Promise<Record<string, unknown>>;
@@ -115,7 +144,8 @@ function createService(options: {
         options.onAttach?.();
         return options.order;
       },
-      consumeOrderCartSnapshot: async (orderId: string) => options.onConsume?.(orderId),
+      consumeOrderCartSnapshot: async (orderId: string) =>
+        options.onConsume?.(orderId),
       markOzonAcquiringPaymentFailed: async () => {
         options.onFailed();
         return options.order;

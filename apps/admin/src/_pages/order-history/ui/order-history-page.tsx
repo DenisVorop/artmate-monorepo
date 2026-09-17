@@ -3,6 +3,7 @@ import { ArrowLeft } from "lucide-react";
 import type { AuthUser } from "@/entities/session";
 import { SessionMenu } from "@/features/auth";
 import { OrderHistory } from "@/features/order-history";
+import { OrderRefunds } from "@/features/order-refunds";
 import { routes } from "@/shared/constants";
 import { Badge, Button } from "@/shared/ui";
 import { AdminShell } from "@/widgets/admin-shell";
@@ -38,7 +39,10 @@ export function OrderHistoryPage({
           </div>
         </header>
 
-        <OrderHistory orderId={orderId} />
+        <div className="space-y-4">
+          <OrderRefunds orderId={orderId} />
+          <OrderHistory orderId={orderId} />
+        </div>
       </section>
     </AdminShell>
   );

@@ -11,6 +11,7 @@ import {
 } from "@nestjs/common";
 
 import type { AnalyticsOutboxService } from "../src/analytics/analytics-outbox.service";
+import { AffiliateFinancialAccountingService } from "../src/affiliate/financial-accounting.service";
 import type { OrderActivationService } from "../src/auth/order-activation.service";
 import {
   OrderCrmStatus,
@@ -114,7 +115,10 @@ describe("promocode payment state integrity", () => {
         merchantOrderId: "order-A",
       });
       notification.status = "Pending";
-      notification.requestSign = signOzonNotification("canonical", notification);
+      notification.requestSign = signOzonNotification(
+        "canonical",
+        notification,
+      );
       const verified = ozon.assertValidNotification(notification);
       notification.status = "Completed";
       const parsed = ozon.parseNotification(notification, verified);
@@ -147,12 +151,160 @@ describe("promocode payment state integrity", () => {
     assert.equal(fixture.consumeCount(), 1);
     assert.equal(fixture.activationCount(), 0);
     assert.equal(fixture.analyticsCount(), 1);
+    assert.equal(fixture.accountingCount(), 1);
     assert.equal(
       fixture.history.filter((event) => event.eventType === "status_changed")
         .length,
       1,
     );
     assert.equal(fixture.state.paymentStatus, OrderPaymentStatus.PAID);
+  });
+
+  it("accrues one immutable commission through real T-Bank and Ozon payment flows", async () => {
+    for (const paymentMethod of [
+      OrderPaymentMethod.TBANK_ACQUIRING,
+      OrderPaymentMethod.OZON_ACQUIRING,
+    ]) {
+      const fixture = createFixture(
+        {
+          paymentMethod,
+          promoCode: "ARTM-SAVED",
+          promoTermsSnapshot: {
+            kind: "affiliate",
+            affiliate: {
+              partnerId: "partner-1",
+              partnerUserId: "partner-user",
+              partnerPercent: 15,
+              buyerPercent: 5,
+              isSelfPurchase: false,
+            },
+          },
+          promoPricingSnapshot: {
+            subtotalKopecks: 299_700,
+            discountKopecks: 10_000,
+            totalKopecks: 289_700,
+            items: [
+              {
+                id: "product-1",
+                unitPriceKopecks: 99_900,
+                quantity: 3,
+                subtotalKopecks: 299_700,
+                discountKopecks: 10_000,
+                totalKopecks: 289_700,
+                priceGroups: [],
+              },
+            ],
+          },
+        },
+        { realAccounting: true },
+      );
+
+      if (paymentMethod === OrderPaymentMethod.TBANK_ACQUIRING) {
+        const notification = {
+          amount: "338700",
+          orderId: fixture.state.id,
+          paymentId: "7001",
+          raw: {},
+          rawStatus: "CONFIRMED",
+          status: "paid" as const,
+          success: true,
+        };
+        await fixture.storage.applyTBankAcquiringNotification(notification);
+        await fixture.storage.applyTBankAcquiringNotification(notification);
+      } else {
+        await withOzonKeys(async () => {
+          const body = createSignedOzonNotification("canonical", {
+            merchantOrderId: fixture.state.id,
+          });
+          const ozon = new OzonAcquiringService();
+          const parsed = ozon.parseNotification(
+            body,
+            ozon.assertValidNotification(body),
+          );
+          const notification = {
+            ...parsed,
+            authoritativeStatus: "STATUS_PAID",
+            raw: body,
+          };
+          await fixture.storage.applyOzonAcquiringNotification(notification);
+          await fixture.storage.applyOzonAcquiringNotification(notification);
+        });
+      }
+
+      assert.equal(fixture.commissions.length, 1);
+      assert.equal(fixture.ledgerEntries.length, 1);
+      assert.equal(fixture.commissions[0]?.partnerPercent, 15);
+      assert.equal(fixture.commissions[0]?.earnedKopecks, 44_955n);
+      assert.equal(fixture.ledgerEntries[0]?.amountKopecks, 44_955n);
+      await fixture.storage.updateAdminOrderStatus(
+        fixture.state.id,
+        "completed",
+        "admin-1",
+      );
+      const availableAt = fixture.commissions[0]?.availableAt;
+      await fixture.storage.updateAdminOrderStatus(
+        fixture.state.id,
+        "delivering",
+        "admin-1",
+      );
+      await fixture.storage.updateAdminOrderStatus(
+        fixture.state.id,
+        "completed",
+        "admin-1",
+      );
+      assert.ok(availableAt instanceof Date);
+      assert.equal(fixture.commissions[0]?.availableAt, availableAt);
+    }
+  });
+
+  it("persists real zero/self snapshots and rolls accrual back with payment", async () => {
+    for (const input of [
+      {
+        partnerPercent: 0,
+        buyerPercent: 20,
+        userId: "user-1",
+        isSelfPurchase: false,
+      },
+      {
+        partnerPercent: 15,
+        buyerPercent: 5,
+        userId: "partner-user",
+        isSelfPurchase: false,
+      },
+    ]) {
+      const fixture = createFixture(
+        affiliatePaymentState({
+          buyerPercent: input.buyerPercent,
+          isSelfPurchase: input.isSelfPurchase,
+          partnerPercent: input.partnerPercent,
+          userId: input.userId,
+        }),
+        { realAccounting: true },
+      );
+      await fixture.storage.applyTBankAcquiringNotification(
+        confirmedTBankNotification(fixture.state.id),
+      );
+      assert.equal(fixture.commissions[0]?.earnedKopecks, 0n);
+      assert.equal(
+        fixture.commissions[0]?.isSelfPurchase,
+        input.userId === "partner-user",
+      );
+      assert.equal(fixture.ledgerEntries[0]?.amountKopecks, 0n);
+    }
+
+    const rollback = createFixture(affiliatePaymentState(), {
+      realAccounting: true,
+    });
+    rollback.rejectAnalytics();
+    await assert.rejects(
+      rollback.storage.applyTBankAcquiringNotification(
+        confirmedTBankNotification(rollback.state.id),
+      ),
+      /analytics enqueue failed/,
+    );
+    assert.equal(rollback.commissions.length, 0);
+    assert.equal(rollback.ledgerEntries.length, 0);
+    assert.equal(rollback.state.paymentStatus, OrderPaymentStatus.PENDING);
   });
 
   it("provisions a paid guest exactly once for duplicate T-Bank callbacks", async () => {
@@ -323,6 +475,8 @@ describe("promocode payment state integrity", () => {
     }
 
     assert.equal(fixture.state.crmStatus, OrderCrmStatus.COMPLETED);
+    assert.ok(fixture.state.completedAt);
+    assert.equal(fixture.completionAccountingCount(), 1);
     assert.equal(fixture.state.paymentStatus, OrderPaymentStatus.PAID);
     assert.equal(fixture.state.status, OrderStatus.PAID);
     assert.equal(fixture.state.paidAt, paidAt);
@@ -336,6 +490,55 @@ describe("promocode payment state integrity", () => {
       fixture.history.map((event) => event.eventType),
       ["status_changed", "status_changed"],
     );
+  });
+
+  it("preserves the first completion timestamp across reopening and repeated completion", async () => {
+    const fixture = createFixture({
+      crmStatus: OrderCrmStatus.PAID,
+      paymentStatus: OrderPaymentStatus.PAID,
+      status: OrderStatus.PAID,
+    });
+    await fixture.storage.updateAdminOrderStatus(
+      fixture.state.id,
+      "completed",
+      "admin-1",
+    );
+    const firstCompletedAt = fixture.state.completedAt;
+    await fixture.storage.updateAdminOrderStatus(
+      fixture.state.id,
+      "delivering",
+      "admin-1",
+    );
+    await fixture.storage.updateAdminOrderStatus(
+      fixture.state.id,
+      "completed",
+      "admin-1",
+    );
+
+    assert.ok(firstCompletedAt);
+    assert.equal(fixture.state.completedAt, firstCompletedAt);
+  });
+
+  it("does not downgrade a completed order on a late confirmed payment", async () => {
+    const completedAt = new Date("2026-09-01T00:00:00.000Z");
+    const fixture = createFixture({
+      completedAt,
+      crmStatus: OrderCrmStatus.COMPLETED,
+      paymentMethod: OrderPaymentMethod.TBANK_ACQUIRING,
+    });
+    await fixture.storage.applyTBankAcquiringNotification({
+      amount: "338700",
+      orderId: fixture.state.id,
+      paymentId: "7001",
+      raw: {},
+      rawStatus: "CONFIRMED",
+      status: "paid",
+      success: true,
+    });
+
+    assert.equal(fixture.state.crmStatus, OrderCrmStatus.COMPLETED);
+    assert.equal(fixture.state.completedAt, completedAt);
+    assert.equal(fixture.state.paymentStatus, OrderPaymentStatus.PAID);
   });
 
   it("rolls back the first paid transition when transactional enqueue fails", async () => {
@@ -416,20 +619,27 @@ describe("promocode payment state integrity", () => {
     fixture.cartItems.set("product-1", 3);
 
     assert.deepEqual(
-      await fixture.storage.recoverGuestPayment(fixture.state.id, fixture.state.cartId),
+      await fixture.storage.recoverGuestPayment(
+        fixture.state.id,
+        fixture.state.cartId,
+      ),
       { redirectUrl: "/checkout" },
     );
     const restoredAt = fixture.state.cartRestoredAt;
     assert.equal(fixture.cartItems.get("product-1"), 3);
 
     assert.deepEqual(
-      await fixture.storage.recoverGuestPayment(fixture.state.id, fixture.state.cartId),
+      await fixture.storage.recoverGuestPayment(
+        fixture.state.id,
+        fixture.state.cartId,
+      ),
       { redirectUrl: "/checkout" },
     );
     assert.equal(fixture.state.cartRestoredAt, restoredAt);
     assert.equal(fixture.cartItems.get("product-1"), 3);
     assert.equal(
-      fixture.history.filter((event) => event.eventType === "cart_restored").length,
+      fixture.history.filter((event) => event.eventType === "cart_restored")
+        .length,
       1,
     );
   });
@@ -498,7 +708,8 @@ describe("promocode payment state integrity", () => {
     assert.equal(fixture.cartItems.get("product-1"), 2);
     assert.equal(fixture.cartItems.get("unrelated"), 4);
     assert.equal(
-      fixture.history.filter((event) => event.eventType === "cart_consumed").length,
+      fixture.history.filter((event) => event.eventType === "cart_consumed")
+        .length,
       1,
     );
   });
@@ -522,7 +733,10 @@ describe("promocode payment state integrity", () => {
     });
     fixture.state.terminalPaymentFailedAt = new Date();
     fixture.state.paymentStatus = OrderPaymentStatus.FAILED;
-    await fixture.storage.recoverGuestPayment(fixture.state.id, fixture.state.cartId);
+    await fixture.storage.recoverGuestPayment(
+      fixture.state.id,
+      fixture.state.cartId,
+    );
 
     assert.equal(fixture.cartItems.get("product-1"), 2);
     assert.deepEqual(fixture.state.cartRestoredQuantities, {
@@ -545,7 +759,10 @@ describe("promocode payment state integrity", () => {
     assert.deepEqual(fixture.state.cartConsumedQuantities, {});
     fixture.state.terminalPaymentFailedAt = new Date();
     fixture.state.paymentStatus = OrderPaymentStatus.FAILED;
-    await fixture.storage.recoverGuestPayment(fixture.state.id, fixture.state.cartId);
+    await fixture.storage.recoverGuestPayment(
+      fixture.state.id,
+      fixture.state.cartId,
+    );
 
     assert.equal(fixture.cartItems.has("product-1"), false);
     assert.deepEqual(fixture.state.cartRestoredQuantities, {});
@@ -620,7 +837,10 @@ describe("promocode payment state integrity", () => {
     fixture.state.terminalPaymentFailedAt = new Date();
     fixture.state.paymentStatus = OrderPaymentStatus.FAILED;
 
-    await fixture.storage.recoverGuestPayment(fixture.state.id, fixture.state.cartId);
+    await fixture.storage.recoverGuestPayment(
+      fixture.state.id,
+      fixture.state.cartId,
+    );
     await consumeOrderCartSnapshot(fixture);
 
     assert.equal(fixture.cartItems.get("product-1"), 5);
@@ -638,7 +858,10 @@ describe("promocode payment state integrity", () => {
     });
     fixture.cartItems.set("product-1", 5);
 
-    await fixture.storage.recoverGuestPayment(fixture.state.id, fixture.state.cartId);
+    await fixture.storage.recoverGuestPayment(
+      fixture.state.id,
+      fixture.state.cartId,
+    );
 
     assert.equal(fixture.cartItems.get("product-1"), 5);
   });
@@ -680,7 +903,10 @@ describe("promocode payment state integrity", () => {
     });
     fixture.state.items[0]!.quantity = 120;
 
-    await fixture.storage.recoverGuestPayment(fixture.state.id, fixture.state.cartId);
+    await fixture.storage.recoverGuestPayment(
+      fixture.state.id,
+      fixture.state.cartId,
+    );
 
     assert.equal(fixture.cartItems.get("product-1"), 99);
   });
@@ -697,7 +923,10 @@ describe("promocode payment state integrity", () => {
     });
     fixture.cartItems.set("product-1", 98);
 
-    await fixture.storage.recoverGuestPayment(fixture.state.id, fixture.state.cartId);
+    await fixture.storage.recoverGuestPayment(
+      fixture.state.id,
+      fixture.state.cartId,
+    );
     assert.equal(fixture.cartItems.get("product-1"), 99);
     await fixture.storage.applyTBankAcquiringNotification({
       amount: "338700",
@@ -980,7 +1209,6 @@ describe("promocode payment state integrity", () => {
     });
     assert.equal(fixture.state.ozonAcquiringTransactionUid, null);
   });
-
 });
 
 describe("Ozon verified notification profiles", () => {
@@ -1139,10 +1367,7 @@ describe("Ozon canonical callback status confirmation", () => {
           extId: fixture.state.id,
           requestSign: crypto
             .createHash("sha256")
-            .update(
-              `${fixture.state.id}test-accesstest-secret`,
-              "utf8",
-            )
+            .update(`${fixture.state.id}test-accesstest-secret`, "utf8")
             .digest("hex"),
         });
         assert.equal(fixture.state.paymentStatus, OrderPaymentStatus.PAID);
@@ -1201,7 +1426,11 @@ describe("Ozon canonical callback status confirmation", () => {
     await withOzonKeys(async () => {
       const originalFetch = globalThis.fetch;
       try {
-        for (const scenario of ["non-paid", "mismatch", "provider-error"] as const) {
+        for (const scenario of [
+          "non-paid",
+          "mismatch",
+          "provider-error",
+        ] as const) {
           const fixture = createFixture({
             paymentMethod: OrderPaymentMethod.OZON_ACQUIRING,
             checkoutActorUserId: null,
@@ -1329,18 +1558,70 @@ describe("Ozon canonical callback status confirmation", () => {
     await withOzonKeys(async () => {
       const originalFetch = globalThis.fetch;
       const scenarios: unknown[] = [
-        { id: "ozon-order-1", originalAmount: { currencyCode: "643", value: "338700" }, status: "STATUS_PAID" },
-        { extId: "order-A", originalAmount: { currencyCode: "643", value: "338700" }, status: "STATUS_PAID" },
-        { extId: "order-B", id: "ozon-order-1", originalAmount: { currencyCode: "643", value: "338700" }, status: "STATUS_PAID" },
-        { extId: "order-A", id: "other-order", originalAmount: { currencyCode: "643", value: "338700" }, status: "STATUS_PAID" },
+        {
+          id: "ozon-order-1",
+          originalAmount: { currencyCode: "643", value: "338700" },
+          status: "STATUS_PAID",
+        },
+        {
+          extId: "order-A",
+          originalAmount: { currencyCode: "643", value: "338700" },
+          status: "STATUS_PAID",
+        },
+        {
+          extId: "order-B",
+          id: "ozon-order-1",
+          originalAmount: { currencyCode: "643", value: "338700" },
+          status: "STATUS_PAID",
+        },
+        {
+          extId: "order-A",
+          id: "other-order",
+          originalAmount: { currencyCode: "643", value: "338700" },
+          status: "STATUS_PAID",
+        },
         { extId: "order-A", id: "ozon-order-1", status: "STATUS_PAID" },
-        { extId: "order-A", id: "ozon-order-1", originalAmount: { currencyCode: "643" }, status: "STATUS_PAID" },
-        { extId: "order-A", id: "ozon-order-1", originalAmount: { value: "338700" }, status: "STATUS_PAID" },
-        { extId: "order-A", id: "ozon-order-1", originalAmount: { currencyCode: "840", value: "338700" }, status: "STATUS_PAID" },
-        { extId: "order-A", id: "ozon-order-1", originalAmount: { currencyCode: "643", value: "3387.00" }, status: "STATUS_PAID" },
-        { extId: "order-A", id: "ozon-order-1", originalAmount: { currencyCode: "643", value: "338701" }, status: "STATUS_PAID" },
-        { extId: "order-A", id: "ozon-order-1", originalAmount: { currencyCode: "643", value: "338700" } },
-        { extId: "order-A", id: "ozon-order-1", originalAmount: { currencyCode: "643", value: "338700" }, status: "PAID" },
+        {
+          extId: "order-A",
+          id: "ozon-order-1",
+          originalAmount: { currencyCode: "643" },
+          status: "STATUS_PAID",
+        },
+        {
+          extId: "order-A",
+          id: "ozon-order-1",
+          originalAmount: { value: "338700" },
+          status: "STATUS_PAID",
+        },
+        {
+          extId: "order-A",
+          id: "ozon-order-1",
+          originalAmount: { currencyCode: "840", value: "338700" },
+          status: "STATUS_PAID",
+        },
+        {
+          extId: "order-A",
+          id: "ozon-order-1",
+          originalAmount: { currencyCode: "643", value: "3387.00" },
+          status: "STATUS_PAID",
+        },
+        {
+          extId: "order-A",
+          id: "ozon-order-1",
+          originalAmount: { currencyCode: "643", value: "338701" },
+          status: "STATUS_PAID",
+        },
+        {
+          extId: "order-A",
+          id: "ozon-order-1",
+          originalAmount: { currencyCode: "643", value: "338700" },
+        },
+        {
+          extId: "order-A",
+          id: "ozon-order-1",
+          originalAmount: { currencyCode: "643", value: "338700" },
+          status: "PAID",
+        },
       ];
       try {
         for (const responseBody of scenarios) {
@@ -1392,9 +1673,21 @@ describe("Ozon canonical callback status confirmation", () => {
           },
           status: 504,
         },
-        { exception: BadGatewayException, fetch: async () => jsonResponse({ secret: "provider detail" }, 429), status: 502 },
-        { exception: BadGatewayException, fetch: async () => jsonResponse({ secret: "provider detail" }, 500), status: 502 },
-        { exception: BadGatewayException, fetch: async () => jsonResponse("not-an-object"), status: 502 },
+        {
+          exception: BadGatewayException,
+          fetch: async () => jsonResponse({ secret: "provider detail" }, 429),
+          status: 502,
+        },
+        {
+          exception: BadGatewayException,
+          fetch: async () => jsonResponse({ secret: "provider detail" }, 500),
+          status: 502,
+        },
+        {
+          exception: BadGatewayException,
+          fetch: async () => jsonResponse("not-an-object"),
+          status: 502,
+        },
       ];
       try {
         for (const testCase of cases) {
@@ -1413,7 +1706,10 @@ describe("Ozon canonical callback status confirmation", () => {
             (error: unknown) => {
               assert.ok(error instanceof testCase.exception);
               assert.equal(error.getStatus(), testCase.status);
-              assert.doesNotMatch(JSON.stringify(error.getResponse()), /secret|provider detail/i);
+              assert.doesNotMatch(
+                JSON.stringify(error.getResponse()),
+                /secret|provider detail/i,
+              );
               return true;
             },
           );
@@ -1761,9 +2057,10 @@ describe("durable Ozon status rechecks", () => {
               requestSign: "tampered",
             };
           } else if (failure === "signed-identity") {
-            fixture.state.lastPaymentNotification = createSignedOzonNotification(
-              "canonical", { merchantOrderId: "another-order" },
-            );
+            fixture.state.lastPaymentNotification =
+              createSignedOzonNotification("canonical", {
+                merchantOrderId: "another-order",
+              });
           }
           let fetches = 0;
           globalThis.fetch = async () => {
@@ -1785,7 +2082,10 @@ describe("durable Ozon status rechecks", () => {
             fixture.storage,
             service,
           ).processDueRechecks();
-          assert.equal(fetches, failure === "signature" || failure === "signed-identity" ? 0 : 1);
+          assert.equal(
+            fetches,
+            failure === "signature" || failure === "signed-identity" ? 0 : 1,
+          );
           assert.equal(fixture.state.paymentStatus, OrderPaymentStatus.PENDING);
           assert.equal(fixture.state.userId, null);
           assert.equal(fixture.activationCount(), 0);
@@ -1936,7 +2236,9 @@ describe("T-Bank verified terminal notifications", () => {
       const service = Object.assign(Object.create(OrdersService.prototype), {
         logger: { warn: () => undefined },
         ordersStorage: {
-          applyTBankAcquiringNotification: async (input: Record<string, unknown>) => {
+          applyTBankAcquiringNotification: async (
+            input: Record<string, unknown>,
+          ) => {
             applied.push(input);
             return undefined;
           },
@@ -2140,6 +2442,7 @@ function createFixture(
   options: {
     cartItems?: Map<string, number>;
     cartLock?: ReturnType<typeof createTestMutex>;
+    realAccounting?: boolean;
   } = {},
 ) {
   const state = Object.assign(createOrderState(), overrides);
@@ -2150,9 +2453,13 @@ function createFixture(
   let releases = 0;
   let activations = 0;
   let analytics = 0;
+  let accounting = 0;
+  let completionAccounting = 0;
   let analyticsShouldFail = false;
   let releaseCartLock: (() => void) | undefined;
   let recheck: OzonRecheckState | null = null;
+  const commissions: Array<Record<string, unknown>> = [];
+  const ledgerEntries: Array<Record<string, unknown>> = [];
   const liveRecheck = (orderId: unknown, token: unknown) =>
     recheck !== null &&
     recheck.orderId === orderId &&
@@ -2290,6 +2597,46 @@ function createFixture(
         return data;
       },
     },
+    affiliateCommission: {
+      findUnique: async ({
+        where,
+      }: {
+        where: { id?: string; orderId?: string };
+      }) =>
+        commissions.find(
+          (commission) =>
+            (where.id !== undefined && commission.id === where.id) ||
+            (where.orderId !== undefined &&
+              commission.orderId === where.orderId),
+        ) ?? null,
+      create: async ({ data }: { data: Record<string, unknown> }) => {
+        const commission = {
+          id: `commission-${commissions.length + 1}`,
+          ...data,
+        };
+        commissions.push(commission);
+        return commission;
+      },
+      update: async ({
+        where,
+        data,
+      }: {
+        where: { id: string };
+        data: Record<string, unknown>;
+      }) => {
+        const commission = commissions.find((value) => value.id === where.id);
+        if (!commission) throw new Error("Commission not found");
+        Object.assign(commission, data);
+        return commission;
+      },
+    },
+    affiliateLedgerEntry: {
+      create: async ({ data }: { data: Record<string, unknown> }) => {
+        const entry = { id: `ledger-${ledgerEntries.length + 1}`, ...data };
+        ledgerEntries.push(entry);
+        return entry;
+      },
+    },
     cart: {
       upsert: async () => ({ id: state.cartId }),
       update: async () => ({ id: state.cartId }),
@@ -2335,6 +2682,8 @@ function createFixture(
       const snapshot = { ...state };
       const recheckSnapshot = recheck ? structuredClone(recheck) : null;
       const historyLength = history.length;
+      const commissionSnapshot = structuredClone(commissions);
+      const ledgerSnapshot = structuredClone(ledgerEntries);
       try {
         return await callback(tx);
       } catch (error) {
@@ -2344,6 +2693,8 @@ function createFixture(
         if (recheck && recheckSnapshot) Object.assign(recheck, recheckSnapshot);
         else recheck = recheckSnapshot;
         history.length = historyLength;
+        commissions.splice(0, commissions.length, ...commissionSnapshot);
+        ledgerEntries.splice(0, ledgerEntries.length, ...ledgerSnapshot);
         throw error;
       } finally {
         releaseCartLock?.();
@@ -2379,11 +2730,22 @@ function createFixture(
       analytics += 1;
     },
   };
+  const affiliateFinancialAccountingService = options.realAccounting
+    ? new AffiliateFinancialAccountingService()
+    : {
+        recordPaidOrderInTransaction: async () => {
+          accounting += 1;
+        },
+        recordCompletionInTransaction: async () => {
+          completionAccounting += 1;
+        },
+      };
   const storage = new OrdersStorage(
     prisma,
     promos,
     orderActivationService as unknown as OrderActivationService,
     analyticsOutboxService as unknown as AnalyticsOutboxService,
+    affiliateFinancialAccountingService as unknown as AffiliateFinancialAccountingService,
   );
   // Durable state survives service/worker recreation in these flow tests. These
   // three public storage methods are stubs, not a claim of SQL lease coverage.
@@ -2439,11 +2801,15 @@ function createFixture(
   ).mapAdminOrder = (value) => value;
   return {
     state,
+    commissions,
+    ledgerEntries,
     history,
     cartItems,
     storage,
     recheck: () => recheck,
     analyticsCount: () => analytics,
+    accountingCount: () => accounting,
+    completionAccountingCount: () => completionAccounting,
     rejectAnalytics: () => {
       analyticsShouldFail = true;
     },
@@ -2517,6 +2883,7 @@ function createOrderState() {
     currency: "RUB",
     comment: null,
     paidAt: null as Date | null,
+    completedAt: null as Date | null,
     createdAt: new Date("2026-08-31T00:00:00Z"),
     updatedAt: new Date("2026-08-31T00:00:00Z"),
     items: [
@@ -2535,6 +2902,60 @@ function createOrderState() {
       },
     ],
     shipments: [],
+  };
+}
+
+function affiliatePaymentState(
+  input: {
+    buyerPercent?: number;
+    isSelfPurchase?: boolean;
+    partnerPercent?: number;
+    userId?: string;
+  } = {},
+) {
+  const partnerPercent = input.partnerPercent ?? 15;
+  return {
+    userId: input.userId ?? "user-1",
+    paymentMethod: OrderPaymentMethod.TBANK_ACQUIRING,
+    promoCode: "ARTM-SAVED",
+    promoTermsSnapshot: {
+      kind: "affiliate",
+      affiliate: {
+        partnerId: "partner-1",
+        partnerUserId: "partner-user",
+        partnerPercent,
+        buyerPercent: input.buyerPercent ?? 20 - partnerPercent,
+        isSelfPurchase: input.isSelfPurchase ?? false,
+      },
+    },
+    promoPricingSnapshot: {
+      subtotalKopecks: 299_700,
+      discountKopecks: 10_000,
+      totalKopecks: 289_700,
+      items: [
+        {
+          id: "product-1",
+          unitPriceKopecks: 99_900,
+          quantity: 3,
+          subtotalKopecks: 299_700,
+          discountKopecks: 10_000,
+          totalKopecks: 289_700,
+          priceGroups: [],
+        },
+      ],
+    },
+  };
+}
+
+function confirmedTBankNotification(orderId: string) {
+  return {
+    amount: "338700",
+    orderId,
+    paymentId: "7001",
+    raw: {},
+    rawStatus: "CONFIRMED",
+    status: "paid" as const,
+    success: true,
   };
 }
 

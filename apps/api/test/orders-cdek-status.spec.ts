@@ -9,6 +9,9 @@ import {
 import { OrdersStorage } from "../src/orders/orders.storage";
 import type { PrismaService } from "../src/prisma/prisma.service";
 import type { PromocodesService } from "../src/promocodes/promocodes.service";
+import type { OrderActivationService } from "../src/auth/order-activation.service";
+import type { AnalyticsOutboxService } from "../src/analytics/analytics-outbox.service";
+import type { AffiliateFinancialAccountingService } from "../src/affiliate/financial-accounting.service";
 
 type CdekStatusMapper = {
   getOrderStatusForCdekShipmentStatus(
@@ -43,14 +46,22 @@ describe("CDEK order status mapping", () => {
   it("keeps payment fields unchanged when a shipment is delivered", async () => {
     const state = {
       crmStatus: PrismaOrderCrmStatus.DELIVERING,
+      deliveryProvider: "CDEK",
       id: "order-1",
       paidAt: null as Date | null,
+      completedAt: null as Date | null,
       paymentStatus: PrismaOrderPaymentStatus.PENDING,
       status: PrismaOrderStatus.PENDING_PAYMENT,
       userId: "user-1",
     };
     const orderUpdates: Record<string, unknown>[] = [];
+    let orderLocks = 0;
+    let completionUpdates = 0;
     const tx = {
+      $queryRaw: async () => {
+        orderLocks += 1;
+        return [{ id: state.id }];
+      },
       order: {
         findUnique: async () => state,
         update: async ({ data }: { data: Record<string, unknown> }) => {
@@ -63,6 +74,7 @@ describe("CDEK order status mapping", () => {
         create: async () => ({}),
       },
       orderShipment: {
+        findUnique: async () => ({ statusCode: "DELIVERING" }),
         upsert: async () => ({}),
       },
     };
@@ -82,6 +94,15 @@ describe("CDEK order status mapping", () => {
     const storage = new OrdersStorage(
       prisma,
       {} as PromocodesService,
+      {} as OrderActivationService,
+      {} as AnalyticsOutboxService,
+      {
+        recordPaidOrderInTransaction: async () => undefined,
+        recordCompletionInTransaction: async () => {
+          completionUpdates += 1;
+        },
+        recordRefundReversalInTransaction: async () => 0,
+      } as AffiliateFinancialAccountingService,
     );
     (storage as unknown as { mapOrder: (value: unknown) => unknown }).mapOrder =
       (value) => value;
@@ -94,13 +115,14 @@ describe("CDEK order status mapping", () => {
       statusName: "Delivered",
     });
 
-    assert.deepEqual(orderUpdates, [
-      {
-        crmStatus: PrismaOrderCrmStatus.COMPLETED,
-      },
-    ]);
+    assert.equal(orderUpdates.length, 1);
+    assert.equal(orderUpdates[0]?.crmStatus, PrismaOrderCrmStatus.COMPLETED);
+    assert.ok(orderUpdates[0]?.completedAt instanceof Date);
     assert.equal(state.status, PrismaOrderStatus.PENDING_PAYMENT);
     assert.equal(state.paymentStatus, PrismaOrderPaymentStatus.PENDING);
     assert.equal(state.paidAt, null);
+    assert.ok(state.completedAt);
+    assert.equal(orderLocks, 1);
+    assert.equal(completionUpdates, 1);
   });
 });
