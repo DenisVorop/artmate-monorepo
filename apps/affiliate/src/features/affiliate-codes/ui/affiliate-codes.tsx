@@ -9,7 +9,7 @@ import {
 
 import { Button, Card, CardContent, DataState } from "@/shared/ui";
 
-import { formatAffiliateCodeCount, useAffiliateCodeList } from "../lib";
+import { formatAffiliateCodeUsage, useAffiliateCodeList } from "../lib";
 
 import { CodeCard } from "./code-card";
 import { CodeForm } from "./code-form";
@@ -27,6 +27,7 @@ export function AffiliateCodes() {
     refetch,
     totalPages,
   } = useAffiliateCodeList();
+  const hasReachedLimit = data ? data.total >= data.limit : false;
 
   return (
     <main className="mx-auto w-full max-w-6xl px-4 py-6 sm:px-6 sm:py-9 lg:px-10 lg:py-12">
@@ -58,7 +59,40 @@ export function AffiliateCodes() {
                   </p>
                 </div>
               </div>
-              <CodeForm mode="create" onComplete={firstPage} />
+              {isPending ? (
+                <DataState
+                  compact
+                  description="Проверяем, можно ли создать новый код."
+                  status="loading"
+                  title="Загружаем промокоды"
+                />
+              ) : isError || !data ? (
+                <DataState
+                  compact
+                  description="Форма станет доступна после загрузки списка."
+                  status="error"
+                  title="Не удалось проверить лимит"
+                >
+                  <Button onClick={() => void refetch()} variant="outline">
+                    Повторить
+                  </Button>
+                </DataState>
+              ) : hasReachedLimit ? (
+                <div className="rounded-2xl border border-border/70 bg-muted/45 px-4 py-5">
+                  <p className="font-heading font-bold text-ink">
+                    У вас уже {data.limit} промокода
+                  </p>
+                  <p className="mt-2 text-sm leading-6 text-muted-foreground">
+                    Можно менять доли, комментарии и включать или выключать
+                    существующие коды.
+                  </p>
+                  <p className="mt-1 text-xs leading-5 text-muted-foreground">
+                    Активные и выключенные промокоды учитываются в лимите.
+                  </p>
+                </div>
+              ) : (
+                <CodeForm mode="create" onComplete={firstPage} />
+              )}
             </CardContent>
           </Card>
         </section>
@@ -74,7 +108,7 @@ export function AffiliateCodes() {
               </h2>
               <p className="mt-1 text-sm text-muted-foreground">
                 {data
-                  ? formatAffiliateCodeCount(data.total)
+                  ? formatAffiliateCodeUsage(data.total, data.limit)
                   : "Загрузка списка"}
               </p>
             </div>

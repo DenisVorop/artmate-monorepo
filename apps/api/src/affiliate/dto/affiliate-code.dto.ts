@@ -2,6 +2,7 @@ import { Type } from "class-transformer";
 import {
   IsArray,
   IsBoolean,
+  IsDefined,
   IsInt,
   IsISO8601,
   IsOptional,
@@ -11,6 +12,8 @@ import {
   Min,
   ValidateNested,
 } from "class-validator";
+
+import { affiliateCodeLimit } from "../affiliate.types";
 
 export class AffiliateCodeDTO {
   @IsString() id!: string;
@@ -32,4 +35,5 @@ export class AffiliateCodeListDTO {
   @IsInt() @Min(0) total!: number;
   @IsInt() @Min(1) page!: number;
   @IsInt() @Min(1) pageSize!: number;
+  @IsDefined() @IsInt() @Min(1) @Max(affiliateCodeLimit) limit!: number;
 }

@@ -13,6 +13,10 @@ test("calculates both shares from the fixed 20 percent budget", () => {
     buyerPercent: 20,
     partnerPercent: 0,
   });
+  assert.deepEqual(getCommissionSplit(5), {
+    buyerPercent: 15,
+    partnerPercent: 5,
+  });
   assert.deepEqual(getCommissionSplit(10), {
     buyerPercent: 10,
     partnerPercent: 10,

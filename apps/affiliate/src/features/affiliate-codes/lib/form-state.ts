@@ -59,7 +59,10 @@ export function useAffiliateCodeForm(config: AffiliateCodeFormConfig) {
 
       if (!result.ok) {
         form.setError("root", {
-          message: getAffiliateCodeErrorMessage(result.error.status),
+          message: getAffiliateCodeErrorMessage(
+            result.error.status,
+            result.error.code,
+          ),
         });
         return;
       }

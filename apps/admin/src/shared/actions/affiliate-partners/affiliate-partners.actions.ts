@@ -14,6 +14,10 @@ import type {
   AffiliateCodesPageDTO,
   AffiliateContractRevisionDTO,
   AffiliatePartnerDTO,
+  AffiliatePartnerAnalyticsDTO,
+  AffiliatePartnerAnalyticsParamsDTO,
+  AffiliatePartnerLedgerDTO,
+  AffiliatePartnerLedgerParamsDTO,
   AffiliatePartnersListParamsDTO,
   AffiliatePartnersPageDTO,
   UpdateAffiliatePartnerInputDTO,
@@ -71,6 +75,36 @@ export async function getAffiliatePartnerCodes(
 
   return requestAdminApi<AffiliateCodesPageDTO>(
     `/affiliate/admin/partners/${encodeURIComponent(userId)}/codes?${searchParams}`,
+  );
+}
+
+export async function getAffiliatePartnerAnalytics(
+  userId: string,
+  params: AffiliatePartnerAnalyticsParamsDTO,
+) {
+  const searchParams = new URLSearchParams({
+    days: String(params.days),
+    codePage: String(params.codePage),
+    codePageSize: String(params.codePageSize),
+  });
+
+  return requestAdminApi<AffiliatePartnerAnalyticsDTO>(
+    `/affiliate/admin/partners/${encodeURIComponent(userId)}/analytics?${searchParams}`,
+  );
+}
+
+export async function getAffiliatePartnerLedger(
+  userId: string,
+  params: AffiliatePartnerLedgerParamsDTO,
+) {
+  const searchParams = new URLSearchParams({
+    days: String(params.days),
+    page: String(params.page),
+    pageSize: String(params.pageSize),
+  });
+
+  return requestAdminApi<AffiliatePartnerLedgerDTO>(
+    `/affiliate/admin/partners/${encodeURIComponent(userId)}/ledger?${searchParams}`,
   );
 }
 

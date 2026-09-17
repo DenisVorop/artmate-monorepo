@@ -16,3 +16,7 @@ export function formatAffiliateCodeCount(count: number) {
 
   return `${count} промокодов`;
 }
+
+export function formatAffiliateCodeUsage(total: number, limit: number) {
+  return `${total} из ${limit} промокодов`;
+}
