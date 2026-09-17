@@ -12,6 +12,31 @@ enum AffiliateLedgerEntryKind {
   @@map("affiliate_ledger_entry_kind")
 }
 
+enum AffiliatePayoutStatus {
+  PENDING   @map("pending")
+  PAID      @map("paid")
+  REJECTED  @map("rejected")
+  CANCELLED @map("cancelled")
+
+  @@map("affiliate_payout_status")
+}
+
+enum AffiliatePayoutJournalKind {
+  RESERVE @map("reserve")
+  RELEASE @map("release")
+  PAY     @map("pay")
+
+  @@map("affiliate_payout_journal_kind")
+}
+
+enum AffiliatePayoutOperationKind {
+  CREATE @map("create")
+  PAY    @map("pay")
+  REJECT @map("reject")
+
+  @@map("affiliate_payout_operation_kind")
+}
+
 model AffiliatePartner {
   id                     String                 @id @default(cuid()) @db.VarChar(32)
   userId                 String                 @unique @map("user_id")
@@ -31,9 +56,89 @@ model AffiliatePartner {
   promoCodes         PromoCode[]
   commissions        AffiliateCommission[]
   ledgerEntries      AffiliateLedgerEntry[]
+  payouts            AffiliatePayout[]
+  payoutEvents       AffiliatePayoutEvent[]
+  payoutJournal      AffiliatePayoutJournalEntry[]
+  payoutOperations   AffiliatePayoutOperation[]
 
   @@index([status, createdAt])
   @@map("affiliate_partners")
+}
+
+model AffiliatePayout {
+  id                     String                @id @default(cuid()) @db.VarChar(32)
+  partnerId              String                @map("partner_id") @db.VarChar(32)
+  status                 AffiliatePayoutStatus @default(PENDING)
+  amountKopecks          BigInt                @map("amount_kopecks")
+  minimumPayoutKopecks   BigInt                @map("minimum_payout_kopecks")
+  contractVersion        Int                   @map("contract_version")
+  contractNumber         String                @map("contract_number") @db.VarChar(120)
+  contractSignedAt       DateTime              @map("contract_signed_at")
+  contractPaymentDetails String                @map("contract_payment_details") @db.Text
+  paidAt                 DateTime?             @map("paid_at")
+  reference              String?               @db.VarChar(160)
+  reason                 String?               @db.Text
+  createdAt              DateTime              @default(now()) @map("created_at")
+  updatedAt              DateTime              @default(now()) @updatedAt @map("updated_at")
+
+  partner    AffiliatePartner              @relation(fields: [partnerId], references: [id], onDelete: Restrict, onUpdate: Restrict)
+  events     AffiliatePayoutEvent[]
+  journal    AffiliatePayoutJournalEntry[]
+  operations AffiliatePayoutOperation[]
+
+  @@index([partnerId, createdAt])
+  @@map("affiliate_payouts")
+}
+
+model AffiliatePayoutEvent {
+  id          String                @id @default(cuid()) @db.VarChar(32)
+  payoutId    String                @map("payout_id") @db.VarChar(32)
+  partnerId   String                @map("partner_id") @db.VarChar(32)
+  status      AffiliatePayoutStatus
+  actorUserId String?               @map("actor_user_id")
+  reason      String?               @db.Text
+  createdAt   DateTime              @default(now()) @map("created_at")
+
+  payout AffiliatePayout  @relation(fields: [payoutId], references: [id], onDelete: Restrict, onUpdate: Restrict)
+  partner AffiliatePartner @relation(fields: [partnerId], references: [id], onDelete: Restrict, onUpdate: Restrict)
+  actor   User?            @relation("AffiliatePayoutEventActor", fields: [actorUserId], references: [id], onDelete: Restrict, onUpdate: Restrict)
+
+  @@index([payoutId, createdAt])
+  @@index([partnerId, createdAt])
+  @@map("affiliate_payout_events")
+}
+
+model AffiliatePayoutJournalEntry {
+  id            String                       @id @default(cuid()) @db.VarChar(32)
+  payoutId      String                       @map("payout_id") @db.VarChar(32)
+  partnerId     String                       @map("partner_id") @db.VarChar(32)
+  kind          AffiliatePayoutJournalKind
+  amountKopecks BigInt                       @map("amount_kopecks")
+  createdAt     DateTime                     @default(now()) @map("created_at")
+
+  payout  AffiliatePayout  @relation(fields: [payoutId], references: [id], onDelete: Restrict, onUpdate: Restrict)
+  partner AffiliatePartner @relation(fields: [partnerId], references: [id], onDelete: Restrict, onUpdate: Restrict)
+
+  @@unique([payoutId, kind])
+  @@index([partnerId, createdAt])
+  @@map("affiliate_payout_journal_entries")
+}
+
+model AffiliatePayoutOperation {
+  id                 String                         @id @default(cuid()) @db.VarChar(32)
+  payoutId           String                         @map("payout_id") @db.VarChar(32)
+  partnerId          String                         @map("partner_id") @db.VarChar(32)
+  requestId          String                         @map("request_id") @db.Uuid
+  requestFingerprint String                         @map("request_fingerprint") @db.Char(64)
+  kind               AffiliatePayoutOperationKind
+  createdAt          DateTime                       @default(now()) @map("created_at")
+
+  payout  AffiliatePayout  @relation(fields: [payoutId], references: [id], onDelete: Restrict, onUpdate: Restrict)
+  partner AffiliatePartner @relation(fields: [partnerId], references: [id], onDelete: Restrict, onUpdate: Restrict)
+
+  @@unique([partnerId, requestId])
+  @@index([payoutId, createdAt])
+  @@map("affiliate_payout_operations")
 }
 
 model AffiliateCommission {

@@ -4,5 +4,6 @@ export const routes = {
   cooperation: "/cooperation",
   home: "/",
   login: "/login",
+  payouts: "/payouts",
   unavailable: "/unavailable",
 } as const;

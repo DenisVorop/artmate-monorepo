@@ -50,6 +50,7 @@ model User {
   affiliatePartner         AffiliatePartner?
   affiliateContractChanges AffiliateContractRevision[] @relation("AffiliateContractRevisionActor")
   authoredOrderRefunds     OrderRefund[]                 @relation("OrderRefundAuthor")
+  affiliatePayoutEvents    AffiliatePayoutEvent[]        @relation("AffiliatePayoutEventActor")
 
   @@index([status])
   @@map("users")

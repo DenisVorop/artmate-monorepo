@@ -25,6 +25,7 @@ import {
   AffiliateAnalyticsController,
 } from "../src/affiliate/affiliate-analytics.controller";
 import { AffiliateAnalyticsService } from "../src/affiliate/affiliate-analytics.service";
+import { AffiliatePayoutBalanceService } from "../src/affiliate/affiliate-payout-balance.service";
 import {
   AffiliateAnalyticsQueryDTO,
   AffiliateLedgerDTO,
@@ -87,7 +88,10 @@ describe("affiliate analytics query contract", () => {
       [7, 2, 50],
     );
 
-    const service = new AffiliateAnalyticsService({} as PrismaService);
+    const service = new AffiliateAnalyticsService(
+      {} as PrismaService,
+      new AffiliatePayoutBalanceService(),
+    );
     await assert.rejects(
       service.getAdminLedger("user-1", {
         days: 30,
@@ -187,7 +191,10 @@ describe("affiliate analytics query contract", () => {
   });
 
   it("requires the partner role before accessing own data", async () => {
-    const service = new AffiliateAnalyticsService({} as PrismaService);
+    const service = new AffiliateAnalyticsService(
+      {} as PrismaService,
+      new AffiliatePayoutBalanceService(),
+    );
     assert.throws(
       () =>
         service.getOwnAnalytics(
@@ -257,6 +264,9 @@ describe("AffiliateAnalyticsService SQL", () => {
       });
       assert.deepEqual(analytics.balance, {
         availableKopecks: 60,
+        reservedKopecks: 0,
+        paidKopecks: 0,
+        debtKopecks: 0,
         pendingKopecks: 200,
         heldKopecks: 50,
         reversedKopecks: 340,
@@ -540,6 +550,8 @@ async function createFixture() {
     SET TIME ZONE 'UTC';
     CREATE TYPE "affiliate_partner_status" AS ENUM ('active', 'suspended');
     CREATE TYPE "affiliate_ledger_entry_kind" AS ENUM ('credit', 'reversal');
+    CREATE TYPE "affiliate_payout_status" AS ENUM ('pending', 'paid', 'rejected', 'cancelled');
+    CREATE TYPE "affiliate_payout_journal_kind" AS ENUM ('reserve', 'release', 'pay');
     CREATE TYPE "order_payment_status" AS ENUM ('pending', 'paid', 'failed');
     CREATE TYPE "order_crm_status" AS ENUM ('new', 'in_progress', 'waiting_payment', 'paid', 'delivering', 'completed', 'cancelled');
 
@@ -572,6 +584,21 @@ async function createFixture() {
       "partner_id" VARCHAR(32) NOT NULL,
       "kind" "affiliate_ledger_entry_kind" NOT NULL,
       "amount_kopecks" BIGINT NOT NULL,
+      "created_at" TIMESTAMP(3) NOT NULL
+    );
+    CREATE TABLE "affiliate_payouts" (
+      "id" VARCHAR(32) PRIMARY KEY, "partner_id" VARCHAR(32) NOT NULL,
+      "status" "affiliate_payout_status" NOT NULL, "amount_kopecks" BIGINT NOT NULL,
+      "created_at" TIMESTAMP(3) NOT NULL
+    );
+    CREATE TABLE "affiliate_payout_journal_entries" (
+      "id" VARCHAR(32) PRIMARY KEY, "payout_id" VARCHAR(32) NOT NULL,
+      "partner_id" VARCHAR(32) NOT NULL, "kind" "affiliate_payout_journal_kind" NOT NULL,
+      "amount_kopecks" BIGINT NOT NULL, "created_at" TIMESTAMP(3) NOT NULL
+    );
+    CREATE TABLE "affiliate_payout_events" (
+      "id" VARCHAR(32) PRIMARY KEY, "payout_id" VARCHAR(32) NOT NULL,
+      "partner_id" VARCHAR(32) NOT NULL, "status" "affiliate_payout_status" NOT NULL,
       "created_at" TIMESTAMP(3) NOT NULL
     );
 
@@ -616,7 +643,7 @@ async function createFixture() {
 
   return {
     db,
-    service: new AffiliateAnalyticsService(prisma),
+    service: new AffiliateAnalyticsService(prisma, new AffiliatePayoutBalanceService()),
     isolationLevels,
     readOnlyCommands,
     close: () => db.close(),
@@ -628,6 +655,8 @@ async function createBoundaryFixture() {
   await db.exec(`
     CREATE TYPE "affiliate_partner_status" AS ENUM ('active', 'suspended');
     CREATE TYPE "affiliate_ledger_entry_kind" AS ENUM ('credit', 'reversal');
+    CREATE TYPE "affiliate_payout_status" AS ENUM ('pending', 'paid', 'rejected', 'cancelled');
+    CREATE TYPE "affiliate_payout_journal_kind" AS ENUM ('reserve', 'release', 'pay');
     CREATE TYPE "order_payment_status" AS ENUM ('pending', 'paid', 'failed');
     CREATE TYPE "order_crm_status" AS ENUM ('new', 'in_progress', 'waiting_payment', 'paid', 'delivering', 'completed', 'cancelled');
     CREATE TABLE "affiliate_partners" (
@@ -652,6 +681,21 @@ async function createBoundaryFixture() {
       "partner_id" VARCHAR(32) NOT NULL,
       "kind" "affiliate_ledger_entry_kind" NOT NULL,
       "amount_kopecks" BIGINT NOT NULL, "created_at" TIMESTAMP(3) NOT NULL
+    );
+    CREATE TABLE "affiliate_payouts" (
+      "id" VARCHAR(32) PRIMARY KEY, "partner_id" VARCHAR(32) NOT NULL,
+      "status" "affiliate_payout_status" NOT NULL, "amount_kopecks" BIGINT NOT NULL,
+      "created_at" TIMESTAMP(3) NOT NULL
+    );
+    CREATE TABLE "affiliate_payout_journal_entries" (
+      "id" VARCHAR(32) PRIMARY KEY, "payout_id" VARCHAR(32) NOT NULL,
+      "partner_id" VARCHAR(32) NOT NULL, "kind" "affiliate_payout_journal_kind" NOT NULL,
+      "amount_kopecks" BIGINT NOT NULL, "created_at" TIMESTAMP(3) NOT NULL
+    );
+    CREATE TABLE "affiliate_payout_events" (
+      "id" VARCHAR(32) PRIMARY KEY, "payout_id" VARCHAR(32) NOT NULL,
+      "partner_id" VARCHAR(32) NOT NULL, "status" "affiliate_payout_status" NOT NULL,
+      "created_at" TIMESTAMP(3) NOT NULL
     );
     INSERT INTO "affiliate_partners" VALUES ('partner-active', 'active-user', 'active');
   `);
@@ -689,7 +733,7 @@ async function createBoundaryFixture() {
             text: string;
             values: unknown[];
           }) => {
-            if (query.text.includes('CURRENT_TIMESTAMP AS "as_of"')) {
+            if (query.text.includes('CLOCK_TIMESTAMP() AS "as_of"')) {
               return [
                 {
                   as_of: new Date("2026-09-17T12:00:00.000Z"),
@@ -709,7 +753,7 @@ async function createBoundaryFixture() {
 
   return {
     db,
-    service: new AffiliateAnalyticsService(prisma),
+    service: new AffiliateAnalyticsService(prisma, new AffiliatePayoutBalanceService()),
     close: () => db.close(),
   };
 }

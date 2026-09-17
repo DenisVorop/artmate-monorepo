@@ -10,9 +10,14 @@ import {
   getAffiliateCommissionAvailableAt,
   type AffiliateCommissionSnapshot,
 } from "./commission";
+import { AffiliatePayoutsService } from "./affiliate-payouts.service";
 
 @Injectable()
 export class AffiliateFinancialAccountingService {
+  constructor(
+    private readonly payoutsService: AffiliatePayoutsService,
+  ) {}
+
   async recordPaidOrderInTransaction(
     tx: Prisma.TransactionClient,
     order: AffiliateOrderSnapshot & { id: string },
@@ -123,7 +128,66 @@ export class AffiliateFinancialAccountingService {
         operationKey: `refund:${input.refundId}:affiliate-reversal`,
       },
     });
+    await this.payoutsService.cancelPendingInTransaction(
+      tx,
+      input.commission.partnerId,
+      "Возврат заказа изменил партнёрское вознаграждение",
+    );
     return reversal.reversedCommissionKopecks;
+  }
+
+  async recordEligibilityLossInTransaction(
+    tx: Prisma.TransactionClient,
+    orderId: string,
+  ) {
+    const commission = await tx.affiliateCommission.findUnique({
+      where: { orderId },
+      select: {
+        availableAt: true,
+        earnedKopecks: true,
+        partnerId: true,
+        ledgerEntries: {
+          select: { amountKopecks: true, kind: true },
+        },
+      },
+    });
+    if (!commission) return;
+    const credits = commission.ledgerEntries.filter(
+      (entry) => entry.kind === "CREDIT",
+    );
+    const credited = credits.reduce(
+      (sum, entry) => sum + entry.amountKopecks,
+      0n,
+    );
+    const reversed = commission.ledgerEntries
+      .filter((entry) => entry.kind === "REVERSAL")
+      .reduce((sum, entry) => sum - entry.amountKopecks, 0n);
+    if (
+      credits.length !== 1 ||
+      credited !== commission.earnedKopecks ||
+      reversed > credited
+    ) {
+      throw new Error("Affiliate commission ledger is inconsistent");
+    }
+    if (credited - reversed === 0n) return;
+    await tx.$queryRaw(
+      Prisma.sql`SELECT "id" FROM "affiliate_partners" WHERE "id" = ${commission.partnerId} FOR UPDATE`,
+    );
+    const [clock] = await tx.$queryRaw<Array<{ now: Date }>>(
+      Prisma.sql`SELECT clock_timestamp() AT TIME ZONE 'UTC' AS "now"`,
+    );
+    if (!clock) throw new Error("Could not capture affiliate eligibility time");
+    if (
+      !commission.availableAt ||
+      commission.availableAt.getTime() > clock.now.getTime()
+    ) {
+      return;
+    }
+    await this.payoutsService.cancelPendingInTransaction(
+      tx,
+      commission.partnerId,
+      "Статус заказа изменил доступность партнёрского вознаграждения",
+    );
   }
 }
 

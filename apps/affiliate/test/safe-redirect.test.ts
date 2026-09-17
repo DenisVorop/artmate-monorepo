@@ -7,6 +7,7 @@ test("allows only protected affiliate destinations", () => {
   assert.equal(getSafeRedirectPath("/"), "/");
   assert.equal(getSafeRedirectPath("/codes"), "/codes");
   assert.equal(getSafeRedirectPath("/cooperation"), "/cooperation");
+  assert.equal(getSafeRedirectPath("/payouts"), "/payouts");
 });
 
 test("rejects login loops and non-allowlisted paths", () => {

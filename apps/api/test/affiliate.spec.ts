@@ -326,6 +326,7 @@ function createPutFixture(
       }),
     },
     affiliatePartner: {
+      findUnique: async () => currentPartner ?? null,
       create: async ({ data }: { data: Record<string, unknown> }) => {
         if (options.collisionOnCreate) {
           throw new Prisma.PrismaClientKnownRequestError("collision", {

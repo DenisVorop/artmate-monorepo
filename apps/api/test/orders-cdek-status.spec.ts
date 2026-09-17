@@ -102,7 +102,8 @@ describe("CDEK order status mapping", () => {
           completionUpdates += 1;
         },
         recordRefundReversalInTransaction: async () => 0,
-      } as AffiliateFinancialAccountingService,
+        recordEligibilityLossInTransaction: async () => undefined,
+      } as unknown as AffiliateFinancialAccountingService,
     );
     (storage as unknown as { mapOrder: (value: unknown) => unknown }).mapOrder =
       (value) => value;

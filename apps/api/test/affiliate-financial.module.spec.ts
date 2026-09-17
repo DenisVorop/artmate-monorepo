@@ -5,6 +5,8 @@ import { Module } from "@nestjs/common";
 import { NestFactory } from "@nestjs/core";
 
 import { AffiliateFinancialAccountingService } from "../src/affiliate/financial-accounting.service";
+import { AffiliatePayoutBalanceService } from "../src/affiliate/affiliate-payout-balance.service";
+import { AffiliatePayoutsService } from "../src/affiliate/affiliate-payouts.service";
 import { AnalyticsOutboxService } from "../src/analytics/analytics-outbox.service";
 import { OrderActivationService } from "../src/auth/order-activation.service";
 import { OrdersStorage } from "../src/orders/orders.storage";
@@ -15,6 +17,8 @@ import { PromocodesService } from "../src/promocodes/promocodes.service";
 @Module({
   providers: [
     AffiliateFinancialAccountingService,
+    AffiliatePayoutBalanceService,
+    AffiliatePayoutsService,
     OrderRefundsService,
     OrdersStorage,
     { provide: PrismaService, useValue: {} },

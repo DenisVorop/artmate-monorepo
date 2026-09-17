@@ -86,6 +86,9 @@ export type AffiliateFinancePeriodDTO = {
 
 export type AffiliateBalanceDTO = {
   availableKopecks: number;
+  reservedKopecks: number;
+  paidKopecks: number;
+  debtKopecks: number;
   pendingKopecks: number;
   heldKopecks: number;
   reversedKopecks: number;
@@ -141,6 +144,76 @@ export type AffiliatePartnerLedgerDTO = {
   total: number;
   page: number;
   pageSize: number;
+};
+
+export type AffiliatePayoutStatusDTO =
+  | "pending"
+  | "paid"
+  | "rejected"
+  | "cancelled";
+
+export type AffiliatePayoutEventDTO = {
+  id: string;
+  status: AffiliatePayoutStatusDTO;
+  createdAt: string;
+  actorUserId: string | null;
+  reason: string | null;
+};
+
+export type AffiliatePayoutDTO = {
+  id: string;
+  status: AffiliatePayoutStatusDTO;
+  amountKopecks: number;
+  minimumPayoutKopecks: number;
+  createdAt: string;
+  updatedAt: string;
+  paidAt: string | null;
+  reference: string | null;
+  reason: string | null;
+  contract: AffiliateContractDTO & { version: number };
+  events: AffiliatePayoutEventDTO[];
+};
+
+export type AffiliatePayoutSummaryDTO = {
+  asOf: string;
+  availableKopecks: number;
+  reservedKopecks: number;
+  paidKopecks: number;
+  debtKopecks: number;
+  minimumPayoutKopecks: number;
+  canRequest: boolean;
+  blockedReason:
+    | "partner_inactive"
+    | "open_request"
+    | "debt"
+    | "no_available_balance"
+    | "below_minimum"
+    | null;
+};
+
+export type AffiliatePartnerPayoutsParamsDTO = {
+  page: number;
+  pageSize: number;
+};
+
+export type AffiliatePayoutListDTO = {
+  summary: AffiliatePayoutSummaryDTO;
+  items: AffiliatePayoutDTO[];
+  total: number;
+  page: number;
+  pageSize: number;
+};
+
+export type RecordAffiliatePayoutInputDTO = {
+  requestId: string;
+  paidAt: string;
+  reference: string;
+  confirmed: true;
+};
+
+export type RejectAffiliatePayoutInputDTO = {
+  requestId: string;
+  reason: string;
 };
 
 export type UpdateAffiliateCodeInputDTO = {

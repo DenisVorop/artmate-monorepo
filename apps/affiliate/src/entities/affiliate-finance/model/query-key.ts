@@ -1,6 +1,7 @@
 import type { AffiliateAnalyticsDaysDTO } from "@/shared/actions/affiliate";
 
 export const affiliateFinanceQueryKeys = {
+  all: (ownerId: string) => ["affiliate-finance", ownerId] as const,
   analytics: (
     ownerId: string,
     days: AffiliateAnalyticsDaysDTO,

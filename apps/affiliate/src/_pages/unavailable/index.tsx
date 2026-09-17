@@ -1,4 +1,4 @@
-import { RefreshCw, Sparkles, WifiOff } from "lucide-react";
+import { RefreshCw, WifiOff } from "lucide-react";
 
 import { publicSiteUrl, routes } from "@/shared/constants";
 import { Button, Card, CardContent } from "@/shared/ui";
@@ -11,11 +11,7 @@ export function UnavailablePage() {
           <span className="mx-auto grid size-14 place-items-center rounded-2xl bg-orange-100 text-orange-700">
             <WifiOff aria-hidden="true" />
           </span>
-          <p className="mt-6 inline-flex items-center gap-2 font-heading text-lg font-bold text-ink">
-            <Sparkles className="size-4 text-rose-600" aria-hidden="true" />
-            artmate partner
-          </p>
-          <h1 className="font-heading mt-4 text-3xl font-bold text-balance text-ink">
+          <h1 className="font-heading mt-6 text-3xl font-bold text-balance text-ink">
             Кабинет временно недоступен
           </h1>
           <p className="mx-auto mt-4 max-w-md text-sm leading-6 text-muted-foreground">

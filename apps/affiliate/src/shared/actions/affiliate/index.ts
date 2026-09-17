@@ -1,9 +1,11 @@
 export {
   createAffiliateCode,
+  createAffiliatePayout,
   getAffiliateAnalytics,
   getAffiliateCodes,
   getAffiliateLedger,
   getAffiliatePartner,
+  getAffiliatePayouts,
   updateAffiliateCode,
 } from "./affiliate.actions";
 export type {
@@ -17,6 +19,13 @@ export type {
   AffiliateLedgerItemDTO,
   AffiliateMetricsDTO,
   AffiliatePartnerDTO,
+  AffiliatePayoutBlockedReasonDTO,
+  AffiliatePayoutDTO,
+  AffiliatePayoutEventDTO,
+  AffiliatePayoutListDTO,
+  AffiliatePayoutStatusDTO,
+  AffiliatePayoutSummaryDTO,
   CreateAffiliateCodeInputDTO,
+  CreateAffiliatePayoutInputDTO,
   UpdateAffiliateCodeInputDTO,
 } from "./affiliate.types";

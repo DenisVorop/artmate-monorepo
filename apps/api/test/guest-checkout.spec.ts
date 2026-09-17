@@ -1518,6 +1518,7 @@ function createAccountingMock() {
     recordPaidOrderInTransaction: async () => undefined,
     recordCompletionInTransaction: async () => undefined,
     recordRefundReversalInTransaction: async () => 0,
+    recordEligibilityLossInTransaction: async () => undefined,
   } as unknown as AffiliateFinancialAccountingService;
 }
 

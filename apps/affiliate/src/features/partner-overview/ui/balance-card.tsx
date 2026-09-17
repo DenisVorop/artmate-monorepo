@@ -1,4 +1,12 @@
-import { Clock3, ShieldAlert, WalletCards } from "lucide-react";
+import {
+  ArrowUpRight,
+  CircleDollarSign,
+  Clock3,
+  Landmark,
+  ShieldAlert,
+  WalletCards,
+} from "lucide-react";
+import Link from "next/link";
 
 import {
   formatFinanceKopecks,
@@ -6,6 +14,7 @@ import {
   type AffiliateBalance,
 } from "@/entities/affiliate-finance";
 import { Card, CardContent } from "@/shared/ui";
+import { routes } from "@/shared/constants";
 
 import { formatMoscowDateTime } from "../lib";
 
@@ -47,8 +56,14 @@ export function BalanceCard({ asOf, balance }: BalanceCardProps) {
               <dt className="flex items-center gap-2 text-xs font-bold text-white/55">
                 {row.key === "pending" ? (
                   <Clock3 className="size-4" aria-hidden="true" />
-                ) : (
+                ) : row.key === "reserved" ? (
+                  <WalletCards className="size-4" aria-hidden="true" />
+                ) : row.key === "paid" ? (
+                  <Landmark className="size-4" aria-hidden="true" />
+                ) : row.key === "debt" ? (
                   <ShieldAlert className="size-4" aria-hidden="true" />
+                ) : (
+                  <CircleDollarSign className="size-4" aria-hidden="true" />
                 )}
                 {row.label}
               </dt>
@@ -65,6 +80,13 @@ export function BalanceCard({ asOf, balance }: BalanceCardProps) {
             {formatFinanceKopecks(balance.reversedKopecks)}
           </p>
           <p>Актуально на {formatMoscowDateTime(asOf)} МСК</p>
+          <Link
+            className="mt-4 inline-flex items-center gap-2 rounded-xl bg-white px-4 py-2.5 text-sm font-extrabold text-ink transition hover:bg-white/90 focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-white"
+            href={routes.payouts}
+          >
+            Заказать выплату
+            <ArrowUpRight className="size-4" aria-hidden="true" />
+          </Link>
         </div>
       </CardContent>
     </Card>

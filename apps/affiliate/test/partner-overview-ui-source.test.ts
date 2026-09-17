@@ -27,13 +27,15 @@ const statusHintSource = readSource(
 );
 const globalsSource = readSource("../app/globals.css");
 
-test("renders a real finance overview without unavailable payout promises", () => {
+test("renders a real finance overview with a payout link", () => {
   assert.match(overviewSource, /Финансовый обзор/);
   assert.match(balanceSource, /Доступно/);
   assert.match(overviewSource, /Обновить/);
+  assert.match(balanceSource, /Заказать выплату/);
+  assert.match(balanceSource, /routes\.payouts/);
   assert.doesNotMatch(
     `${overviewSource}${balanceSource}`,
-    /Вывести|Заказать выплату|следующ(ий|ем) этап|только для чтения|не заменён нулями/i,
+    /следующ(ий|ем) этап|только для чтения|не заменён нулями/i,
   );
 });
 

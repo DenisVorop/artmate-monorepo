@@ -440,7 +440,9 @@ function createFixture() {
     },
     order: { findUnique: async () => sortedOrder() },
   } as unknown as PrismaService;
-  const accounting = new AffiliateFinancialAccountingService();
+  const accounting = new AffiliateFinancialAccountingService({
+    cancelPendingInTransaction: async () => undefined,
+  } as never);
   const service = new OrderRefundsService(prisma, accounting);
   return { history, order, service, transactionModes, transactionOptions };
 }

@@ -19,6 +19,12 @@ import {
   AffiliateAnalyticsController,
 } from "./affiliate-analytics.controller";
 import { AffiliateAnalyticsService } from "./affiliate-analytics.service";
+import {
+  AdminAffiliatePayoutsController,
+  AffiliatePayoutsController,
+} from "./affiliate-payouts.controller";
+import { AffiliatePayoutBalanceService } from "./affiliate-payout-balance.service";
+import { AffiliatePayoutsService } from "./affiliate-payouts.service";
 
 @Module({
   imports: [AuthModule, UsersModule],
@@ -29,13 +35,17 @@ import { AffiliateAnalyticsService } from "./affiliate-analytics.service";
     AdminAffiliateCodesController,
     AffiliateAnalyticsController,
     AdminAffiliateAnalyticsController,
+    AffiliatePayoutsController,
+    AdminAffiliatePayoutsController,
   ],
   providers: [
     AffiliateService,
     AffiliateCodesService,
     AffiliateFinancialAccountingService,
     AffiliateAnalyticsService,
+    AffiliatePayoutBalanceService,
+    AffiliatePayoutsService,
   ],
-  exports: [AffiliateFinancialAccountingService],
+  exports: [AffiliateFinancialAccountingService, AffiliatePayoutsService],
 })
 export class AffiliateModule {}

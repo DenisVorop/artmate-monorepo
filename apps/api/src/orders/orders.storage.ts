@@ -911,6 +911,15 @@ export class OrdersStorage {
           !existingOrder.completedAt
             ? new Date()
             : existingOrder.completedAt;
+        if (
+          existingOrder.crmStatus === PrismaOrderCrmStatus.COMPLETED &&
+          nextStatus !== PrismaOrderCrmStatus.COMPLETED
+        ) {
+          await this.affiliateFinancialAccountingService.recordEligibilityLossInTransaction(
+            tx,
+            orderId,
+          );
+        }
         await tx.order.update({
           where: { id: orderId },
           data: {
@@ -1616,6 +1625,15 @@ export class OrdersStorage {
           nextOrderStatus === PrismaOrderCrmStatus.COMPLETED
             ? (existingOrder.completedAt ?? new Date())
             : existingOrder.completedAt;
+        if (
+          existingOrder.crmStatus === PrismaOrderCrmStatus.COMPLETED &&
+          nextOrderStatus !== PrismaOrderCrmStatus.COMPLETED
+        ) {
+          await this.affiliateFinancialAccountingService.recordEligibilityLossInTransaction(
+            tx,
+            existingOrder.id,
+          );
+        }
         await tx.order.update({
           where: { id: existingOrder.id },
           data: {
