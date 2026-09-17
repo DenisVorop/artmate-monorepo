@@ -1,5 +1,22 @@
 # Changelog
 
+## [0.42.0](https://github.com/DenisVorop/artmate-monorepo/compare/v0.41.0...v0.42.0) (2026-09-17)
+
+
+### Features
+
+* **affiliate:** add commission and refund ledger ([93cc8ea](https://github.com/DenisVorop/artmate-monorepo/commit/93cc8eaa5d2c1a350d93e23c12569764cc54f376))
+* **affiliate:** add partner finance overview ([0b2141d](https://github.com/DenisVorop/artmate-monorepo/commit/0b2141df0645d9c47c00a9496ed30bf80aab01c7))
+* **affiliate:** add partner payout requests ([49d6397](https://github.com/DenisVorop/artmate-monorepo/commit/49d6397efe5b66c1146aed18339e14fd3bb082d3))
+* **affiliate:** add partner portal foundation ([3954dae](https://github.com/DenisVorop/artmate-monorepo/commit/3954daed515b7e4af372a6ef86f456b260e1954b))
+* **affiliate:** add partner promo codes ([fe1048e](https://github.com/DenisVorop/artmate-monorepo/commit/fe1048e8976cc1ff427845d3cfb79dd14d7c1632))
+* **site:** refresh partner landing journey ([994bc15](https://github.com/DenisVorop/artmate-monorepo/commit/994bc155f727fe65de6d51af314ab14bb58b1f57))
+
+
+### Bug Fixes
+
+* **affiliate:** simplify partner login ([3520644](https://github.com/DenisVorop/artmate-monorepo/commit/35206443878054779b966c63014f31988bc95d6b))
+
 ## [0.41.0](https://github.com/DenisVorop/artmate-monorepo/compare/v0.40.0...v0.41.0) (2026-09-16)
 
 
