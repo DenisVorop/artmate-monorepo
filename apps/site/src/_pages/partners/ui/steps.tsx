@@ -1,28 +1,40 @@
-import { ArrowDownRight, BadgeCheck, MessagesSquare, Send } from "lucide-react";
+import { ArrowDownRight, FileSignature, Megaphone, Send, WalletCards } from "lucide-react";
 
-import { Button, CtaGradientLink } from "@/shared/ui";
+import { routes } from "@/shared/constants";
+import { cn } from "@/shared/lib";
+import { Button, Card } from "@/shared/ui";
 
 import { Reveal } from "./reveal";
 import { SectionHeading } from "./section-heading";
 
 const steps = [
   {
-    description: "Расскажите о себе, площадке, аудитории и формате, который хотите попробовать.",
+    accent: "from-rose-400 to-orange-300 text-rose-200 shadow-rose-950/60",
+    description: "Расскажите о себе и оставьте ссылку на блог.",
     icon: Send,
     number: "01",
-    title: "Оставьте заявку",
+    title: "Оставляете заявку",
   },
   {
-    description: "Обсудим механику промокода и распределение выгоды.",
-    icon: MessagesSquare,
+    accent: "from-orange-300 to-amber-200 text-orange-200 shadow-orange-950/60",
+    description: "Обсудим условия, подпишем договор и откроем вам кабинет.",
+    icon: FileSignature,
     number: "02",
-    title: "Соберём ваш формат",
+    title: "Подписываем договор",
   },
   {
-    description: "Получите персональный промокод и делитесь Artmate в своём стиле.",
-    icon: BadgeCheck,
+    accent: "from-fuchsia-400 to-rose-300 text-fuchsia-200 shadow-fuchsia-950/60",
+    description: "Создавайте промокоды и делитесь ими с подписчиками.",
+    icon: Megaphone,
     number: "03",
-    title: "Запускайте партнёрство",
+    title: "Выкладываете промокоды",
+  },
+  {
+    accent: "from-violet-400 to-fuchsia-300 text-violet-200 shadow-violet-950/60",
+    description: "Следите за доходом и запрашивайте выплату в кабинете.",
+    icon: WalletCards,
+    number: "04",
+    title: "Выводите вознаграждение",
   },
 ] as const;
 
@@ -47,27 +59,49 @@ export function Steps() {
               id="partner-steps-title"
               title={
                 <>
-                  От знакомства до первого <span className="text-rose-400">промокода</span>
+                  От заявки до <span className="text-rose-400">выплаты</span>
                 </>
               }
-              description="Три ясных шага, чтобы подобрать механику под вашу площадку и подготовить запуск."
+              description="Начните с заявки — мы свяжемся с вами и обсудим условия."
             />
           </div>
         </Reveal>
 
-        <ol className="mt-10 grid gap-4 lg:grid-cols-3 lg:gap-5">
-          {steps.map(({ description, icon: Icon, number, title }, index) => (
-            <li key={number}>
+        <ol className="relative mt-10 grid gap-5 before:absolute before:top-8 before:bottom-8 before:left-12 before:w-px before:bg-linear-to-b before:from-rose-400/70 before:via-orange-300/45 before:to-violet-400/70 sm:grid-cols-2 sm:before:hidden lg:grid-cols-4 lg:gap-5 lg:before:top-8 lg:before:right-12 lg:before:bottom-auto lg:before:left-12 lg:before:block lg:before:h-px lg:before:w-auto lg:before:bg-linear-to-r">
+          {steps.map(({ accent, description, icon: Icon, number, title }, index) => (
+            <li key={number} className="relative min-w-0">
               <Reveal delay={index * 0.07} className="h-full">
-                <article className="group relative h-full min-h-64 overflow-hidden rounded-3xl border border-white/10 bg-white/[0.06] p-7 shadow-2xl backdrop-blur-md transition-[border-color,background-color] duration-300 hover:border-rose-400/35 hover:bg-white/[0.09]">
-                  <span className="absolute top-4 right-5 font-heading text-6xl font-black text-white/[0.05]">
-                    {number}
-                  </span>
-                  <span className="flex size-11 items-center justify-center rounded-2xl border border-white/10 bg-white/10 text-rose-300">
-                    <Icon className="size-5" />
-                  </span>
-                  <h3 className="mt-12 font-heading text-xl font-bold text-white">{title}</h3>
-                  <p className="mt-3 leading-7 text-stone-400">{description}</p>
+                <article className="group h-full">
+                  <Card className="relative h-full min-h-64 gap-0 overflow-hidden rounded-3xl bg-white/[0.055] px-6 py-6 text-white shadow-2xl ring-white/10 backdrop-blur-md transition-[background-color,box-shadow] duration-300 hover:bg-white/[0.085] hover:shadow-black/40 motion-reduce:transition-none sm:px-7 sm:py-7 lg:px-5 xl:px-7">
+                    <div
+                      aria-hidden
+                      className={cn(
+                        "absolute inset-x-0 top-0 h-px bg-linear-to-r opacity-80",
+                        accent,
+                      )}
+                    />
+                    <div className="relative flex items-center justify-between gap-4">
+                      <span
+                        aria-hidden
+                        className={cn(
+                          "relative z-10 flex size-12 shrink-0 items-center justify-center rounded-2xl border border-white/15 bg-stone-950 shadow-lg",
+                          accent,
+                        )}
+                      >
+                        <Icon className="size-5" />
+                      </span>
+                      <span
+                        aria-hidden
+                        className="font-heading text-5xl font-black tracking-tighter text-white/10"
+                      >
+                        {number}
+                      </span>
+                    </div>
+                    <h3 className="mt-12 font-heading text-xl leading-tight font-bold text-white">
+                      {title}
+                    </h3>
+                    <p className="mt-3 text-base leading-7 text-stone-300">{description}</p>
+                  </Card>
                 </article>
               </Reveal>
             </li>
@@ -80,10 +114,10 @@ export function Steps() {
             size="lg"
             className="h-12 border-0 bg-linear-to-r from-rose-500 via-rose-400 to-orange-400 px-5 font-bold text-white shadow-lg shadow-rose-950/30 hover:from-rose-500 hover:via-rose-400 hover:to-orange-400"
           >
-            <CtaGradientLink href="#partner-application">
+            <a href={`${routes.partners}#partner-application`}>
               Заполнить заявку
-              <ArrowDownRight className="transition-transform group-hover/button:translate-x-0.5 group-hover/button:translate-y-0.5" />
-            </CtaGradientLink>
+              <ArrowDownRight aria-hidden />
+            </a>
           </Button>
         </Reveal>
       </div>

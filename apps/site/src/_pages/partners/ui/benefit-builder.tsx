@@ -35,6 +35,10 @@ export function BenefitBuilder() {
 
         <Reveal delay={0.08}>
           <BenefitFlow />
+          <p className="mx-auto mt-4 max-w-2xl text-sm leading-6 text-stone-600">
+            Для авторов с хорошими результатами можем индивидуально увеличить процент вознаграждения.
+            Условия обсуждаем отдельно.
+          </p>
         </Reveal>
       </div>
     </section>
