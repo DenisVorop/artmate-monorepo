@@ -1,5 +1,6 @@
 export type RefundPriceGroup = Readonly<{
   unitPriceKopecks: number;
+  loyaltyPointsPerUnit: number;
   quantity: number;
 }>;
 
@@ -20,32 +21,50 @@ export function allocateIncrementalRefund(
 
   let skipped = returnedQuantity;
   let requested = incrementalQuantity;
-  let amountKopecks = 0;
+  let amountKopecks = 0n;
+  let loyaltyPoints = 0n;
   const remainingPriceGroups: RefundPriceGroup[] = [];
 
   for (const group of priceGroups) {
     assertNonnegativeSafeInteger(group.unitPriceKopecks, "Refund unit price");
+    assertNonnegativeSafeInteger(
+      group.loyaltyPointsPerUnit,
+      "Refund unit loyalty points",
+    );
     assertPositiveSafeInteger(group.quantity, "Refund price group quantity");
 
     const afterPreviouslyReturned = Math.max(0, group.quantity - skipped);
     skipped = Math.max(0, skipped - group.quantity);
     const refundedFromGroup = Math.min(afterPreviouslyReturned, requested);
     requested -= refundedFromGroup;
-    amountKopecks += refundedFromGroup * group.unitPriceKopecks;
+    amountKopecks += BigInt(refundedFromGroup) * BigInt(group.unitPriceKopecks);
+    loyaltyPoints +=
+      BigInt(refundedFromGroup) * BigInt(group.loyaltyPointsPerUnit);
     const remaining = afterPreviouslyReturned - refundedFromGroup;
     if (remaining > 0) {
       remainingPriceGroups.push({
         unitPriceKopecks: group.unitPriceKopecks,
+        loyaltyPointsPerUnit: group.loyaltyPointsPerUnit,
         quantity: remaining,
       });
     }
   }
 
-  if (skipped > 0 || requested > 0 || !Number.isSafeInteger(amountKopecks)) {
+  if (skipped > 0 || requested > 0) {
     throw new RangeError("Refund quantity exceeds purchased quantity");
   }
+  if (
+    amountKopecks > BigInt(Number.MAX_SAFE_INTEGER) ||
+    loyaltyPoints > BigInt(Number.MAX_SAFE_INTEGER)
+  ) {
+    throw new RangeError("Refund allocation exceeds safe integer range");
+  }
 
-  return { amountKopecks, remainingPriceGroups };
+  return {
+    amountKopecks: Number(amountKopecks),
+    loyaltyPoints: Number(loyaltyPoints),
+    remainingPriceGroups,
+  };
 }
 
 export function getAffiliateCommissionStatus(input: {

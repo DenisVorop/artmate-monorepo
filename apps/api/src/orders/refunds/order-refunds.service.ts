@@ -249,7 +249,12 @@ export class OrderRefundsService {
         returnedQuantity,
         remainingQuantity: item.quantity - returnedQuantity,
         refundableKopecks,
-        remainingPriceGroups: currentGroups,
+        remainingPriceGroups: currentGroups.map(
+          ({ unitPriceKopecks, quantity }) => ({
+            unitPriceKopecks,
+            quantity,
+          }),
+        ),
       };
     });
     const deliveryPaidKopecks = rublesToKopecks(order.deliveryPrice);
@@ -358,10 +363,13 @@ export class OrderRefundsService {
     return new Map(
       snapshot.items.map((item) => [
         item.id,
-        item.priceGroups.map(({ unitPriceKopecks, quantity }) => ({
-          unitPriceKopecks,
-          quantity,
-        })),
+        item.priceGroups.map(
+          ({ unitPriceKopecks, quantity, loyaltyPointsPerUnit }) => ({
+            unitPriceKopecks,
+            quantity,
+            loyaltyPointsPerUnit,
+          }),
+        ),
       ]),
     );
   }
