@@ -48,6 +48,7 @@ model User {
   workshopModerationEvents WorkshopModerationEvent[]   @relation("WorkshopModerationActor")
   workshopWorkReports      WorkshopWorkReport[]        @relation("WorkshopReportReporter")
   affiliatePartner         AffiliatePartner?
+  loyaltyMember            LoyaltyMember?
   affiliateContractChanges AffiliateContractRevision[] @relation("AffiliateContractRevisionActor")
   authoredOrderRefunds     OrderRefund[]                 @relation("OrderRefundAuthor")
   affiliatePayoutEvents    AffiliatePayoutEvent[]        @relation("AffiliatePayoutEventActor")

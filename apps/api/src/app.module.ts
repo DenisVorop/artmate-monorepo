@@ -16,6 +16,7 @@ import { ContentAssistantModule } from "./content-assistant/content-assistant.mo
 import { DeliveryModule } from "./delivery/delivery.module";
 import { FeatureBannersModule } from "./feature-banners/feature-banners.module";
 import { OrdersModule } from "./orders/orders.module";
+import { LoyaltyHttpModule } from "./loyalty/loyalty-http.module";
 import { OzonModule } from "./ozon/ozon.module";
 import { PartnerApplicationsModule } from "./partner-applications/partner-applications.module";
 import { PrismaModule } from "./prisma/prisma.module";
@@ -34,6 +35,7 @@ import { WorkshopsModule } from "./workshops/workshops.module";
     AuthModule,
     CartModule,
     OrdersModule,
+    LoyaltyHttpModule,
     ProductsModule,
     PromocodesModule,
     CatalogLandingsModule,

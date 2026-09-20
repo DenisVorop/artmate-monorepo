@@ -14,6 +14,7 @@
     "pretest": "prisma generate",
     "test": "node --test --test-concurrency=1 --require ts-node/register test/*.spec.ts",
     "test:payout-postgres": "node --test --test-concurrency=1 --require ts-node/register test/affiliate-payouts.postgres.spec.ts",
+    "test:loyalty-postgres": "node --test --test-concurrency=1 --require ts-node/register test/loyalty-wallet.postgres.spec.ts",
     "check-types:test": "tsc --noEmit -p tsconfig.test.json",
     "lint": "eslint --max-warnings 0",
     "precheck-types": "prisma generate",
