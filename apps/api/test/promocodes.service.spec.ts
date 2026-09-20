@@ -111,7 +111,6 @@ describe("PromocodesService", () => {
     await assert.rejects(
       service.reserveInTransaction(tx as never, {
         code: "SALE10",
-        deliveryPriceKopecks: 0,
         orderId: "order-1",
         items: [{ id: "item", unitPriceKopecks: 10_000, quantity: 1 }],
       }),
@@ -138,7 +137,6 @@ describe("PromocodesService", () => {
     await assert.rejects(
       service.reserveInTransaction(tx as never, {
         code: "SALE10",
-        deliveryPriceKopecks: 0,
         orderId: "order-1",
         items: [{ id: "item", unitPriceKopecks: 10_000, quantity: 1 }],
       }),
@@ -182,7 +180,6 @@ describe("PromocodesService", () => {
 
     const result = await service.reserveInTransaction(tx as never, {
       code: "sale10",
-      deliveryPriceKopecks: 49_000,
       orderId: "order-1",
       userId: "user-1",
       items: [{ id: "item", unitPriceKopecks: 10_000, quantity: 1 }],
@@ -192,9 +189,9 @@ describe("PromocodesService", () => {
       calls.map((call) => call.operation),
       ["lock", "order", "redemption", "counter"],
     );
-    assert.equal(calls[1]?.data?.discount, "10.00");
+    assert.equal("discount" in (calls[1]?.data ?? {}), false);
     assert.equal(calls[1]?.data?.promoCode, "SALE10");
-    assert.equal(calls[1]?.data?.total, "580.00");
+    assert.equal("total" in (calls[1]?.data ?? {}), false);
     assert.equal(
       (calls[1]?.data?.promoTermsSnapshot as { rulesVersion: string })
         .rulesVersion,
@@ -296,7 +293,6 @@ describe("PromocodesService", () => {
 
     await service.reserveInTransaction(tx as never, {
       code: "AFFILIATE",
-      deliveryPriceKopecks: 49_000,
       orderId: "order-1",
       items: [{ id: "item", unitPriceKopecks: 100_000, quantity: 1 }],
     });
@@ -324,7 +320,6 @@ describe("PromocodesService", () => {
     calls.splice(0);
     await service.reserveInTransaction(tx as never, {
       code: "AFFILIATE",
-      deliveryPriceKopecks: 0,
       orderId: "order-2",
       items: [{ id: "item", unitPriceKopecks: 100_000, quantity: 1 }],
     });
@@ -636,7 +631,6 @@ describe("PromocodesService", () => {
     await assert.rejects(
       service.reserveInTransaction(tx as never, {
         code: "SALE10",
-        deliveryPriceKopecks: 0,
         orderId: "order-new",
         userId: "user-1",
         items: [{ id: "item", unitPriceKopecks: 10_000, quantity: 1 }],

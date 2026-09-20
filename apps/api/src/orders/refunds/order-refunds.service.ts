@@ -20,6 +20,7 @@ import {
   type RefundPriceGroup,
 } from "./refund-accounting";
 import { parseOrderRefundRequest } from "./refund-request";
+import { readOrderPricing } from "../pricing/read-order-pricing";
 
 const refundOrderInclude = {
   items: { orderBy: { createdAt: "asc" } },
@@ -353,158 +354,17 @@ export class OrderRefundsService {
   }
 
   private getRefundablePricing(order: RefundOrder): RefundablePricing {
-    if (order.items.length === 0) {
-      throw new TypeError("Order items are missing");
-    }
-    const orderSubtotalKopecks = rublesToKopecks(order.subtotal);
-    const orderDiscountKopecks = rublesToKopecks(order.discount);
-    const deliveryKopecks = rublesToKopecks(order.deliveryPrice);
-    const orderTotalKopecks = rublesToKopecks(order.total);
-    if (
-      orderSubtotalKopecks - orderDiscountKopecks + deliveryKopecks !==
-      orderTotalKopecks
-    ) {
-      throw new TypeError("Order totals are inconsistent");
-    }
-    if (!order.promoCode) {
-      if (orderDiscountKopecks !== 0) {
-        throw new TypeError("Plain order discount is inconsistent");
-      }
-      let subtotalKopecks = 0;
-      const result = new Map(
-        order.items.map((item) => {
-          const unitPriceKopecks = rublesToKopecks(item.price);
-          const lineTotalKopecks = safeProduct(unitPriceKopecks, item.quantity);
-          if (lineTotalKopecks !== rublesToKopecks(item.lineTotal)) {
-            throw new TypeError("Order item total is inconsistent");
-          }
-          subtotalKopecks = safeSum(subtotalKopecks, lineTotalKopecks);
-          return [
-            item.productId,
-            [
-              {
-                unitPriceKopecks,
-                quantity: item.quantity,
-              },
-            ],
-          ] as const;
-        }),
-      );
-      if (subtotalKopecks !== orderSubtotalKopecks) {
-        throw new TypeError("Order subtotal is inconsistent");
-      }
-      return result;
-    }
-    const snapshot = asObject(order.promoPricingSnapshot);
-    if (!snapshot || !Array.isArray(snapshot.items)) {
-      throw new TypeError("Promo pricing snapshot is invalid");
-    }
-    const result = new Map<string, readonly RefundPriceGroup[]>();
-    let basketSubtotalKopecks = 0;
-    let basketDiscountKopecks = 0;
-    let basketTotalKopecks = 0;
-    for (const orderItem of order.items) {
-      const value = snapshot.items.find(
-        (candidate) => asObject(candidate)?.id === orderItem.productId,
-      );
-      const item = asObject(value);
-      if (
-        !item ||
-        item.quantity !== orderItem.quantity ||
-        !Array.isArray(item.priceGroups)
-      ) {
-        throw new TypeError("Promo pricing item snapshot is invalid");
-      }
-      const unitPriceKopecks = nonnegativeInteger(item.unitPriceKopecks);
-      const subtotalKopecks = nonnegativeInteger(item.subtotalKopecks);
-      const discountKopecks = nonnegativeInteger(item.discountKopecks);
-      const totalKopecks = nonnegativeInteger(item.totalKopecks);
-      if (
-        unitPriceKopecks !== rublesToKopecks(orderItem.price) ||
-        subtotalKopecks !== safeProduct(unitPriceKopecks, orderItem.quantity) ||
-        subtotalKopecks !== rublesToKopecks(orderItem.lineTotal) ||
-        discountKopecks > subtotalKopecks ||
-        subtotalKopecks - discountKopecks !== totalKopecks
-      ) {
-        throw new TypeError("Promo pricing item totals are inconsistent");
-      }
-      let groupTotalKopecks = 0;
-      const groups = item.priceGroups.map((value) => {
-        const group = asObject(value);
-        const unitPriceKopecks = nonnegativeInteger(group?.unitPriceKopecks);
-        const quantity = positiveInteger(group?.quantity);
-        const totalKopecks = nonnegativeInteger(group?.totalKopecks);
-        if (unitPriceKopecks * quantity !== totalKopecks) {
-          throw new TypeError("Promo receipt price group total is invalid");
-        }
-        groupTotalKopecks = safeSum(groupTotalKopecks, totalKopecks);
-        return { unitPriceKopecks, quantity };
-      });
-      if (
-        groups.reduce((sum, group) => sum + group.quantity, 0) !==
-        orderItem.quantity
-      ) {
-        throw new TypeError("Promo receipt quantities do not match order");
-      }
-      if (groupTotalKopecks !== totalKopecks) {
-        throw new TypeError("Promo receipt total does not match order item");
-      }
-      basketSubtotalKopecks = safeSum(basketSubtotalKopecks, subtotalKopecks);
-      basketDiscountKopecks = safeSum(basketDiscountKopecks, discountKopecks);
-      basketTotalKopecks = safeSum(basketTotalKopecks, totalKopecks);
-      result.set(orderItem.productId, groups);
-    }
-    if (result.size !== snapshot.items.length) {
-      throw new TypeError("Promo pricing items do not match order");
-    }
-    if (
-      nonnegativeInteger(snapshot.subtotalKopecks) !== basketSubtotalKopecks ||
-      nonnegativeInteger(snapshot.discountKopecks) !== basketDiscountKopecks ||
-      nonnegativeInteger(snapshot.totalKopecks) !== basketTotalKopecks ||
-      basketSubtotalKopecks !== orderSubtotalKopecks ||
-      basketDiscountKopecks !== orderDiscountKopecks ||
-      basketTotalKopecks + deliveryKopecks !== orderTotalKopecks
-    ) {
-      throw new TypeError("Promo basket totals do not match order");
-    }
-    return result;
+    const snapshot = readOrderPricing(order);
+    return new Map(
+      snapshot.items.map((item) => [
+        item.id,
+        item.priceGroups.map(({ unitPriceKopecks, quantity }) => ({
+          unitPriceKopecks,
+          quantity,
+        })),
+      ]),
+    );
   }
-}
-
-function asObject(value: unknown): Record<string, unknown> | undefined {
-  return value && typeof value === "object" && !Array.isArray(value)
-    ? (value as Record<string, unknown>)
-    : undefined;
-}
-
-function nonnegativeInteger(value: unknown) {
-  if (!Number.isSafeInteger(value) || Number(value) < 0) {
-    throw new TypeError("Saved monetary value is invalid");
-  }
-  return value as number;
-}
-
-function positiveInteger(value: unknown) {
-  if (!Number.isSafeInteger(value) || Number(value) <= 0) {
-    throw new TypeError("Saved quantity is invalid");
-  }
-  return value as number;
-}
-
-function safeProduct(left: number, right: number) {
-  const result = left * right;
-  if (!Number.isSafeInteger(result)) {
-    throw new RangeError("Saved monetary product exceeds safe integer range");
-  }
-  return result;
-}
-
-function safeSum(left: number, right: number) {
-  const result = left + right;
-  if (!Number.isSafeInteger(result)) {
-    throw new RangeError("Saved monetary sum exceeds safe integer range");
-  }
-  return result;
 }
 
 function safeBigIntToNumber(value: bigint) {

@@ -243,7 +243,6 @@ describe("welcome promocode", () => {
         tx as never,
         {
           code: "ARTMSTART",
-          deliveryPriceKopecks: 0,
           orderId: "order-1",
           userId: "user-1",
           items: [{ id: "item-1", unitPriceKopecks: 10_000, quantity: 1 }],
@@ -289,7 +288,6 @@ describe("welcome promocode", () => {
     });
     const input = {
       code: "ARTMSTART",
-      deliveryPriceKopecks: 0,
       orderId: "order-1",
       userId: "user-1",
       items: [{ id: "item-1", unitPriceKopecks: 10_000, quantity: 1 }],

@@ -88,6 +88,11 @@ function createFixture() {
         };
       },
       findUnique: async () => saved,
+      update: async ({ data }: { data: Record<string, unknown> }) => {
+        if (!saved) throw new Error("Order not created");
+        Object.assign(saved, data);
+        return saved;
+      },
     },
   };
   const prisma = {
@@ -129,6 +134,15 @@ describe("immutable order shipping package snapshots", () => {
     const input = createInput();
     const expected = structuredClone(input.items[0]!.shippingPackage);
     const order = await fixture.storage.createOrder(input);
+
+    assert.deepEqual(await fixture.storage.getOrderReceiptPricing(order.id), [
+      {
+        id: "product-1",
+        priceGroups: [
+          { quantity: 2, unitPriceKopecks: 79_900, totalKopecks: 159_800 },
+        ],
+      },
+    ]);
 
     assert.equal(fixture.calls.transactions, 1);
     assert.equal(fixture.calls.creates, 1);
