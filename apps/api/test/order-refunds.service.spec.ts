@@ -12,10 +12,88 @@ import {
   OrderPaymentStatus,
 } from "../src/generated/prisma/client";
 import { OrderRefundsService } from "../src/orders/refunds/order-refunds.service";
+import { OrdersStorage } from "../src/orders/orders.storage";
+import { createOrderPricingSnapshot } from "../src/orders/pricing/pricing-snapshot";
 import { OrderRefundsDTO } from "../src/orders/dto";
 import type { PrismaService } from "../src/prisma/prisma.service";
 
 describe("OrderRefundsService", () => {
+  it("uses the same cash groups for receipts and refunds without requiring a promo code", async () => {
+    const fixture = createFixture();
+    const snapshot = fixture.order.pricingSnapshot;
+    fixture.order.promoCode = null;
+    fixture.order.discount = "0.60";
+    fixture.order.total = "3.40";
+    Object.assign(snapshot, {
+      promoDiscountKopecks: 0,
+      loyaltyDiscountKopecks: 60,
+      discountKopecks: 60,
+      itemsTotalKopecks: 240,
+      totalKopecks: 340,
+    });
+    Object.assign(snapshot.items[0]!, {
+      promoDiscountKopecks: 0,
+      loyaltyPoints: 3,
+      loyaltyDiscountKopecks: 60,
+      totalKopecks: 240,
+      priceGroups: [
+        {
+          quantity: 3,
+          unitPriceKopecks: 80,
+          promoDiscountPerUnitKopecks: 0,
+          loyaltyPointsPerUnit: 1,
+          totalKopecks: 240,
+        },
+      ],
+    });
+    const storage = Object.assign(Object.create(OrdersStorage.prototype), {
+      prisma: { order: { findUnique: async () => fixture.order } },
+    }) as OrdersStorage;
+    assert.deepEqual(await storage.getOrderReceiptPricing(fixture.order.id), [
+      {
+        id: "product-1",
+        priceGroups: [{ quantity: 3, unitPriceKopecks: 80, totalKopecks: 240 }],
+      },
+    ]);
+    const result = await fixture.service.createOrderRefund(
+      fixture.order.id,
+      request(
+        "00000000-0000-4000-8000-000000000099",
+        "loyalty-cash",
+        [{ productId: "product-1", quantity: 1 }],
+        0,
+      ),
+      "admin-1",
+    );
+    assert.equal(result.refunds[0]?.items[0]?.amountKopecks, 80);
+    assert.equal(result.items[0]?.refundableKopecks, 160);
+  });
+
+  it("does not fall back to the old promo snapshot when common pricing is missing", async () => {
+    const fixture = createFixture();
+    Object.assign(fixture.order, { pricingSnapshot: null });
+    const storage = Object.assign(Object.create(OrdersStorage.prototype), {
+      prisma: { order: { findUnique: async () => fixture.order } },
+    }) as OrdersStorage;
+    await assert.rejects(
+      storage.getOrderReceiptPricing(fixture.order.id),
+      /snapshot must be an object/,
+    );
+    await assert.rejects(
+      fixture.service.createOrderRefund(
+        fixture.order.id,
+        request(
+          "00000000-0000-4000-8000-000000000098",
+          "missing-pricing",
+          [{ productId: "product-1", quantity: 1 }],
+          0,
+        ),
+        "admin-1",
+      ),
+    );
+    assert.equal(fixture.order.refunds.length, 0);
+  });
+
   it("projects refundable groups before the next refund", async () => {
     const fixture = createFixture();
 
@@ -199,7 +277,7 @@ describe("OrderRefundsService", () => {
 
   it("blocks recording when persisted receipt group totals are malformed", async () => {
     const fixture = createFixture();
-    fixture.order.promoPricingSnapshot.items[0]!.priceGroups[0]!.totalKopecks = 269;
+    fixture.order.pricingSnapshot.items[0]!.priceGroups[0]!.totalKopecks = 269;
 
     const projection = await fixture.service.getOrderRefunds(fixture.order.id);
     assert.equal(projection.canRecord, false);
@@ -221,13 +299,13 @@ describe("OrderRefundsService", () => {
   it("blocks well-typed pricing snapshots inconsistent with the persisted order", async () => {
     const corruptions = [
       (fixture: ReturnType<typeof createFixture>) => {
-        fixture.order.promoPricingSnapshot.items[0]!.totalKopecks = 271;
+        fixture.order.pricingSnapshot.items[0]!.totalKopecks = 271;
       },
       (fixture: ReturnType<typeof createFixture>) => {
-        fixture.order.promoPricingSnapshot.totalKopecks = 271;
+        fixture.order.pricingSnapshot.totalKopecks = 371;
       },
       (fixture: ReturnType<typeof createFixture>) => {
-        fixture.order.promoPricingSnapshot.items[0]!.unitPriceKopecks = 101;
+        fixture.order.pricingSnapshot.items[0]!.unitPriceKopecks = 101;
       },
       (fixture: ReturnType<typeof createFixture>) => {
         fixture.order.total = { toString: () => "3.71" };
@@ -316,7 +394,9 @@ function createFixture() {
   const transactionModes: string[] = [];
   const order = {
     id: "order-1",
-    promoCode: "ARTM-SAVED",
+    promoCode: "ARTM-SAVED" as string | null,
+    currency: "RUB",
+    pricingSnapshot: {} as ReturnType<typeof createOrderPricingSnapshot>,
     promoPricingSnapshot: {
       subtotalKopecks: 300,
       discountKopecks: 30,
@@ -381,6 +461,10 @@ function createFixture() {
       ] as FixtureLedgerEntry[],
     },
   };
+  order.pricingSnapshot = createOrderPricingSnapshot(
+    order.promoPricingSnapshot,
+    100,
+  );
   const tx = {
     $queryRaw: async () => [{ id: order.id }],
     $executeRawUnsafe: async (statement: string) => {

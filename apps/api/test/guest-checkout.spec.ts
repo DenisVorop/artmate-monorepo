@@ -19,6 +19,7 @@ import { CartStorage } from "../src/cart/cart.storage";
 import { CreateOrderRequestDTO } from "../src/orders/dto";
 import { OrdersService } from "../src/orders/orders.service";
 import { OrdersStorage } from "../src/orders/orders.storage";
+import { calculatePromoPricing } from "../src/promocodes/pricing";
 import type { PrismaService } from "../src/prisma/prisma.service";
 import type { OrderActivationService } from "../src/auth/order-activation.service";
 import type { AnalyticsOutboxService } from "../src/analytics/analytics-outbox.service";
@@ -396,16 +397,10 @@ describe("OrdersStorage checkout idempotency", () => {
         {
           getAffiliateOwnerUserId: async () => ownerId,
           reserveInTransaction: async () => ({
-            pricingSnapshot: {
-              subtotalKopecks: 100_000,
-              discountKopecks: 0,
-              totalKopecks: 100_000,
-              items: [
-                {
-                  priceGroups: [{ quantity: 1, unitPriceKopecks: 100_000 }],
-                },
-              ],
-            },
+            pricingSnapshot: calculatePromoPricing(
+              [{ id: "product-1", unitPriceKopecks: 100_000, quantity: 1 }],
+              { type: "fixed", amountKopecks: 0 },
+            ),
           }),
         } as never,
         {
@@ -432,16 +427,10 @@ describe("OrdersStorage checkout idempotency", () => {
         {
           getAffiliateOwnerUserId: async () => undefined,
           reserveInTransaction: async () => ({
-            pricingSnapshot: {
-              subtotalKopecks: 100_000,
-              discountKopecks: 0,
-              totalKopecks: 100_000,
-              items: [
-                {
-                  priceGroups: [{ quantity: 1, unitPriceKopecks: 100_000 }],
-                },
-              ],
-            },
+            pricingSnapshot: calculatePromoPricing(
+              [{ id: "product-1", unitPriceKopecks: 100_000, quantity: 1 }],
+              { type: "fixed", amountKopecks: 0 },
+            ),
           }),
         } as never,
         { lockCalls: calls },
@@ -509,17 +498,11 @@ describe("OrdersStorage checkout idempotency", () => {
         assert.equal(fixture.createdEvents.length, 0);
         const stored = fixture.orders[0];
         assert.ok(stored);
-        stored.discount = 100;
-        stored.total = 1_000;
         return {
-          pricingSnapshot: {
-            subtotalKopecks: 100_000,
-            discountKopecks: 10_000,
-            totalKopecks: 90_000,
-            items: [
-              { priceGroups: [{ quantity: 1, unitPriceKopecks: 90_000 }] },
-            ],
-          },
+          pricingSnapshot: calculatePromoPricing(
+            [{ id: "product-1", unitPriceKopecks: 100_000, quantity: 1 }],
+            { type: "fixed", amountKopecks: 10_000 },
+          ),
         };
       },
     } as never);
@@ -529,12 +512,16 @@ describe("OrdersStorage checkout idempotency", () => {
       promoCode: "TEST",
     });
 
+    assert.equal(fixture.orders[0]?.discount, "100.00");
+    assert.equal(fixture.orders[0]?.total, "1000.00");
+    assert.ok(fixture.orders[0]?.pricingSnapshot);
+
     assert.deepEqual(fixture.createdEvents, [
       {
         id: order.id,
         createdAt: new Date("2026-09-08T12:49:58.000Z"),
         subtotal: 1_000,
-        discount: 100,
+        discount: "100.00",
         yandexClientId: "123456",
         yandexYclid: "987654",
       },
@@ -1307,6 +1294,18 @@ function createStorageFixture(
         discount: 0,
       };
       orders.push(stored);
+      return stored;
+    },
+    update: async ({
+      where,
+      data,
+    }: {
+      where: { id: string };
+      data: Record<string, unknown>;
+    }) => {
+      const stored = orders.find((item) => item.id === where.id);
+      if (!stored) throw new Error("Order not created");
+      Object.assign(stored, data);
       return stored;
     },
     findUnique: async ({ where }: { where: Record<string, string> }) =>

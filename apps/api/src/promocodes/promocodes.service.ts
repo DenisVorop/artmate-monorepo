@@ -43,7 +43,6 @@ type PromoEvaluationClient = Pick<
 
 export type ReservePromoInput = {
   code: string;
-  deliveryPriceKopecks: number;
   orderId: string;
   userId?: string;
   items: readonly PromoPricingItemInput[];
@@ -369,13 +368,9 @@ export class PromocodesService {
     await tx.order.update({
       where: { id: input.orderId },
       data: {
-        discount: kopecksToRubles(pricing.discountKopecks),
         promoCode: promo.code,
         promoTermsSnapshot: termsSnapshot as unknown as Prisma.InputJsonValue,
         promoPricingSnapshot: pricingSnapshot,
-        total: kopecksToRubles(
-          pricing.totalKopecks + input.deliveryPriceKopecks,
-        ),
       },
     });
     const redemption = await tx.promoRedemption.create({

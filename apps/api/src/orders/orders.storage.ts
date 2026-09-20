@@ -31,6 +31,7 @@ import type { OzonAcquiringVerifiedNotification } from "../ozon/ozon-acquiring.s
 import { calculatePromoPricing } from "../promocodes/pricing";
 import {
   PromocodesService,
+  kopecksToRubles,
   rublesToKopecks,
 } from "../promocodes/promocodes.service";
 
@@ -59,6 +60,11 @@ import {
   ozonPaymentRecheckRetryableStatuses,
 } from "./ozon-payment-recheck";
 import type { OrderReceiptItemPricing } from "./payment-receipt";
+import {
+  createOrderPricingSnapshot,
+  assertOrderPricingMatches,
+} from "./pricing/pricing-snapshot";
+import { readOrderPricing } from "./pricing/read-order-pricing";
 
 const CHECKOUT_SUCCESS_PATH = "/checkout/success";
 const CHECKOUT_FAILURE_PATH = "/checkout/failure";
@@ -266,7 +272,32 @@ export class OrdersStorage {
         : undefined;
     const attribution = parseYandexAttribution(input.attribution);
     const deliveryPrice = input.delivery.pickupPoint.deliveryPrice;
-    const total = input.subtotal + deliveryPrice;
+    const deliveryKopecks = rublesToKopecks(deliveryPrice);
+    const pricingItems = input.items.map((item) => ({
+      id: item.id,
+      unitPriceKopecks: rublesToKopecks(item.price),
+      quantity: item.quantity,
+    }));
+    const basePricing = calculatePromoPricing(pricingItems, {
+      type: "fixed",
+      amountKopecks: 0,
+    });
+    const baseSnapshot = createOrderPricingSnapshot(
+      basePricing,
+      deliveryKopecks,
+    );
+    assertOrderPricingMatches(baseSnapshot, {
+      subtotalKopecks: rublesToKopecks(input.subtotal),
+      discountKopecks: 0,
+      deliveryKopecks,
+      totalKopecks: baseSnapshot.totalKopecks,
+      items: input.items.map((item) => ({
+        id: item.id,
+        unitPriceKopecks: rublesToKopecks(item.price),
+        quantity: item.quantity,
+        lineTotalKopecks: rublesToKopecks(item.lineTotal),
+      })),
+    });
     const userId = input.userId
       ? await this.getExistingUserId(input.userId)
       : undefined;
@@ -323,7 +354,7 @@ export class OrdersStorage {
               paymentRedirectUrl: `${CHECKOUT_SUCCESS_PATH}?orderId=${encodeURIComponent(id)}`,
               itemsCount: input.itemsCount,
               subtotal: input.subtotal,
-              total,
+              total: kopecksToRubles(baseSnapshot.totalKopecks),
               currency: "RUB",
               comment: input.comment,
               history: {
@@ -377,29 +408,34 @@ export class OrdersStorage {
               },
             );
           }
+          let finalPricing = basePricing;
           if (input.promoCode) {
             const reservation =
               await this.promocodesService.reserveInTransaction(tx, {
                 code: input.promoCode,
-                deliveryPriceKopecks: rublesToKopecks({
-                  toString: () => String(deliveryPrice),
-                }),
                 orderId: id,
                 userId,
-                items: input.items.map((item) => ({
-                  id: item.id,
-                  unitPriceKopecks: rublesToKopecks({
-                    toString: () => String(item.price),
-                  }),
-                  quantity: item.quantity,
-                })),
+                items: pricingItems,
               });
-            this.assertReceiptPricing(
-              reservation.pricingSnapshot,
-              deliveryPrice,
-              input.paymentMethod,
-            );
+            finalPricing = reservation.pricingSnapshot;
           }
+          this.assertReceiptPricing(
+            finalPricing,
+            deliveryPrice,
+            input.paymentMethod,
+          );
+          const pricingSnapshot = createOrderPricingSnapshot(
+            finalPricing,
+            deliveryKopecks,
+          );
+          await tx.order.update({
+            where: { id },
+            data: {
+              discount: kopecksToRubles(pricingSnapshot.discountKopecks),
+              total: kopecksToRubles(pricingSnapshot.totalKopecks),
+              pricingSnapshot: this.toPrismaJson(pricingSnapshot),
+            },
+          });
           const createdOrder = await tx.order.findUnique({
             where: { id },
             include: orderInclude,
@@ -663,54 +699,20 @@ export class OrdersStorage {
 
   async getOrderReceiptPricing(
     orderId: string,
-  ): Promise<OrderReceiptItemPricing[] | undefined> {
+  ): Promise<OrderReceiptItemPricing[]> {
     const order = await this.prisma.order.findUnique({
       where: { id: orderId },
-      select: { promoPricingSnapshot: true },
+      include: { items: true },
     });
     if (!order) throw new NotFoundException("Order not found");
-    if (!order.promoPricingSnapshot) return undefined;
-    const snapshot = order.promoPricingSnapshot;
-    if (
-      !snapshot ||
-      typeof snapshot !== "object" ||
-      Array.isArray(snapshot) ||
-      !Array.isArray(snapshot.items)
-    ) {
-      throw new Error("Invalid order promo pricing snapshot");
-    }
+    const snapshot = readOrderPricing(order);
     return snapshot.items.map((item) => {
-      if (
-        !item ||
-        typeof item !== "object" ||
-        Array.isArray(item) ||
-        typeof item.id !== "string" ||
-        !Array.isArray(item.priceGroups)
-      ) {
-        throw new Error("Invalid order promo item pricing snapshot");
-      }
       return {
         id: item.id,
         priceGroups: item.priceGroups.map((group) => {
-          if (!group || typeof group !== "object" || Array.isArray(group)) {
-            throw new Error("Invalid order promo price group snapshot");
-          }
-          const quantity = group.quantity;
-          const totalKopecks = group.totalKopecks;
-          const unitPriceKopecks = group.unitPriceKopecks;
-          if (
-            typeof quantity !== "number" ||
-            !Number.isSafeInteger(quantity) ||
-            quantity <= 0 ||
-            typeof totalKopecks !== "number" ||
-            !Number.isSafeInteger(totalKopecks) ||
-            totalKopecks <= 0 ||
-            typeof unitPriceKopecks !== "number" ||
-            !Number.isSafeInteger(unitPriceKopecks) ||
-            unitPriceKopecks <= 0 ||
-            unitPriceKopecks * quantity !== totalKopecks
-          ) {
-            throw new Error("Invalid order promo price group values");
+          const { quantity, totalKopecks, unitPriceKopecks } = group;
+          if (unitPriceKopecks <= 0) {
+            throw new Error("Order receipt price must be positive");
           }
           return { quantity, totalKopecks, unitPriceKopecks };
         }),
