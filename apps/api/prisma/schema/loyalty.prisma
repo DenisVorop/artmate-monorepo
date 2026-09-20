@@ -1,0 +1,103 @@
+enum LoyaltyMemberStatus {
+  ACTIVE  @map("active")
+  BLOCKED @map("blocked")
+
+  @@map("loyalty_member_status")
+}
+
+enum LoyaltyHistoryState {
+  PENDING @map("pending")
+  READY   @map("ready")
+  FAILED  @map("failed")
+
+  @@map("loyalty_history_state")
+}
+
+enum LoyaltyOperationKind {
+  CREDIT   @map("credit")
+  REVERSAL @map("reversal")
+  RESERVE  @map("reserve")
+  CONSUME  @map("consume")
+  RELEASE  @map("release")
+
+  @@map("loyalty_operation_kind")
+}
+
+enum LoyaltyReservationStatus {
+  RESERVED @map("reserved")
+  CONSUMED @map("consumed")
+  RELEASED @map("released")
+
+  @@map("loyalty_reservation_status")
+}
+
+model LoyaltyMember {
+  id           String              @id @default(uuid())
+  userId       String              @unique @map("user_id")
+  termsVersion String              @map("terms_version") @db.VarChar(64)
+  joinedAt     DateTime            @default(now()) @map("joined_at")
+  status       LoyaltyMemberStatus @default(ACTIVE)
+  historyState LoyaltyHistoryState @default(PENDING) @map("history_state")
+
+  user         User                 @relation(fields: [userId], references: [id], onDelete: Restrict)
+  wallet       LoyaltyWallet?
+  operations   LoyaltyOperation[]
+  reservations LoyaltyReservation[]
+
+  @@index([historyState, joinedAt])
+  @@map("loyalty_members")
+}
+
+model LoyaltyWallet {
+  memberId       String   @id @map("member_id")
+  balancePoints  BigInt   @default(0) @map("balance_points")
+  reservedPoints BigInt   @default(0) @map("reserved_points")
+  revision       BigInt   @default(0)
+  updatedAt      DateTime @default(now()) @updatedAt @map("updated_at")
+
+  member LoyaltyMember @relation(fields: [memberId], references: [id], onDelete: Restrict)
+
+  @@map("loyalty_wallets")
+}
+
+model LoyaltyOperation {
+  id              String               @id @default(uuid())
+  memberId        String               @map("member_id")
+  sequence        BigInt
+  operationKey    String               @unique @map("operation_key") @db.VarChar(200)
+  kind            LoyaltyOperationKind
+  requestedPoints BigInt               @map("requested_points")
+  balanceDelta    BigInt               @map("balance_delta")
+  reservedDelta   BigInt               @map("reserved_delta")
+  balanceAfter    BigInt               @map("balance_after")
+  reservedAfter   BigInt               @map("reserved_after")
+  sourceKey       String               @map("source_key") @db.VarChar(200)
+  rulesVersion    String               @map("rules_version") @db.VarChar(64)
+  reservationId   String?              @map("reservation_id")
+  occurredAt      DateTime             @map("occurred_at")
+  recordedAt      DateTime             @default(now()) @map("recorded_at")
+
+  member      LoyaltyMember       @relation(fields: [memberId], references: [id], onDelete: Restrict)
+  reservation LoyaltyReservation? @relation(fields: [reservationId], references: [id], onDelete: Restrict)
+
+  @@unique([memberId, sequence])
+  @@index([memberId, sourceKey])
+  @@map("loyalty_operations")
+}
+
+model LoyaltyReservation {
+  id        String                   @id @default(uuid())
+  orderId   String                   @unique @map("order_id") @db.VarChar(32)
+  memberId  String                   @map("member_id")
+  points    BigInt
+  status    LoyaltyReservationStatus @default(RESERVED)
+  createdAt DateTime                 @default(now()) @map("created_at")
+  updatedAt DateTime                 @default(now()) @updatedAt @map("updated_at")
+
+  order      Order              @relation(fields: [orderId], references: [id], onDelete: Restrict)
+  member     LoyaltyMember      @relation(fields: [memberId], references: [id], onDelete: Restrict)
+  operations LoyaltyOperation[]
+
+  @@index([memberId, status])
+  @@map("loyalty_reservations")
+}

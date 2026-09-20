@@ -92,6 +92,7 @@ model Order {
   promoTermsSnapshot          Json?                 @map("promo_terms_snapshot") @db.JsonB
   promoPricingSnapshot        Json?                 @map("promo_pricing_snapshot") @db.JsonB
   pricingSnapshot             Json?                 @map("pricing_snapshot") @db.JsonB
+  loyaltyReservation          LoyaltyReservation?
   currency                    String                @default("RUB") @db.VarChar(3)
   comment                     String?               @db.Text
   paidAt                      DateTime?             @map("paid_at")
