@@ -2,9 +2,13 @@ import { Type } from "class-transformer";
 import { Transform } from "class-transformer";
 import {
   IsDefined,
+  IsInt,
   IsOptional,
   IsString,
   Matches,
+  Max,
+  Min,
+  ValidateIf,
   ValidateNested,
 } from "class-validator";
 
@@ -28,4 +32,10 @@ export class CalculateCheckoutRequestDTO {
   @IsString()
   @Matches(promoCodePattern)
   promoCode?: string;
+
+  @ValidateIf((_object, value) => value !== undefined)
+  @IsInt()
+  @Min(0)
+  @Max(Number.MAX_SAFE_INTEGER)
+  loyaltyPointsToSpend?: number;
 }

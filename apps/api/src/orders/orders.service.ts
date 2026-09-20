@@ -54,6 +54,8 @@ import type {
   OrderRefundsDTO,
 } from "./dto";
 import { OrdersTelegramService } from "./orders-telegram.service";
+import { OrdersLoyaltyService } from "./orders-loyalty.service";
+import { createOrderPricingSnapshot } from "./pricing/pricing-snapshot";
 import type { OzonPaymentRecheckLease } from "./ozon-payment-recheck";
 import { OrderRefundsService } from "./refunds/order-refunds.service";
 import {
@@ -134,6 +136,7 @@ export class OrdersService {
     private readonly promocodesService: PromocodesService,
     private readonly productShippingService: ProductShippingService,
     private readonly orderRefundsService: OrderRefundsService,
+    private readonly ordersLoyaltyService: OrdersLoyaltyService,
   ) {}
 
   async getOrder(orderId: string, user: AuthUser): Promise<OrderDTO> {
@@ -231,6 +234,10 @@ export class OrdersService {
     request: CalculateCheckoutRequestDTO,
     user?: AuthUser,
   ): Promise<CheckoutCalculationDTO> {
+    const loyaltyPointsToSpend = this.parseLoyaltyPointsToSpend(
+      request.loyaltyPointsToSpend,
+      user,
+    );
     const cartDTO = await this.cartService.getCart(cartId);
 
     if (cartDTO.items.length === 0) {
@@ -257,15 +264,24 @@ export class OrdersService {
       request.promoCode,
       user?.id,
     );
+    const preview = await this.ordersLoyaltyService.preview({
+      userId: user?.id,
+      snapshot: createOrderPricingSnapshot(
+        promo.pricing,
+        rublesToKopecks({ toString: () => String(deliveryPrice) }),
+      ),
+      points: loyaltyPointsToSpend,
+    });
 
     return {
       cartId: cartDTO.id,
       itemsCount: cartDTO.itemsCount,
-      subtotal: cartDTO.subtotal,
-      discount: promo.pricing.discountKopecks / 100,
-      deliveryPrice,
+      subtotal: preview.snapshot.subtotalKopecks / 100,
+      discount: preview.snapshot.discountKopecks / 100,
+      deliveryPrice: preview.snapshot.deliveryKopecks / 100,
       promoCode: promo.code,
-      total: promo.pricing.totalKopecks / 100 + deliveryPrice,
+      total: preview.snapshot.totalKopecks / 100,
+      loyalty: preview.loyalty,
       currency: "RUB",
       delivery: {
         provider: delivery.provider,
@@ -280,6 +296,14 @@ export class OrdersService {
     request: CreateOrderRequestDTO,
     user?: AuthUser,
   ): Promise<OrderDTO> {
+    const loyaltyPointsToSpend = this.parseLoyaltyPointsToSpend(
+      request.loyaltyPointsToSpend,
+      user,
+    );
+    const loyaltyPricingRevision = this.parseLoyaltyPricingRevision(
+      request.loyaltyPricingRevision,
+      loyaltyPointsToSpend,
+    );
     const checkoutAttemptId = this.parseRequiredString(
       request.checkoutAttemptId,
       "checkoutAttemptId",
@@ -331,6 +355,8 @@ export class OrdersService {
       },
       paymentMethod,
       promoCode: promoCode ?? null,
+      loyaltyPointsToSpend,
+      loyaltyPricingRevision: loyaltyPricingRevision ?? null,
     });
 
     const existingOrder = await this.ordersStorage.getOrderByCheckoutAttempt?.(
@@ -384,6 +410,8 @@ export class OrdersService {
       paymentMethod,
       subtotal: cartDTO.subtotal,
       promoCode: promo.code ?? undefined,
+      loyaltyPointsToSpend,
+      loyaltyPricingRevision,
       comment,
     });
 
@@ -395,6 +423,40 @@ export class OrdersService {
       .createHash("sha256")
       .update(JSON.stringify(payload))
       .digest("hex");
+  }
+
+  private parseLoyaltyPointsToSpend(value: unknown, user?: AuthUser): number {
+    if (value === undefined) return 0;
+    if (
+      typeof value !== "number" ||
+      !Number.isSafeInteger(value) ||
+      value < 0
+    ) {
+      throw new BadRequestException(
+        "loyaltyPointsToSpend must be a nonnegative safe integer",
+      );
+    }
+    if (value > 0 && !user) {
+      throw new UnauthorizedException("Sign in to spend loyalty points");
+    }
+    return value;
+  }
+
+  private parseLoyaltyPricingRevision(
+    value: unknown,
+    points: number,
+  ): string | undefined {
+    if (value === undefined && points === 0) return undefined;
+    if (
+      typeof value !== "string" ||
+      value.length !== 64 ||
+      !/^[a-f0-9]{64}$/.test(value)
+    ) {
+      throw new BadRequestException(
+        "loyaltyPricingRevision must be a 64-character lowercase hexadecimal string when spending loyalty points",
+      );
+    }
+    return points > 0 ? value : undefined;
   }
 
   private async calculateCheckoutDelivery(
@@ -647,6 +709,26 @@ export class OrdersService {
       ...parsedNotification,
       raw: notification,
     });
+
+    if (
+      result &&
+      parsedNotification.paymentId &&
+      ["CANCELED", "DEADLINE_EXPIRED"].includes(
+        parsedNotification.rawStatus ?? "",
+      ) &&
+      (await this.ordersStorage.hasReservedLoyaltyPoints(result.order.id))
+    ) {
+      // Store the terminal marker first so another checkout cannot start Init
+      // while the bank is being queried. A failed check keeps the hold intact.
+      const evidence = {
+        orderId: result.order.id,
+        paymentId: parsedNotification.paymentId,
+        amountKopecks: rublesToKopecks(result.order.total),
+      };
+      if (await this.tbankAcquiringService.verifyOrderClosedUnpaid(evidence)) {
+        await this.ordersStorage.releaseLoyaltyForClosedTBankPayment(evidence);
+      }
+    }
 
     if (!result) {
       this.logger.warn(

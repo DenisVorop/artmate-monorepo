@@ -9,6 +9,8 @@ import {
   IsNumber,
   IsString,
   Min,
+  Max,
+  Matches,
   ValidateNested,
 } from "class-validator";
 
@@ -20,6 +22,32 @@ export class CheckoutDeliveryDateRangeDTO {
 
   @IsDateString()
   max!: string;
+}
+
+export class CheckoutLoyaltyDTO {
+  @IsInt()
+  @Min(0)
+  @Max(Number.MAX_SAFE_INTEGER)
+  availablePoints!: number;
+
+  @IsInt()
+  @Min(0)
+  @Max(Number.MAX_SAFE_INTEGER)
+  maxPoints!: number;
+
+  @IsInt()
+  @Min(0)
+  @Max(Number.MAX_SAFE_INTEGER)
+  pointsToSpend!: number;
+
+  @IsInt()
+  @Min(0)
+  @Max(Number.MAX_SAFE_INTEGER)
+  discountKopecks!: number;
+
+  @IsString()
+  @Matches(/^[a-f0-9]{64}$/)
+  pricingRevision!: string;
 }
 
 export class CheckoutCalculationDTO {
@@ -50,6 +78,11 @@ export class CheckoutCalculationDTO {
   @IsNumber({ allowInfinity: false, allowNaN: false })
   @Min(0)
   total!: number;
+
+  @IsDefined()
+  @ValidateNested()
+  @Type(() => CheckoutLoyaltyDTO)
+  loyalty!: CheckoutLoyaltyDTO;
 
   @IsIn(["RUB"])
   currency!: "RUB";

@@ -13,6 +13,7 @@ import type {
 } from "../src/delivery/providers/delivery-provider.interface";
 import type { OrderDTO } from "../src/orders/dto";
 import { OrdersService } from "../src/orders/orders.service";
+import type { OrderPricingSnapshot } from "../src/orders/pricing/pricing-snapshot";
 import type { OrdersStorage } from "../src/orders/orders.storage";
 import type { PrismaService } from "../src/prisma/prisma.service";
 import { ProductShippingService } from "../src/products/product-shipping.service";
@@ -131,6 +132,18 @@ function createFixture(
     },
   } as unknown as PrismaService);
   const service = Object.assign(Object.create(OrdersService.prototype), {
+    ordersLoyaltyService: {
+      preview: async ({ snapshot }: { snapshot: OrderPricingSnapshot }) => ({
+        snapshot,
+        loyalty: {
+          availablePoints: 0,
+          maxPoints: 0,
+          pointsToSpend: 0,
+          discountKopecks: 0,
+          pricingRevision: "a".repeat(64),
+        },
+      }),
+    },
     logger: { warn: () => undefined },
     cartService: {
       getCart: async () => {

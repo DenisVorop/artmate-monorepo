@@ -19,6 +19,7 @@ import { CartStorage } from "../src/cart/cart.storage";
 import { CreateOrderRequestDTO } from "../src/orders/dto";
 import { OrdersService } from "../src/orders/orders.service";
 import { OrdersStorage } from "../src/orders/orders.storage";
+import type { OrdersLoyaltyService } from "../src/orders/orders-loyalty.service";
 import { calculatePromoPricing } from "../src/promocodes/pricing";
 import type { PrismaService } from "../src/prisma/prisma.service";
 import type { OrderActivationService } from "../src/auth/order-activation.service";
@@ -1396,6 +1397,9 @@ function createStorageFixture(
       },
     } as never,
     createAccountingMock(),
+    {
+      consumePaidInTransaction: async () => undefined,
+    } as unknown as OrdersLoyaltyService,
   );
   (storage as unknown as { mapOrder: (value: unknown) => unknown }).mapOrder = (
     value,
@@ -1504,11 +1508,15 @@ function createUnusedStorageDependencies(): [
   OrderActivationService,
   AnalyticsOutboxService,
   AffiliateFinancialAccountingService,
+  OrdersLoyaltyService,
 ] {
   return [
     {} as OrderActivationService,
     {} as AnalyticsOutboxService,
     createAccountingMock(),
+    {
+      consumePaidInTransaction: async () => undefined,
+    } as unknown as OrdersLoyaltyService,
   ];
 }
 

@@ -129,6 +129,84 @@ const checkoutPaymentErrorMessage =
 export class TBankAcquiringService {
   private readonly logger = new Logger(TBankAcquiringService.name);
 
+  /** The caller must prevent new payment attempts while checking/closing the order. */
+  async verifyOrderClosedUnpaid(input: {
+    orderId: string;
+    paymentId: string;
+    amountKopecks: number;
+  }): Promise<boolean> {
+    if (
+      !input.orderId ||
+      input.orderId.trim() !== input.orderId ||
+      input.orderId.length > 50 ||
+      !input.paymentId ||
+      input.paymentId.trim() !== input.paymentId ||
+      input.paymentId.length > 20 ||
+      !Number.isSafeInteger(input.amountKopecks) ||
+      input.amountKopecks <= 0
+    ) {
+      throw new BadRequestException("Invalid T-Bank closed-payment identity");
+    }
+    const terminalKey = this.getTerminalKey();
+    const checkRequest = { TerminalKey: terminalKey, OrderId: input.orderId };
+    const checked = await this.requestAcquiring(
+      "/v2/CheckOrder",
+      {
+        ...checkRequest,
+        Token: this.createToken(checkRequest),
+      },
+      false,
+    );
+    // CheckOrder returns the order's payment history, without pagination.
+    // https://developer.tbank.ru/schemas/eacq/openapi.yaml
+    if (!isSuccessfulOrderResponse(checked, terminalKey, input.orderId))
+      return false;
+    if (!Array.isArray(checked.Payments) || checked.Payments.length === 0)
+      return false;
+    const paymentIds = new Set<string>();
+    for (const payment of checked.Payments) {
+      if (
+        !isRecord(payment) ||
+        typeof payment.PaymentId !== "string" ||
+        !payment.PaymentId ||
+        payment.PaymentId.trim() !== payment.PaymentId ||
+        payment.PaymentId.length > 20 ||
+        paymentIds.has(payment.PaymentId) ||
+        // The schema declares a string here but its example uses a boolean.
+        (payment.Success !== true && payment.Success !== "true") ||
+        (payment.ErrorCode !== undefined &&
+          payment.ErrorCode !== "0" &&
+          payment.ErrorCode !== 0) ||
+        !Number.isSafeInteger(payment.Amount) ||
+        payment.Amount !== input.amountKopecks ||
+        !isClosedUnpaidStatus(payment.Status)
+      )
+        return false;
+      paymentIds.add(payment.PaymentId);
+    }
+    if (!paymentIds.has(input.paymentId)) return false;
+
+    const stateRequest = {
+      TerminalKey: terminalKey,
+      PaymentId: input.paymentId,
+    };
+    const state = await this.requestAcquiring(
+      "/v2/GetState",
+      {
+        ...stateRequest,
+        Token: this.createToken(stateRequest),
+      },
+      false,
+    );
+    return (
+      isSuccessfulOrderResponse(state, terminalKey, input.orderId) &&
+      state.PaymentId === input.paymentId &&
+      Number.isSafeInteger(state.Amount) &&
+      state.Amount === input.amountKopecks &&
+      isClosedUnpaidStatus(state.Status)
+    );
+  }
+
   async createCheckoutPayment(
     input: TBankAcquiringCreateCheckoutPaymentInput,
   ): Promise<TBankAcquiringCreateCheckoutPaymentResult> {
@@ -369,7 +447,11 @@ export class TBankAcquiringService {
     return value !== null && value !== undefined && typeof value !== "object";
   }
 
-  private async requestAcquiring(path: string, body: unknown) {
+  private async requestAcquiring(
+    path: string,
+    body: unknown,
+    rejectUnsuccessful = true,
+  ) {
     let response: Response;
     let responseBody: unknown;
 
@@ -380,6 +462,7 @@ export class TBankAcquiringService {
           "content-type": "application/json",
         },
         body: JSON.stringify(body),
+        ...(!rejectUnsuccessful ? { signal: AbortSignal.timeout(8_000) } : {}),
       });
       responseBody = await this.parseResponseBody(response);
     } catch (error) {
@@ -396,7 +479,10 @@ export class TBankAcquiringService {
       );
     }
 
-    if (!response.ok || this.isRejectedResponse(responseBody)) {
+    if (
+      !response.ok ||
+      (rejectUnsuccessful && this.isRejectedResponse(responseBody))
+    ) {
       const diagnosticBody = this.sanitizeForDiagnostics(responseBody);
       this.logger.warn(
         `T-Bank Acquiring ${path} failed with status ${
@@ -656,4 +742,26 @@ export class TBankAcquiringService {
   private getOptionalString(value: string | undefined) {
     return value?.trim() || undefined;
   }
+}
+
+function isRecord(value: unknown): value is Record<string, unknown> {
+  return typeof value === "object" && value !== null && !Array.isArray(value);
+}
+
+function isSuccessfulOrderResponse(
+  value: unknown,
+  terminalKey: string,
+  orderId: string,
+): value is Record<string, unknown> {
+  return (
+    isRecord(value) &&
+    value.Success === true &&
+    value.ErrorCode === "0" &&
+    value.TerminalKey === terminalKey &&
+    value.OrderId === orderId
+  );
+}
+
+function isClosedUnpaidStatus(value: unknown) {
+  return value === "CANCELED" || value === "DEADLINE_EXPIRED";
 }
