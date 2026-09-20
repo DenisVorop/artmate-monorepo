@@ -3,6 +3,10 @@ import { describe, it } from "node:test";
 
 import { OrdersService } from "../src/orders/orders.service";
 import { OrdersStorage } from "../src/orders/orders.storage";
+import {
+  createOrderPricingSnapshot,
+  type OrderPricingSnapshot,
+} from "../src/orders/pricing/pricing-snapshot";
 import { calculatePromoPricing } from "../src/promocodes/pricing";
 
 describe("promocode order checkout integration", () => {
@@ -100,14 +104,17 @@ describe("promocode order checkout integration", () => {
     const assertReceiptPricing = (
       storage as unknown as {
         assertReceiptPricing: (
-          pricing: typeof transactional,
-          deliveryPrice: number,
+          pricing: OrderPricingSnapshot,
           paymentMethod: "tbank_acquiring",
         ) => void;
       }
     ).assertReceiptPricing.bind(storage);
     assert.throws(
-      () => assertReceiptPricing(transactional, 490, "tbank_acquiring"),
+      () =>
+        assertReceiptPricing(
+          createOrderPricingSnapshot(transactional, 49_000),
+          "tbank_acquiring",
+        ),
       (error: unknown) =>
         error instanceof Error &&
         "getStatus" in error &&
@@ -138,34 +145,25 @@ function createFixture(options: {
     id: item.id,
     unitPriceKopecks: 99_900,
     quantity: options.splitGroups ? 3 : 1,
-    subtotalKopecks: options.splitGroups ? 299_700 : 99_900,
-    discountKopecks: options.zeroPrice ? 99_900 : 0,
-    totalKopecks: options.zeroPrice
-      ? 0
-      : options.splitGroups
-        ? 299_700
-        : 99_900,
-    priceGroups: options.splitGroups
-      ? [
-          { quantity: 2, totalKopecks: 199_800, unitPriceKopecks: 99_900 },
-          { quantity: 1, totalKopecks: 99_900, unitPriceKopecks: 99_900 },
-        ]
-      : [
-          {
-            quantity: 1,
-            totalKopecks: options.zeroPrice ? 0 : 99_900,
-            unitPriceKopecks: options.zeroPrice ? 0 : 99_900,
-          },
-        ],
   }));
   const grossKopecks = itemCount * (options.splitGroups ? 299_700 : 99_900);
-  const pricing = {
-    subtotalKopecks: grossKopecks,
-    discountKopecks: options.zeroPrice ? grossKopecks : 10_000,
-    totalKopecks: options.zeroPrice ? 0 : grossKopecks - 10_000,
-    items: pricingItems,
-  };
+  const pricing = calculatePromoPricing(pricingItems, {
+    type: "fixed",
+    amountKopecks: options.zeroPrice ? grossKopecks : 10_000,
+  });
   const service = Object.assign(Object.create(OrdersService.prototype), {
+    ordersLoyaltyService: {
+      preview: async ({ snapshot }: { snapshot: OrderPricingSnapshot }) => ({
+        snapshot,
+        loyalty: {
+          availablePoints: 0,
+          maxPoints: 0,
+          pointsToSpend: 0,
+          discountKopecks: 0,
+          pricingRevision: "a".repeat(64),
+        },
+      }),
+    },
     cartService: {
       getCart: async () => ({
         id: "cart-1",
@@ -195,14 +193,17 @@ function createFixture(options: {
     productShippingService: {
       resolveForProducts: async (ids: string[]) =>
         new Map(
-          ids.map((id) => [id, {
-            id: "shipping_album",
-            code: "album",
-            weightGrams: 400,
-            lengthCm: 40,
-            widthCm: 30,
-            heightCm: 1,
-          }]),
+          ids.map((id) => [
+            id,
+            {
+              id: "shipping_album",
+              code: "album",
+              weightGrams: 400,
+              lengthCm: 40,
+              widthCm: 30,
+              heightCm: 1,
+            },
+          ]),
         ),
     },
     promocodesService: {
@@ -226,7 +227,10 @@ function createFixture(options: {
         redirectUrl: "https://pay.test",
       }),
     },
-    runPaymentSideEffect: async (_description: string, effect: () => Promise<unknown>) => effect(),
+    runPaymentSideEffect: async (
+      _description: string,
+      effect: () => Promise<unknown>,
+    ) => effect(),
     queueOrderCreatedNotifications: async () => undefined,
   }) as OrdersService;
   return {
@@ -269,9 +273,7 @@ function createOrderResult() {
   };
 }
 
-function orderRequest(
-  method: "ozon_acquiring" | "tbank_acquiring",
-) {
+function orderRequest(method: "ozon_acquiring" | "tbank_acquiring") {
   return {
     acceptedLegal: true,
     acceptedPersonalDataConsent: true,

@@ -4,10 +4,14 @@ import {
   IsBoolean,
   IsDefined,
   IsNotEmpty,
+  IsInt,
   IsOptional,
   IsString,
   MaxLength,
   Matches,
+  Max,
+  Min,
+  ValidateIf,
   ValidateNested,
 } from "class-validator";
 
@@ -72,6 +76,21 @@ export class CreateOrderRequestDTO {
   @IsString()
   @Matches(promoCodePattern)
   promoCode?: string;
+
+  @ValidateIf((_object, value) => value !== undefined)
+  @IsInt()
+  @Min(0)
+  @Max(Number.MAX_SAFE_INTEGER)
+  loyaltyPointsToSpend?: number;
+
+  @ValidateIf(
+    (object: CreateOrderRequestDTO, value) =>
+      value !== undefined || (object.loyaltyPointsToSpend ?? 0) > 0,
+  )
+  @IsString()
+  @Matches(/^[a-f0-9]{64}$/)
+  @MaxLength(64)
+  loyaltyPricingRevision?: string;
 
   @IsBoolean()
   @Equals(true)

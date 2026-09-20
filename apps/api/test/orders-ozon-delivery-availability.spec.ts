@@ -9,6 +9,7 @@ import {
 
 import type { DeliverySelection } from "../src/delivery/providers/delivery-provider.interface";
 import { OrdersService } from "../src/orders/orders.service";
+import type { OrderPricingSnapshot } from "../src/orders/pricing/pricing-snapshot";
 
 const unavailableMessage = "данный товар не можем доставить через озон";
 
@@ -165,6 +166,18 @@ function createOrdersServiceFixture(
   const service = Object.assign(
     Object.create(OrdersService.prototype) as object,
     {
+      ordersLoyaltyService: {
+        preview: async ({ snapshot }: { snapshot: OrderPricingSnapshot }) => ({
+          snapshot,
+          loyalty: {
+            availablePoints: 0,
+            maxPoints: 0,
+            pointsToSpend: 0,
+            discountKopecks: 0,
+            pricingRevision: "a".repeat(64),
+          },
+        }),
+      },
       cartService: {
         assertItemsInStock: async () => undefined,
         getCart: async () => {
@@ -201,14 +214,17 @@ function createOrdersServiceFixture(
       productShippingService: {
         resolveForProducts: async (ids: string[]) =>
           new Map(
-            ids.map((id) => [id, {
-              id: "shipping_album",
-              code: "album",
-              weightGrams: 400,
-              lengthCm: 40,
-              widthCm: 30,
-              heightCm: 1,
-            }]),
+            ids.map((id) => [
+              id,
+              {
+                id: "shipping_album",
+                code: "album",
+                weightGrams: 400,
+                lengthCm: 40,
+                widthCm: 30,
+                heightCm: 1,
+              },
+            ]),
           ),
       },
       logger: { warn: () => undefined },

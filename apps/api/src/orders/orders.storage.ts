@@ -65,6 +65,8 @@ import {
   assertOrderPricingMatches,
 } from "./pricing/pricing-snapshot";
 import { readOrderPricing } from "./pricing/read-order-pricing";
+import { OrdersLoyaltyService } from "./orders-loyalty.service";
+import type { OrderPricingSnapshot } from "./pricing/pricing-snapshot";
 
 const CHECKOUT_SUCCESS_PATH = "/checkout/success";
 const CHECKOUT_FAILURE_PATH = "/checkout/failure";
@@ -131,6 +133,8 @@ type CreateStoredOrderInput = {
   promoCode?: string;
   subtotal: number;
   comment?: string;
+  loyaltyPointsToSpend?: number;
+  loyaltyPricingRevision?: string;
 };
 
 type AttachOzonAcquiringPaymentInput = {
@@ -260,9 +264,19 @@ export class OrdersStorage {
     private readonly orderActivationService: OrderActivationService,
     private readonly analyticsOutboxService: AnalyticsOutboxService,
     private readonly affiliateFinancialAccountingService: AffiliateFinancialAccountingService,
+    private readonly ordersLoyaltyService: OrdersLoyaltyService,
   ) {}
 
   async createOrder(input: CreateStoredOrderInput): Promise<OrderDTO> {
+    const loyaltyPoints =
+      input.loyaltyPointsToSpend === undefined ? 0 : input.loyaltyPointsToSpend;
+    if (
+      !Number.isSafeInteger(loyaltyPoints) ||
+      loyaltyPoints < 0 ||
+      (loyaltyPoints > 0 && !input.userId)
+    ) {
+      throw new BadRequestException("Invalid loyalty spending request");
+    }
     // Validate and copy every snapshot before any database or account operation.
     const shippingPackages =
       input.delivery.provider === "cdek"
@@ -308,11 +322,12 @@ export class OrdersStorage {
       affiliateOwnerUserId && !userId
         ? await this.getExistingUserIdByEmail(input.customer.email)
         : undefined;
-    const checkoutUserLockIds = affiliateOwnerUserId
-      ? [...new Set([affiliateOwnerUserId, userId, guestUserId])]
-          .filter((id): id is string => id !== undefined)
-          .sort()
-      : [];
+    const checkoutUserLockIds =
+      affiliateOwnerUserId || loyaltyPoints > 0
+        ? [...new Set([affiliateOwnerUserId, userId, guestUserId])]
+            .filter((id): id is string => id !== undefined)
+            .sort()
+        : [];
     const deliveryProvider = this.toPrismaDeliveryProvider(
       input.delivery.provider,
     );
@@ -419,15 +434,21 @@ export class OrdersStorage {
               });
             finalPricing = reservation.pricingSnapshot;
           }
-          this.assertReceiptPricing(
-            finalPricing,
-            deliveryPrice,
-            input.paymentMethod,
-          );
-          const pricingSnapshot = createOrderPricingSnapshot(
+          let pricingSnapshot = createOrderPricingSnapshot(
             finalPricing,
             deliveryKopecks,
           );
+          if (loyaltyPoints > 0) {
+            pricingSnapshot =
+              await this.ordersLoyaltyService.reserveInTransaction(tx, {
+                orderId: id,
+                userId,
+                snapshot: pricingSnapshot,
+                points: loyaltyPoints,
+                pricingRevision: input.loyaltyPricingRevision,
+              });
+          }
+          this.assertReceiptPricing(pricingSnapshot, input.paymentMethod);
           await tx.order.update({
             where: { id },
             data: {
@@ -475,6 +496,24 @@ export class OrdersStorage {
     throw new Error("Order id generation failed");
   }
 
+  async hasReservedLoyaltyPoints(orderId: string): Promise<boolean> {
+    const reservation = await this.prisma.loyaltyReservation.findUnique({
+      where: { orderId },
+    });
+    return reservation?.status === "RESERVED";
+  }
+
+  // Called only after a fresh authoritative check of all acquiring attempts.
+  releaseLoyaltyForClosedTBankPayment(input: {
+    orderId: string;
+    paymentId: string;
+    amountKopecks: number;
+  }) {
+    return this.prisma.$transaction((tx) =>
+      this.ordersLoyaltyService.releaseCancelledTBankInTransaction(tx, input),
+    );
+  }
+
   async getOrderByCheckoutAttempt(
     checkoutAttemptId: string,
     cartId: string,
@@ -514,6 +553,20 @@ export class OrdersStorage {
       const startedAt = this.getPaymentInitializationStartedAt(
         order.paymentRedirectUrl,
       );
+      // Do not create a second bank attempt while an uncertain loyalty payment
+      // could still be processing. Its outcome must be reconciled first.
+      const hasLoyaltySpending =
+        order.pricingSnapshot !== null &&
+        typeof order.pricingSnapshot === "object" &&
+        "loyaltyDiscountKopecks" in order.pricingSnapshot &&
+        Number(order.pricingSnapshot.loyaltyDiscountKopecks) > 0;
+      if (
+        hasLoyaltySpending &&
+        (startedAt ||
+          order.paymentStatus !== PrismaOrderPaymentStatus.PENDING ||
+          !order.paymentRedirectUrl.startsWith(CHECKOUT_SUCCESS_PATH))
+      )
+        return false;
       if (order.paymentStatus !== PrismaOrderPaymentStatus.FAILED) {
         if (
           startedAt &&
@@ -2191,6 +2244,7 @@ export class OrdersStorage {
         status: PrismaOrderStatus.PAID,
       },
     });
+    await this.ordersLoyaltyService.consumePaidInTransaction(tx, order.id);
     if (order.crmStatus !== nextCrmStatus) {
       await tx.orderHistory.create({
         data: {
@@ -2433,18 +2487,15 @@ export class OrdersStorage {
   }
 
   private assertReceiptPricing(
-    pricing: ReturnType<typeof calculatePromoPricing>,
-    deliveryPrice: number,
+    pricing: OrderPricingSnapshot,
     paymentMethod: PaymentMethod,
   ) {
-    const deliveryKopecks = rublesToKopecks({
-      toString: () => String(deliveryPrice),
-    });
+    const deliveryKopecks = pricing.deliveryKopecks;
     if (
       pricing.items.some((item) =>
         item.priceGroups.some((group) => group.unitPriceKopecks <= 0),
       ) ||
-      pricing.totalKopecks + deliveryKopecks <= 0
+      pricing.totalKopecks <= 0
     ) {
       throw new BadRequestException(
         "Оформление товара с нулевой ценой пока недоступно",

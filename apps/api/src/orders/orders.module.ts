@@ -10,6 +10,8 @@ import { PromocodesModule } from "../promocodes/promocodes.module";
 import { ProductsModule } from "../products/products.module";
 import { TBankModule } from "../tbank/tbank.module";
 import { UsersModule } from "../users/users.module";
+import { LoyaltyModule } from "../loyalty/loyalty.module";
+import { OrdersLoyaltyService } from "./orders-loyalty.service";
 
 import { CheckoutThrottleService } from "./checkout-throttle.service";
 import { OrdersController } from "./orders.controller";
@@ -31,12 +33,14 @@ import { OrderRefundsService } from "./refunds/order-refunds.service";
     ProductsModule,
     TBankModule,
     UsersModule,
+    LoyaltyModule,
   ],
   controllers: [OrdersController],
   providers: [
     CheckoutThrottleService,
     OrdersService,
     OrdersStorage,
+    OrdersLoyaltyService,
     OrdersTelegramService,
     OzonPaymentRecheckService,
     OrderRefundsService,

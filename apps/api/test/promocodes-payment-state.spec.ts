@@ -2768,6 +2768,7 @@ function createFixture(
     orderActivationService as unknown as OrderActivationService,
     analyticsOutboxService as unknown as AnalyticsOutboxService,
     affiliateFinancialAccountingService as unknown as AffiliateFinancialAccountingService,
+    { consumePaidInTransaction: async () => undefined } as never,
   );
   // Durable state survives service/worker recreation in these flow tests. These
   // three public storage methods are stubs, not a claim of SQL lease coverage.
