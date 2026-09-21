@@ -12,6 +12,7 @@ import {
   EnrollLoyaltyDTO,
   LoyaltyHistoryQueryDTO,
   LoyaltyOverviewDTO,
+  LoyaltyOperationDTO,
 } from "../src/loyalty/dto";
 import { LoyaltyMembershipService } from "../src/loyalty/membership.service";
 import type { PrismaService } from "../src/prisma/prisma.service";
@@ -19,6 +20,21 @@ import type { PrismaService } from "../src/prisma/prisma.service";
 const validation = { whitelist: true, forbidNonWhitelisted: true };
 
 describe("loyalty membership boundary", () => {
+  it("accepts restored spent points as a distinct history operation", () => {
+    const operation = plainToInstance(LoyaltyOperationDTO, {
+      id: "operation-restore",
+      title: "Возврат потраченных баллов",
+      sequence: 4,
+      kind: "restore",
+      balanceDelta: 25,
+      reservedDelta: 0,
+      balanceAfter: 100,
+      reservedAfter: 0,
+      occurredAt: "2026-09-20T12:00:00.000Z",
+      recordedAt: "2026-09-20T12:00:01.000Z",
+    });
+    assert.deepEqual(validateSync(operation, validation), []);
+  });
   it("requires explicit true consent and rejects client-selected member identifiers", () => {
     for (const body of [
       { acceptedTerms: false, termsVersion: "loyalty-v1" },

@@ -44,11 +44,15 @@ model User {
   coloringRevisionReviews  ColoringRevisionReview[]    @relation("ColoringRevisionReviewer")
   publishedColorings       Coloring[]                  @relation("ColoringPublisher")
   workshop                 Workshop?
+  workshopPublicationFacts WorkshopPublicationFact[]
   workshopTools            WorkshopTool[]
   workshopModerationEvents WorkshopModerationEvent[]   @relation("WorkshopModerationActor")
   workshopWorkReports      WorkshopWorkReport[]        @relation("WorkshopReportReporter")
   affiliatePartner         AffiliatePartner?
   loyaltyMember            LoyaltyMember?
+  orderCompletionFacts OrderCompletionFact[]
+  createdAchievementRevisions LoyaltyAchievementRevision[] @relation("AchievementRevisionCreator")
+  activatedAchievements LoyaltyAchievementDefinition[] @relation("AchievementActivator")
   affiliateContractChanges AffiliateContractRevision[] @relation("AffiliateContractRevisionActor")
   authoredOrderRefunds     OrderRefund[]                 @relation("OrderRefundAuthor")
   affiliatePayoutEvents    AffiliatePayoutEvent[]        @relation("AffiliatePayoutEventActor")

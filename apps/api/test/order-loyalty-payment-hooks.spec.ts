@@ -14,7 +14,6 @@ import { calculatePromoPricing } from "../src/promocodes/pricing";
 function fixture(
   options: {
     closed?: boolean;
-    reserved?: boolean;
     bankError?: Error;
     validSignature?: boolean;
   } = {},
@@ -51,13 +50,9 @@ function fixture(
           paymentStatusChangedToPaid: false,
         };
       },
-      hasReservedLoyaltyPoints: async () => {
-        events.push("reservation");
-        return options.reserved ?? true;
-      },
-      releaseLoyaltyForClosedTBankPayment: async (input: unknown) => {
+      confirmTBankClosedUnpaid: async (input: unknown) => {
         assert.deepEqual(input, evidence);
-        events.push("release");
+        events.push("closed-unpaid-published");
       },
     },
   }) as OrdersService;
@@ -96,7 +91,7 @@ describe("loyalty payment hooks", () => {
       /100/,
     );
   });
-  it("persists terminal state before checking all bank attempts and releasing", async () => {
+  it("persists terminal state before checking all bank attempts and publishing closed-unpaid for any order", async () => {
     for (const Status of ["CANCELED", "DEADLINE_EXPIRED"]) {
       const { service, events } = fixture();
       assert.equal(
@@ -106,25 +101,24 @@ describe("loyalty payment hooks", () => {
       assert.deepEqual(events, [
         "signature",
         "terminal-stored",
-        "reservation",
         "bank-check",
-        "release",
+        "closed-unpaid-published",
       ]);
     }
   });
 
-  it("never releases on unknown state, network failure or invalid signature", async () => {
+  it("never publishes closed-unpaid on unknown state, network failure or invalid signature", async () => {
     const ambiguous = fixture({ closed: false });
     await ambiguous.service.handleTBankPaymentNotification({
       Status: "CANCELED",
     });
-    assert.ok(!ambiguous.events.includes("release"));
+    assert.ok(!ambiguous.events.includes("closed-unpaid-published"));
     const transport = fixture({ bankError: new Error("bank unavailable") });
     await assert.rejects(
       transport.service.handleTBankPaymentNotification({ Status: "CANCELED" }),
       /bank unavailable/,
     );
-    assert.ok(!transport.events.includes("release"));
+    assert.ok(!transport.events.includes("closed-unpaid-published"));
     const invalid = fixture({ validSignature: false });
     await assert.rejects(
       invalid.service.handleTBankPaymentNotification({ Status: "CANCELED" }),
@@ -133,16 +127,7 @@ describe("loyalty payment hooks", () => {
     assert.deepEqual(invalid.events, ["signature"]);
   });
 
-  it("does not query bank closure for ordinary orders or non-closing notifications", async () => {
-    const ordinary = fixture({ reserved: false });
-    await ordinary.service.handleTBankPaymentNotification({
-      Status: "CANCELED",
-    });
-    assert.deepEqual(ordinary.events, [
-      "signature",
-      "terminal-stored",
-      "reservation",
-    ]);
+  it("does not query bank closure for non-closing notifications", async () => {
     for (const Status of ["REJECTED", "AUTH_FAIL", "CONFIRMED", "NEW"]) {
       const { service, events } = fixture();
       await service.handleTBankPaymentNotification({ Status });
@@ -150,29 +135,84 @@ describe("loyalty payment hooks", () => {
     }
   });
 
-  it("never restarts an uncertain loyalty Init, even after the old lease expires", async () => {
-    for (const state of [
-      {
-        paymentStatus: "PENDING",
-        paymentRedirectUrl: "/checkout/payment-initializing?startedAt=1",
-      },
-      {
-        paymentStatus: "FAILED",
-        paymentRedirectUrl: "/checkout/payment-initializing?startedAt=1",
-      },
-      { paymentStatus: "FAILED", paymentRedirectUrl: "https://bank.test/pay" },
-      { paymentStatus: "PENDING", paymentRedirectUrl: "https://bank.test/pay" },
+  it("never restarts an uncertain Init for ordinary or loyalty orders after the old lease expires", async () => {
+    for (const pricingSnapshot of [
+      null,
+      { loyaltyDiscountKopecks: 0 },
+      { loyaltyDiscountKopecks: 20 },
+    ]) {
+      for (const state of [
+        {
+          paymentStatus: "PENDING",
+          paymentRedirectUrl: "/checkout/payment-initializing?startedAt=1",
+        },
+        {
+          paymentStatus: "FAILED",
+          paymentRedirectUrl: "/checkout/payment-initializing?startedAt=1",
+        },
+        {
+          paymentStatus: "FAILED",
+          paymentRedirectUrl: "https://bank.test/pay",
+        },
+        {
+          paymentStatus: "PENDING",
+          paymentRedirectUrl: "https://bank.test/pay",
+        },
+      ]) {
+        let writes = 0;
+        const tx = {
+          $queryRaw: async () => [],
+          order: {
+            findUnique: async () => ({
+              ...state,
+              pricingSnapshot,
+            }),
+            update: async () => {
+              writes += 1;
+            },
+          },
+        };
+        const storage = Object.assign(Object.create(OrdersStorage.prototype), {
+          prisma: {
+            $transaction: (run: (client: unknown) => unknown) => run(tx),
+          },
+        }) as OrdersStorage;
+        assert.equal(
+          await storage.claimPaymentInitialization("order-1"),
+          false,
+        );
+        assert.equal(writes, 0);
+      }
+    }
+  });
+
+  it("allows the first Init for a new ordinary or loyalty order", async () => {
+    const scheduledAt = new Date("2040-01-01T00:01:00.000Z");
+    for (const pricingSnapshot of [
+      null,
+      { loyaltyDiscountKopecks: 0 },
+      { loyaltyDiscountKopecks: 20 },
     ]) {
       let writes = 0;
       const tx = {
-        $queryRaw: async () => [],
+        $queryRaw: async (query: { strings?: readonly string[] }) => {
+          const sql = Array.isArray(query) ? query.join("") : query.strings?.join("") ?? "";
+          return sql.includes("clock_timestamp") ? [{ nextAttemptAt: scheduledAt }] : [];
+        },
         order: {
           findUnique: async () => ({
-            ...state,
-            pricingSnapshot: { loyaltyDiscountKopecks: 20 },
+            paymentStatus: "PENDING",
+            paymentRedirectUrl: "/checkout/success?orderId=order-1",
+            pricingSnapshot,
           }),
           update: async () => {
             writes += 1;
+          },
+        },
+        orderPaymentRecovery: {
+          create: async ({ data }: { data: { orderId: string; nextAttemptAt: Date } }) => {
+            assert.equal(data.orderId, "order-1");
+            assert.equal(data.nextAttemptAt.getTime(), scheduledAt.getTime());
           },
         },
       };
@@ -181,30 +221,8 @@ describe("loyalty payment hooks", () => {
           $transaction: (run: (client: unknown) => unknown) => run(tx),
         },
       }) as OrdersStorage;
-      assert.equal(await storage.claimPaymentInitialization("order-1"), false);
-      assert.equal(writes, 0);
+      assert.equal(await storage.claimPaymentInitialization("order-1"), true);
+      assert.equal(writes, 1);
     }
-  });
-
-  it("allows the first Init for a new loyalty order", async () => {
-    let writes = 0;
-    const tx = {
-      $queryRaw: async () => [],
-      order: {
-        findUnique: async () => ({
-          paymentStatus: "PENDING",
-          paymentRedirectUrl: "/checkout/success?orderId=order-1",
-          pricingSnapshot: { loyaltyDiscountKopecks: 20 },
-        }),
-        update: async () => {
-          writes += 1;
-        },
-      },
-    };
-    const storage = Object.assign(Object.create(OrdersStorage.prototype), {
-      prisma: { $transaction: (run: (client: unknown) => unknown) => run(tx) },
-    }) as OrdersStorage;
-    assert.equal(await storage.claimPaymentInitialization("order-1"), true);
-    assert.equal(writes, 1);
   });
 });

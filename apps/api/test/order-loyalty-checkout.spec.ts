@@ -122,6 +122,7 @@ function fixture(options: { existing?: boolean } = {}) {
         return {
           snapshot: applyLoyaltyPoints(input.snapshot, input.points),
           loyalty: {
+            expectedEarnedPoints: 0,
             availablePoints: input.userId ? 50 : 0,
             maxPoints: input.userId
               ? Math.min(50, getMaxLoyaltyPoints(input.snapshot))
@@ -182,6 +183,7 @@ describe("order loyalty checkout", () => {
     assert.equal(result.deliveryPrice, 4.99);
     assert.equal(result.total, 32.98);
     assert.deepEqual(result.loyalty, {
+      expectedEarnedPoints: 0,
       availablePoints: 50,
       maxPoints: 50,
       pointsToSpend: 5,

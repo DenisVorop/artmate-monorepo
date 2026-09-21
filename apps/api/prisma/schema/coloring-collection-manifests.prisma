@@ -1,0 +1,30 @@
+// Catalog-owned frozen album composition, captured once all uploaded slots exist.
+model ColoringCollectionManifest {
+  collectionId          String   @id @map("collection_id") @db.VarChar(32)
+  version               Int      @default(1)
+  expectedColoringCount Int      @map("expected_coloring_count")
+  capturedAt            DateTime @default(dbgenerated("(CURRENT_TIMESTAMP(3) AT TIME ZONE 'UTC')")) @map("captured_at")
+  capturedTransactionId BigInt   @default(dbgenerated("txid_current()")) @map("captured_transaction_id")
+
+  collection ColoringCollection @relation(fields: [collectionId], references: [id], onDelete: Restrict, onUpdate: Restrict)
+  items ColoringCollectionManifestItem[]
+  achievementAwards LoyaltyAchievementAward[]
+
+  @@map("coloring_collection_manifests")
+}
+
+model ColoringCollectionManifestItem {
+  collectionId String @map("collection_id") @db.VarChar(32)
+  number       Int
+  coloringId   String @map("coloring_id") @db.VarChar(32)
+  revisionId   String @map("revision_id") @db.VarChar(32)
+
+  manifest ColoringCollectionManifest @relation(fields: [collectionId], references: [collectionId], onDelete: Restrict, onUpdate: Restrict)
+  coloring Coloring @relation(fields: [coloringId], references: [id], onDelete: Restrict, onUpdate: Restrict)
+  revision ColoringRevision @relation(fields: [coloringId, revisionId], references: [coloringId, id], onDelete: Restrict, onUpdate: Restrict)
+
+  @@id([collectionId, number])
+  @@unique([collectionId, coloringId], map: "collection_manifest_items_collection_coloring_key")
+  @@index([coloringId, revisionId])
+  @@map("coloring_collection_manifest_items")
+}

@@ -114,6 +114,10 @@ export class LoyaltyOverviewDTO {
 export class LoyaltyOperationDTO {
   @ApiProperty()
   @IsString()
+  title!: string;
+
+  @ApiProperty()
+  @IsString()
   id!: string;
 
   @ApiProperty()
@@ -123,9 +127,9 @@ export class LoyaltyOperationDTO {
   sequence!: number;
 
   @ApiProperty({
-    enum: ["credit", "reversal", "reserve", "consume", "release"],
+    enum: ["credit", "reversal", "reserve", "consume", "release", "restore"],
   })
-  @IsIn(["credit", "reversal", "reserve", "consume", "release"])
+  @IsIn(["credit", "reversal", "reserve", "consume", "release", "restore"])
   kind!: string;
 
   @ApiProperty()
@@ -172,4 +176,90 @@ export class LoyaltyHistoryDTO {
   @IsOptional()
   @Matches(/^[1-9]\d{0,15}$/)
   nextCursor!: string | null;
+}
+
+export class LoyaltyTierDTO {
+  @ApiProperty({ enum: [3, 5, 7, 10] })
+  @IsIn([3, 5, 7, 10])
+  ratePercent!: number;
+
+  @ApiProperty()
+  @IsInt()
+  @Min(0)
+  @Max(Number.MAX_SAFE_INTEGER)
+  spendKopecks!: number;
+
+  @ApiProperty({ nullable: true, type: Number })
+  @IsOptional()
+  @IsIn([300_000, 700_000, 1_200_000])
+  nextThresholdKopecks!: number | null;
+
+  @ApiProperty({ nullable: true, type: Number })
+  @IsOptional()
+  @IsIn([5, 7, 10])
+  nextRatePercent!: number | null;
+}
+
+const achievementConditionKinds = [
+  "published_coloring_count",
+  "distinct_collection_count",
+  "completed_collection_count",
+  "completed_order_count",
+] as const;
+
+export class LoyaltyAchievementDTO {
+  @ApiProperty()
+  @IsString()
+  id!: string;
+
+  @ApiProperty()
+  @IsString()
+  title!: string;
+
+  @ApiProperty()
+  @IsString()
+  description!: string;
+
+  @ApiProperty({ nullable: true, type: String })
+  @IsOptional()
+  @IsString()
+  imageUrl!: string | null;
+
+  @ApiProperty({ enum: achievementConditionKinds })
+  @IsIn(achievementConditionKinds)
+  conditionKind!: (typeof achievementConditionKinds)[number];
+
+  @ApiProperty()
+  @IsInt()
+  @Min(1)
+  target!: number;
+
+  @ApiProperty()
+  @IsInt()
+  @Min(0)
+  rewardPoints!: number;
+
+  @ApiProperty()
+  @IsInt()
+  @Min(0)
+  progress!: number;
+
+  @ApiProperty({ nullable: true, type: String })
+  @IsOptional()
+  @IsDateString()
+  earnedAt!: string | null;
+}
+
+export class LoyaltyDashboardDTO {
+  @ApiProperty({ type: LoyaltyTierDTO, nullable: true })
+  @IsOptional()
+  @Type(() => LoyaltyTierDTO)
+  @ValidateNested()
+  tier!: LoyaltyTierDTO | null;
+
+  @ApiProperty({ type: [LoyaltyAchievementDTO] })
+  @IsArray()
+  @ValidateNested({ each: true })
+  @Type(() => LoyaltyAchievementDTO)
+  achievements!: LoyaltyAchievementDTO[];
 }

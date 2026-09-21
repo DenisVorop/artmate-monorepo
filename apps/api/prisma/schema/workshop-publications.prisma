@@ -1,0 +1,26 @@
+// A durable observation of an approved work being publicly visible.
+// Kept after visibility changes; recorded independently of loyalty membership.
+model WorkshopPublicationFact {
+  id          String   @id @default(uuid())
+  workId      String   @unique @map("work_id") @db.VarChar(32)
+  revisionId  String   @map("revision_id") @db.VarChar(32)
+  ownerId     String   @map("owner_id")
+  coloringId  String   @map("coloring_id") @db.VarChar(32)
+  collectionId String @map("collection_id") @db.VarChar(32)
+  qualifiedAt DateTime @default(now()) @map("qualified_at")
+  capturedTransactionId BigInt @default(dbgenerated("txid_current()")) @map("captured_transaction_id")
+
+  work        WorkshopWork         @relation(fields: [workId], references: [id], onDelete: Restrict, onUpdate: Restrict)
+  revision    WorkshopWorkRevision @relation(fields: [workId, revisionId], references: [workId, id], onDelete: Restrict, onUpdate: Restrict)
+  owner       User                 @relation(fields: [ownerId], references: [id], onDelete: Restrict, onUpdate: Restrict)
+  coloring    Coloring             @relation(fields: [coloringId], references: [id], onDelete: Restrict, onUpdate: Restrict)
+  collection  ColoringCollection   @relation(fields: [collectionId], references: [id], onDelete: Restrict, onUpdate: Restrict)
+  workRewards LoyaltyWorkReward[]
+  achievementAwards LoyaltyAchievementAward[]
+
+  @@index([ownerId, coloringId, qualifiedAt])
+  @@index([coloringId])
+  @@index([ownerId, collectionId, qualifiedAt], map: "workshop_publication_facts_owner_collection_qualified_idx")
+  @@index([collectionId])
+  @@map("workshop_publication_facts")
+}

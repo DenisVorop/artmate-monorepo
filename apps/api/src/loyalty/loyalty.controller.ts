@@ -21,6 +21,7 @@ import type { AuthUser } from "../auth/auth.types";
 import { ValidateResponse } from "../common/response-validation.interceptor";
 import {
   EnrollLoyaltyDTO,
+  LoyaltyDashboardDTO,
   LoyaltyHistoryDTO,
   LoyaltyHistoryQueryDTO,
   LoyaltyOverviewDTO,
@@ -33,6 +34,14 @@ import { LoyaltyMembershipService } from "./membership.service";
 @Controller("loyalty")
 export class LoyaltyController {
   constructor(private readonly membership: LoyaltyMembershipService) {}
+
+  @Get("me/dashboard")
+  @Header("Cache-Control", "private, no-store")
+  @ValidateResponse(LoyaltyDashboardDTO)
+  @ApiOkResponse({ type: LoyaltyDashboardDTO })
+  getDashboard(@Req() request: { user: AuthUser }) {
+    return this.membership.getDashboard(request.user.id);
+  }
 
   @Get("me")
   @Header("Cache-Control", "private, no-store")

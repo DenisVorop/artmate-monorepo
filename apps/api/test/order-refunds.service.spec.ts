@@ -67,6 +67,38 @@ describe("OrderRefundsService", () => {
     );
     assert.equal(result.refunds[0]?.items[0]?.amountKopecks, 80);
     assert.equal(result.items[0]?.refundableKopecks, 160);
+    assert.equal(fixture.order.refunds[0]?.loyaltyPoints, 1n);
+    assert.equal(fixture.order.refunds[0]?.items[0]?.loyaltyPoints, 1n);
+    assert.equal(fixture.order.refunds[0]?.items[0]?.previousQuantity, 0);
+    assert.deepEqual(fixture.events[0], {
+      refundId: fixture.order.refunds[0]!.id,
+      occurredAt: fixture.order.refunds[0]!.createdAt,
+    });
+  });
+
+  it("rolls back the refund and accounting when durable publication fails", async () => {
+    const fixture = createFixture();
+    fixture.failures.publish = true;
+    const input = request(
+      "00000000-0000-4000-8000-000000000088",
+      "publication",
+      [{ productId: "product-1", quantity: 1 }],
+      0,
+    );
+    await assert.rejects(
+      fixture.service.createOrderRefund(fixture.order.id, input, "admin-1"),
+      /publication unavailable/,
+    );
+    assert.equal(fixture.order.refunds.length, 0);
+    assert.equal(fixture.events.length, 0);
+    assert.equal(fixture.history.length, 0);
+    assert.equal(fixture.order.affiliateCommission.ledgerEntries.length, 1);
+    fixture.failures.publish = false;
+    await fixture.service.createOrderRefund(fixture.order.id, input, "admin-1");
+    await fixture.service.createOrderRefund(fixture.order.id, input, "admin-1");
+    assert.equal(fixture.events.length, 1);
+    assert.equal(fixture.order.refunds.length, 1);
+    assert.equal(fixture.order.refunds[0]?.loyaltyPoints, 0n);
   });
 
   it("does not fall back to the old promo snapshot when common pricing is missing", async () => {
@@ -342,6 +374,8 @@ function request(
 
 type FixtureRefundItem = {
   amountKopecks: bigint;
+  loyaltyPoints: bigint;
+  previousQuantity: number;
   productId: string;
   quantity: number;
   refundId: string;
@@ -369,6 +403,7 @@ type FixtureRefund = {
   requestFingerprint: string;
   requestId: string;
   totalKopecks: bigint;
+  loyaltyPoints: bigint;
 };
 
 type RefundCreateData = Omit<
@@ -390,6 +425,8 @@ type LedgerCreateData = Omit<FixtureLedgerEntry, "id"> & {
 function createFixture() {
   let nextRefundId = 1;
   const history: unknown[] = [];
+  const events: Array<{ refundId: string; occurredAt: Date }> = [];
+  const failures = { publish: false };
   const transactionOptions: Array<{ isolationLevel?: string }> = [];
   const transactionModes: string[] = [];
   const order = {
@@ -472,6 +509,17 @@ function createFixture() {
       return 0;
     },
     order: { findUnique: async () => sortedOrder() },
+    orderRefundEvent: {
+      create: async ({
+        data,
+      }: {
+        data: { refundId: string; occurredAt: Date };
+      }) => {
+        if (failures.publish) throw new Error("publication unavailable");
+        events.push(data);
+        return data;
+      },
+    },
     orderRefund: {
       create: async ({ data }: { data: RefundCreateData }) => {
         const refund = {
@@ -520,7 +568,25 @@ function createFixture() {
       options?: { isolationLevel?: string },
     ) => {
       transactionOptions.push(options ?? {});
-      return callback(tx);
+      const savedRefunds = structuredClone(order.refunds);
+      const savedLedger = structuredClone(
+        order.affiliateCommission.ledgerEntries,
+      );
+      const savedHistory = [...history];
+      const savedEvents = [...events];
+      try {
+        return await callback(tx);
+      } catch (error) {
+        order.refunds.splice(0, order.refunds.length, ...savedRefunds);
+        order.affiliateCommission.ledgerEntries.splice(
+          0,
+          order.affiliateCommission.ledgerEntries.length,
+          ...savedLedger,
+        );
+        history.splice(0, history.length, ...savedHistory);
+        events.splice(0, events.length, ...savedEvents);
+        throw error;
+      }
     },
     order: { findUnique: async () => sortedOrder() },
   } as unknown as PrismaService;
@@ -528,5 +594,13 @@ function createFixture() {
     cancelPendingInTransaction: async () => undefined,
   } as never);
   const service = new OrderRefundsService(prisma, accounting);
-  return { history, order, service, transactionModes, transactionOptions };
+  return {
+    history,
+    order,
+    service,
+    transactionModes,
+    transactionOptions,
+    events,
+    failures,
+  };
 }

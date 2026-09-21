@@ -101,6 +101,21 @@ export type TBankAcquiringCreateCheckoutPaymentResult = {
   redirectUrl: string;
 };
 
+export type TBankAcquiringReconciliationInput = {
+  orderId: string;
+  paymentId?: string;
+  amountKopecks: number;
+};
+
+export type TBankAcquiringReconciliationResult = {
+  state: "paid" | "closed_unpaid" | "pending" | "attention";
+  paymentId?: string;
+  reason?: string;
+};
+
+type CheckedPayment = { paymentId: string; status: string };
+type CheckedOrder = { payments: CheckedPayment[] } | { reason: string };
+
 export type TBankAcquiringPaymentNotification = Record<string, unknown>;
 
 export type TBankAcquiringParsedNotification = {
@@ -117,6 +132,20 @@ export type TBankAcquiringParsedNotification = {
 
 const defaultAcquiringBaseUrl = "https://securepay.tinkoff.ru";
 const successfulPaymentStatuses = new Set(["CONFIRMED"]);
+// AUTHORIZED is a hold, not a captured payment. Unknown/error/refund states
+// require reconciliation rather than a guessed successful/closed outcome.
+const pendingPaymentStatuses = new Set([
+  "NEW",
+  "FORM_SHOWED",
+  "PREAUTHORIZING",
+  "AUTHORIZING",
+  "3DS_CHECKING",
+  "3DS_CHECKED",
+  "AUTHORIZED",
+  "CONFIRMING",
+  "CONFIRM_CHECKING",
+  "PAY_CHECKING",
+]);
 const failedPaymentStatuses = new Set([
   "CANCELED",
   "DEADLINE_EXPIRED",
@@ -135,19 +164,95 @@ export class TBankAcquiringService {
     paymentId: string;
     amountKopecks: number;
   }): Promise<boolean> {
-    if (
-      !input.orderId ||
-      input.orderId.trim() !== input.orderId ||
-      input.orderId.length > 50 ||
-      !input.paymentId ||
-      input.paymentId.trim() !== input.paymentId ||
-      input.paymentId.length > 20 ||
-      !Number.isSafeInteger(input.amountKopecks) ||
-      input.amountKopecks <= 0
-    ) {
+    assertReconciliationInput(input);
+    if (!isPaymentId(input.paymentId)) {
       throw new BadRequestException("Invalid T-Bank closed-payment identity");
     }
     const terminalKey = this.getTerminalKey();
+    const checked = await this.checkOrderPayments(input, terminalKey);
+    if (
+      "reason" in checked ||
+      !checked.payments.every((payment) =>
+        isClosedUnpaidStatus(payment.status),
+      ) ||
+      !checked.payments.some((payment) => payment.paymentId === input.paymentId)
+    )
+      return false;
+    const state = await this.getPaymentState(input.paymentId, terminalKey);
+    return (
+      isMatchingPaymentState(state, terminalKey, input, input.paymentId) &&
+      isClosedUnpaidStatus(state.Status)
+    );
+  }
+
+  /** Read-only; the caller must prohibit new/in-flight Init attempts for this order. */
+  async reconcilePayment(
+    input: TBankAcquiringReconciliationInput,
+  ): Promise<TBankAcquiringReconciliationResult> {
+    assertReconciliationInput(input);
+    const terminalKey = this.getTerminalKey();
+    const checked = await this.checkOrderPayments(input, terminalKey);
+    if ("reason" in checked)
+      return { state: "attention", reason: checked.reason };
+    const { payments } = checked;
+    if (
+      input.paymentId &&
+      !payments.some((payment) => payment.paymentId === input.paymentId)
+    )
+      return { state: "attention", reason: "identity_mismatch" };
+
+    const nonClosed = payments.filter(
+      (payment) => !isClosedUnpaidStatus(payment.status),
+    );
+    if (
+      nonClosed.some(
+        (payment) =>
+          payment.status !== "CONFIRMED" &&
+          !pendingPaymentStatuses.has(payment.status),
+      )
+    )
+      return { state: "attention", reason: "closure_unconfirmed" };
+    if (nonClosed.length > 1)
+      return { state: "attention", reason: "payment_ambiguous" };
+    const selected = input.paymentId
+      ? payments.find((payment) => payment.paymentId === input.paymentId)!
+      : (nonClosed[0] ?? (payments.length === 1 ? payments[0] : undefined));
+    if (!selected) return { state: "attention", reason: "payment_ambiguous" };
+    if (
+      nonClosed.length === 1 &&
+      nonClosed[0]!.paymentId !== selected.paymentId
+    )
+      return { state: "attention", reason: "identity_mismatch" };
+
+    const paymentId = selected.paymentId;
+    const state = await this.getPaymentState(paymentId, terminalKey);
+    if (!isMatchingPaymentState(state, terminalKey, input, paymentId))
+      return {
+        state: "attention",
+        reason:
+          paymentStateProblem(state, terminalKey, input, paymentId) ??
+          "provider_error",
+      };
+    // The fresh read is authoritative for an actual capture, even if it
+    // contradicts older closure evidence; downstream must preserve that fact.
+    if (state.Status === "CONFIRMED") return { state: "paid", paymentId };
+    if (isClosedUnpaidStatus(state.Status)) {
+      if (nonClosed.length === 0) return { state: "closed_unpaid", paymentId };
+      if (selected.status !== "CONFIRMED")
+        return { state: "pending", paymentId, reason: "closure_unconfirmed" };
+    }
+    if (
+      pendingPaymentStatuses.has(state.Status as string) &&
+      pendingPaymentStatuses.has(selected.status)
+    )
+      return { state: "pending", paymentId };
+    return { state: "attention", paymentId, reason: "closure_unconfirmed" };
+  }
+
+  private async checkOrderPayments(
+    input: TBankAcquiringReconciliationInput,
+    terminalKey: string,
+  ): Promise<CheckedOrder> {
     const checkRequest = { TerminalKey: terminalKey, OrderId: input.orderId };
     const checked = await this.requestAcquiring(
       "/v2/CheckOrder",
@@ -159,51 +264,56 @@ export class TBankAcquiringService {
     );
     // CheckOrder returns the order's payment history, without pagination.
     // https://developer.tbank.ru/schemas/eacq/openapi.yaml
+    if (
+      !isRecord(checked) ||
+      checked.Success !== true ||
+      checked.ErrorCode !== "0"
+    )
+      return { reason: "provider_error" };
     if (!isSuccessfulOrderResponse(checked, terminalKey, input.orderId))
-      return false;
-    if (!Array.isArray(checked.Payments) || checked.Payments.length === 0)
-      return false;
+      return { reason: "identity_mismatch" };
+    if (!Array.isArray(checked.Payments)) return { reason: "provider_error" };
+    if (checked.Payments.length === 0) return { reason: "payment_not_found" };
     const paymentIds = new Set<string>();
+    const payments: CheckedPayment[] = [];
     for (const payment of checked.Payments) {
       if (
         !isRecord(payment) ||
-        typeof payment.PaymentId !== "string" ||
-        !payment.PaymentId ||
-        payment.PaymentId.trim() !== payment.PaymentId ||
-        payment.PaymentId.length > 20 ||
-        paymentIds.has(payment.PaymentId) ||
+        !isPaymentId(payment.PaymentId) ||
         // The schema declares a string here but its example uses a boolean.
         (payment.Success !== true && payment.Success !== "true") ||
         (payment.ErrorCode !== undefined &&
           payment.ErrorCode !== "0" &&
           payment.ErrorCode !== 0) ||
-        !Number.isSafeInteger(payment.Amount) ||
-        payment.Amount !== input.amountKopecks ||
-        !isClosedUnpaidStatus(payment.Status)
+        typeof payment.Status !== "string" ||
+        !payment.Status
       )
-        return false;
+        return { reason: "provider_error" };
+      if (paymentIds.has(payment.PaymentId))
+        return { reason: "payment_ambiguous" };
+      if (
+        !Number.isSafeInteger(payment.Amount) ||
+        payment.Amount !== input.amountKopecks
+      )
+        return { reason: "amount_mismatch" };
       paymentIds.add(payment.PaymentId);
+      payments.push({ paymentId: payment.PaymentId, status: payment.Status });
     }
-    if (!paymentIds.has(input.paymentId)) return false;
+    return { payments };
+  }
 
+  private getPaymentState(paymentId: string, terminalKey: string) {
     const stateRequest = {
       TerminalKey: terminalKey,
-      PaymentId: input.paymentId,
+      PaymentId: paymentId,
     };
-    const state = await this.requestAcquiring(
+    return this.requestAcquiring(
       "/v2/GetState",
       {
         ...stateRequest,
         Token: this.createToken(stateRequest),
       },
       false,
-    );
-    return (
-      isSuccessfulOrderResponse(state, terminalKey, input.orderId) &&
-      state.PaymentId === input.paymentId &&
-      Number.isSafeInteger(state.Amount) &&
-      state.Amount === input.amountKopecks &&
-      isClosedUnpaidStatus(state.Status)
     );
   }
 
@@ -764,4 +874,65 @@ function isSuccessfulOrderResponse(
 
 function isClosedUnpaidStatus(value: unknown) {
   return value === "CANCELED" || value === "DEADLINE_EXPIRED";
+}
+
+function isPaymentId(value: unknown): value is string {
+  return (
+    typeof value === "string" &&
+    value.length > 0 &&
+    value.length <= 20 &&
+    value.trim() === value
+  );
+}
+
+function assertReconciliationInput(input: TBankAcquiringReconciliationInput) {
+  if (
+    !input ||
+    typeof input.orderId !== "string" ||
+    !input.orderId ||
+    input.orderId.trim() !== input.orderId ||
+    input.orderId.length > 50 ||
+    (input.paymentId !== undefined && !isPaymentId(input.paymentId)) ||
+    !Number.isSafeInteger(input.amountKopecks) ||
+    input.amountKopecks <= 0
+  )
+    throw new BadRequestException("Invalid T-Bank reconciliation identity");
+}
+
+function isMatchingPaymentState(
+  state: unknown,
+  terminalKey: string,
+  input: TBankAcquiringReconciliationInput,
+  paymentId: string,
+): state is Record<string, unknown> {
+  return (
+    paymentStateProblem(state, terminalKey, input, paymentId) === undefined
+  );
+}
+
+function paymentStateProblem(
+  state: unknown,
+  terminalKey: string,
+  input: TBankAcquiringReconciliationInput,
+  paymentId: string,
+): string | undefined {
+  if (
+    !isRecord(state) ||
+    state.Success !== true ||
+    state.ErrorCode !== "0" ||
+    typeof state.Status !== "string"
+  )
+    return "provider_error";
+  if (
+    state.TerminalKey !== terminalKey ||
+    state.OrderId !== input.orderId ||
+    state.PaymentId !== paymentId
+  )
+    return "identity_mismatch";
+  if (
+    !Number.isSafeInteger(state.Amount) ||
+    state.Amount !== input.amountKopecks
+  )
+    return "amount_mismatch";
+  return undefined;
 }

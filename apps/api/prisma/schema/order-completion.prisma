@@ -1,0 +1,43 @@
+// Orders publishes durable completion evidence independently of loyalty enrollment.
+model OrderCompletionFact {
+  orderId               String   @id @map("order_id") @db.VarChar(32)
+  userId                String   @map("user_id")
+  paidAt                DateTime @map("paid_at")
+  completedAt           DateTime @map("completed_at")
+  qualifiedAt           DateTime @map("qualified_at")
+  totalQuantity         Int      @map("total_quantity")
+  capturedAt            DateTime @default(dbgenerated("(CURRENT_TIMESTAMP(3) AT TIME ZONE 'UTC')")) @map("captured_at")
+  capturedTransactionId BigInt   @default(dbgenerated("txid_current()")) @map("captured_transaction_id")
+
+  order Order @relation(fields: [orderId], references: [id], onDelete: Restrict, onUpdate: Restrict)
+  user User @relation(fields: [userId], references: [id], onDelete: Restrict, onUpdate: Restrict)
+  items OrderCompletionFactItem[]
+  eligibility OrderCompletionEligibility?
+  achievementAwards LoyaltyAchievementAward[]
+
+  @@index([userId, qualifiedAt, orderId])
+  @@map("order_completion_facts")
+}
+
+model OrderCompletionFactItem {
+  orderId   String @map("order_id") @db.VarChar(32)
+  productId String @map("product_id") @db.VarChar(191)
+  quantity  Int
+
+  fact OrderCompletionFact @relation(fields: [orderId], references: [orderId], onDelete: Restrict, onUpdate: Restrict)
+
+  @@id([orderId, productId])
+  @@map("order_completion_fact_items")
+}
+
+// This source-owned read model changes when the order status or published returns change.
+model OrderCompletionEligibility {
+  orderId          String   @id @map("order_id") @db.VarChar(32)
+  retainedQuantity Int      @map("retained_quantity")
+  isEligible       Boolean  @map("is_eligible")
+  updatedAt        DateTime @default(dbgenerated("(clock_timestamp() AT TIME ZONE 'UTC')")) @map("updated_at")
+
+  fact OrderCompletionFact @relation(fields: [orderId], references: [orderId], onDelete: Restrict, onUpdate: Restrict)
+
+  @@map("order_completion_eligibility")
+}

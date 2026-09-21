@@ -42,7 +42,7 @@ function fixture() {
     user: { status: "ACTIVE", deletedAt: null as Date | null },
     wallet,
   };
-  const state = { enrolled: true };
+  const state = { enrolled: true, spendKopecks: "0", spendingReads: 0 };
   const base = baseSnapshot();
   const order = {
     id: "order-1",
@@ -75,7 +75,11 @@ function fixture() {
   const reservations = new Map<string, LoyaltyReservation>();
   const locks: string[] = [];
   const tx = {
-    $queryRaw: async (strings: TemplateStringsArray) => {
+    $queryRaw: async (strings: TemplateStringsArray | Prisma.Sql) => {
+      if (!Array.isArray(strings)) {
+        state.spendingReads += 1;
+        return [{ spendKopecks: state.spendKopecks, invalid: false }];
+      }
       locks.push(strings.join("?"));
       return [{ id: order.id }];
     },
@@ -150,20 +154,6 @@ function fixture() {
     savePricing(snapshot);
     return snapshot;
   }
-  function markPaid() {
-    order.paymentStatus = "PAID";
-    order.status = "PAID";
-    order.paidAt = new Date("2026-09-20T12:01:00.000Z");
-  }
-  function markFailed() {
-    order.paymentStatus = "FAILED";
-    order.terminalPaymentFailedAt = new Date("2026-09-20T12:02:00.000Z");
-  }
-  const cancellation = () => ({
-    orderId: order.id,
-    paymentId: "payment-1",
-    amountKopecks: order.pricingSnapshot.totalKopecks,
-  });
   return {
     service,
     tx,
@@ -177,13 +167,10 @@ function fixture() {
     base,
     reserve,
     savePricing,
-    markPaid,
-    markFailed,
-    cancellation,
   };
 }
 
-describe("OrdersLoyaltyService settlement", () => {
+describe("OrdersLoyaltyService checkout reservation", () => {
   it("previews actor balance minus holds, capped by per-unit one-ruble floor, without writes", async () => {
     const f = fixture();
     f.wallet.reservedPoints = 900n;
@@ -195,6 +182,8 @@ describe("OrdersLoyaltyService settlement", () => {
     assert.equal(result.loyalty.availablePoints, 100);
     assert.equal(result.loyalty.maxPoints, 100);
     assert.equal(result.loyalty.discountKopecks, 500);
+    assert.equal(result.loyalty.expectedEarnedPoints, 0);
+    assert.equal(f.state.spendingReads, 0);
     assert.equal(result.snapshot.totalKopecks, 19800);
     assert.equal(result.snapshot.deliveryKopecks, 300);
     f.wallet.reservedPoints = 0n;
@@ -232,11 +221,72 @@ describe("OrdersLoyaltyService settlement", () => {
       const result = await f.service.preview({ ...input, points: 0 });
       assert.equal(result.loyalty.maxPoints, 0, scenario);
       assert.equal(result.loyalty.availablePoints, 0, scenario);
+      assert.equal(result.loyalty.expectedEarnedPoints, 0, scenario);
+      assert.equal(f.state.spendingReads, 0, scenario);
       await assert.rejects(
         f.service.preview({ ...input, points: 1 }),
         ConflictException,
         scenario,
       );
+    }
+  });
+
+  it("previews rounded-up purchase rewards at every tier without counting this basket toward the tier", async () => {
+    const f = fixture();
+    // 799 ₽ merchandise; delivery must never enter the reward basis.
+    const snapshot = createOrderPricingSnapshot(
+      calculatePromoPricing(
+        [{ id: "product-1", unitPriceKopecks: 79_900, quantity: 1 }],
+        { type: "fixed", amountKopecks: 0 },
+      ),
+      50_000,
+    );
+    for (const [spendKopecks, expected] of [
+      ["0", 120],
+      ["299999", 120],
+      ["300000", 200],
+      ["699999", 200],
+      ["700000", 280],
+      ["1199999", 280],
+      ["1200000", 400],
+    ] as const) {
+      f.state.spendKopecks = spendKopecks;
+      const result = await f.service.preview({
+        userId: "user-1",
+        snapshot,
+        points: 0,
+      });
+      assert.equal(result.loyalty.expectedEarnedPoints, expected, spendKopecks);
+      assert.deepEqual(result.snapshot, snapshot);
+    }
+    assert.equal(f.operations.size, 0);
+    assert.equal(f.reservations.size, 0);
+    assert.equal(f.wallet.balancePoints, 1000n);
+    assert.equal(f.locks.length, 0);
+  });
+
+  it("uses post-promo goods, supports empty wallets and returns zero for a fully discounted basket", async () => {
+    const f = fixture();
+    f.state.spendKopecks = "300000";
+    f.wallet.balancePoints = 0n;
+    for (const [promo, expected] of [
+      [10_000, 175],
+      [79_900, 0],
+    ] as const) {
+      const snapshot = createOrderPricingSnapshot(
+        calculatePromoPricing(
+          [{ id: "product-1", unitPriceKopecks: 79_900, quantity: 1 }],
+          { type: "fixed", amountKopecks: promo },
+        ),
+        50_000,
+      );
+      const result = await f.service.preview({
+        userId: "user-1",
+        snapshot,
+        points: 0,
+      });
+      assert.equal(result.loyalty.expectedEarnedPoints, expected);
+      assert.equal(result.loyalty.availablePoints, 0);
     }
   });
 
@@ -347,138 +397,6 @@ describe("OrdersLoyaltyService settlement", () => {
     assert.equal(f.wallet.reservedPoints, 25n);
     assert.equal(f.operations.size, 1);
     assert.match(f.locks[0]!, /orders.*FOR UPDATE/);
-  });
-
-  it("consumes once only after PAID plus paidAt and uses a stable payment timestamp", async () => {
-    const f = fixture();
-    await f.reserve();
-    await assert.rejects(
-      f.service.consumePaidInTransaction(f.tx, f.order.id),
-      ConflictException,
-    );
-    f.order.paymentStatus = "PAID";
-    await assert.rejects(
-      f.service.consumePaidInTransaction(f.tx, f.order.id),
-      ConflictException,
-    );
-    f.order.paymentStatus = "PENDING";
-    f.order.paidAt = new Date();
-    await assert.rejects(
-      f.service.consumePaidInTransaction(f.tx, f.order.id),
-      ConflictException,
-    );
-    f.markPaid();
-    await f.service.consumePaidInTransaction(f.tx, f.order.id);
-    await f.service.consumePaidInTransaction(f.tx, f.order.id);
-    const operation = f.operations.get("order:order-1:consume")!;
-    assert.equal(operation.occurredAt.getTime(), f.order.paidAt!.getTime());
-    assert.equal(f.wallet.balancePoints, 975n);
-    assert.equal(f.wallet.reservedPoints, 0n);
-    assert.equal(f.operations.size, 2);
-  });
-
-  it("rejects missing reservations and amount mismatch for a snapshot with loyalty discount", async () => {
-    for (const scenario of ["missing", "mismatch"]) {
-      const f = fixture();
-      await f.reserve();
-      if (scenario === "missing") f.reservations.clear();
-      else f.reservations.get(f.order.id)!.points = 26n;
-      f.markPaid();
-      await assert.rejects(
-        f.service.consumePaidInTransaction(f.tx, f.order.id),
-        ConflictException,
-      );
-      f.order.paymentStatus = "FAILED";
-      f.order.paidAt = null;
-      f.markFailed();
-      await assert.rejects(
-        f.service.releaseCancelledTBankInTransaction(f.tx, f.cancellation()),
-        ConflictException,
-      );
-      assert.equal(f.operations.size, 1);
-    }
-  });
-
-  it("rejects settlement if reservation member differs from the verified checkout actor", async () => {
-    const f = fixture();
-    await f.reserve();
-    f.order.checkoutActorUserId = "user-2";
-    f.markPaid();
-    await assert.rejects(
-      f.service.consumePaidInTransaction(f.tx, f.order.id),
-      ConflictException,
-    );
-    f.order.paymentStatus = "FAILED";
-    f.order.paidAt = null;
-    f.markFailed();
-    await assert.rejects(
-      f.service.releaseCancelledTBankInTransaction(f.tx, f.cancellation()),
-      ConflictException,
-    );
-    assert.equal(f.wallet.reservedPoints, 25n);
-  });
-
-  it("releases only with matching TBank payment, terminal marker, and cash total", async () => {
-    for (const scenario of ["provider", "payment", "marker", "amount"]) {
-      const f = fixture();
-      await f.reserve();
-      f.markFailed();
-      if (scenario === "provider") f.order.paymentMethod = "OZON_ACQUIRING";
-      if (scenario === "payment")
-        f.order.tbankAcquiringPaymentId = "payment-new";
-      if (scenario === "marker") f.order.terminalPaymentFailedAt = null;
-      const input = f.cancellation();
-      if (scenario === "amount") input.amountKopecks += 1;
-      await assert.rejects(
-        f.service.releaseCancelledTBankInTransaction(f.tx, input),
-        ConflictException,
-      );
-      assert.equal(f.wallet.reservedPoints, 25n);
-      assert.equal(f.operations.size, 1);
-    }
-  });
-
-  it("releases once using the persisted failure time and rejects contradictory late payment", async () => {
-    const f = fixture();
-    await f.reserve();
-    f.markFailed();
-    await f.service.releaseCancelledTBankInTransaction(f.tx, f.cancellation());
-    await f.service.releaseCancelledTBankInTransaction(f.tx, f.cancellation());
-    assert.equal(f.wallet.balancePoints, 1000n);
-    assert.equal(f.wallet.reservedPoints, 0n);
-    assert.equal(f.operations.size, 2);
-    assert.equal(
-      f.operations.get("order:order-1:release")!.occurredAt.getTime(),
-      f.order.terminalPaymentFailedAt!.getTime(),
-    );
-    f.markPaid();
-    await assert.rejects(
-      f.service.consumePaidInTransaction(f.tx, f.order.id),
-      ConflictException,
-    );
-  });
-
-  it("does not release a hold after a concurrent paid marker wins", async () => {
-    for (const scenario of ["status", "timestamp"]) {
-      const f = fixture();
-      await f.reserve();
-      f.markFailed();
-      if (scenario === "status") f.order.paymentStatus = "PAID";
-      else f.order.paidAt = new Date();
-      await f.service.releaseCancelledTBankInTransaction(
-        f.tx,
-        f.cancellation(),
-      );
-      assert.equal(f.wallet.reservedPoints, 25n);
-      assert.equal(f.operations.size, 1);
-    }
-  });
-
-  it("ordinary orders without loyalty remain settlement no-ops", async () => {
-    const f = fixture();
-    await f.service.consumePaidInTransaction(f.tx, f.order.id);
-    await f.service.releaseCancelledTBankInTransaction(f.tx, f.cancellation());
-    assert.equal(f.operations.size, 0);
   });
 
   it("rejects noninteger points and inconsistent wallets before generating a quote", async () => {

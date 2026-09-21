@@ -1,0 +1,50 @@
+model LoyaltyPurchaseAccount {
+  orderId         String   @id @map("order_id") @db.VarChar(32)
+  memberId        String   @map("member_id")
+  ratePercent     Int      @map("rate_percent")
+  rulesVersion    String   @map("rules_version") @db.VarChar(64)
+  historicalVersion String? @map("historical_version") @db.VarChar(64)
+  historicalSpendKopecks BigInt? @map("historical_spend_kopecks")
+  baseKopecks     BigInt   @map("base_kopecks")
+  grantedPoints   BigInt   @map("granted_points")
+  reversedPoints  BigInt   @default(0) @map("reversed_points")
+  refundedKopecks BigInt   @map("refunded_kopecks")
+  occurredAt      DateTime @map("occurred_at")
+  createdAt       DateTime @default(now()) @map("created_at")
+  updatedAt       DateTime @default(now()) @updatedAt @map("updated_at")
+
+  order      Order              @relation(fields: [orderId], references: [id], onDelete: Restrict, onUpdate: Restrict)
+  member     LoyaltyMember      @relation(fields: [memberId], references: [id], onDelete: Restrict, onUpdate: Restrict)
+  operations LoyaltyOperation[]
+
+  @@index([memberId, occurredAt])
+  @@map("loyalty_purchase_accounts")
+}
+
+model LoyaltyPurchaseSync {
+  orderId       String   @id @map("order_id") @db.VarChar(32)
+  attempts      Int      @default(0)
+  nextAttemptAt DateTime @default(now()) @map("next_attempt_at")
+  lastError     String?  @map("last_error") @db.VarChar(80)
+  updatedAt     DateTime @default(now()) @updatedAt @map("updated_at")
+
+  order Order @relation(fields: [orderId], references: [id], onDelete: Restrict, onUpdate: Restrict)
+
+  @@index([nextAttemptAt])
+  @@map("loyalty_purchase_syncs")
+}
+
+model LoyaltyPurchaseHistorySync {
+  memberId            String    @id @map("member_id")
+  activeTransactionId BigInt?   @map("active_transaction_id")
+  completedAt         DateTime? @map("completed_at")
+  attempts            Int       @default(0)
+  nextAttemptAt       DateTime  @default(now()) @map("next_attempt_at")
+  lastError           String?   @map("last_error") @db.VarChar(80)
+  updatedAt           DateTime  @default(now()) @updatedAt @map("updated_at")
+
+  member LoyaltyMember @relation(fields: [memberId], references: [id], onDelete: Restrict, onUpdate: Restrict)
+
+  @@index([nextAttemptAt])
+  @@map("loyalty_purchase_history_syncs")
+}

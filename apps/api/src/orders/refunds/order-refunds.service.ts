@@ -131,6 +131,8 @@ export class OrderRefundsService {
           title: orderItem.title,
           quantity: requested.quantity,
           amountKopecks: allocation.amountKopecks,
+          previousQuantity,
+          loyaltyPoints: allocation.loyaltyPoints,
         };
       });
       const deliveryPaidKopecks = rublesToKopecks(order.deliveryPrice);
@@ -151,6 +153,10 @@ export class OrderRefundsService {
         0,
       );
       const totalKopecks = merchandiseKopecks + input.deliveryKopecks;
+      const loyaltyPoints = refundItems.reduce(
+        (sum, item) => sum + BigInt(item.loyaltyPoints),
+        0n,
+      );
       if (!Number.isSafeInteger(totalKopecks)) {
         throw new BadRequestException("Сумма возврата слишком велика");
       }
@@ -165,15 +171,22 @@ export class OrderRefundsService {
           reason: input.reason,
           deliveryKopecks: BigInt(input.deliveryKopecks),
           totalKopecks: BigInt(totalKopecks),
+          loyaltyPoints,
           items: {
             create: refundItems.map((item) => ({
               productId: item.productId,
               title: item.title,
               quantity: item.quantity,
               amountKopecks: BigInt(item.amountKopecks),
+              previousQuantity: item.previousQuantity,
+              loyaltyPoints: BigInt(item.loyaltyPoints),
             })),
           },
         },
+      });
+
+      await tx.orderRefundEvent.create({
+        data: { refundId: refund.id, occurredAt: refund.createdAt },
       });
 
       let reversedCommissionKopecks = 0;

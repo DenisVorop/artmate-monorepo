@@ -7,8 +7,10 @@ import { PrismaPg } from "@prisma/adapter-pg";
 
 import { PrismaClient, type Prisma } from "../src/generated/prisma/client";
 import { LoyaltyWalletService } from "../src/loyalty/wallet.service";
+import { LoyaltyPaymentSettlementService } from "../src/loyalty/payment-settlement.service";
 import { OrdersLoyaltyService } from "../src/orders/orders-loyalty.service";
 import { OrdersStorage } from "../src/orders/orders.storage";
+import { PaymentRecoveryService } from "../src/orders/payment-recovery/payment-recovery.service";
 import {
   createOrderPricingSnapshot,
   parseOrderPricingSnapshot,
@@ -57,6 +59,10 @@ describe(
         order: { id: string },
       ) => Promise<void> = async () => {},
       realPromos = false,
+      enqueueOrderPaid: (
+        tx: Prisma.TransactionClient,
+        order: { id: string },
+      ) => Promise<void> = async () => {},
     ) {
       const coordinator = new OrdersLoyaltyService(
         client as unknown as PrismaService,
@@ -73,17 +79,29 @@ describe(
           : ({
               getAffiliateOwnerUserId: unexpected,
               reserveInTransaction: unexpected,
+              releaseInTransaction: async () => undefined,
+              consumeInTransaction: async () => ({
+                changed: false,
+                usedAfterRelease: false,
+              }),
             } as unknown as ConstructorParameters<typeof OrdersStorage>[1]),
         {
           attachGuestOrderInTransaction: unexpected,
         } as unknown as ConstructorParameters<typeof OrdersStorage>[2],
-        { enqueueOrderCreated } as unknown as ConstructorParameters<
-          typeof OrdersStorage
-        >[3],
-        {} as ConstructorParameters<typeof OrdersStorage>[4],
+        {
+          enqueueOrderCreated,
+          enqueueOrderPaid,
+        } as unknown as ConstructorParameters<typeof OrdersStorage>[3],
+        {
+          recordPaidOrderInTransaction: async () => undefined,
+        } as unknown as ConstructorParameters<typeof OrdersStorage>[4],
         coordinator,
       );
-      return { coordinator, storage, promos };
+      const consumer = new LoyaltyPaymentSettlementService(
+        client as unknown as PrismaService,
+        wallet,
+      );
+      return { coordinator, storage, promos, consumer };
     }
 
     async function fixture(points = 70, realPromos = false) {
@@ -180,6 +198,21 @@ describe(
         loyaltyPointsToSpend: points,
         loyaltyPricingRevision: preview.loyalty.pricingRevision,
       };
+      await first.cart.create({
+        data: {
+          id: input.cartId,
+          items: {
+            create: input.items.map((item) => ({
+              productId: item.id,
+              title: item.title,
+              slug: item.slug,
+              price: item.price,
+              quantity: item.quantity,
+              image: item.image,
+            })),
+          },
+        },
+      });
       return { ...service, input, member, preview, promo, promoPricing };
     }
 
@@ -213,15 +246,24 @@ describe(
       };
     }
 
-    async function markPaid(tx: Prisma.TransactionClient, orderId: string) {
-      await tx.order.update({
+    async function publishPaid(storage: OrdersStorage, orderId: string) {
+      const order = await first.order.update({
         where: { id: orderId },
-        data: {
-          status: "PAID",
-          crmStatus: "PAID",
-          paymentStatus: "PAID",
-          paidAt: occurredAt,
-        },
+        data: { tbankAcquiringPaymentId: "test-payment-1" },
+      });
+      await storage.applyTBankAcquiringNotification({
+        orderId,
+        paymentId: "test-payment-1",
+        amount: String(
+          parseOrderPricingSnapshot(order.pricingSnapshot).totalKopecks,
+        ),
+        raw: {},
+        rawStatus: "CONFIRMED",
+        status: "paid",
+        success: true,
+      });
+      return first.orderPaymentEvent.findUniqueOrThrow({
+        where: { orderId_kind: { orderId, kind: "PAID" } },
       });
     }
 
@@ -251,7 +293,10 @@ describe(
         (await operations(f.member.id)).map((op) => op.kind),
         ["CREDIT", "RESERVE"],
       );
-      assert.equal(await f.storage.hasReservedLoyaltyPoints(row.id), true);
+      assert.equal(
+        await first.orderPaymentEvent.count({ where: { orderId: row.id } }),
+        0,
+      );
     });
 
     for (const points of [0, 70]) {
@@ -306,19 +351,19 @@ describe(
           /Finalized order amounts are immutable/,
         );
 
-        const settle = (client: PrismaClient) =>
-          client.$transaction(async (tx) => {
-            await tx.$queryRaw`SELECT id FROM orders WHERE id = ${order.id} FOR UPDATE`;
-            await f.promos.consumeInTransaction(tx, order.id, {
-              now: occurredAt,
-              provider: "tbank",
-              source: "postgres-test",
-            });
-            await markPaid(tx, order.id);
-            await f.coordinator.consumePaidInTransaction(tx, order.id);
-          });
-        await settle(first);
-        await settle(second);
+        const event = await publishPaid(f.storage, order.id);
+        await publishPaid(services(second, undefined, true).storage, order.id);
+        assert.equal(
+          await first.orderPaymentEvent.count({ where: { orderId: order.id } }),
+          1,
+        );
+        assert.equal((await balance(f.member.id)).balancePoints, 100n);
+        assert.equal(
+          (await balance(f.member.id)).reservedPoints,
+          BigInt(points),
+        );
+        await f.consumer.processEvent(event.id);
+        await services(second).consumer.processEvent(event.id);
 
         const paid = await first.order.findUniqueOrThrow({
           where: { id: order.id },
@@ -526,46 +571,61 @@ describe(
       );
     });
 
-    it("rolls back paid status and consumption together, then consumes exactly once on retry", async () => {
+    it("keeps PAID and its outbox event durable when loyalty processing fails, then retries exactly once", async () => {
       const f = await fixture();
       const order = await f.storage.createOrder(f.input);
+      const event = await publishPaid(f.storage, order.id);
+      const duplicate = await publishPaid(services(second).storage, order.id);
+      assert.equal(duplicate.id, event.id);
+      assert.equal(
+        await first.orderPaymentEvent.count({ where: { orderId: order.id } }),
+        1,
+      );
+      const failingWallet = new LoyaltyWalletService();
+      failingWallet.consumeInTransaction = async (tx, command) => {
+        await wallet.consumeInTransaction(tx, command);
+        throw new Error("consumer rollback test");
+      };
+      const failedConsumer = new LoyaltyPaymentSettlementService(
+        first as unknown as PrismaService,
+        failingWallet,
+      );
       await assert.rejects(
-        first.$transaction(async (tx) => {
-          await markPaid(tx, order.id);
-          await f.coordinator.consumePaidInTransaction(tx, order.id);
-          assert.equal(
-            (
-              await tx.loyaltyWallet.findUniqueOrThrow({
-                where: { memberId: f.member.id },
-              })
-            ).balancePoints,
-            30n,
-          );
-          throw new Error("paid rollback test");
-        }),
-        /paid rollback test/,
+        failedConsumer.processEvent(event.id),
+        /consumer rollback test/,
       );
       assert.equal(
         (await first.order.findUniqueOrThrow({ where: { id: order.id } }))
           .paymentStatus,
-        "PENDING",
+        "PAID",
       );
-      assert.equal(
+      assert.notEqual(
         (await first.order.findUniqueOrThrow({ where: { id: order.id } }))
           .paidAt,
         null,
       );
+      assert.equal(
+        await first.orderPaymentEvent.count({ where: { orderId: order.id } }),
+        1,
+      );
+      const failedReceipt = await first.loyaltyPaymentReceipt.findUniqueOrThrow(
+        { where: { eventId: event.id } },
+      );
+      assert.equal(failedReceipt.processedAt, null);
+      assert.equal(failedReceipt.attempts, 1);
+      assert.equal(failedReceipt.lastError, "settlement_failed");
       assert.equal((await reservation(order.id)).status, "RESERVED");
       assert.equal((await balance(f.member.id)).balancePoints, 100n);
       assert.equal((await balance(f.member.id)).reservedPoints, 70n);
       assert.equal((await balance(f.member.id)).revision, 2n);
-      await first.$transaction(async (tx) => {
-        await markPaid(tx, order.id);
-        await f.coordinator.consumePaidInTransaction(tx, order.id);
+      assert.deepEqual(await f.consumer.processEvent(event.id), {
+        processed: true,
+        replayed: false,
       });
-      await second.$transaction((tx) =>
-        services(second).coordinator.consumePaidInTransaction(tx, order.id),
-      );
+      assert.deepEqual(await services(second).consumer.processEvent(event.id), {
+        processed: true,
+        replayed: true,
+      });
       assert.equal((await balance(f.member.id)).balancePoints, 30n);
       assert.equal((await balance(f.member.id)).reservedPoints, 0n);
       assert.equal((await balance(f.member.id)).revision, 3n);
@@ -576,11 +636,11 @@ describe(
       );
     });
 
-    it("requires closed-payment identity and amount evidence before idempotent release", async () => {
+    it("publishes closed-unpaid only with verified identity and amount, then releases through its consumer", async () => {
       const f = await fixture();
       const order = await f.storage.createOrder(f.input);
       await assert.rejects(
-        f.storage.releaseLoyaltyForClosedTBankPayment({
+        f.storage.confirmTBankClosedUnpaid({
           orderId: order.id,
           paymentId: "test-payment-1",
           amountKopecks: f.preview.snapshot.totalKopecks,
@@ -588,23 +648,37 @@ describe(
       );
       const evidence = await markClosed(order.id);
       await assert.rejects(
-        f.storage.releaseLoyaltyForClosedTBankPayment({
+        f.storage.confirmTBankClosedUnpaid({
           ...evidence,
           paymentId: "wrong-payment",
         }),
       );
       await assert.rejects(
-        f.storage.releaseLoyaltyForClosedTBankPayment({
+        f.storage.confirmTBankClosedUnpaid({
           ...evidence,
           amountKopecks: evidence.amountKopecks + 1,
         }),
       );
       assert.equal((await reservation(order.id)).status, "RESERVED");
       assert.equal((await balance(f.member.id)).reservedPoints, 70n);
-      await f.storage.releaseLoyaltyForClosedTBankPayment(evidence);
-      await services(second).storage.releaseLoyaltyForClosedTBankPayment(
-        evidence,
+      await f.storage.confirmTBankClosedUnpaid(evidence);
+      await services(second).storage.confirmTBankClosedUnpaid(evidence);
+      const closedOrder = await first.order.findUniqueOrThrow({
+        where: { id: order.id },
+      });
+      assert.equal(closedOrder.paymentStatus, "CLOSED_UNPAID");
+      assert.ok(closedOrder.paymentClosedUnpaidAt);
+      const event = await first.orderPaymentEvent.findUniqueOrThrow({
+        where: { orderId_kind: { orderId: order.id, kind: "CLOSED_UNPAID" } },
+      });
+      assert.equal(
+        await first.orderPaymentEvent.count({ where: { orderId: order.id } }),
+        1,
       );
+      assert.equal((await reservation(order.id)).status, "RESERVED");
+      assert.equal((await balance(f.member.id)).reservedPoints, 70n);
+      await f.consumer.processEvent(event.id);
+      await services(second).consumer.processEvent(event.id);
       assert.equal((await reservation(order.id)).status, "RELEASED");
       assert.equal((await balance(f.member.id)).balancePoints, 100n);
       assert.equal((await balance(f.member.id)).reservedPoints, 0n);
@@ -613,30 +687,132 @@ describe(
         (await operations(f.member.id)).map((op) => op.kind),
         ["CREDIT", "RESERVE", "RELEASE"],
       );
-      assert.equal(await f.storage.hasReservedLoyaltyPoints(order.id), false);
     });
 
-    it("rechecks paid state under the order lock and never releases a paid reservation", async () => {
+    it("persists late PAID after a released hold and retries the consumer without rolling payment back", async () => {
+      const f = await fixture();
+      const order = await f.storage.createOrder(f.input);
+      const evidence = await markClosed(order.id);
+      await f.storage.confirmTBankClosedUnpaid(evidence);
+      const closedEvent = await first.orderPaymentEvent.findUniqueOrThrow({
+        where: { orderId_kind: { orderId: order.id, kind: "CLOSED_UNPAID" } },
+      });
+      await f.consumer.processEvent(closedEvent.id);
+      assert.equal((await reservation(order.id)).status, "RELEASED");
+      const paidEvent = await publishPaid(f.storage, order.id);
+      assert.equal(
+        (await first.order.findUniqueOrThrow({ where: { id: order.id } }))
+          .paymentStatus,
+        "PAID",
+      );
+      await assert.rejects(f.consumer.processEvent(paidEvent.id));
+      await assert.rejects(
+        services(second).consumer.processEvent(paidEvent.id),
+      );
+      assert.equal((await publishPaid(f.storage, order.id)).id, paidEvent.id);
+      const paid = await first.order.findUniqueOrThrow({
+        where: { id: order.id },
+      });
+      assert.equal(paid.paymentStatus, "PAID");
+      assert.ok(paid.paidAt);
+      assert.ok(paid.paymentClosedUnpaidAt);
+      assert.equal(
+        await first.orderPaymentEvent.count({ where: { orderId: order.id } }),
+        2,
+      );
+      assert.equal((await reservation(order.id)).status, "RELEASED");
+      assert.equal((await balance(f.member.id)).balancePoints, 100n);
+      assert.equal((await balance(f.member.id)).reservedPoints, 0n);
+      assert.deepEqual(
+        (await operations(f.member.id)).map((operation) => operation.kind),
+        ["CREDIT", "RESERVE", "RELEASE"],
+      );
+      const receipt = await first.loyaltyPaymentReceipt.findUniqueOrThrow({
+        where: { eventId: paidEvent.id },
+      });
+      assert.equal(receipt.processedAt, null);
+      assert.equal(receipt.attempts, 2);
+      assert.equal(receipt.lastError, "settlement_failed");
+    });
+
+    it("publishes Ozon authoritative PAID through the same outbox and consumes once", async () => {
+      const f = await fixture();
+      const order = await f.storage.createOrder({
+        ...f.input,
+        paymentMethod: "ozon_acquiring",
+      });
+      // Storage boundary receives already verified identity and authoritative lookup.
+      // The signature and remote lookup are intentionally outside this PostgreSQL test.
+      const notification = {
+        acquiringOrderId: "test-ozon-order",
+        amount: String(f.preview.snapshot.totalKopecks),
+        currencyCode: "643",
+        authoritativeStatus: "STATUS_PAID",
+        raw: {},
+        verified: {
+          profile: "canonical" as const,
+          merchantOrderId: order.id,
+          acquiringOrderId: "test-ozon-order",
+        },
+      };
+      assert.equal(
+        (await f.storage.applyOzonAcquiringNotification(notification))
+          ?.paymentStatusChangedToPaid,
+        true,
+      );
+      assert.equal(
+        (
+          await services(second).storage.applyOzonAcquiringNotification(
+            notification,
+          )
+        )?.paymentStatusChangedToPaid,
+        false,
+      );
+      assert.equal(
+        (await first.order.findUniqueOrThrow({ where: { id: order.id } }))
+          .paymentStatus,
+        "PAID",
+      );
+      assert.equal(
+        await first.orderPaymentEvent.count({ where: { orderId: order.id } }),
+        1,
+      );
+      assert.equal((await reservation(order.id)).status, "RESERVED");
+      const event = await first.orderPaymentEvent.findUniqueOrThrow({
+        where: { orderId_kind: { orderId: order.id, kind: "PAID" } },
+      });
+      await f.consumer.processEvent(event.id);
+      await services(second).consumer.processEvent(event.id);
+      assert.equal((await reservation(order.id)).status, "CONSUMED");
+      assert.equal((await balance(f.member.id)).balancePoints, 30n);
+      assert.equal((await balance(f.member.id)).reservedPoints, 0n);
+      assert.equal(
+        await first.cartItem.count({ where: { cartId: f.input.cartId } }),
+        0,
+      );
+      assert.deepEqual(
+        (await operations(f.member.id)).map((operation) => operation.kind),
+        ["CREDIT", "RESERVE", "CONSUME"],
+      );
+    });
+
+    it("rechecks PAID under the lock before closed-unpaid publication and never releases its reservation", async () => {
       const f = await fixture();
       const order = await f.storage.createOrder(f.input);
       const evidence = await markClosed(order.id);
       const paidAndLocked = deferred();
       const commitPaid = deferred();
-      const payment = first.$transaction(async (tx) => {
-        await tx.$queryRaw`SELECT id FROM orders WHERE id = ${order.id} FOR UPDATE`;
-        await markPaid(tx, order.id);
-        await f.coordinator.consumePaidInTransaction(tx, order.id);
+      const gated = services(first, undefined, false, async () => {
         paidAndLocked.resolve();
         await commitPaid.promise;
       });
+      const payment = publishPaid(gated.storage, order.id);
       try {
         await Promise.race([paidAndLocked.promise, payment]);
-        const release =
-          services(second).storage.releaseLoyaltyForClosedTBankPayment(
-            evidence,
-          );
+        const close =
+          services(second).storage.confirmTBankClosedUnpaid(evidence);
         commitPaid.resolve();
-        await Promise.all([payment, release]);
+        await Promise.all([payment, close]);
       } finally {
         commitPaid.resolve();
       }
@@ -645,6 +821,15 @@ describe(
           .paymentStatus,
         "PAID",
       );
+      assert.equal(
+        await first.orderPaymentEvent.count({
+          where: { orderId: order.id, kind: "CLOSED_UNPAID" },
+        }),
+        0,
+      );
+      assert.equal((await reservation(order.id)).status, "RESERVED");
+      const event = await payment;
+      await f.consumer.processEvent(event.id);
       assert.equal((await reservation(order.id)).status, "CONSUMED");
       assert.equal((await balance(f.member.id)).balancePoints, 30n);
       assert.equal((await balance(f.member.id)).reservedPoints, 0n);
@@ -653,6 +838,473 @@ describe(
         (await operations(f.member.id)).map((op) => op.kind),
         ["CREDIT", "RESERVE", "CONSUME"],
       );
+    });
+
+    it("atomically grants one Init permission and one durable recovery job to competing checkout requests", async () => {
+      const f = await fixture();
+      const order = await f.storage.createOrder(f.input);
+      const other = services(second).storage;
+      const claims = await Promise.all([
+        f.storage.claimPaymentInitialization(order.id),
+        other.claimPaymentInitialization(order.id),
+      ]);
+      assert.equal(claims.filter(Boolean).length, 1);
+      assert.equal(
+        await first.orderPaymentRecovery.count({
+          where: { orderId: order.id },
+        }),
+        1,
+      );
+      const source = await f.storage.getPaymentReconciliationSource(order.id);
+      assert.ok(source);
+      assert.equal(source?.paymentRecovery?.orderId, order.id);
+      assert.equal(source.tbankAcquiringPaymentId, null);
+      const row = await first.order.findUniqueOrThrow({
+        where: { id: order.id },
+      });
+      assert.match(
+        row.paymentRedirectUrl,
+        /^\/checkout\/payment-initializing\?startedAt=/,
+      );
+      await first.order.update({
+        where: { id: order.id },
+        data: { paymentStatus: "FAILED" },
+      });
+      assert.equal(await other.claimPaymentInitialization(order.id), false);
+      assert.equal(
+        await first.orderPaymentRecovery.count({
+          where: { orderId: order.id },
+        }),
+        1,
+      );
+      assert.equal((await reservation(order.id)).status, "RESERVED");
+    });
+
+    it("rolls the Init marker back when durable recovery enqueue fails", async () => {
+      const f = await fixture();
+      const order = await f.storage.createOrder(f.input);
+      const beforeClaim = await first.order.findUniqueOrThrow({
+        where: { id: order.id },
+      });
+      const faulted = {
+        $transaction: (
+          callback: (tx: Prisma.TransactionClient) => Promise<unknown>,
+        ) =>
+          first.$transaction((tx) =>
+            callback(
+              new Proxy(tx, {
+                get(target, property, receiver) {
+                  if (property === "orderPaymentRecovery")
+                    return new Proxy(target.orderPaymentRecovery, {
+                      get(delegate, operation, delegateReceiver) {
+                        if (operation === "create")
+                          return async () => {
+                            throw new Error("recovery enqueue failed");
+                          };
+                        return Reflect.get(
+                          delegate,
+                          operation,
+                          delegateReceiver,
+                        );
+                      },
+                    });
+                  return Reflect.get(target, property, receiver);
+                },
+              }),
+            ),
+          ),
+      } as unknown as PrismaClient;
+      await assert.rejects(
+        services(faulted).storage.claimPaymentInitialization(order.id),
+        /recovery enqueue failed/,
+      );
+      const afterClaim = await first.order.findUniqueOrThrow({
+        where: { id: order.id },
+      });
+      assert.equal(
+        afterClaim.paymentRedirectUrl,
+        beforeClaim.paymentRedirectUrl,
+      );
+      assert.equal(afterClaim.paymentStatus, beforeClaim.paymentStatus);
+      assert.equal(
+        await first.orderPaymentRecovery.count({
+          where: { orderId: order.id },
+        }),
+        0,
+      );
+      assert.equal((await reservation(order.id)).status, "RESERVED");
+      assert.equal(await f.storage.claimPaymentInitialization(order.id), true);
+    });
+
+    it("recovers PAID with a previously unknown PaymentId through the common paid publisher exactly once", async () => {
+      const f = await fixture();
+      const order = await f.storage.createOrder(f.input);
+      assert.equal(await f.storage.claimPaymentInitialization(order.id), true);
+      const before = await f.storage.getPaymentReconciliationSource(order.id);
+      assert.equal(before?.tbankAcquiringPaymentId, null);
+      let paidOutboxCalls = 0;
+      const publisher = services(first, undefined, false, async () => {
+        paidOutboxCalls += 1;
+      }).storage;
+      const evidence = {
+        orderId: order.id,
+        method: "TBANK_ACQUIRING" as const,
+        providerOrderId: order.id,
+        paymentId: `recovered-${randomUUID().slice(0, 8)}`,
+        amountKopecks: f.preview.snapshot.totalKopecks,
+        state: "paid" as const,
+      };
+      const paid = await publisher.applyPaymentReconciliation(evidence);
+      assert.equal(paid.paymentStatusChangedToPaid, true);
+      const row = await first.order.findUniqueOrThrow({
+        where: { id: order.id },
+      });
+      assert.equal(row.paymentStatus, "PAID");
+      assert.ok(row.paidAt);
+      assert.ok(row.cartConsumedAt);
+      assert.equal(row.tbankAcquiringPaymentId, evidence.paymentId);
+      assert.equal(row.tbankAcquiringOrderId, order.id);
+      const event = await first.orderPaymentEvent.findUniqueOrThrow({
+        where: { orderId_kind: { orderId: order.id, kind: "PAID" } },
+      });
+      assert.equal(event.occurredAt.getTime(), row.paidAt.getTime());
+      // Publication does not synchronously mutate the loyalty wallet.
+      assert.equal((await reservation(order.id)).status, "RESERVED");
+      assert.equal(
+        (await publisher.applyPaymentReconciliation(evidence))
+          .paymentStatusChangedToPaid,
+        false,
+      );
+      assert.equal(paidOutboxCalls, 1);
+      assert.equal(
+        await first.orderPaymentEvent.count({ where: { orderId: order.id } }),
+        1,
+      );
+      await Promise.all([
+        f.consumer.processEvent(event.id),
+        services(second).consumer.processEvent(event.id),
+      ]);
+      assert.equal((await reservation(order.id)).status, "CONSUMED");
+      assert.equal((await balance(f.member.id)).balancePoints, 30n);
+      assert.equal(
+        (await operations(f.member.id)).filter(
+          (operation) => operation.kind === "CONSUME",
+        ).length,
+        1,
+      );
+      await publisher.applyPaymentReconciliation({
+        ...evidence,
+        state: "pending",
+      });
+      await publisher.applyPaymentReconciliation({
+        ...evidence,
+        state: "closed_unpaid",
+      });
+      assert.equal(
+        (await first.order.findUniqueOrThrow({ where: { id: order.id } }))
+          .paymentStatus,
+        "PAID",
+      );
+      assert.equal(
+        await first.orderPaymentEvent.count({
+          where: { orderId: order.id, kind: "CLOSED_UNPAID" },
+        }),
+        0,
+      );
+    });
+
+    it("publishes verified closed recovery once and releases only through its durable consumer", async () => {
+      const f = await fixture();
+      const order = await f.storage.createOrder(f.input);
+      await f.storage.claimPaymentInitialization(order.id);
+      const evidence = {
+        orderId: order.id,
+        method: "TBANK_ACQUIRING" as const,
+        providerOrderId: order.id,
+        paymentId: "recovered-closed",
+        amountKopecks: f.preview.snapshot.totalKopecks,
+        state: "closed_unpaid" as const,
+      };
+      await f.storage.applyPaymentReconciliation(evidence);
+      await services(second).storage.applyPaymentReconciliation(evidence);
+      const row = await first.order.findUniqueOrThrow({
+        where: { id: order.id },
+      });
+      assert.equal(row.paymentStatus, "CLOSED_UNPAID");
+      assert.ok(row.paymentClosedUnpaidAt);
+      assert.ok(row.terminalPaymentFailedAt);
+      assert.equal(row.paidAt, null);
+      assert.equal((await reservation(order.id)).status, "RESERVED");
+      assert.equal(
+        await first.orderPaymentEvent.count({ where: { orderId: order.id } }),
+        1,
+      );
+      const event = await first.orderPaymentEvent.findUniqueOrThrow({
+        where: { orderId_kind: { orderId: order.id, kind: "CLOSED_UNPAID" } },
+      });
+      assert.equal(
+        event.occurredAt.getTime(),
+        row.paymentClosedUnpaidAt.getTime(),
+      );
+      await Promise.all([
+        f.consumer.processEvent(event.id),
+        services(second).consumer.processEvent(event.id),
+      ]);
+      assert.equal((await reservation(order.id)).status, "RELEASED");
+      assert.equal((await balance(f.member.id)).balancePoints, 100n);
+      assert.equal((await balance(f.member.id)).reservedPoints, 0n);
+      assert.equal(
+        (await operations(f.member.id)).filter(
+          (operation) => operation.kind === "RELEASE",
+        ).length,
+        1,
+      );
+      await f.storage.applyPaymentReconciliation({
+        ...evidence,
+        state: "pending",
+      });
+      assert.equal(
+        (await first.order.findUniqueOrThrow({ where: { id: order.id } }))
+          .paymentStatus,
+        "CLOSED_UNPAID",
+      );
+      assert.equal(await f.storage.claimPaymentInitialization(order.id), false);
+    });
+
+    it("releases a real promo reservation exactly once on verified closure recovery without a webhook", async () => {
+      const f = await fixture(70, true);
+      assert.ok(f.promo);
+      const order = await f.storage.createOrder(f.input);
+      await f.storage.claimPaymentInitialization(order.id);
+      const reservedPromo = await first.promoRedemption.findUniqueOrThrow({
+        where: { orderId: order.id },
+      });
+      assert.equal(reservedPromo.status, "RESERVED");
+      assert.equal(
+        (await first.promoCode.findUniqueOrThrow({ where: { id: f.promo.id } }))
+          .reservedCount,
+        1,
+      );
+      const evidence = {
+        orderId: order.id,
+        method: "TBANK_ACQUIRING" as const,
+        providerOrderId: order.id,
+        paymentId: "closed-real-promo",
+        amountKopecks: f.preview.snapshot.totalKopecks,
+        state: "closed_unpaid" as const,
+      };
+      await Promise.all([
+        f.storage.applyPaymentReconciliation(evidence),
+        services(second, undefined, true).storage.applyPaymentReconciliation(
+          evidence,
+        ),
+      ]);
+      const releasedPromo = await first.promoRedemption.findUniqueOrThrow({
+        where: { orderId: order.id },
+      });
+      assert.equal(releasedPromo.status, "RELEASED");
+      assert.ok(releasedPromo.releasedAt);
+      assert.equal(releasedPromo.usedAt, null);
+      const code = await first.promoCode.findUniqueOrThrow({
+        where: { id: f.promo.id },
+      });
+      assert.equal(code.reservedCount, 0);
+      assert.equal(code.usedCount, 0);
+      const releaseHistory = await first.orderHistory.findMany({
+        where: { orderId: order.id, eventType: "promo_reservation_released" },
+      });
+      assert.equal(releaseHistory.length, 1);
+      assert.equal(
+        (releaseHistory[0]!.payload as { source?: string }).source,
+        "payment_reconciliation",
+      );
+      assert.equal(
+        await first.orderPaymentEvent.count({
+          where: { orderId: order.id, kind: "CLOSED_UNPAID" },
+        }),
+        1,
+      );
+      assert.equal(
+        (await first.order.findUniqueOrThrow({ where: { id: order.id } }))
+          .lastPaymentNotification,
+        null,
+      );
+      assert.equal((await reservation(order.id)).status, "RESERVED");
+      const event = await first.orderPaymentEvent.findUniqueOrThrow({
+        where: { orderId_kind: { orderId: order.id, kind: "CLOSED_UNPAID" } },
+      });
+      await f.consumer.processEvent(event.id);
+      assert.equal((await reservation(order.id)).status, "RELEASED");
+    });
+
+    it("does not release a real promo when PAID wins the order lock before closure recovery", async () => {
+      const f = await fixture(70, true);
+      assert.ok(f.promo);
+      const order = await f.storage.createOrder(f.input);
+      await f.storage.claimPaymentInitialization(order.id);
+      const evidence = {
+        orderId: order.id,
+        method: "TBANK_ACQUIRING" as const,
+        providerOrderId: order.id,
+        paymentId: "paid-real-promo",
+        amountKopecks: f.preview.snapshot.totalKopecks,
+      };
+      const paidAndLocked = deferred();
+      const commitPaid = deferred();
+      const publisher = services(first, undefined, true, async () => {
+        paidAndLocked.resolve();
+        await commitPaid.promise;
+      }).storage;
+      const paid = publisher.applyPaymentReconciliation({
+        ...evidence,
+        state: "paid",
+      });
+      try {
+        await Promise.race([paidAndLocked.promise, paid]);
+        const closed = services(
+          second,
+          undefined,
+          true,
+        ).storage.applyPaymentReconciliation({
+          ...evidence,
+          state: "closed_unpaid",
+        });
+        commitPaid.resolve();
+        await Promise.all([paid, closed]);
+      } finally {
+        commitPaid.resolve();
+      }
+      const redemption = await first.promoRedemption.findUniqueOrThrow({
+        where: { orderId: order.id },
+      });
+      assert.equal(redemption.status, "USED");
+      assert.ok(redemption.usedAt);
+      assert.equal(redemption.releasedAt, null);
+      const code = await first.promoCode.findUniqueOrThrow({
+        where: { id: f.promo.id },
+      });
+      assert.equal(code.reservedCount, 0);
+      assert.equal(code.usedCount, 1);
+      assert.equal(
+        await first.orderHistory.count({
+          where: { orderId: order.id, eventType: "promo_reservation_released" },
+        }),
+        0,
+      );
+      assert.equal(
+        await first.orderPaymentEvent.count({
+          where: { orderId: order.id, kind: "CLOSED_UNPAID" },
+        }),
+        0,
+      );
+      assert.equal(
+        (await first.order.findUniqueOrThrow({ where: { id: order.id } }))
+          .paymentStatus,
+        "PAID",
+      );
+      assert.equal((await reservation(order.id)).status, "RESERVED");
+      const event = await first.orderPaymentEvent.findUniqueOrThrow({
+        where: { orderId_kind: { orderId: order.id, kind: "PAID" } },
+      });
+      await f.consumer.processEvent(event.id);
+      assert.equal((await reservation(order.id)).status, "CONSUMED");
+    });
+
+    it("rejects missing recovery source and mismatched provider, amount or recovered identities", async () => {
+      const f = await fixture();
+      const order = await f.storage.createOrder(f.input);
+      const evidence = {
+        orderId: order.id,
+        method: "TBANK_ACQUIRING" as const,
+        providerOrderId: order.id,
+        paymentId: "recovery-identity",
+        amountKopecks: f.preview.snapshot.totalKopecks,
+        state: "pending" as const,
+      };
+      await assert.rejects(
+        f.storage.applyPaymentReconciliation(evidence),
+        /source mismatch/,
+      );
+      await f.storage.claimPaymentInitialization(order.id);
+      await f.storage.applyPaymentReconciliation(evidence);
+      for (const mismatch of [
+        { method: "OZON_ACQUIRING" as const },
+        { providerOrderId: "different-order" },
+        { paymentId: "different-payment" },
+        { paymentId: undefined },
+        { amountKopecks: evidence.amountKopecks + 1 },
+      ]) {
+        await assert.rejects(
+          f.storage.applyPaymentReconciliation({
+            ...evidence,
+            ...mismatch,
+            state: "paid",
+          }),
+        );
+      }
+      const row = await first.order.findUniqueOrThrow({
+        where: { id: order.id },
+      });
+      assert.equal(row.paymentStatus, "PENDING");
+      assert.equal(row.paidAt, null);
+      assert.equal(row.tbankAcquiringPaymentId, evidence.paymentId);
+      assert.equal(
+        await first.orderPaymentEvent.count({ where: { orderId: order.id } }),
+        0,
+      );
+      assert.equal((await reservation(order.id)).status, "RESERVED");
+    });
+
+    it("leases separate queued orders to concurrent recovery workers and fences stale settlement", async () => {
+      const fixtures = await Promise.all([fixture(), fixture()]);
+      const orderIds: string[] = [];
+      for (const [index, f] of fixtures.entries()) {
+        const order = await f.storage.createOrder(f.input);
+        orderIds.push(order.id);
+        await f.storage.claimPaymentInitialization(order.id);
+        // Sort our isolated fixtures before jobs left by other opt-in runs.
+        await first.orderPaymentRecovery.update({
+          where: { orderId: order.id },
+          data: { nextAttemptAt: new Date(Date.UTC(1900, 0, 1) + index) },
+        });
+      }
+      const workers = [
+        new PaymentRecoveryService(first as unknown as PrismaService),
+        new PaymentRecoveryService(second as unknown as PrismaService),
+      ];
+      const leases = await Promise.all(
+        workers.map((worker) => worker.claimNext()),
+      );
+      assert.ok(leases[0]);
+      assert.ok(leases[1]);
+      assert.deepEqual(
+        leases.map((lease) => lease!.orderId).sort(),
+        [...orderIds].sort(),
+      );
+      assert.notEqual(leases[0].leaseToken, leases[1].leaseToken);
+      for (const [index, lease] of leases.entries()) {
+        const worker = workers[index]!;
+        assert.equal(
+          await worker.settle(
+            { ...lease!, leaseToken: randomUUID() },
+            { state: "pending" },
+          ),
+          false,
+        );
+        const checking = await first.orderPaymentRecovery.findUniqueOrThrow({
+          where: { orderId: lease!.orderId },
+        });
+        assert.equal(checking.status, "CHECKING");
+        assert.equal(checking.attempts, 1);
+        assert.equal(await worker.settle(lease!, { state: "pending" }), true);
+        assert.equal(await worker.settle(lease!, { state: "paid" }), false);
+        const pending = await first.orderPaymentRecovery.findUniqueOrThrow({
+          where: { orderId: lease!.orderId },
+        });
+        assert.equal(pending.status, "PENDING");
+        assert.equal(pending.leaseToken, null);
+        assert.equal(pending.lastError, "provider_pending");
+      }
     });
   },
 );
