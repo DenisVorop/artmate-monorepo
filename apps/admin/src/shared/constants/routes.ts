@@ -1,4 +1,5 @@
 export const routes = {
+  achievementDrafts: "/loyalty/achievements",
   blog: "/blog",
   blogAuthors: "/blog/authors",
   blogCategories: "/blog/categories",
