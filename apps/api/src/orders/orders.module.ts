@@ -18,7 +18,8 @@ import { OrdersController } from "./orders.controller";
 import { OrdersTelegramService } from "./orders-telegram.service";
 import { OrdersService } from "./orders.service";
 import { OrdersStorage } from "./orders.storage";
-import { OzonPaymentRecheckService } from "./ozon-payment-recheck.service";
+import { PaymentRecoveryService } from "./payment-recovery/payment-recovery.service";
+import { PaymentRecoveryWorker } from "./payment-recovery/payment-recovery.worker";
 import { OrderRefundsService } from "./refunds/order-refunds.service";
 
 @Module({
@@ -42,7 +43,8 @@ import { OrderRefundsService } from "./refunds/order-refunds.service";
     OrdersStorage,
     OrdersLoyaltyService,
     OrdersTelegramService,
-    OzonPaymentRecheckService,
+    PaymentRecoveryService,
+    PaymentRecoveryWorker,
     OrderRefundsService,
   ],
 })

@@ -330,7 +330,7 @@ describe(
       assert.equal((await balance(m.id)).revision, 4n);
     });
 
-    it("rejects corrections conflicting with an active hold without losing the correction key", async () => {
+    it("clips corrections to free points and never collects the forgiven part after hold release", async () => {
       const m = await member();
       const o = await order(m.userId);
       await first.$transaction((tx) =>
@@ -343,15 +343,13 @@ describe(
         }),
       );
       const reversal = command(m.id, 50);
-      await assert.rejects(
-        first.$transaction((tx) => wallet.reverseInTransaction(tx, reversal)),
+      const correction = await first.$transaction((tx) =>
+        wallet.reverseInTransaction(tx, reversal),
       );
-      assert.equal(
-        await first.loyaltyOperation.findUnique({
-          where: { operationKey: reversal.operationKey },
-        }),
-        null,
-      );
+      assert.equal(correction.operation.requestedPoints, 50n);
+      assert.equal(correction.operation.balanceDelta, -20n);
+      assert.equal((await balance(m.id)).balancePoints, 80n);
+      assert.equal((await balance(m.id)).reservedPoints, 80n);
       await first.$transaction((tx) =>
         wallet.releaseInTransaction(tx, {
           ...command(m.id, 80),
@@ -361,7 +359,7 @@ describe(
       await first.$transaction((tx) =>
         wallet.reverseInTransaction(tx, reversal),
       );
-      assert.equal((await balance(m.id)).balancePoints, 50n);
+      assert.equal((await balance(m.id)).balancePoints, 80n);
     });
 
     it("serves private cursor history and enforces immutable ledger and wallet consistency in PostgreSQL", async () => {

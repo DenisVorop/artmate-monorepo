@@ -1,0 +1,35 @@
+enum OrderPaymentEventKind {
+  PAID          @map("paid")
+  CLOSED_UNPAID @map("closed_unpaid")
+
+  @@map("order_payment_event_kind")
+}
+
+model OrderPaymentEvent {
+  id         String                @id @default(cuid())
+  orderId    String                @map("order_id") @db.VarChar(32)
+  kind       OrderPaymentEventKind
+  occurredAt DateTime              @map("occurred_at")
+  createdAt  DateTime              @default(now()) @map("created_at")
+
+  order          Order                  @relation(fields: [orderId], references: [id], onDelete: Restrict)
+  loyaltyReceipt LoyaltyPaymentReceipt?
+
+  @@unique([orderId, kind])
+  @@index([createdAt, id])
+  @@map("order_payment_events")
+}
+
+model LoyaltyPaymentReceipt {
+  eventId       String    @id @map("event_id")
+  processedAt   DateTime? @map("processed_at")
+  attempts      Int       @default(0)
+  nextAttemptAt DateTime  @default(now()) @map("next_attempt_at")
+  lastError     String?   @map("last_error") @db.VarChar(80)
+  updatedAt     DateTime  @default(now()) @updatedAt @map("updated_at")
+
+  event OrderPaymentEvent @relation(fields: [eventId], references: [id], onDelete: Restrict)
+
+  @@index([processedAt, nextAttemptAt])
+  @@map("loyalty_payment_receipts")
+}

@@ -8,7 +8,9 @@ import { AffiliatePayoutBalanceService } from "../src/affiliate/affiliate-payout
 import { AffiliatePayoutsService } from "../src/affiliate/affiliate-payouts.service";
 import { AffiliateFinancialAccountingService } from "../src/affiliate/financial-accounting.service";
 import { PrismaClient } from "../src/generated/prisma/client";
+import { createOrderPricingSnapshot } from "../src/orders/pricing/pricing-snapshot";
 import type { PrismaService } from "../src/prisma/prisma.service";
+import { calculatePromoPricing } from "../src/promocodes/pricing";
 
 // This opt-in test URL is intentionally isolated from application runtime env.
 // eslint-disable-next-line turbo/no-undeclared-env-vars
@@ -377,6 +379,31 @@ async function seedScenarioPartner(client: PrismaClient, suffix: string, label: 
     ) VALUES ('${partnerId}', '${userId}', 'active', 100000, '${label}-${suffix}', '2026-01-01', 'QA only', 1);
   `);
   await addMatureCredit(client, { orderId, commissionId, partnerId, amount: 1_000_000 });
+  await client.$transaction(async (tx) => {
+    await tx.orderItem.create({
+      data: {
+        orderId,
+        productId: "item-1",
+        title: "QA coloring",
+        slug: "qa-coloring",
+        image: "https://example.test/coloring.webp",
+        price: "1000.00",
+        quantity: 10,
+        lineTotal: "10000.00",
+      },
+    });
+    const pricingSnapshot = createOrderPricingSnapshot(
+      calculatePromoPricing(
+        [{ id: "item-1", unitPriceKopecks: 100_000, quantity: 10 }],
+        { type: "fixed", amountKopecks: 0 },
+      ),
+      0,
+    );
+    await tx.order.update({
+      where: { id: orderId },
+      data: { itemsCount: 10, pricingSnapshot },
+    });
+  });
   return { userId, partnerId, orderId, commissionId };
 }
 
@@ -427,12 +454,34 @@ async function insertRefund(
   suffix: string,
   label: string,
 ) {
-  await client.$executeRawUnsafe(`
-    INSERT INTO "order_refunds" (
-      "id", "order_id", "author_id", "request_id", "request_fingerprint", "reference", "reason", "delivery_kopecks", "total_kopecks"
-    ) VALUES (
-      '${refundId}', '${orderId}', '${adminUserId}', '${randomUUID()}', '${"b".repeat(64)}',
-      '${label}-refund-${suffix}', 'ordered refund', 0, 800000
-    )
-  `);
+  await client.$transaction(async (tx) => {
+    await tx.$queryRaw`SELECT id FROM orders WHERE id = ${orderId} FOR UPDATE`;
+    const refund = await tx.orderRefund.create({
+      data: {
+        id: refundId,
+        orderId,
+        authorId: adminUserId,
+        requestId: randomUUID(),
+        requestFingerprint: "b".repeat(64),
+        reference: `${label}-refund-${suffix}`,
+        reason: "ordered refund",
+        deliveryKopecks: 0n,
+        totalKopecks: 800_000n,
+        loyaltyPoints: 0n,
+        items: {
+          create: {
+            productId: "item-1",
+            title: "QA coloring",
+            quantity: 8,
+            previousQuantity: 0,
+            amountKopecks: 800_000n,
+            loyaltyPoints: 0n,
+          },
+        },
+      },
+    });
+    await tx.orderRefundEvent.create({
+      data: { refundId: refund.id, occurredAt: refund.createdAt },
+    });
+  });
 }

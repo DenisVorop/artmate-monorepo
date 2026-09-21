@@ -493,6 +493,61 @@ describe("OrdersStorage checkout idempotency", () => {
     assert.equal(fixture.createdEvents[0]?.id, first.id);
   });
 
+  it("fixes a server-owned purchase rate after guest attachment, ignoring client rate claims", async () => {
+    const purchaseRateReads: unknown[][] = [];
+    const fixture = createStorageFixture(undefined, {
+      receivedSpendKopecks: "300000",
+      purchaseRateReads,
+    });
+    const input = {
+      ...createStoredOrderInput(),
+      loyaltyRatePercent: 10,
+      loyaltyRateVersion: "client-claimed",
+    };
+    await fixture.storage.createOrder(input);
+    const stored = fixture.orders[0];
+    assert.ok(stored?.pricingSnapshot);
+    assert.equal(stored.loyaltyRatePercent, 5);
+    assert.equal(stored.loyaltyRateVersion, "purchase-v1");
+    assert.deepEqual(purchaseRateReads, [["guest-user", stored.id]]);
+  });
+
+  it("keeps the checkout rate on replay even after received cash changes", async () => {
+    const options = {
+      receivedSpendKopecks: "700000",
+      purchaseRateReads: [] as unknown[][],
+    };
+    const fixture = createStorageFixture(undefined, options);
+    const input = createStoredOrderInput();
+    await fixture.storage.createOrder(input);
+    options.receivedSpendKopecks = "0";
+    await fixture.storage.createOrder(input);
+    assert.equal(fixture.orders[0]?.loyaltyRatePercent, 7);
+    assert.equal(options.purchaseRateReads.length, 1);
+    await fixture.storage.createOrder({
+      ...input,
+      checkoutAttemptId: "attempt-after-refund",
+    });
+    assert.equal(fixture.orders[1]?.loyaltyRatePercent, 3);
+    assert.equal(options.purchaseRateReads.length, 2);
+  });
+
+  it("does not fabricate a rate when replay returns a historical unknown snapshot", async () => {
+    const purchaseRateReads: unknown[][] = [];
+    const fixture = createStorageFixture(undefined, { purchaseRateReads });
+    const input = createStoredOrderInput();
+    await fixture.storage.createOrder(input);
+    // Simulate an already persisted pre-rate order returned by the idempotency path.
+    Object.assign(fixture.orders[0]!, {
+      loyaltyRatePercent: null,
+      loyaltyRateVersion: null,
+    });
+    await fixture.storage.createOrder(input);
+    assert.equal(fixture.orders[0]?.loyaltyRatePercent, null);
+    assert.equal(fixture.orders[0]?.loyaltyRateVersion, null);
+    assert.equal(purchaseRateReads.length, 1);
+  });
+
   it("enqueues the persisted creation snapshot after promo pricing in the same transaction", async () => {
     const fixture = createStorageFixture({
       reserveInTransaction: async () => {
@@ -649,12 +704,12 @@ describe("OrdersStorage checkout idempotency", () => {
     assert.equal(reads, 1);
   });
 
-  it("immediately reclaims a failed provider initialization marker", async () => {
+  it("never reclaims failed or stale pending provider initialization for an ordinary order", async () => {
     const updates: unknown[] = [];
     const failedOrder = {
       id: "order-1",
-      paymentRedirectUrl: `/checkout/payment-initializing?startedAt=${Date.now()}`,
-      paymentStatus: OrderPaymentStatus.FAILED,
+      paymentRedirectUrl: "/checkout/payment-initializing?startedAt=1",
+      paymentStatus: OrderPaymentStatus.FAILED as OrderPaymentStatus,
     };
     const tx = {
       $queryRaw: async () => [],
@@ -676,8 +731,14 @@ describe("OrdersStorage checkout idempotency", () => {
       ...createUnusedStorageDependencies(),
     );
 
-    assert.equal(await storage.claimPaymentInitialization("order-1"), true);
-    assert.equal(updates.length, 1);
+    for (const paymentStatus of [
+      OrderPaymentStatus.FAILED,
+      OrderPaymentStatus.PENDING,
+    ]) {
+      failedOrder.paymentStatus = paymentStatus;
+      assert.equal(await storage.claimPaymentInitialization("order-1"), false);
+    }
+    assert.equal(updates.length, 0);
   });
 
   it("never reclaims a verified terminal payment failure", async () => {
@@ -803,6 +864,20 @@ describe("OrdersStorage checkout idempotency", () => {
     assert.deepEqual(await unsafe.recoverGuestPayment("order-1", "cart-1"), {
       redirectUrl: null,
     });
+  });
+
+  it("never resumes CLOSED_UNPAID without a legacy bank terminal timestamp", async () => {
+    const closed = createRecoveryStorage({
+      paymentStatus: OrderPaymentStatus.CLOSED_UNPAID,
+      terminalPaymentFailedAt: null,
+      paymentClosedUnpaidAt: new Date("2026-09-20T12:00:00.000Z"),
+      paymentRedirectUrl: "https://securepay.tinkoff.ru/closed-session",
+    });
+    assert.deepEqual(await closed.recoverGuestPayment("order-1", "cart-1"), {
+      redirectUrl: "/checkout",
+    });
+    assert.equal(closed.state.paymentStatus, OrderPaymentStatus.CLOSED_UNPAID);
+    assert.ok(closed.state.cartRestoredAt);
   });
 
   it("keeps Ozon Rejected and local FAILED payments resumable without restoring the cart", async () => {
@@ -1267,6 +1342,8 @@ function createStorageFixture(
     existingUserIds?: string[];
     guestUserId?: string;
     lockCalls?: string[];
+    receivedSpendKopecks?: string;
+    purchaseRateReads?: unknown[][];
   } = {},
 ) {
   const orders: Array<Record<string, unknown>> = [];
@@ -1339,7 +1416,19 @@ function createStorageFixture(
         const previousEvents = createdEvents.map((value) => ({ ...value }));
         const previousActivations = activations;
         activeTransaction = {
-          $queryRaw: async (query: { values?: unknown[] }) => {
+          $queryRaw: async (query: {
+            strings?: string[];
+            values?: unknown[];
+          }) => {
+            if (query.strings?.join("").includes("WITH received")) {
+              options.purchaseRateReads?.push(query.values ?? []);
+              return [
+                {
+                  spendKopecks: options.receivedSpendKopecks ?? "0",
+                  invalid: false,
+                },
+              ];
+            }
             const ids = (query.values ?? []).map(String).sort();
             options.lockCalls?.push(`lock:${ids.join(",")}`);
             return ids.map((id) => ({ id }));
@@ -1397,9 +1486,7 @@ function createStorageFixture(
       },
     } as never,
     createAccountingMock(),
-    {
-      consumePaidInTransaction: async () => undefined,
-    } as unknown as OrdersLoyaltyService,
+    {} as OrdersLoyaltyService,
   );
   (storage as unknown as { mapOrder: (value: unknown) => unknown }).mapOrder = (
     value,
@@ -1514,9 +1601,7 @@ function createUnusedStorageDependencies(): [
     {} as OrderActivationService,
     {} as AnalyticsOutboxService,
     createAccountingMock(),
-    {
-      consumePaidInTransaction: async () => undefined,
-    } as unknown as OrdersLoyaltyService,
+    {} as OrdersLoyaltyService,
   ];
 }
 

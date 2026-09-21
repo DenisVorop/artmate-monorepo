@@ -55,6 +55,9 @@ model Coloring {
   publishedRevision ColoringRevision?         @relation("PublishedColoringRevision", fields: [id, publishedRevisionId], references: [coloringId, id], onDelete: NoAction)
   publishedBy       User?                     @relation("ColoringPublisher", fields: [publishedById], references: [id], onDelete: SetNull)
   workshopWorks     WorkshopWork[]
+  workshopPublicationFacts WorkshopPublicationFact[]
+  loyaltyWorkRewards LoyaltyWorkReward[]
+  manifestItems ColoringCollectionManifestItem[]
 
   @@unique([collectionId, position])
   @@unique([collectionId, number])
@@ -84,6 +87,8 @@ model ColoringCollection {
   product   Product    @relation(fields: [productId], references: [id], onDelete: Restrict)
   colorings Coloring[]
   workshops WorkshopCollection[]
+  publicationFacts WorkshopPublicationFact[]
+  manifest ColoringCollectionManifest?
 
   @@index([status, position])
   @@map("coloring_collections")
@@ -103,6 +108,7 @@ model ColoringThemeAssignment {
 }
 
 model ColoringRevision {
+  manifestItems ColoringCollectionManifestItem[]
   id                    String    @id @db.VarChar(32)
   coloringId            String    @map("coloring_id") @db.VarChar(32)
   version               Int

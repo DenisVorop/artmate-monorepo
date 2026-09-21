@@ -108,6 +108,7 @@ model WorkshopWork {
   publishedRevision WorkshopWorkRevision?     @relation("WorkshopPublishedRevision", fields: [id, publishedRevisionId], references: [workId, id], onDelete: NoAction)
   moderationEvents  WorkshopModerationEvent[]
   reports           WorkshopWorkReport[]
+  publicationFact   WorkshopPublicationFact?
 
   @@unique([workshopId, coloringId, attemptNumber])
   @@unique([id, coloringId])
@@ -166,6 +167,7 @@ model WorkshopWorkRevision {
   reports          WorkshopWorkReport[]
   currentFor       WorkshopWork?             @relation("WorkshopCurrentRevision")
   publishedFor     WorkshopWork?             @relation("WorkshopPublishedRevision")
+  publicationFacts WorkshopPublicationFact[]
 
   @@unique([workId, sequence])
   @@unique([workId, id])

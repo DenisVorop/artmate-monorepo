@@ -1,0 +1,26 @@
+model OrderRefundEvent {
+  id         String   @id @default(cuid())
+  refundId   String   @unique @map("refund_id") @db.VarChar(32)
+  occurredAt DateTime @map("occurred_at")
+  createdAt  DateTime @default(now()) @map("created_at")
+
+  refund OrderRefund @relation(fields: [refundId], references: [id], onDelete: Restrict)
+  loyaltyReceipt LoyaltyRefundReceipt?
+
+  @@index([createdAt, id])
+  @@map("order_refund_events")
+}
+
+model LoyaltyRefundReceipt {
+  eventId       String    @id @map("event_id")
+  processedAt   DateTime? @map("processed_at")
+  attempts      Int       @default(0)
+  nextAttemptAt DateTime  @default(now()) @map("next_attempt_at")
+  lastError     String?   @map("last_error") @db.VarChar(80)
+  updatedAt     DateTime  @default(now()) @updatedAt @map("updated_at")
+
+  event OrderRefundEvent @relation(fields: [eventId], references: [id], onDelete: Restrict)
+
+  @@index([processedAt, nextAttemptAt])
+  @@map("loyalty_refund_receipts")
+}

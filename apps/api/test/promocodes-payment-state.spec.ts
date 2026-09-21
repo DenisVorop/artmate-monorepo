@@ -22,13 +22,6 @@ import {
 } from "../src/generated/prisma/client";
 import { OrdersStorage } from "../src/orders/orders.storage";
 import { OrdersService } from "../src/orders/orders.service";
-import { OzonPaymentRecheckService } from "../src/orders/ozon-payment-recheck.service";
-import {
-  ozonPaymentRecheckDelayMs,
-  ozonPaymentRecheckLeaseMs,
-  ozonPaymentRecheckMaxAttempts,
-  type OzonPaymentRecheckLease,
-} from "../src/orders/ozon-payment-recheck";
 import { OzonAcquiringService } from "../src/ozon/ozon-acquiring.service";
 import { TBankAcquiringService } from "../src/tbank/tbank-acquiring.service";
 import type { PrismaService } from "../src/prisma/prisma.service";
@@ -158,6 +151,114 @@ describe("promocode payment state integrity", () => {
       1,
     );
     assert.equal(fixture.state.paymentStatus, OrderPaymentStatus.PAID);
+    assert.equal(fixture.paymentEvents.size, 1);
+    const event = [...fixture.paymentEvents.values()][0]!;
+    assert.equal(event.orderId, fixture.state.id);
+    assert.equal(event.kind, "PAID");
+    assert.deepEqual(event.occurredAt, fixture.state.paidAt);
+  });
+
+  it("publishes one closed-unpaid event for verified ordinary orders without calling loyalty", async () => {
+    const fixture = createFixture({
+      paymentMethod: OrderPaymentMethod.TBANK_ACQUIRING,
+      paymentStatus: OrderPaymentStatus.FAILED,
+      tbankAcquiringPaymentId: "7001",
+      terminalPaymentFailedAt: new Date("2026-09-20T12:00:00.000Z"),
+    });
+    const evidence = {
+      orderId: fixture.state.id,
+      paymentId: "7001",
+      amountKopecks: 338700,
+    };
+    await fixture.storage.confirmTBankClosedUnpaid(evidence);
+    const closedAt = fixture.state.paymentClosedUnpaidAt;
+    await fixture.storage.confirmTBankClosedUnpaid(evidence);
+    assert.equal(fixture.state.paymentStatus, OrderPaymentStatus.CLOSED_UNPAID);
+    assert.ok(closedAt);
+    assert.equal(fixture.state.paymentClosedUnpaidAt, closedAt);
+    assert.equal(fixture.paymentEvents.size, 1);
+    const event = [...fixture.paymentEvents.values()][0]!;
+    assert.equal(event.kind, "CLOSED_UNPAID");
+    assert.deepEqual(event.occurredAt, closedAt);
+  });
+
+  it("keeps CLOSED_UNPAID final through Init, late attach and local errors without a legacy terminal marker", async () => {
+    for (const paymentMethod of [
+      OrderPaymentMethod.TBANK_ACQUIRING,
+      OrderPaymentMethod.OZON_ACQUIRING,
+    ]) {
+      const fixture = createFixture({
+        paymentMethod,
+        paymentStatus: OrderPaymentStatus.CLOSED_UNPAID,
+        paymentClosedUnpaidAt: new Date("2026-09-20T12:00:00.000Z"),
+        terminalPaymentFailedAt: null,
+        paymentRedirectUrl: "/checkout/success?orderId=closed-order",
+      });
+      assert.equal(
+        await fixture.storage.claimPaymentInitialization(fixture.state.id),
+        false,
+      );
+      assert.equal(fixture.updateCount(), 0);
+      const attach = {
+        acquiringOrderId: "bank-order",
+        paymentId: "7001",
+        redirectUrl: "https://pay.test/new-session",
+      };
+      if (paymentMethod === OrderPaymentMethod.TBANK_ACQUIRING) {
+        await fixture.storage.attachTBankAcquiringPayment(
+          fixture.state.id,
+          attach,
+        );
+        await fixture.storage.markTBankAcquiringPaymentFailed(
+          fixture.state.id,
+          { errorMessage: "late local failure" },
+        );
+      } else {
+        await fixture.storage.attachOzonAcquiringPayment(
+          fixture.state.id,
+          attach,
+        );
+        await fixture.storage.markOzonAcquiringPaymentFailed(fixture.state.id, {
+          errorMessage: "late local failure",
+        });
+      }
+      assert.equal(
+        fixture.state.paymentStatus,
+        OrderPaymentStatus.CLOSED_UNPAID,
+      );
+      assert.equal(
+        fixture.state.paymentRedirectUrl,
+        "/checkout/success?orderId=closed-order",
+      );
+      assert.equal(fixture.state.paymentErrorMessage, null);
+      assert.equal(fixture.state.terminalPaymentFailedAt, null);
+    }
+  });
+
+  it("does not downgrade CLOSED_UNPAID on repeated T-Bank terminal notifications", async () => {
+    const fixture = createFixture({
+      paymentMethod: OrderPaymentMethod.TBANK_ACQUIRING,
+      paymentStatus: OrderPaymentStatus.CLOSED_UNPAID,
+      paymentClosedUnpaidAt: new Date("2026-09-20T12:00:00.000Z"),
+      terminalPaymentFailedAt: null,
+      tbankAcquiringPaymentId: "7001",
+    });
+    for (const rawStatus of ["CANCELED", "DEADLINE_EXPIRED"]) {
+      await fixture.storage.applyTBankAcquiringNotification({
+        orderId: fixture.state.id,
+        paymentId: "7001",
+        amount: "338700",
+        raw: {},
+        rawStatus,
+        status: "failed",
+        success: false,
+      });
+      assert.equal(
+        fixture.state.paymentStatus,
+        OrderPaymentStatus.CLOSED_UNPAID,
+      );
+    }
+    assert.equal(fixture.paymentEvents.size, 0);
   });
 
   it("accrues one immutable commission through real T-Bank and Ozon payment flows", async () => {
@@ -305,6 +406,7 @@ describe("promocode payment state integrity", () => {
     assert.equal(rollback.commissions.length, 0);
     assert.equal(rollback.ledgerEntries.length, 0);
     assert.equal(rollback.state.paymentStatus, OrderPaymentStatus.PENDING);
+    assert.equal(rollback.paymentEvents.size, 0);
   });
 
   it("provisions a paid guest exactly once for duplicate T-Bank callbacks", async () => {
@@ -1765,8 +1867,8 @@ describe("Ozon status lookup diagnostic privacy", () => {
   });
 });
 
-describe("durable Ozon status rechecks", () => {
-  it("rechecks an orderID-only signed notification using the authoritative merchant identity", async () => {
+describe("generic recovery publication from payment flows", () => {
+  it("queues unresolved Ozon notifications once without resetting retry state, then publishes PAID once", async () => {
     await withOzonKeys(async () => {
       const originalFetch = globalThis.fetch;
       const fixture = createFixture({
@@ -1774,446 +1876,75 @@ describe("durable Ozon status rechecks", () => {
         checkoutActorUserId: null,
         userId: null,
       });
-      const notification = createSignedOzonNotification("canonical", {
-        merchantOrderId: fixture.state.id,
-      });
-      delete notification.extOrderID;
-      notification.requestSign = signOzonNotification(
-        "canonical",
-        notification,
-      );
-      let bankStatus = "STATUS_PAYMENT_PENDING";
+      let status = "STATUS_PAYMENT_PENDING";
       let paidNotifications = 0;
-      const requestIds: unknown[] = [];
-      globalThis.fetch = async (_url, input) => {
-        const request = JSON.parse(String(input?.body)) as Record<
-          string,
-          unknown
-        >;
-        requestIds.push(request.id);
-        assert.equal(request.extId, undefined);
-        return jsonResponse(ozonStatusResponse(fixture.state.id, bankStatus));
-      };
-      const service = createOzonNotificationServiceWithStorage(fixture, () => {
-        paidNotifications += 1;
-      });
-      try {
-        await service.handleOzonPaymentNotification(notification);
-        const job = fixture.recheck();
-        assert.ok(job);
-        job.nextAttemptAt = new Date(Date.now() - 1_000);
-        bankStatus = "STATUS_PAID";
-        await new OzonPaymentRecheckService(
-          fixture.storage,
-          service,
-        ).processDueRechecks();
-
-        assert.deepEqual(requestIds, ["ozon-order-1", "ozon-order-1"]);
-        assert.equal(fixture.state.paymentStatus, OrderPaymentStatus.PAID);
-        assert.equal(fixture.activationCount(), 1);
-        assert.equal(fixture.analyticsCount(), 1);
-        assert.equal(paidNotifications, 1);
-        assert.ok(fixture.recheck()?.finishedAt);
-      } finally {
-        globalThis.fetch = originalFetch;
-      }
-    });
-  });
-
-  it("rechecks a persisted pending callback with a new worker and applies paid side effects once", async () => {
-    await withOzonKeys(async () => {
-      const originalFetch = globalThis.fetch;
-      const fixture = createFixture({
-        paymentMethod: OrderPaymentMethod.OZON_ACQUIRING,
-        checkoutActorUserId: null,
-        userId: null,
-      });
-      let bankStatus = "STATUS_PAYMENT_PENDING";
-      let fetches = 0;
-      let paidNotifications = 0;
-      globalThis.fetch = async () => {
-        fetches += 1;
-        return jsonResponse(ozonStatusResponse(fixture.state.id, bankStatus));
-      };
-      const service = createOzonNotificationServiceWithStorage(fixture, () => {
-        paidNotifications += 1;
-      });
-      const notification = createSignedOzonNotification("canonical", {
-        merchantOrderId: fixture.state.id,
-      });
-      try {
-        await service.handleOzonPaymentNotification(notification);
-        assert.equal(fixture.state.paymentStatus, OrderPaymentStatus.PENDING);
-        assert.equal(fixture.activationCount(), 0);
-        assert.equal(paidNotifications, 0);
-        const job = fixture.recheck();
-        assert.ok(job);
-        assert.equal(job.attempts, 0);
-        assert.ok(job.nextAttemptAt > new Date());
-        assert.equal(job.lastAuthoritativeStatus, bankStatus);
-        assert.deepEqual(fixture.state.lastPaymentNotification, notification);
-
-        job.nextAttemptAt = new Date(Date.now() - 1_000);
-        bankStatus = "STATUS_PAID";
-        await new OzonPaymentRecheckService(
-          fixture.storage,
-          service,
-        ).processDueRechecks();
-
-        assert.equal(fetches, 2);
-        assert.equal(fixture.state.paymentStatus, OrderPaymentStatus.PAID);
-        assert.equal(fixture.state.userId, "activated-user");
-        assert.equal(fixture.activationCount(), 1);
-        assert.equal(fixture.consumeCount(), 1);
-        assert.equal(fixture.analyticsCount(), 1);
-        assert.equal(paidNotifications, 1);
-        assert.ok(fixture.recheck()?.finishedAt);
-        assert.equal(fixture.recheck()?.leaseToken, null);
-
-        await service.handleOzonPaymentNotification(notification);
-        await new OzonPaymentRecheckService(
-          fixture.storage,
-          service,
-        ).processDueRechecks();
-        assert.equal(fixture.activationCount(), 1);
-        assert.equal(fixture.consumeCount(), 1);
-        assert.equal(fixture.analyticsCount(), 1);
-        assert.equal(paidNotifications, 1);
-      } finally {
-        globalThis.fetch = originalFetch;
-      }
-    });
-  });
-
-  it("preserves retry budget, backoff and exhausted jobs across duplicate callbacks", async () => {
-    await withOzonKeys(async () => {
-      const originalFetch = globalThis.fetch;
-      const fixture = createFixture({
-        paymentMethod: OrderPaymentMethod.OZON_ACQUIRING,
-      });
       globalThis.fetch = async () =>
-        jsonResponse(
-          ozonStatusResponse(fixture.state.id, "STATUS_PAYMENT_PENDING"),
-        );
+        jsonResponse(ozonStatusResponse(fixture.state.id, status));
       const service = createOzonNotificationServiceWithStorage(fixture, () => {
-        assert.fail("Pending status must not send paid notifications");
+        paidNotifications += 1;
       });
       const notification = createSignedOzonNotification("canonical", {
         merchantOrderId: fixture.state.id,
       });
       try {
         await service.handleOzonPaymentNotification(notification);
-        const job = fixture.recheck();
+        const job = fixture.recovery();
         assert.ok(job);
-        job.attempts = 2;
-        job.nextAttemptAt = new Date(Date.now() - 1_000);
-        await new OzonPaymentRecheckService(
-          fixture.storage,
-          service,
-        ).processDueRechecks();
-        assert.equal(job.attempts, 3);
-        assert.ok(job.nextAttemptAt > new Date());
-        assert.equal(job.lastError, null);
-        assert.equal(job.lastAuthoritativeStatus, "STATUS_PAYMENT_PENDING");
-        const retry = { ...job };
-        await service.handleOzonPaymentNotification(notification);
-        assert.equal(job.attempts, retry.attempts);
-        assert.deepEqual(job.nextAttemptAt, retry.nextAttemptAt);
-
-        job.leaseToken = "another-worker";
-        job.lockedUntil = new Date(Date.now() + 60_000);
-        await service.handleOzonPaymentNotification(notification);
-        assert.equal(job.leaseToken, "another-worker");
-        assert.equal(job.attempts, retry.attempts);
-        assert.deepEqual(job.nextAttemptAt, retry.nextAttemptAt);
-
-        job.attempts = ozonPaymentRecheckMaxAttempts - 1;
-        job.leaseToken = null;
-        job.lockedUntil = null;
-        job.nextAttemptAt = new Date(Date.now() - 1_000);
-        await new OzonPaymentRecheckService(
-          fixture.storage,
-          service,
-        ).processDueRechecks();
-        assert.equal(job.attempts, ozonPaymentRecheckMaxAttempts);
-        assert.ok(job.finishedAt);
-        const exhaustedAt = job.finishedAt;
-        await service.handleOzonPaymentNotification(notification);
-        assert.equal(job.attempts, ozonPaymentRecheckMaxAttempts);
-        assert.deepEqual(job.finishedAt, exhaustedAt);
-        assert.equal(
-          await fixture.storage.claimOzonPaymentRecheck(),
-          undefined,
-        );
-      } finally {
-        globalThis.fetch = originalFetch;
-      }
-    });
-  });
-
-  it("does not enroll invalid signatures or mismatched authoritative identities, amount and currency", async () => {
-    await withOzonKeys(async () => {
-      const originalFetch = globalThis.fetch;
-      try {
-        const fixture = createFixture({
-          paymentMethod: OrderPaymentMethod.OZON_ACQUIRING,
-        });
-        const service = createOzonNotificationServiceWithStorage(
-          fixture,
-          () => undefined,
-        );
-        let fetches = 0;
-        globalThis.fetch = async () => {
-          fetches += 1;
-          return jsonResponse(
-            ozonStatusResponse(fixture.state.id, "STATUS_PAYMENT_PENDING"),
-          );
-        };
-        await assert.rejects(
-          service.handleOzonPaymentNotification({
-            ...createSignedOzonNotification("canonical", {
-              merchantOrderId: fixture.state.id,
-            }),
-            requestSign: "invalid",
-          }),
-        );
-        assert.equal(fetches, 0);
-        assert.equal(fixture.recheck(), null);
-
-        for (const override of [
-          { id: "another-provider-order" },
-          { extId: "another-merchant-order" },
-          { originalAmount: { currencyCode: "643", value: "1" } },
-          { originalAmount: { currencyCode: "840", value: "338700" } },
-        ]) {
-          globalThis.fetch = async () =>
-            jsonResponse({
-              ...ozonStatusResponse(fixture.state.id, "STATUS_PAYMENT_PENDING"),
-              ...override,
-            });
-          await assert.rejects(
-            service.handleOzonPaymentNotification(
-              createSignedOzonNotification("canonical", {
-                merchantOrderId: fixture.state.id,
-              }),
-            ),
-          );
-          assert.equal(fixture.recheck(), null);
-          assert.equal(fixture.state.paymentStatus, OrderPaymentStatus.PENDING);
-          assert.equal(fixture.activationCount(), 0);
-          assert.equal(fixture.analyticsCount(), 0);
-        }
-      } finally {
-        globalThis.fetch = originalFetch;
-      }
-    });
-  });
-
-  it("revalidates stored signatures and retries safely without paying on invalid fresh bank data", async () => {
-    await withOzonKeys(async () => {
-      const originalFetch = globalThis.fetch;
-      try {
-        for (const failure of [
-          "signature",
-          "signed-identity",
-          "identity",
-          "id-only-identity",
-          "amount",
-          "currency",
-          "transport",
-        ] as const) {
-          const fixture = createFixture({
-            paymentMethod: OrderPaymentMethod.OZON_ACQUIRING,
-            checkoutActorUserId: null,
-            userId: null,
-          });
-          const service = createOzonNotificationServiceWithStorage(
-            fixture,
-            () => {
-              assert.fail("Rejected recheck must not send paid notifications");
-            },
-          );
-          globalThis.fetch = async () =>
-            jsonResponse(ozonStatusResponse(fixture.state.id, "STATUS_NEW"));
-          const notification = createSignedOzonNotification("canonical", {
-            merchantOrderId: fixture.state.id,
-          });
-          if (failure === "id-only-identity") {
-            delete notification.extOrderID;
-            notification.requestSign = signOzonNotification(
-              "canonical",
-              notification,
-            );
-          }
-          await service.handleOzonPaymentNotification(notification);
-          const job = fixture.recheck();
-          assert.ok(job);
-          job.nextAttemptAt = new Date(Date.now() - 1_000);
-          if (failure === "signature") {
-            fixture.state.lastPaymentNotification = {
-              ...(fixture.state.lastPaymentNotification as Record<
-                string,
-                unknown
-              >),
-              requestSign: "tampered",
-            };
-          } else if (failure === "signed-identity") {
-            fixture.state.lastPaymentNotification =
-              createSignedOzonNotification("canonical", {
-                merchantOrderId: "another-order",
-              });
-          }
-          let fetches = 0;
-          globalThis.fetch = async () => {
-            fetches += 1;
-            if (failure === "transport")
-              throw new Error("PRIVATE_PROVIDER_DIAGNOSTIC");
-            const response = ozonStatusResponse(
-              fixture.state.id,
-              "STATUS_PAID",
-            );
-            if (failure === "identity" || failure === "id-only-identity")
-              response.extId = "another-order";
-            if (failure === "amount") response.originalAmount.value = "1";
-            if (failure === "currency")
-              response.originalAmount.currencyCode = "840";
-            return jsonResponse(response);
-          };
-          await new OzonPaymentRecheckService(
-            fixture.storage,
-            service,
-          ).processDueRechecks();
-          assert.equal(
-            fetches,
-            failure === "signature" || failure === "signed-identity" ? 0 : 1,
-          );
-          assert.equal(fixture.state.paymentStatus, OrderPaymentStatus.PENDING);
-          assert.equal(fixture.state.userId, null);
-          assert.equal(fixture.activationCount(), 0);
-          assert.equal(fixture.analyticsCount(), 0);
-          assert.equal(job.attempts, 1);
-          assert.ok(job.nextAttemptAt > new Date());
-          assert.equal(job.leaseToken, null);
-          assert.equal(job.lastError, "status_check_failed");
-          assert.doesNotMatch(
-            JSON.stringify(job),
-            /PRIVATE_PROVIDER_DIAGNOSTIC/,
-          );
-        }
-      } finally {
-        globalThis.fetch = originalFetch;
-      }
-    });
-  });
-
-  it("does not let an expired or replaced lease apply a fresh paid result", async () => {
-    await withOzonKeys(async () => {
-      const originalFetch = globalThis.fetch;
-      try {
-        for (const change of ["replacement", "expiry"] as const) {
-          const fixture = createFixture({
-            paymentMethod: OrderPaymentMethod.OZON_ACQUIRING,
-            checkoutActorUserId: null,
-            userId: null,
-          });
-          const service = createOzonNotificationServiceWithStorage(
-            fixture,
-            () => {
-              assert.fail("A stale worker must not send paid notifications");
-            },
-          );
-          globalThis.fetch = async () =>
-            jsonResponse(
-              ozonStatusResponse(fixture.state.id, "STATUS_PAYMENT_PENDING"),
-            );
-          await service.handleOzonPaymentNotification(
-            createSignedOzonNotification("canonical", {
-              merchantOrderId: fixture.state.id,
-            }),
-          );
-          const job = fixture.recheck();
-          assert.ok(job);
-          job.nextAttemptAt = new Date(Date.now() - 1_000);
-          const lease = await fixture.storage.claimOzonPaymentRecheck();
-          assert.ok(lease);
-          let fetches = 0;
-          globalThis.fetch = async () => {
-            fetches += 1;
-            if (change === "replacement") job.leaseToken = "replacement-worker";
-            else job.lockedUntil = new Date(Date.now() - 1);
-            return jsonResponse(
-              ozonStatusResponse(fixture.state.id, "STATUS_PAID"),
-            );
-          };
-          await service.recheckOzonPaymentNotification(lease);
-          assert.equal(fetches, 1);
-          assert.equal(fixture.state.paymentStatus, OrderPaymentStatus.PENDING);
-          assert.equal(fixture.activationCount(), 0);
-          assert.equal(fixture.analyticsCount(), 0);
-          const currentToken =
-            change === "replacement" ? "replacement-worker" : lease.leaseToken;
-          assert.equal(job.leaseToken, currentToken);
-          await fixture.storage.failOzonPaymentRecheck(
-            lease,
-            "status_check_failed",
-          );
-          assert.equal(job.leaseToken, currentToken);
-          assert.equal(job.finishedAt, null);
-        }
-      } finally {
-        globalThis.fetch = originalFetch;
-      }
-    });
-  });
-
-  it("finishes a terminal unpaid recheck without applying paid side effects", async () => {
-    await withOzonKeys(async () => {
-      const originalFetch = globalThis.fetch;
-      const fixture = createFixture({
-        paymentMethod: OrderPaymentMethod.OZON_ACQUIRING,
-        checkoutActorUserId: null,
-        userId: null,
-      });
-      const service = createOzonNotificationServiceWithStorage(fixture, () => {
-        assert.fail("A canceled payment must not send paid notifications");
-      });
-      try {
-        globalThis.fetch = async () =>
-          jsonResponse(ozonStatusResponse(fixture.state.id, "STATUS_NEW"));
-        await service.handleOzonPaymentNotification(
-          createSignedOzonNotification("canonical", {
-            merchantOrderId: fixture.state.id,
-          }),
-        );
-        const job = fixture.recheck();
-        assert.ok(job);
-        job.nextAttemptAt = new Date(Date.now() - 1_000);
-        let fetches = 0;
-        globalThis.fetch = async () => {
-          fetches += 1;
-          return jsonResponse(
-            ozonStatusResponse(fixture.state.id, "STATUS_CANCELED"),
-          );
-        };
-        await new OzonPaymentRecheckService(
-          fixture.storage,
-          service,
-        ).processDueRechecks();
-        await new OzonPaymentRecheckService(
-          fixture.storage,
-          service,
-        ).processDueRechecks();
-        assert.equal(fetches, 1);
-        assert.ok(job.finishedAt);
-        assert.equal(job.lastAuthoritativeStatus, "STATUS_CANCELED");
+        assert.equal(job.orderId, fixture.state.id);
+        assert.equal(job.attempts, 0);
+        assert.equal(job.finishedAt, null);
+        assert.ok(job.nextAttemptAt.getTime() > Date.now());
         assert.equal(fixture.state.paymentStatus, OrderPaymentStatus.PENDING);
-        assert.equal(fixture.state.userId, null);
+        assert.equal(fixture.paymentEvents.size, 0);
+        job.attempts = 4;
+        const scheduled = job.nextAttemptAt;
+        await service.handleOzonPaymentNotification(notification);
+        assert.equal(fixture.recovery(), job);
+        assert.equal(job.attempts, 4);
+        assert.equal(job.nextAttemptAt, scheduled);
         assert.equal(fixture.activationCount(), 0);
-        assert.equal(fixture.analyticsCount(), 0);
+        assert.equal(fixture.consumeCount(), 0);
+
+        status = "STATUS_PAID";
+        await service.handleOzonPaymentNotification(notification);
+        await service.handleOzonPaymentNotification(notification);
+        assert.equal(fixture.state.paymentStatus, OrderPaymentStatus.PAID);
+        assert.equal(fixture.paymentEvents.size, 1);
+        assert.equal([...fixture.paymentEvents.values()][0]!.kind, "PAID");
+        assert.equal(fixture.activationCount(), 1);
+        assert.equal(fixture.analyticsCount(), 1);
+        assert.equal(fixture.consumeCount(), 1);
+        assert.equal(paidNotifications, 1);
+
+        status = "STATUS_PAYMENT_PENDING";
+        await service.handleOzonPaymentNotification(notification);
+        assert.equal(fixture.state.paymentStatus, OrderPaymentStatus.PAID);
+        assert.equal(fixture.recovery(), job);
+        assert.equal(fixture.paymentEvents.size, 1);
       } finally {
         globalThis.fetch = originalFetch;
       }
     });
+  });
+
+  it("creates generic recovery before the only allowed payment Init claim", async () => {
+    const fixture = createFixture({
+      paymentRedirectUrl: "/checkout/success?orderId=order-1",
+    });
+    assert.equal(
+      await fixture.storage.claimPaymentInitialization(fixture.state.id),
+      true,
+    );
+    assert.equal(fixture.recovery()?.orderId, fixture.state.id);
+    assert.equal(fixture.recovery()?.attempts, 0);
+    assert.match(fixture.state.paymentRedirectUrl, /payment-initializing/);
+    const job = fixture.recovery();
+    assert.equal(
+      await fixture.storage.claimPaymentInitialization(fixture.state.id),
+      false,
+    );
+    assert.equal(fixture.recovery(), job);
+    assert.equal(fixture.updateCount(), 1);
   });
 });
 
@@ -2425,17 +2156,11 @@ async function withOzonKeys(run: () => Promise<void>) {
   }
 }
 
-type OzonRecheckState = {
+type PaymentRecoveryState = {
   orderId: string;
   attempts: number;
   nextAttemptAt: Date;
-  leaseToken: string | null;
-  lockedUntil: Date | null;
   finishedAt: Date | null;
-  lastAuthoritativeStatus: string | null;
-  lastError: string | null;
-  createdAt: Date;
-  updatedAt: Date;
 };
 
 function createFixture(
@@ -2459,22 +2184,60 @@ function createFixture(
   let eligibilityLossAccounting = 0;
   let analyticsShouldFail = false;
   let releaseCartLock: (() => void) | undefined;
-  let recheck: OzonRecheckState | null = null;
+  let recovery: PaymentRecoveryState | null = null;
   const commissions: Array<Record<string, unknown>> = [];
   const ledgerEntries: Array<Record<string, unknown>> = [];
-  const liveRecheck = (orderId: unknown, token: unknown) =>
-    recheck !== null &&
-    recheck.orderId === orderId &&
-    recheck.leaseToken === token &&
-    recheck.finishedAt === null &&
-    recheck.lockedUntil !== null &&
-    recheck.lockedUntil > new Date();
+  const paymentEvents = new Map<
+    string,
+    { orderId: string; kind: string; occurredAt: Date }
+  >();
   const tx = {
+    orderPaymentRecovery: {
+      findUnique: async ({ where }: { where: { orderId: string } }) =>
+        recovery?.orderId === where.orderId ? recovery : null,
+      create: async ({
+        data,
+      }: {
+        data: { orderId: string; nextAttemptAt: Date };
+      }) => {
+        assert.equal(recovery, null, "Recovery must be created only once");
+        recovery = { ...data, attempts: 0, finishedAt: null };
+        return recovery;
+      },
+      upsert: async ({
+        where,
+        create,
+        update,
+      }: {
+        where: { orderId: string };
+        create: { orderId: string; nextAttemptAt: Date };
+        update: Partial<PaymentRecoveryState>;
+      }) => {
+        assert.equal(where.orderId, create.orderId);
+        if (recovery) {
+          assert.equal(recovery.orderId, where.orderId);
+          Object.assign(recovery, update);
+        } else recovery = { ...create, attempts: 0, finishedAt: null };
+        return recovery;
+      },
+    },
+    orderPaymentEvent: {
+      upsert: async ({
+        create,
+      }: {
+        create: { orderId: string; kind: string; occurredAt: Date };
+      }) => {
+        const key = `${create.orderId}:${create.kind}`;
+        if (!paymentEvents.has(key))
+          paymentEvents.set(key, structuredClone(create));
+        return paymentEvents.get(key)!;
+      },
+    },
     $queryRaw: async (query: {
       strings?: readonly string[];
       values?: readonly unknown[];
     }) => {
-      const sql = query.strings?.join("") ?? "";
+      const sql = Array.isArray(query) ? query.join("") : query.strings?.join("") ?? "";
       if (
         options.cartLock &&
         sql.includes('FROM "carts"') &&
@@ -2483,82 +2246,10 @@ function createFixture(
       ) {
         releaseCartLock = await options.cartLock.acquire();
       }
-      if (sql.includes('"order_ozon_payment_rechecks"')) {
-        const values = query.values ?? [];
-        if (sql.includes('"lease_token"')) {
-          assert.match(sql, /"attempts"/);
-          return liveRecheck(values[0], values[1])
-            ? [{ attempts: recheck!.attempts }]
-            : [];
-        }
-        assert.match(sql, /FOR UPDATE/);
-        return recheck && recheck.orderId === values[0]
-          ? [{ orderId: recheck.orderId }]
-          : [];
-      }
       if (sql.includes("clock_timestamp")) {
-        return [{ now: new Date() }];
+        return [{ now: new Date(), nextAttemptAt: new Date(Date.now() + 60_000) }];
       }
       return [];
-    },
-    // Deliberately supports only the real apply method's four job transitions.
-    // SQL concurrency/lease predicates are exercised against PostgreSQL separately.
-    $executeRaw: async (query: {
-      strings: readonly string[];
-      values: readonly unknown[];
-    }) => {
-      const sql = query.strings.join("");
-      const values = query.values;
-      assert.match(sql, /"order_ozon_payment_rechecks"/);
-      if (sql.includes("INSERT INTO")) {
-        assert.match(sql, /ON CONFLICT \("order_id"\) DO NOTHING/);
-        if (recheck) return 0;
-        const now = new Date();
-        recheck = {
-          orderId: String(values[0]),
-          attempts: 0,
-          nextAttemptAt: new Date(now.getTime() + Number(values[1])),
-          leaseToken: null,
-          lockedUntil: null,
-          finishedAt: null,
-          lastAuthoritativeStatus: values[2] as string | null,
-          lastError: null,
-          createdAt: now,
-          updatedAt: now,
-        };
-        return 1;
-      }
-      if (!recheck) return 0;
-      if (sql.includes('"next_attempt_at" =')) {
-        assert.equal(values.length, 6);
-        if (!liveRecheck(values[4], values[5])) return 0;
-        Object.assign(recheck, {
-          nextAttemptAt: new Date(Date.now() + Number(values[0])),
-          finishedAt: values[1] ? new Date() : null,
-          lastAuthoritativeStatus: values[2],
-          lastError: values[3],
-          leaseToken: null,
-          lockedUntil: null,
-        });
-        return 1;
-      }
-      if (sql.includes("COALESCE(")) {
-        assert.equal(values.length, 3);
-        if (!liveRecheck(values[1], values[2])) return 0;
-        recheck.lastAuthoritativeStatus =
-          (values[0] as string | null) ?? recheck.lastAuthoritativeStatus;
-      } else {
-        assert.equal(values.length, 2);
-        if (recheck.orderId !== values[1] || recheck.finishedAt) return 0;
-        recheck.lastAuthoritativeStatus = values[0] as string | null;
-      }
-      Object.assign(recheck, {
-        finishedAt: new Date(),
-        leaseToken: null,
-        lockedUntil: null,
-        lastError: null,
-      });
-      return 1;
     },
     order: {
       findFirst: async ({
@@ -2697,21 +2388,26 @@ function createFixture(
   const prisma = {
     $transaction: async (callback: (transaction: typeof tx) => unknown) => {
       const snapshot = { ...state };
-      const recheckSnapshot = recheck ? structuredClone(recheck) : null;
+      const recoverySnapshot = recovery ? structuredClone(recovery) : null;
       const historyLength = history.length;
       const commissionSnapshot = structuredClone(commissions);
       const ledgerSnapshot = structuredClone(ledgerEntries);
+      const paymentEventSnapshot = structuredClone(paymentEvents);
       try {
         return await callback(tx);
       } catch (error) {
         for (const key of Object.keys(state))
           delete (state as Record<string, unknown>)[key];
         Object.assign(state, snapshot);
-        if (recheck && recheckSnapshot) Object.assign(recheck, recheckSnapshot);
-        else recheck = recheckSnapshot;
+        if (recovery && recoverySnapshot)
+          Object.assign(recovery, recoverySnapshot);
+        else recovery = recoverySnapshot;
         history.length = historyLength;
         commissions.splice(0, commissions.length, ...commissionSnapshot);
         ledgerEntries.splice(0, ledgerEntries.length, ...ledgerSnapshot);
+        paymentEvents.clear();
+        for (const [key, value] of paymentEventSnapshot)
+          paymentEvents.set(key, value);
         throw error;
       } finally {
         releaseCartLock?.();
@@ -2768,57 +2464,8 @@ function createFixture(
     orderActivationService as unknown as OrderActivationService,
     analyticsOutboxService as unknown as AnalyticsOutboxService,
     affiliateFinancialAccountingService as unknown as AffiliateFinancialAccountingService,
-    { consumePaidInTransaction: async () => undefined } as never,
+    {} as never,
   );
-  // Durable state survives service/worker recreation in these flow tests. These
-  // three public storage methods are stubs, not a claim of SQL lease coverage.
-  Object.assign(storage, {
-    claimOzonPaymentRecheck: async (): Promise<
-      OzonPaymentRecheckLease | undefined
-    > => {
-      if (
-        !recheck ||
-        recheck.finishedAt ||
-        recheck.nextAttemptAt > new Date() ||
-        (recheck.lockedUntil && recheck.lockedUntil > new Date())
-      )
-        return undefined;
-      if (recheck.attempts >= ozonPaymentRecheckMaxAttempts) {
-        recheck.finishedAt = new Date();
-        return undefined;
-      }
-      recheck.attempts += 1;
-      recheck.leaseToken = crypto.randomUUID();
-      recheck.lockedUntil = new Date(Date.now() + ozonPaymentRecheckLeaseMs);
-      return { orderId: recheck.orderId, leaseToken: recheck.leaseToken };
-    },
-    getOzonPaymentRecheckNotification: async (
-      lease: OzonPaymentRecheckLease,
-    ) => {
-      if (
-        !liveRecheck(lease.orderId, lease.leaseToken) ||
-        state.paymentStatus === OrderPaymentStatus.PAID
-      )
-        return undefined;
-      return state.lastPaymentNotification ?? undefined;
-    },
-    failOzonPaymentRecheck: async (
-      lease: OzonPaymentRecheckLease,
-      errorCode: string,
-    ) => {
-      if (!recheck || !liveRecheck(lease.orderId, lease.leaseToken)) return;
-      Object.assign(recheck, {
-        nextAttemptAt: new Date(
-          Date.now() + ozonPaymentRecheckDelayMs(recheck.attempts),
-        ),
-        leaseToken: null,
-        lockedUntil: null,
-        finishedAt:
-          recheck.attempts >= ozonPaymentRecheckMaxAttempts ? new Date() : null,
-        lastError: errorCode,
-      });
-    },
-  });
   (
     storage as unknown as { mapAdminOrder: (value: unknown) => unknown }
   ).mapAdminOrder = (value) => value;
@@ -2826,10 +2473,11 @@ function createFixture(
     state,
     commissions,
     ledgerEntries,
+    paymentEvents,
     history,
     cartItems,
     storage,
-    recheck: () => recheck,
+    recovery: () => recovery,
     analyticsCount: () => analytics,
     accountingCount: () => accounting,
     completionAccountingCount: () => completionAccounting,
@@ -2892,6 +2540,7 @@ function createOrderState() {
     paymentErrorCode: null as string | null,
     paymentErrorMessage: null as string | null,
     terminalPaymentFailedAt: null as Date | null,
+    paymentClosedUnpaidAt: null as Date | null,
     cartConsumedAt: null as Date | null,
     cartConsumedQuantities: null as Record<string, number> | null,
     cartRestoredAt: null as Date | null,

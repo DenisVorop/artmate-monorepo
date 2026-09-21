@@ -1,0 +1,33 @@
+model LoyaltyWorkReward {
+  id                String   @id @default(uuid())
+  memberId          String   @map("member_id")
+  coloringId        String   @map("coloring_id") @db.VarChar(32)
+  publicationFactId String   @map("publication_fact_id")
+  points            Int      @default(25)
+  rulesVersion      String   @default("work-v1") @map("rules_version") @db.VarChar(64)
+  occurredAt        DateTime @map("occurred_at")
+  createdAt         DateTime @default(now()) @map("created_at")
+
+  member          LoyaltyMember           @relation(fields: [memberId], references: [id], onDelete: Restrict, onUpdate: Restrict)
+  coloring        Coloring                @relation(fields: [coloringId], references: [id], onDelete: Restrict, onUpdate: Restrict)
+  publicationFact WorkshopPublicationFact @relation(fields: [publicationFactId], references: [id], onDelete: Restrict, onUpdate: Restrict)
+  operation       LoyaltyOperation?
+
+  @@unique([memberId, coloringId])
+  @@index([publicationFactId])
+  @@index([coloringId])
+  @@map("loyalty_work_rewards")
+}
+
+model LoyaltyWorkRewardSync {
+  memberId      String   @id @map("member_id")
+  attempts      Int      @default(0)
+  nextAttemptAt DateTime @default(now()) @map("next_attempt_at")
+  lastError     String?  @map("last_error") @db.VarChar(80)
+  updatedAt     DateTime @default(now()) @updatedAt @map("updated_at")
+
+  member LoyaltyMember @relation(fields: [memberId], references: [id], onDelete: Restrict, onUpdate: Restrict)
+
+  @@index([nextAttemptAt])
+  @@map("loyalty_work_reward_syncs")
+}

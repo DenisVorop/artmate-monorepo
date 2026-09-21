@@ -19,6 +19,7 @@ enum LoyaltyOperationKind {
   RESERVE  @map("reserve")
   CONSUME  @map("consume")
   RELEASE  @map("release")
+  RESTORE  @map("restore")
 
   @@map("loyalty_operation_kind")
 }
@@ -43,9 +44,30 @@ model LoyaltyMember {
   wallet       LoyaltyWallet?
   operations   LoyaltyOperation[]
   reservations LoyaltyReservation[]
+  purchaseAccounts LoyaltyPurchaseAccount[]
+  purchaseHistorySync LoyaltyPurchaseHistorySync?
+  workRewards LoyaltyWorkReward[]
+  workRewardSync LoyaltyWorkRewardSync?
+  achievementAwards LoyaltyAchievementAward[]
+  achievementSync LoyaltyAchievementSync?
+  historySync LoyaltyHistorySync?
 
   @@index([historyState, joinedAt])
   @@map("loyalty_members")
+}
+
+model LoyaltyHistorySync {
+  memberId      String    @id @map("member_id")
+  completedAt   DateTime? @map("completed_at")
+  attempts      Int       @default(0)
+  nextAttemptAt DateTime  @default(now()) @map("next_attempt_at")
+  lastError     String?   @map("last_error") @db.VarChar(80)
+  updatedAt     DateTime  @default(now()) @updatedAt @map("updated_at")
+
+  member LoyaltyMember @relation(fields: [memberId], references: [id], onDelete: Restrict, onUpdate: Restrict)
+
+  @@index([nextAttemptAt])
+  @@map("loyalty_history_syncs")
 }
 
 model LoyaltyWallet {
@@ -74,14 +96,23 @@ model LoyaltyOperation {
   sourceKey       String               @map("source_key") @db.VarChar(200)
   rulesVersion    String               @map("rules_version") @db.VarChar(64)
   reservationId   String?              @map("reservation_id")
+  refundId        String?              @unique @map("refund_id") @db.VarChar(32)
+  purchaseOrderId String?              @map("purchase_order_id") @db.VarChar(32)
+  workRewardId    String?              @unique @map("work_reward_id")
+  achievementAwardId String?           @unique @map("achievement_award_id")
   occurredAt      DateTime             @map("occurred_at")
   recordedAt      DateTime             @default(now()) @map("recorded_at")
 
   member      LoyaltyMember       @relation(fields: [memberId], references: [id], onDelete: Restrict)
   reservation LoyaltyReservation? @relation(fields: [reservationId], references: [id], onDelete: Restrict)
+  refund      OrderRefund?          @relation(fields: [refundId], references: [id], onDelete: Restrict, onUpdate: Restrict)
+  purchaseAccount LoyaltyPurchaseAccount? @relation(fields: [purchaseOrderId], references: [orderId], onDelete: Restrict, onUpdate: Restrict)
+  workReward LoyaltyWorkReward? @relation(fields: [workRewardId], references: [id], onDelete: Restrict, onUpdate: Restrict)
+  achievementAward LoyaltyAchievementAward? @relation(fields: [achievementAwardId], references: [id], onDelete: Restrict, onUpdate: Restrict)
 
   @@unique([memberId, sequence])
   @@index([memberId, sourceKey])
+  @@index([purchaseOrderId])
   @@map("loyalty_operations")
 }
 

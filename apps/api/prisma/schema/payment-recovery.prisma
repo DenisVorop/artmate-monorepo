@@ -1,0 +1,27 @@
+enum OrderPaymentRecoveryStatus {
+  PENDING   @map("pending")
+  CHECKING  @map("checking")
+  ATTENTION @map("attention")
+  RESOLVED  @map("resolved")
+
+  @@map("order_payment_recovery_status")
+}
+
+model OrderPaymentRecovery {
+  orderId       String                     @id @map("order_id") @db.VarChar(32)
+  status        OrderPaymentRecoveryStatus @default(PENDING)
+  attempts      Int                        @default(0)
+  nextAttemptAt DateTime                   @default(now()) @map("next_attempt_at")
+  leaseToken    String?                    @map("lease_token") @db.Uuid
+  lockedUntil   DateTime?                  @map("locked_until")
+  finishedAt    DateTime?                  @map("finished_at")
+  lastCheckedAt DateTime?                  @map("last_checked_at")
+  lastError     String?                    @map("last_error") @db.VarChar(80)
+  createdAt     DateTime                   @default(now()) @map("created_at")
+  updatedAt     DateTime                   @default(now()) @updatedAt @map("updated_at")
+
+  order Order @relation(fields: [orderId], references: [id], onDelete: Restrict)
+
+  @@index([status, nextAttemptAt, lockedUntil])
+  @@map("order_payment_recoveries")
+}

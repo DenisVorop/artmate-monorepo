@@ -17,6 +17,7 @@ enum OrderPaymentStatus {
   PENDING @map("pending")
   PAID    @map("paid")
   FAILED  @map("failed")
+  CLOSED_UNPAID @map("closed_unpaid")
 
   @@map("order_payment_status")
 }
@@ -79,6 +80,7 @@ model Order {
   paymentErrorCode            String?               @map("payment_error_code") @db.VarChar(120)
   paymentErrorMessage         String?               @map("payment_error_message") @db.Text
   terminalPaymentFailedAt     DateTime?             @map("terminal_payment_failed_at")
+  paymentClosedUnpaidAt       DateTime?             @map("payment_closed_unpaid_at")
   cartConsumedAt              DateTime?             @map("cart_consumed_at")
   cartConsumedQuantities      Json?                 @map("cart_consumed_quantities") @db.JsonB
   cartRestoredAt              DateTime?             @map("cart_restored_at")
@@ -92,7 +94,13 @@ model Order {
   promoTermsSnapshot          Json?                 @map("promo_terms_snapshot") @db.JsonB
   promoPricingSnapshot        Json?                 @map("promo_pricing_snapshot") @db.JsonB
   pricingSnapshot             Json?                 @map("pricing_snapshot") @db.JsonB
+  loyaltyRatePercent          Int?                  @map("loyalty_rate_percent")
+  loyaltyRateVersion          String?               @map("loyalty_rate_version") @db.VarChar(64)
+  purchaseAccount             LoyaltyPurchaseAccount?
+  purchaseSync                LoyaltyPurchaseSync?
+  completionFact             OrderCompletionFact?
   loyaltyReservation          LoyaltyReservation?
+  paymentEvents               OrderPaymentEvent[]
   currency                    String                @default("RUB") @db.VarChar(3)
   comment                     String?               @db.Text
   paidAt                      DateTime?             @map("paid_at")
@@ -106,7 +114,7 @@ model Order {
   history       OrderHistory[]
   user          User?               @relation(fields: [userId], references: [id], onDelete: SetNull)
   promoRedemption PromoRedemption?
-  ozonPaymentRecheck OrderOzonPaymentRecheck?
+  paymentRecovery OrderPaymentRecovery?
   refunds       OrderRefund[]
   affiliateCommission AffiliateCommission?
   affiliateLedgerEntries AffiliateLedgerEntry[]
@@ -133,12 +141,15 @@ model OrderRefund {
   reason             String   @db.VarChar(1000)
   deliveryKopecks    BigInt   @map("delivery_kopecks")
   totalKopecks       BigInt   @map("total_kopecks")
+  loyaltyPoints      BigInt   @map("loyalty_points")
   createdAt          DateTime @default(now()) @map("created_at")
 
   order       Order                  @relation(fields: [orderId], references: [id], onDelete: Restrict, onUpdate: Restrict)
   author      User                   @relation("OrderRefundAuthor", fields: [authorId], references: [id], onDelete: Restrict, onUpdate: Restrict)
   items       OrderRefundItem[]
   ledgerEntry AffiliateLedgerEntry?
+  loyaltyRestoreOperation LoyaltyOperation?
+  event OrderRefundEvent?
 
   @@unique([orderId, requestId])
   @@unique([orderId, reference])
@@ -153,6 +164,8 @@ model OrderRefundItem {
   title         String @db.VarChar(220)
   quantity      Int
   amountKopecks BigInt @map("amount_kopecks")
+  previousQuantity Int @map("previous_quantity")
+  loyaltyPoints BigInt @map("loyalty_points")
 
   refund OrderRefund @relation(fields: [refundId], references: [id], onDelete: Restrict, onUpdate: Restrict)
 
@@ -160,23 +173,6 @@ model OrderRefundItem {
   @@map("order_refund_items")
 }
 
-model OrderOzonPaymentRecheck {
-  orderId                 String    @id @map("order_id") @db.VarChar(32)
-  attempts                Int       @default(0)
-  nextAttemptAt           DateTime  @map("next_attempt_at")
-  leaseToken              String?   @map("lease_token") @db.Uuid
-  lockedUntil             DateTime? @map("locked_until")
-  finishedAt              DateTime? @map("finished_at")
-  lastAuthoritativeStatus String?   @map("last_authoritative_status") @db.VarChar(120)
-  lastError               String?   @map("last_error") @db.VarChar(120)
-  createdAt               DateTime  @default(now()) @map("created_at")
-  updatedAt               DateTime  @default(now()) @updatedAt @map("updated_at")
-
-  order Order @relation(fields: [orderId], references: [id], onDelete: Cascade)
-
-  @@index([finishedAt, nextAttemptAt, lockedUntil], map: "order_ozon_payment_rechecks_due_idx")
-  @@map("order_ozon_payment_rechecks")
-}
 
 model OrderCheckoutThrottle {
   id              String                     @id @default(cuid())

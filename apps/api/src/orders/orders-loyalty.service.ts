@@ -8,6 +8,10 @@ import {
 
 import { Prisma } from "../generated/prisma/client";
 import { LoyaltyWalletService } from "../loyalty/wallet.service";
+import {
+  purchasePointsForAmount,
+  purchaseRateForSpend,
+} from "../loyalty/purchase-rules";
 import { PrismaService } from "../prisma/prisma.service";
 import {
   applyLoyaltyPoints,
@@ -17,7 +21,7 @@ import {
   parseOrderPricingSnapshot,
   type OrderPricingSnapshot,
 } from "./pricing/pricing-snapshot";
-import { readOrderPricing } from "./pricing/read-order-pricing";
+import { readPublishedPurchaseSpend } from "./published-purchase-spend";
 
 const rulesVersion = "order-spend-v1";
 type PreviewInput = {
@@ -27,7 +31,7 @@ type PreviewInput = {
 };
 type Reader = Pick<Prisma.TransactionClient, "loyaltyMember">;
 
-/** Order owns the transaction and verifies acquiring notifications before settlement. */
+/** Checkout pricing/reservation coordinator; payment settlement is a DB consumer. */
 @Injectable()
 export class OrdersLoyaltyService {
   constructor(
@@ -35,8 +39,24 @@ export class OrdersLoyaltyService {
     private readonly wallet: LoyaltyWalletService,
   ) {}
 
-  preview(input: PreviewInput) {
-    return this.calculate(this.prisma, input);
+  async preview(input: PreviewInput) {
+    const { ready, ...result } = await this.calculate(this.prisma, input);
+    let expectedEarnedPoints = 0;
+    if (ready && input.userId && input.points === 0) {
+      const spend = await readPublishedPurchaseSpend(this.prisma, {
+        userId: input.userId,
+      });
+      expectedEarnedPoints = Number(
+        purchasePointsForAmount(
+          BigInt(result.snapshot.itemsTotalKopecks),
+          purchaseRateForSpend(spend),
+        ),
+      );
+    }
+    return {
+      ...result,
+      loyalty: { ...result.loyalty, expectedEarnedPoints },
+    };
   }
 
   async reserveInTransaction(
@@ -73,55 +93,6 @@ export class OrdersLoyaltyService {
       occurredAt: order.createdAt,
     });
     return result.snapshot;
-  }
-
-  async consumePaidInTransaction(
-    tx: Prisma.TransactionClient,
-    orderId: string,
-  ) {
-    const { order, reservation } = await this.readSettlement(tx, orderId);
-    if (!reservation) return;
-    if (order.paymentStatus !== "PAID" || !order.paidAt) {
-      throw new ConflictException(
-        "Loyalty spending requires confirmed payment",
-      );
-    }
-    // Never reinterpret a released hold as new spending or silently forgive it.
-    // A contradictory provider state requires manual reconciliation.
-    await this.wallet.consumeInTransaction(tx, {
-      orderId,
-      memberId: reservation.memberId,
-      operationKey: `order:${orderId}:consume`,
-      sourceKey: `order:${orderId}`,
-      rulesVersion,
-      occurredAt: order.paidAt,
-    });
-  }
-
-  async releaseCancelledTBankInTransaction(
-    tx: Prisma.TransactionClient,
-    input: { orderId: string; paymentId: string; amountKopecks: number },
-  ) {
-    const { order, reservation } = await this.readSettlement(tx, input.orderId);
-    if (!reservation || order.paymentStatus === "PAID" || order.paidAt) return;
-    if (
-      order.paymentMethod !== "TBANK_ACQUIRING" ||
-      order.tbankAcquiringPaymentId !== input.paymentId ||
-      !order.terminalPaymentFailedAt ||
-      readOrderPricing(order).totalKopecks !== input.amountKopecks
-    ) {
-      throw new ConflictException(
-        "Loyalty release requires verified closed unpaid payment",
-      );
-    }
-    await this.wallet.releaseInTransaction(tx, {
-      orderId: order.id,
-      memberId: reservation.memberId,
-      operationKey: `order:${order.id}:release`,
-      sourceKey: `order:${order.id}`,
-      rulesVersion,
-      occurredAt: order.terminalPaymentFailedAt,
-    });
   }
 
   private async calculate(reader: Reader, input: PreviewInput) {
@@ -184,6 +155,7 @@ export class OrdersLoyaltyService {
       )
       .digest("hex");
     return {
+      ready,
       memberId: member?.id,
       snapshot,
       loyalty: {
@@ -194,39 +166,6 @@ export class OrdersLoyaltyService {
         pricingRevision,
       },
     };
-  }
-
-  private async readSettlement(tx: Prisma.TransactionClient, orderId: string) {
-    await tx.$queryRaw`SELECT id FROM orders WHERE id = ${orderId} FOR UPDATE`;
-    const order = await tx.order.findUnique({
-      where: { id: orderId },
-      include: { items: true },
-    });
-    if (!order) throw new ConflictException("Loyalty order not found");
-    const reservation = await tx.loyaltyReservation.findUnique({
-      where: { orderId },
-    });
-    if (reservation) {
-      const member = await tx.loyaltyMember.findUnique({
-        where: { id: reservation.memberId },
-      });
-      if (!member || member.userId !== order.checkoutActorUserId) {
-        throw new ConflictException(
-          "Loyalty reservation does not belong to checkout actor",
-        );
-      }
-    }
-    const snapshot = readOrderPricing(order);
-    const points = snapshot.items.reduce(
-      (sum, item) => sum + item.loyaltyPoints,
-      0,
-    );
-    if (reservation ? reservation.points !== BigInt(points) : points !== 0) {
-      throw new ConflictException(
-        "Loyalty reservation does not match order pricing",
-      );
-    }
-    return { order, reservation };
   }
 }
 

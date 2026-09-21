@@ -56,7 +56,6 @@ import type {
 import { OrdersTelegramService } from "./orders-telegram.service";
 import { OrdersLoyaltyService } from "./orders-loyalty.service";
 import { createOrderPricingSnapshot } from "./pricing/pricing-snapshot";
-import type { OzonPaymentRecheckLease } from "./ozon-payment-recheck";
 import { OrderRefundsService } from "./refunds/order-refunds.service";
 import {
   type ApplyCdekOrderStatusWebhookResult,
@@ -533,7 +532,7 @@ export class OrdersService {
     userId: string | undefined,
   ) {
     const shouldInitialize =
-      (await this.ordersStorage.claimPaymentInitialization?.(order.id)) ?? true;
+      await this.ordersStorage.claimPaymentInitialization(order.id);
     if (!shouldInitialize) {
       const initializedOrder =
         await this.ordersStorage.waitForPaymentInitialization(order.id);
@@ -612,41 +611,107 @@ export class OrdersService {
     return { ok: true };
   }
 
-  async recheckOzonPaymentNotification(
-    lease: OzonPaymentRecheckLease,
-  ): Promise<void> {
-    const notification =
-      await this.ordersStorage.getOzonPaymentRecheckNotification(lease);
-    if (!notification) return;
+  async reconcilePayment(orderId: string): Promise<{
+    state: "paid" | "closed_unpaid" | "pending" | "attention";
+    reason?: string;
+  }> {
+    const source =
+      await this.ordersStorage.getPaymentReconciliationSource(orderId);
+    if (!source) return { state: "attention", reason: "payment_not_found" };
+    if (source.paymentStatus === "PAID") return { state: "paid" };
+    if (source.paymentStatus === "CLOSED_UNPAID")
+      return { state: "closed_unpaid" };
+    if (!source.paymentRecovery)
+      return { state: "attention", reason: "payment_not_found" };
+    const amountKopecks = rublesToKopecks(source.total);
+    let state: "paid" | "closed_unpaid" | "pending";
+    let paymentId: string | undefined;
+    let providerOrderId: string;
+    const method = source.paymentMethod;
+    if (method === "TBANK_ACQUIRING") {
+      const verified = await this.tbankAcquiringService.reconcilePayment({
+        orderId,
+        paymentId: source.tbankAcquiringPaymentId ?? undefined,
+        amountKopecks,
+      });
+      if (verified.state === "attention") return verified;
+      if (!verified.paymentId)
+        return { state: "attention", reason: "identity_mismatch" };
+      state = verified.state;
+      paymentId = verified.paymentId;
+      providerOrderId = orderId;
+    } else if (method === "OZON_ACQUIRING") {
+      // Lookup uses the original merchant order identity even if createOrder's
+      // response was lost. No new order or payment is ever created here.
+      const verified = await this.ozonAcquiringService.getOrderStatus({
+        profile: "canonical",
+        merchantOrderId: orderId,
+        acquiringOrderId: source.ozonAcquiringOrderId ?? undefined,
+      });
+      if (
+        verified.merchantOrderId !== orderId ||
+        (source.ozonAcquiringOrderId &&
+          source.ozonAcquiringOrderId !== verified.acquiringOrderId)
+      )
+        return { state: "attention", reason: "identity_mismatch" };
+      if (
+        verified.currencyCode !== "643" ||
+        !/^\d+$/.test(verified.amount) ||
+        BigInt(verified.amount) !== BigInt(amountKopecks)
+      )
+        return { state: "attention", reason: "amount_mismatch" };
+      if (["STATUS_CANCELED", "STATUS_EXPIRED"].includes(verified.status))
+        return { state: "attention", reason: "closure_unconfirmed" };
+      if (verified.status === "STATUS_PAID") state = "paid";
+      else if (
+        [
+          "STATUS_UNSPECIFIED",
+          "STATUS_NEW",
+          "STATUS_PAYMENT_PENDING",
+          "STATUS_AUTHORIZED",
+        ].includes(verified.status)
+      )
+        state = "pending";
+      else return { state: "attention", reason: "provider_error" };
+      providerOrderId = verified.acquiringOrderId;
+    } else return { state: "attention", reason: "unsupported_provider" };
 
-    await this.processOzonPaymentNotification(notification, lease);
+    const result = await this.ordersStorage.applyPaymentReconciliation({
+      orderId,
+      method,
+      providerOrderId,
+      paymentId,
+      amountKopecks,
+      state,
+    });
+    if (result.paymentStatusChangedToPaid) {
+      await this.runPaymentSideEffect(
+        `queue paid notifications after payment reconciliation for order ${orderId}`,
+        () =>
+          this.queueOrderPaidNotifications(
+            result.order,
+            result.userId,
+            result.previousStatus,
+          ),
+      );
+    }
+    // A webhook can settle the order while a read-only status lookup is in
+    // flight. Preserve its newer definitive state when completing the job.
+    if (result.paymentStatus === "PAID") return { state: "paid" };
+    if (result.paymentStatus === "CLOSED_UNPAID")
+      return { state: "closed_unpaid" };
+    return state === "pending"
+      ? { state, reason: "provider_pending" }
+      : { state };
   }
 
   private async processOzonPaymentNotification(
     notification: Record<string, unknown>,
-    recheckLease?: OzonPaymentRecheckLease,
   ): Promise<void> {
     const verified =
       this.ozonAcquiringService.assertValidNotification(notification);
-    if (
-      recheckLease &&
-      verified.merchantOrderId !== undefined &&
-      verified.merchantOrderId !== recheckLease.orderId
-    ) {
-      throw new BadRequestException(
-        "Ozon merchant order id does not match recheck lease",
-      );
-    }
     const authoritative =
       await this.ozonAcquiringService.getOrderStatus(verified);
-    if (
-      recheckLease &&
-      authoritative.merchantOrderId !== recheckLease.orderId
-    ) {
-      throw new BadRequestException(
-        "Ozon authoritative merchant order id does not match recheck lease",
-      );
-    }
     const authoritativeVerified = Object.freeze({
       ...verified,
       merchantOrderId: authoritative.merchantOrderId,
@@ -665,10 +730,9 @@ export class OrdersService {
       currencyCode: authoritative.currencyCode,
       extOrderId: authoritative.merchantOrderId,
       raw: notification,
-      recheckLease,
     });
 
-    if (!result && !recheckLease) {
+    if (!result) {
       this.logger.warn(
         `Ozon Acquiring notification ignored: order not found for extOrderId=${
           parsedNotification.extOrderId ?? "unknown"
@@ -715,18 +779,18 @@ export class OrdersService {
       parsedNotification.paymentId &&
       ["CANCELED", "DEADLINE_EXPIRED"].includes(
         parsedNotification.rawStatus ?? "",
-      ) &&
-      (await this.ordersStorage.hasReservedLoyaltyPoints(result.order.id))
+      )
     ) {
       // Store the terminal marker first so another checkout cannot start Init
-      // while the bank is being queried. A failed check keeps the hold intact.
+      // while the bank is being queried. Only verified closure is published to
+      // domain consumers; their presence or state never controls verification.
       const evidence = {
         orderId: result.order.id,
         paymentId: parsedNotification.paymentId,
         amountKopecks: rublesToKopecks(result.order.total),
       };
       if (await this.tbankAcquiringService.verifyOrderClosedUnpaid(evidence)) {
-        await this.ordersStorage.releaseLoyaltyForClosedTBankPayment(evidence);
+        await this.ordersStorage.confirmTBankClosedUnpaid(evidence);
       }
     }
 

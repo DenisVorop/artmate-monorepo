@@ -252,11 +252,13 @@ describe("LoyaltyWalletService", () => {
   it("never reverses reserved funds or reserves unavailable balance", async () => {
     const f = fixture();
     await f.service.reserveInTransaction(f.tx, f.reserve);
-    await assert.rejects(
-      f.service.reverseInTransaction(f.tx, { ...f.command, points: 100 }),
-      ConflictException,
-    );
-    assert.equal(f.wallet.balancePoints, 100n);
+    const correction = await f.service.reverseInTransaction(f.tx, {
+      ...f.command,
+      points: 100,
+    });
+    assert.equal(correction.operation.requestedPoints, 100n);
+    assert.equal(correction.operation.balanceDelta, -50n);
+    assert.equal(f.wallet.balancePoints, 50n);
     assert.equal(f.wallet.reservedPoints, 50n);
     await assert.rejects(
       f.service.reserveInTransaction(f.tx, {

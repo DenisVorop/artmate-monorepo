@@ -47,6 +47,423 @@ export class LoyaltyWalletService {
     return this.adjust(tx, input, "REVERSAL");
   }
 
+  async creditWorkInTransaction(
+    tx: Prisma.TransactionClient,
+    input: { rewardId: string },
+  ): Promise<LoyaltyWalletResult> {
+    validateText(input.rewardId, 200, "rewardId");
+    const reward = await tx.loyaltyWorkReward.findUnique({
+      where: { id: input.rewardId },
+      include: { publicationFact: true },
+    });
+    if (!reward) throw new NotFoundException("Loyalty work reward not found");
+    const { member, wallet } = await this.lock(tx, reward.memberId);
+    const key = `coloring:${member.id}:${reward.coloringId}`;
+    const command: LoyaltyWalletCommand = {
+      memberId: member.id,
+      operationKey: key,
+      sourceKey: key,
+      rulesVersion: reward.rulesVersion,
+      occurredAt: reward.occurredAt,
+    };
+    validateCommand(command);
+    if (
+      reward.points !== 25 ||
+      reward.rulesVersion !== "work-v1" ||
+      reward.publicationFact.ownerId !== member.userId ||
+      reward.publicationFact.coloringId !== reward.coloringId ||
+      reward.occurredAt.getTime() !==
+        reward.publicationFact.qualifiedAt.getTime()
+    )
+      throw new ConflictException(
+        "Work reward does not match publication fact",
+      );
+    const replay = await this.replay(
+      tx,
+      command,
+      "CREDIT",
+      25n,
+      null,
+      null,
+      null,
+      reward.id,
+    );
+    if (replay) return replay;
+    const user = await tx.user.findUnique({ where: { id: member.userId } });
+    if (
+      member.status !== "ACTIVE" ||
+      member.historyState === "FAILED" ||
+      !user ||
+      user.status !== "ACTIVE" ||
+      user.deletedAt
+    )
+      throw new ConflictException("Work reward member is not eligible");
+    return this.record(
+      tx,
+      command,
+      wallet,
+      "CREDIT",
+      25n,
+      25n,
+      0n,
+      null,
+      null,
+      null,
+      reward.id,
+    );
+  }
+
+  async creditAchievementInTransaction(
+    tx: Prisma.TransactionClient,
+    input: { awardId: string },
+  ): Promise<LoyaltyWalletResult> {
+    validateText(input.awardId, 200, "awardId");
+    const award = await tx.loyaltyAchievementAward.findUnique({
+      where: { id: input.awardId },
+      include: {
+        revision: true,
+        publicationFact: true,
+        completionManifest: { include: { items: true } },
+        completionOrder: true,
+      },
+    });
+    if (!award) throw new NotFoundException("Achievement award not found");
+    const points = validatePoints(award.points);
+    const { member, wallet } = await this.lock(tx, award.memberId);
+    const key = `achievement:${member.id}:${award.definitionId}`;
+    const command: LoyaltyWalletCommand = {
+      memberId: member.id,
+      operationKey: key,
+      sourceKey: key,
+      rulesVersion: "achievement-v1",
+      occurredAt: award.awardedAt,
+    };
+    validateCommand(command);
+    const completion = award.completionManifest;
+    const publication = award.publicationFact;
+    const orderCompletion = award.completionOrder;
+    const completesOrder =
+      award.revision.conditionKind === "completed_order_count";
+    const completesCollection =
+      award.revision.conditionKind === "completed_collection_count";
+    const expectedQualifiedAt =
+      completesOrder && orderCompletion
+        ? orderCompletion.qualifiedAt.getTime()
+        : completesCollection && completion && publication
+          ? Math.max(
+              completion.capturedAt.getTime(),
+              publication.qualifiedAt.getTime(),
+            )
+          : publication?.qualifiedAt.getTime();
+    if (
+      award.points !== award.revision.rewardPoints ||
+      ![
+        "published_coloring_count",
+        "distinct_collection_count",
+        "completed_collection_count",
+        "completed_order_count",
+      ].includes(award.revision.conditionKind) ||
+      (completesOrder
+        ? !orderCompletion ||
+          orderCompletion.userId !== member.userId ||
+          publication !== null ||
+          completion !== null
+        : !publication ||
+          publication.ownerId !== member.userId ||
+          orderCompletion !== null) ||
+      award.qualifiedAt.getTime() !== expectedQualifiedAt ||
+      (completesCollection
+        ? !completion ||
+          !publication ||
+          publication.collectionId !== completion.collectionId ||
+          !completion.items.some(
+            (item) => item.coloringId === publication.coloringId,
+          )
+        : award.completionCollectionId !== null)
+    )
+      throw new ConflictException(
+        "Achievement award does not match its revision and source proof",
+      );
+    const replay = await this.replay(
+      tx,
+      command,
+      "CREDIT",
+      points,
+      null,
+      null,
+      null,
+      null,
+      award.id,
+    );
+    if (replay) return replay;
+    const user = await tx.user.findUnique({ where: { id: member.userId } });
+    if (
+      member.status !== "ACTIVE" ||
+      member.historyState === "FAILED" ||
+      !user ||
+      user.status !== "ACTIVE" ||
+      user.deletedAt
+    ) {
+      throw new ConflictException("Achievement member is not eligible");
+    }
+    return this.record(
+      tx,
+      command,
+      wallet,
+      "CREDIT",
+      points,
+      points,
+      0n,
+      null,
+      null,
+      null,
+      null,
+      award.id,
+    );
+  }
+
+  async creditPurchaseInTransaction(
+    tx: Prisma.TransactionClient,
+    input: { orderId: string },
+  ): Promise<LoyaltyWalletResult> {
+    validateText(input.orderId, 32, "orderId");
+    await tx.$queryRaw`SELECT id FROM orders WHERE id = ${input.orderId} FOR UPDATE`;
+    const account = await tx.loyaltyPurchaseAccount.findUnique({
+      where: { orderId: input.orderId },
+    });
+    if (!account)
+      throw new NotFoundException("Loyalty purchase account not found");
+    const { member, wallet } = await this.lock(tx, account.memberId);
+    const points = validatePoints(Number(account.grantedPoints));
+    const command: LoyaltyWalletCommand = {
+      memberId: account.memberId,
+      operationKey: `purchase:${account.orderId}:credit`,
+      sourceKey: `purchase:${account.orderId}`,
+      rulesVersion: account.rulesVersion,
+      occurredAt: account.occurredAt,
+    };
+    validateCommand(command);
+    const replay = await this.replay(
+      tx,
+      command,
+      "CREDIT",
+      points,
+      null,
+      null,
+      account.orderId,
+    );
+    if (replay) return replay;
+    const order = await tx.order.findUnique({ where: { id: input.orderId } });
+    const user = await tx.user.findUnique({ where: { id: member.userId } });
+    const historyAuthorized =
+      member.historyState === "READY" ||
+      (member.historyState === "PENDING" &&
+        (
+          await tx.$queryRaw<Array<{ authorized: boolean }>>`
+            SELECT EXISTS (
+              SELECT 1 FROM loyalty_purchase_history_syncs
+              WHERE member_id = ${member.id}
+                AND active_transaction_id = txid_current()
+            ) AS authorized
+          `
+        )[0]?.authorized === true);
+    if (
+      !order ||
+      order.userId !== member.userId ||
+      order.paymentStatus !== "PAID" ||
+      !order.paidAt ||
+      order.crmStatus !== "COMPLETED" ||
+      !order.completedAt ||
+      member.status !== "ACTIVE" ||
+      !historyAuthorized ||
+      !user ||
+      user.status !== "ACTIVE" ||
+      user.deletedAt
+    )
+      throw new ConflictException("Purchase reward is not eligible");
+    return this.record(
+      tx,
+      command,
+      wallet,
+      "CREDIT",
+      points,
+      points,
+      0n,
+      null,
+      null,
+      account.orderId,
+    );
+  }
+
+  async reversePurchaseInTransaction(
+    tx: Prisma.TransactionClient,
+    input: { orderId: string; points: number; refundedKopecks: bigint },
+  ): Promise<LoyaltyWalletResult> {
+    validateText(input.orderId, 32, "orderId");
+    const points = validatePoints(input.points);
+    assertSafe(input.refundedKopecks);
+    await tx.$queryRaw`SELECT id FROM orders WHERE id = ${input.orderId} FOR UPDATE`;
+    const account = await tx.loyaltyPurchaseAccount.findUnique({
+      where: { orderId: input.orderId },
+    });
+    if (!account)
+      throw new NotFoundException("Loyalty purchase account not found");
+    const { member, wallet } = await this.lock(tx, account.memberId);
+    const operationKey = `purchase:${account.orderId}:reversal:${input.refundedKopecks}`;
+    const existing = await tx.loyaltyOperation.findUnique({
+      where: { operationKey },
+    });
+    const refunds = await tx.orderRefund.findMany({
+      where: { orderId: input.orderId, event: { isNot: null } },
+      select: { totalKopecks: true, deliveryKopecks: true, createdAt: true },
+      orderBy: [{ createdAt: "desc" }, { id: "desc" }],
+    });
+    const command: LoyaltyWalletCommand = {
+      memberId: account.memberId,
+      operationKey,
+      sourceKey: `purchase:${account.orderId}`,
+      rulesVersion: account.rulesVersion,
+      // A retry remains tied to its original published refund even after later refunds.
+      occurredAt:
+        existing?.occurredAt ?? refunds[0]?.createdAt ?? account.occurredAt,
+    };
+    validateCommand(command);
+    const replay = await this.replay(
+      tx,
+      command,
+      "REVERSAL",
+      points,
+      null,
+      null,
+      account.orderId,
+    );
+    if (replay) return replay;
+    const refundedKopecks = refunds.reduce(
+      (sum, refund) => sum + refund.totalKopecks - refund.deliveryKopecks,
+      0n,
+    );
+    const order = await tx.order.findUnique({ where: { id: input.orderId } });
+    if (
+      !order ||
+      order.userId !== member.userId ||
+      order.paymentStatus !== "PAID" ||
+      !order.paidAt ||
+      !refunds.length ||
+      refundedKopecks !== input.refundedKopecks ||
+      refundedKopecks <= account.refundedKopecks ||
+      refundedKopecks > account.baseKopecks
+    )
+      throw new ConflictException(
+        "Purchase reversal does not match published refunds",
+      );
+    const remainingReward =
+      ((account.baseKopecks - refundedKopecks) *
+        BigInt(account.ratePercent) *
+        5n +
+        9999n) /
+      10000n;
+    const target =
+      remainingReward < account.grantedPoints
+        ? remainingReward
+        : account.grantedPoints;
+    if (points !== account.grantedPoints - account.reversedPoints - target) {
+      throw new ConflictException(
+        "Purchase reversal amount does not match remaining reward",
+      );
+    }
+    const available = wallet.balancePoints - wallet.reservedPoints;
+    const removed = points < available ? points : available;
+    return this.record(
+      tx,
+      command,
+      wallet,
+      "REVERSAL",
+      points,
+      -removed,
+      0n,
+      null,
+      null,
+      account.orderId,
+    );
+  }
+
+  async restoreRefundInTransaction(
+    tx: Prisma.TransactionClient,
+    input: { refundId: string },
+  ): Promise<LoyaltyWalletResult> {
+    validateText(input.refundId, 32, "refundId");
+    const refund = await tx.orderRefund.findUnique({
+      where: { id: input.refundId },
+    });
+    if (!refund) throw new NotFoundException("Order refund not found");
+    await tx.$queryRaw`SELECT id FROM orders WHERE id = ${refund.orderId} FOR UPDATE`;
+    const reservation = await tx.loyaltyReservation.findUnique({
+      where: { orderId: refund.orderId },
+    });
+    if (!reservation)
+      throw new ConflictException("Refund has no loyalty reservation");
+    const { member, wallet } = await this.lock(tx, reservation.memberId);
+    assertSafe(refund.loyaltyPoints);
+    if (refund.loyaltyPoints === 0n)
+      throw new ConflictException("Refund has no spent points to restore");
+    const command: LoyaltyWalletCommand = {
+      memberId: member.id,
+      operationKey: `refund:${refund.id}:restore`,
+      sourceKey: `refund:${refund.id}`,
+      rulesVersion: "order-spend-v1",
+      occurredAt: refund.createdAt,
+    };
+    validateCommand(command);
+    const replay = await this.replay(
+      tx,
+      command,
+      "RESTORE",
+      refund.loyaltyPoints,
+      reservation.id,
+      refund.id,
+    );
+    if (replay) return replay;
+    const order = await tx.order.findUnique({ where: { id: refund.orderId } });
+    if (
+      !order ||
+      order.checkoutActorUserId !== member.userId ||
+      order.paymentStatus !== "PAID" ||
+      !order.paidAt
+    ) {
+      throw new ConflictException(
+        "Loyalty refund requires the original paid checkout actor",
+      );
+    }
+    if (reservation.status !== "CONSUMED") {
+      throw new ConflictException(
+        "Loyalty refund requires a consumed reservation",
+      );
+    }
+    assertSafe(reservation.points);
+    const aggregate = await tx.loyaltyOperation.aggregate({
+      where: { reservationId: reservation.id, kind: "RESTORE" },
+      _sum: { requestedPoints: true },
+    });
+    const restoredPoints = aggregate._sum.requestedPoints ?? 0n;
+    assertSafe(restoredPoints);
+    if (restoredPoints + refund.loyaltyPoints > reservation.points) {
+      throw new ConflictException(
+        "Loyalty refund exceeds originally spent points",
+      );
+    }
+    return this.record(
+      tx,
+      command,
+      wallet,
+      "RESTORE",
+      refund.loyaltyPoints,
+      refund.loyaltyPoints,
+      0n,
+      reservation.id,
+      refund.id,
+    );
+  }
+
   async reserveInTransaction(
     tx: Prisma.TransactionClient,
     input: LoyaltyReserveCommand,
@@ -134,16 +551,8 @@ export class LoyaltyWalletService {
     if (kind === "CREDIT" && member.status !== "ACTIVE") {
       throw new ConflictException("Loyalty member is blocked");
     }
-    const removed =
-      points < wallet.balancePoints ? points : wallet.balancePoints;
-    if (
-      kind === "REVERSAL" &&
-      removed > wallet.balancePoints - wallet.reservedPoints
-    ) {
-      throw new ConflictException(
-        "Loyalty correction conflicts with reserved points",
-      );
-    }
+    const available = wallet.balancePoints - wallet.reservedPoints;
+    const removed = points < available ? points : available;
     return this.record(
       tx,
       input,
@@ -225,6 +634,10 @@ export class LoyaltyWalletService {
     kind: LoyaltyOperation["kind"],
     points: bigint,
     reservationId: string | null,
+    refundId: string | null = null,
+    purchaseOrderId: string | null = null,
+    workRewardId: string | null = null,
+    achievementAwardId: string | null = null,
   ): Promise<LoyaltyWalletResult | null> {
     const operation = await tx.loyaltyOperation.findUnique({
       where: { operationKey: input.operationKey },
@@ -235,6 +648,10 @@ export class LoyaltyWalletService {
       operation.kind !== kind ||
       operation.requestedPoints !== points ||
       operation.reservationId !== reservationId ||
+      operation.refundId !== refundId ||
+      operation.purchaseOrderId !== purchaseOrderId ||
+      (operation.workRewardId ?? null) !== workRewardId ||
+      (operation.achievementAwardId ?? null) !== achievementAwardId ||
       operation.sourceKey !== input.sourceKey ||
       operation.rulesVersion !== input.rulesVersion ||
       operation.occurredAt.getTime() !== input.occurredAt.getTime()
@@ -255,6 +672,10 @@ export class LoyaltyWalletService {
     balanceDelta: bigint,
     reservedDelta: bigint,
     reservationId: string | null,
+    refundId: string | null = null,
+    purchaseOrderId: string | null = null,
+    workRewardId: string | null = null,
+    achievementAwardId: string | null = null,
   ): Promise<LoyaltyWalletResult> {
     const balanceAfter = wallet.balancePoints + balanceDelta;
     const reservedAfter = wallet.reservedPoints + reservedDelta;
@@ -275,6 +696,10 @@ export class LoyaltyWalletService {
           reservedAfter,
           sequence,
           reservationId,
+          refundId,
+          purchaseOrderId,
+          workRewardId,
+          achievementAwardId,
           // Only the command identity is persisted, not points/order transport fields.
           memberId: input.memberId,
           operationKey: input.operationKey,

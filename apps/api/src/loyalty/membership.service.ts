@@ -8,15 +8,18 @@ import {
 import {
   Prisma,
   type LoyaltyMember,
+  type LoyaltyOperation,
   type LoyaltyWallet,
 } from "../generated/prisma/client";
 import { PrismaService } from "../prisma/prisma.service";
 import type {
   EnrollLoyaltyDTO,
+  LoyaltyDashboardDTO,
   LoyaltyHistoryDTO,
   LoyaltyHistoryQueryDTO,
   LoyaltyOverviewDTO,
 } from "./dto";
+import { readLoyaltyDashboard } from "./dashboard";
 
 export const loyaltyTermsVersion = "loyalty-v1";
 const memberInclude = { wallet: true } as const;
@@ -24,6 +27,21 @@ const memberInclude = { wallet: true } as const;
 @Injectable()
 export class LoyaltyMembershipService {
   constructor(private readonly prisma: PrismaService) {}
+
+  async getDashboard(userId: string): Promise<LoyaltyDashboardDTO> {
+    return this.prisma.$transaction(
+      async (tx) => {
+        await this.assertActiveUser(tx, userId);
+        const member = await tx.loyaltyMember.findUnique({
+          where: { userId },
+          select: { id: true },
+        });
+        if (!member) return { tier: null, achievements: [] };
+        return readLoyaltyDashboard(tx, userId, member.id);
+      },
+      { isolationLevel: Prisma.TransactionIsolationLevel.RepeatableRead },
+    );
+  }
 
   async getMine(userId: string): Promise<LoyaltyOverviewDTO> {
     await this.assertActiveUser(this.prisma, userId);
@@ -61,8 +79,8 @@ export class LoyaltyMembershipService {
         },
         include: memberInclude,
       });
-      // PENDING is durable work for the forthcoming historical reconciliation worker.
-      // Do not grant points or enable spending until that worker finishes.
+      // Domain history workers discover this opt-in through the database.
+      // Purchase restoration alone must not mark all history READY or enable spending.
       return overview(member);
     });
   }
@@ -101,6 +119,7 @@ export class LoyaltyMembershipService {
     });
     const items = operations.slice(0, limit).map((operation) => ({
       id: operation.id,
+      title: operationTitle(operation),
       sequence: safeNumber(operation.sequence),
       kind: operation.kind.toLowerCase(),
       balanceDelta: safeNumber(operation.balanceDelta),
@@ -175,4 +194,26 @@ function safeNumber(value: bigint): number {
   )
     throw new RangeError("Loyalty value exceeds safe integer range");
   return Number(value);
+}
+
+function operationTitle(operation: LoyaltyOperation): string {
+  switch (operation.kind) {
+    case "RESERVE":
+      return "Баллы зарезервированы для заказа";
+    case "CONSUME":
+      return "Оплата заказа баллами";
+    case "RELEASE":
+      return "Резерв баллов освобождён";
+    case "RESTORE":
+      return "Возврат потраченных баллов";
+    case "REVERSAL":
+      return operation.purchaseOrderId
+        ? "Возврат начисленных за покупку баллов"
+        : "Корректировка начисленных баллов";
+    case "CREDIT":
+      if (operation.achievementAwardId) return "Награда за достижение";
+      if (operation.workRewardId) return "Награда за опубликованную работу";
+      if (operation.purchaseOrderId) return "Баллы за покупку";
+      return "Начисление баллов";
+  }
 }
