@@ -853,6 +853,7 @@ test("site wiring keeps welcome bonus out of service banners and uses the new no
 });
 
 test("identity transitions cancel and clear personalized data before publishing new identity state", async () => {
+  const loyaltyQueryKey = ["loyalty"];
   const ordersQueryKey = ["orders"];
   const featureBannersQueryKey = ["feature-banners"];
   const welcomeOfferQueryKey = ["cart-pricing", "welcome-offer"];
@@ -918,6 +919,7 @@ test("identity transitions cancel and clear personalized data before publishing 
         telegramLinkStatusQueryKey: ["telegram-link"],
       },
       "@/entities/orders": { ordersQuery: { baseKey: ordersQueryKey } },
+      "@/entities/loyalty": { loyaltyQuery: { baseKey: loyaltyQueryKey } },
       "@/shared/actions/auth": {
         confirmEmailVerification: async () => undefined,
         confirmTelegramLink: async () => undefined,
@@ -940,6 +942,12 @@ test("identity transitions cancel and clear personalized data before publishing 
 
     const includesOrders = exportName === "useLoginMutation";
     const expectedCleanup = [
+      ...(exportName === "useLogoutMutation"
+        ? [
+            ["cancel", loyaltyQueryKey],
+            ["remove", loyaltyQueryKey],
+          ]
+        : []),
       ...(includesOrders ? [["cancel", ordersQueryKey]] : []),
       ["cancel", featureBannersQueryKey],
       ["cancel", welcomeOfferQueryKey],

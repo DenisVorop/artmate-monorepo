@@ -11,8 +11,10 @@ import type {
 import type { CheckoutCalculationState } from "../calculation-state";
 import type { DeliveryConfirmationResult } from "../delivery-picker-state";
 import type { CheckoutCreateOrderInput } from "../checkout-types";
+import type { CheckoutLoyaltySelection } from "../use-loyalty-selection";
 
 export type CheckoutContextValue = {
+  loyalty: CheckoutLoyaltySelection;
   checkoutCalculation: CheckoutCalculationState;
   customerDefaults?: CheckoutCustomerDefaults;
   form: UseFormReturn<CheckoutFormValues>;

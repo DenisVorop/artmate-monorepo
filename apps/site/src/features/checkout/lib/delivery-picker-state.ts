@@ -183,6 +183,27 @@ export function isMatchingCheckoutCalculation(
   if (!isRecord(point)) return false;
 
   const { deliveryPrice, discount, subtotal, total } = value;
+  const loyalty = value.loyalty;
+  if (
+    !isRecord(loyalty) ||
+    ![
+      loyalty.availablePoints,
+      loyalty.expectedEarnedPoints,
+      loyalty.maxPoints,
+      loyalty.pointsToSpend,
+      loyalty.discountKopecks,
+    ].every(
+      (amount) => typeof amount === "number" && Number.isSafeInteger(amount) && amount >= 0,
+    ) ||
+    typeof loyalty.pricingRevision !== "string" ||
+    !/^[a-f0-9]{64}$/.test(loyalty.pricingRevision) ||
+    (loyalty.pointsToSpend as number) > (loyalty.maxPoints as number) ||
+    (loyalty.maxPoints as number) > (loyalty.availablePoints as number) ||
+    loyalty.discountKopecks !== (loyalty.pointsToSpend as number) * 20 ||
+    !isNonNegativeFiniteNumber(discount) ||
+    loyalty.discountKopecks > toMinorUnits(discount)
+  )
+    return false;
 
   if (
     value.cartId !== cartId ||

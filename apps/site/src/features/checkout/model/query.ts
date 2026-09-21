@@ -14,11 +14,18 @@ export type CheckoutCalculationIdentity = {
   cartId: string;
   cartSignature: string;
   promoCode?: string;
+  loyaltyPointsToSpend?: number;
 };
 
 export function checkoutCalculationQueryKey(
   delivery: CheckoutDeliverySelection | undefined,
-  { accountIdentity, cartId, cartSignature, promoCode }: CheckoutCalculationIdentity,
+  {
+    accountIdentity,
+    cartId,
+    cartSignature,
+    promoCode,
+    loyaltyPointsToSpend = 0,
+  }: CheckoutCalculationIdentity,
 ) {
   return [
     ...cartPricingQueryKey,
@@ -28,6 +35,7 @@ export function checkoutCalculationQueryKey(
     accountIdentity,
     cartId,
     delivery,
+    loyaltyPointsToSpend,
   ] as const;
 }
 
@@ -36,14 +44,22 @@ export function checkoutCalculationQueryOptions(
   identity: CheckoutCalculationIdentity,
 ) {
   return queryOptions({
-    queryFn: async () => {
+    queryFn: async ({ signal }) => {
       if (!delivery) throw new Error("Checkout delivery is required");
 
       const calculation = ApiResult.fromDTO(
-        await calculateCheckout({ delivery, promoCode: identity.promoCode }),
+        await calculateCheckout({
+          delivery,
+          promoCode: identity.promoCode,
+          loyaltyPointsToSpend: identity.loyaltyPointsToSpend ?? 0,
+        }),
       ).unwrap();
+      signal.throwIfAborted();
 
-      if (!isMatchingCheckoutCalculation(calculation, delivery, identity.cartId)) {
+      if (
+        !isMatchingCheckoutCalculation(calculation, delivery, identity.cartId) ||
+        calculation.loyalty.pointsToSpend !== (identity.loyaltyPointsToSpend ?? 0)
+      ) {
         throw new Error("Checkout calculation does not match delivery");
       }
 

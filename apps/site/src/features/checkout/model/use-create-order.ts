@@ -3,6 +3,7 @@
 import { useMutation, useQueryClient } from "@tanstack/react-query";
 
 import { cartQuery } from "@/entities/cart";
+import { loyaltyQuery } from "@/entities/loyalty";
 import { createOrder, type CreateOrderResponseDTO } from "@/shared/actions/orders";
 import { ApiResult } from "@/shared/lib/api-result";
 import { resolveYandexAttribution } from "@/shared/lib/analytics";
@@ -33,10 +34,12 @@ export function useCreateOrderMutation(options: UseCreateOrderMutationOptions = 
         throw new Error("Не удалось открыть страницу оплаты. Попробуйте ещё раз.");
       }
       queryClient.setQueryData(cartQuery.getCart().queryKey, null);
+      void queryClient.invalidateQueries({ queryKey: loyaltyQuery.baseKey });
       void queryClient.invalidateQueries({ queryKey: cartPricingQueryKey });
       options.onSuccess?.(response);
     },
     onError: () => {
+      void queryClient.invalidateQueries({ queryKey: loyaltyQuery.baseKey });
       void queryClient.invalidateQueries({ queryKey: cartPricingQueryKey });
     },
   });

@@ -67,6 +67,14 @@ const calculation = {
   deliveryPrice: 200,
   discount: 0,
   itemsCount: 1,
+  loyalty: {
+    availablePoints: 100,
+    expectedEarnedPoints: 50,
+    maxPoints: 100,
+    pointsToSpend: 0,
+    discountKopecks: 0,
+    pricingRevision: "a".repeat(64),
+  },
   promoCode: null,
   subtotal: 1_000,
   total: 1_200,
@@ -82,6 +90,7 @@ function signals(overrides = {}) {
     isError: false,
     isOffline: false,
     isPending: false,
+    loyaltyPointsToSpend: 0,
     retry,
     ...overrides,
   };
@@ -151,6 +160,7 @@ test("confirmed delivery exposes a retryable error for missing, malformed, or st
 
   for (const invalidCalculation of [
     undefined,
+    { ...calculation, loyalty: undefined },
     { ...calculation, cartId: "cart-2" },
     {
       ...calculation,
@@ -169,12 +179,65 @@ test("confirmed delivery exposes a retryable error for missing, malformed, or st
   }
 });
 
+test("calculation resolver rejects a quote for a different selected points amount", async () => {
+  const { resolveCheckoutCalculationState } = await loadCalculationState();
+  assert.equal(
+    resolveCheckoutCalculationState(signals({ loyaltyPointsToSpend: 5 })).status,
+    "error",
+  );
+  const selectedCalculation = {
+    ...calculation,
+    discount: 1,
+    total: 1_199,
+    loyalty: { ...calculation.loyalty, pointsToSpend: 5, discountKopecks: 100 },
+  };
+  assert.equal(
+    resolveCheckoutCalculationState(signals({
+      calculation: selectedCalculation,
+      loyaltyPointsToSpend: 5,
+    })).status,
+    "ready",
+  );
+});
+
+test("earned points are visible only for a fresh ready quote without points spending", async () => {
+  const { getCheckoutExpectedEarnedPoints } = await loadCalculationState();
+  const ready = { calculation, status: "ready" };
+
+  assert.equal(getCheckoutExpectedEarnedPoints(ready), 50);
+  assert.equal(
+    getCheckoutExpectedEarnedPoints({
+      calculation: {
+        ...calculation,
+        loyalty: { ...calculation.loyalty, expectedEarnedPoints: 0 },
+      },
+      status: "ready",
+    }),
+    undefined,
+  );
+  assert.equal(
+    getCheckoutExpectedEarnedPoints({
+      calculation: {
+        ...calculation,
+        loyalty: { ...calculation.loyalty, pointsToSpend: 1 },
+      },
+      status: "ready",
+    }),
+    undefined,
+  );
+  assert.equal(getCheckoutExpectedEarnedPoints({ status: "pending" }), undefined);
+  assert.equal(
+    getCheckoutExpectedEarnedPoints({ error: new Error("stale"), retry, status: "error" }),
+    undefined,
+  );
+});
+
 test("submit label is exhaustive and says calculating only for pending", async () => {
   const { getCheckoutSubmitLabel } = await loadCalculationState();
   const error = new Error("Calculation failed");
   const states = [
     [{ status: "idle" }, "Выберите ПВЗ"],
-    [{ status: "pending" }, "Считаем доставку"],
+    [{ status: "pending" }, "Пересчитываем заказ"],
     [{ retry, status: "offline" }, "Нет сети"],
     [{ error, retry, status: "error" }, "Расчет недоступен"],
     [{ calculation, status: "ready" }, "Перейти к оплате"],

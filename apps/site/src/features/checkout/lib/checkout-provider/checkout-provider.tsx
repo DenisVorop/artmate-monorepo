@@ -32,6 +32,7 @@ import {
   type CheckoutFormValues,
 } from "../checkout-form";
 import type { CheckoutDeliverySelection } from "../checkout-form";
+import { useLoyaltySelection } from "../use-loyalty-selection";
 import { getCheckoutSubmitLabel, resolveCheckoutCalculationState } from "../calculation-state";
 import {
   createDeliveryConfirmationCoordinator,
@@ -79,9 +80,24 @@ export function CheckoutProvider({
   confirmationCoordinatorRef.current ??= createDeliveryConfirmationCoordinator();
   const cartSignature = getCartPricingSignature(cart);
   const accountIdentity = user?.id ?? "guest";
+  const selectionKey = JSON.stringify([
+    accountIdentity,
+    cart.id,
+    cartSignature,
+    promoPricing.code ?? null,
+  ]);
+  const loyaltySelection = useLoyaltySelection(selectionKey);
+  const { pointsToSpend } = loyaltySelection;
+  const attemptOwnerRef = useRef(selectionKey);
   const calculationIdentity = useMemo<CheckoutCalculationIdentity>(
-    () => ({ accountIdentity, cartId: cart.id, cartSignature, promoCode: promoPricing.code }),
-    [accountIdentity, cart.id, cartSignature, promoPricing.code],
+    () => ({
+      accountIdentity,
+      cartId: cart.id,
+      cartSignature,
+      promoCode: promoPricing.code,
+      loyaltyPointsToSpend: pointsToSpend,
+    }),
+    [accountIdentity, cart.id, cartSignature, promoPricing.code, pointsToSpend],
   );
   const confirmationIdentity = JSON.stringify([
     cart.id,
@@ -90,6 +106,7 @@ export function CheckoutProvider({
     promoPricing.code ?? null,
     promoPricing.isReady,
     cart.isOzonDeliveryAvailable,
+    pointsToSpend,
   ]);
   const latestConfirmationIdentityRef = useRef(confirmationIdentity);
   latestConfirmationIdentityRef.current = confirmationIdentity;
@@ -105,16 +122,16 @@ export function CheckoutProvider({
         confirmedDelivery: selectedDelivery,
         error: serverCheckoutCalculation.error,
         isError: promoPricing.isReady && serverCheckoutCalculation.isError,
-        isOffline: promoPricing.isReady
-          ? serverCheckoutCalculation.isPaused
-          : promoCode.isPaused,
+        isOffline: promoPricing.isReady ? serverCheckoutCalculation.isPaused : promoCode.isPaused,
         isPending: promoPricing.isReady
           ? serverCheckoutCalculation.isPending
           : promoCode.isHydrating || promoCode.isPending,
         retry: promoPricing.isReady ? serverCheckoutCalculation.retry : promoCode.retry,
+        loyaltyPointsToSpend: pointsToSpend,
       }),
     [
       cart.id,
+      pointsToSpend,
       promoPricing.isReady,
       promoCode.isHydrating,
       promoCode.isPaused,
@@ -122,6 +139,24 @@ export function CheckoutProvider({
       promoCode.retry,
       selectedDelivery,
       serverCheckoutCalculation,
+    ],
+  );
+  const loyaltyPreview =
+    checkoutCalculation.status === "ready" ? checkoutCalculation.calculation.loyalty : undefined;
+  const loyalty = useMemo(
+    () => ({
+      selectionKey,
+      pointsToSpend,
+      setPoints: loyaltySelection.setPoints,
+      preview: loyaltyPreview,
+      isPending: checkoutCalculation.status === "pending",
+    }),
+    [
+      selectionKey,
+      pointsToSpend,
+      loyaltySelection.setPoints,
+      loyaltyPreview,
+      checkoutCalculation.status,
     ],
   );
   const defaultValues = useMemo(
@@ -214,6 +249,7 @@ export function CheckoutProvider({
         if (
           !selectedDelivery ||
           checkoutCalculation.status !== "ready" ||
+          checkoutCalculation.calculation.loyalty.pointsToSpend !== pointsToSpend ||
           !isMatchingCheckoutCalculation(checkoutCalculation.calculation, selectedDelivery, cart.id)
         ) {
           return;
@@ -223,8 +259,10 @@ export function CheckoutProvider({
           values,
           selectedDelivery,
           promoPricing.code,
-          checkoutAttemptRef.current,
+          attemptOwnerRef.current === selectionKey ? checkoutAttemptRef.current : undefined,
+          checkoutCalculation.calculation.loyalty,
         );
+        attemptOwnerRef.current = selectionKey;
         checkoutAttemptRef.current = checkoutAttempt.attempt;
         await onSubmit({
           input: checkoutAttempt.input,
@@ -238,12 +276,15 @@ export function CheckoutProvider({
       onSubmit,
       promoPricing.code,
       selectedDelivery,
+      pointsToSpend,
+      selectionKey,
     ],
   );
 
   const value = useMemo<CheckoutContextValue>(
     () => ({
       checkoutCalculation,
+      loyalty,
       confirmDelivery,
       customerDefaults,
       form,
@@ -256,6 +297,7 @@ export function CheckoutProvider({
     }),
     [
       checkoutCalculation,
+      loyalty,
       confirmDelivery,
       customerDefaults,
       form,

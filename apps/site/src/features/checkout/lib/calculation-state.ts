@@ -19,6 +19,7 @@ type CheckoutCalculationSignals = {
   isOffline: boolean;
   isPending: boolean;
   retry: () => void;
+  loyaltyPointsToSpend?: number;
 };
 
 export function resolveCheckoutCalculationState({
@@ -30,6 +31,7 @@ export function resolveCheckoutCalculationState({
   isOffline,
   isPending,
   retry,
+  loyaltyPointsToSpend,
 }: CheckoutCalculationSignals): CheckoutCalculationState {
   if (!confirmedDelivery) {
     return { status: "idle" };
@@ -51,7 +53,11 @@ export function resolveCheckoutCalculationState({
     return { status: "pending" };
   }
 
-  if (isMatchingCheckoutCalculation(calculation, confirmedDelivery, cartId)) {
+  if (
+    isMatchingCheckoutCalculation(calculation, confirmedDelivery, cartId) &&
+    (loyaltyPointsToSpend === undefined ||
+      calculation.loyalty.pointsToSpend === loyaltyPointsToSpend)
+  ) {
     return { calculation, status: "ready" };
   }
 
@@ -74,7 +80,7 @@ export function getCheckoutSubmitLabel(
     case "idle":
       return "Выберите ПВЗ";
     case "pending":
-      return "Считаем доставку";
+      return "Пересчитываем заказ";
     case "offline":
       return "Нет сети";
     case "error":
@@ -82,4 +88,14 @@ export function getCheckoutSubmitLabel(
     case "ready":
       return "Перейти к оплате";
   }
+}
+
+export function getCheckoutExpectedEarnedPoints(
+  calculationState: CheckoutCalculationState,
+) {
+  if (calculationState.status !== "ready") return undefined;
+
+  const { expectedEarnedPoints, pointsToSpend } = calculationState.calculation.loyalty;
+
+  return pointsToSpend === 0 && expectedEarnedPoints > 0 ? expectedEarnedPoints : undefined;
 }

@@ -24,6 +24,7 @@ export const routes = {
   authRecovery: "/auth/recovery",
   authResetPassword: "/auth/reset-password",
   account: "/account",
+  loyalty: "/account/club",
   workshop: "/account/workshop",
   workshopCollection: (collectionSlug: string) => `/account/workshop/${collectionSlug}`,
   workshopColoring: (collectionSlug: string, number: number) =>
