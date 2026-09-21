@@ -18,6 +18,7 @@ export function useCheckoutCalculation(
 ) {
   const result = useQuery({
     ...checkoutCalculationQueryOptions(delivery, identity),
+    staleTime: 0,
     enabled: Boolean(delivery) && enabled,
   });
   const isPaused = result.fetchStatus === "paused" || result.isPaused;

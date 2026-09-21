@@ -168,7 +168,13 @@ async function getErrorMessage(response: Response) {
   const fallback = `Orders API request failed with status ${response.status}`;
 
   try {
-    const body = (await response.json()) as { message?: unknown };
+    const body = (await response.json()) as { message?: unknown; code?: unknown };
+    if (body.code === "LOYALTY_PRICING_CHANGED") {
+      return "Сумма заказа изменилась. Проверьте новый расчёт перед оплатой.";
+    }
+    if (body.code === "LOYALTY_SPENDING_UNAVAILABLE" || body.message === "Insufficient available loyalty points") {
+      return "Доступное количество баллов изменилось. Уберите списание и выберите сумму заново.";
+    }
 
     if (typeof body.message === "string") {
       return body.message;

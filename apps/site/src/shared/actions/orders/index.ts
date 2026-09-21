@@ -9,6 +9,7 @@ export {
 export type {
   CalculateCheckoutInputDTO,
   CheckoutCalculationDTO,
+  CheckoutLoyaltyDTO,
   CreateOrderDeliveryInputDTO,
   CreateOrderCustomerInputDTO,
   CreateOrderInputDTO,

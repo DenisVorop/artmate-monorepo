@@ -646,7 +646,7 @@ async function createOrderMutationHarness({
   let mutationOptions;
   const queryClient = {
     invalidateQueries(options) {
-      effects?.push(["cart-pricing-cleanup"]);
+      effects?.push([options.queryKey[0] === "loyalty" ? "loyalty-cleanup" : "cart-pricing-cleanup"]);
       invalidations.push(options);
       return Promise.resolve();
     },
@@ -659,6 +659,7 @@ async function createOrderMutationHarness({
     await readSource("src/features/checkout/model/use-create-order.ts"),
     {
       "@/entities/cart": { cartQuery: { getCart: () => ({ queryKey: ["cart"] }) } },
+      "@/entities/loyalty": { loyaltyQuery: { baseKey: ["loyalty"] } },
       "@/shared/actions/orders": {
         createOrder: async (...args) => {
           createOrderCalls.push(args);
@@ -748,13 +749,14 @@ test("order creation passes resolved attribution and cleans up before redirect w
   assert.deepEqual(success.createOrderCalls, [[order.input, attribution]]);
   assert.deepEqual(effects, [
     ["cart-cache-cleanup"],
+    ["loyalty-cleanup"],
     ["cart-pricing-cleanup"],
     ["promo-cleanup"],
     ["redirect", "https://bank.example/pay"],
   ]);
   assert.deepEqual(callbackValues, [response]);
   assert.deepEqual(success.cacheWrites, [[["cart"], null]]);
-  assert.deepEqual(success.invalidations, [{ queryKey: ["cart-pricing"] }]);
+  assert.deepEqual(success.invalidations, [{ queryKey: ["loyalty"] }, { queryKey: ["cart-pricing"] }]);
 
   const failed = await createOrderMutationHarness({
     actionResult: { error: "order creation rejected" },
@@ -776,7 +778,7 @@ test("order creation passes resolved attribution and cleans up before redirect w
   });
   await assert.rejects(() => pending.createOrder(order), /страницу оплаты/u);
   assert.equal(pending.createOrderCalls.length, 1);
-  assert.deepEqual(pendingEffects, [["cart-pricing-cleanup"]]);
+  assert.deepEqual(pendingEffects, [["loyalty-cleanup"], ["cart-pricing-cleanup"]]);
   assert.deepEqual(pending.cacheWrites, []);
 });
 

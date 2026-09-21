@@ -179,6 +179,10 @@ const validFormValues = {
 
 async function createCheckoutHarness({ calculationState, persistedDelivery, promoState }) {
   const getPromoPricingState = await loadPromoPricingState();
+  const deliveryState = evaluateTypeScript(
+    await readSource("src/features/checkout/lib/delivery-picker-state.ts"),
+    {},
+  );
   const checkoutForm = evaluateTypeScript(
     await readSource("src/features/checkout/lib/checkout-form.ts"),
     { zod: require("zod") },
@@ -187,12 +191,7 @@ async function createCheckoutHarness({ calculationState, persistedDelivery, prom
   const checkoutCalculationState = evaluateTypeScript(
     await readSource("src/features/checkout/lib/calculation-state.ts"),
     {
-      "./delivery-picker-state": {
-        isMatchingCheckoutCalculation: (value, candidate, cartId) =>
-          value?.cartId === cartId &&
-          value?.delivery?.provider === candidate.provider &&
-          value?.delivery?.pickupPoint?.id === candidate.pickupPointId,
-      },
+      "./delivery-picker-state": deliveryState,
     },
   );
   const calculationCalls = [];
@@ -220,6 +219,13 @@ async function createCheckoutHarness({ calculationState, persistedDelivery, prom
         },
       },
       "../checkout-form": checkoutForm,
+      "../use-loyalty-selection": {
+        useLoyaltySelection: (selectionKey) => ({
+          selectionKey,
+          pointsToSpend: 0,
+          setPoints: () => undefined,
+        }),
+      },
       "../calculation-state": checkoutCalculationState,
       "../delivery-picker-state": {
         createDeliveryConfirmationCoordinator: () => {
@@ -247,10 +253,7 @@ async function createCheckoutHarness({ calculationState, persistedDelivery, prom
             },
           };
         },
-        isMatchingCheckoutCalculation: (calculation, candidate, cartId) =>
-          calculation?.cartId === cartId &&
-          calculation?.delivery?.provider === candidate.provider &&
-          calculation?.delivery?.pickupPoint?.id === candidate.pickupPointId,
+        isMatchingCheckoutCalculation: deliveryState.isMatchingCheckoutCalculation,
       },
       "../pickup-selection-storage": {
         clearPersistedPickupSelection: () => undefined,
@@ -316,9 +319,29 @@ const delivery = { pickupPointId: "point-1", provider: "ozon" };
 const readyCalculation = {
   calculation: {
     cartId: "cart-1",
-    delivery: { pickupPoint: { id: "point-1" }, provider: "ozon" },
+    currency: "RUB",
+    itemsCount: 1,
+    promoCode: null,
+    delivery: {
+      pickupPoint: {
+        id: "point-1",
+        address: "Москва, ул. Тестовая, 1",
+        title: "ПВЗ",
+        workHours: "09:00-21:00",
+        deliveryPrice: 200,
+      },
+      provider: "ozon",
+    },
     deliveryPrice: 200,
     discount: 0,
+    loyalty: {
+      availablePoints: 100,
+      expectedEarnedPoints: 50,
+      maxPoints: 100,
+      pointsToSpend: 0,
+      discountKopecks: 0,
+      pricingRevision: "a".repeat(64),
+    },
     subtotal: 1_000,
     total: 1_200,
   },
@@ -616,15 +639,22 @@ test("unresolved promo cannot reuse a cached base calculation for confirmed deli
   assert.equal(harness.submitted.length, 0);
 });
 
-test("checkout query key and request use the effective promo code identity", async () => {
+test("checkout query keys and responses bind promo and selected points and discard cancelled responses", async () => {
   const requests = [];
+  let response = readyCalculation.calculation;
+  let waitForResponse;
+  const deliveryState = evaluateTypeScript(
+    await readSource("src/features/checkout/lib/delivery-picker-state.ts"),
+    {},
+  );
   const { checkoutCalculationQueryOptions } = evaluateTypeScript(
     await readSource("src/features/checkout/model/query.ts"),
     {
       "@/shared/actions/orders": {
         calculateCheckout: async (input) => {
           requests.push(input);
-          return { data: readyCalculation.calculation };
+          if (waitForResponse) await waitForResponse;
+          return { data: response };
         },
       },
       "@/shared/lib/api-result": {
@@ -632,12 +662,7 @@ test("checkout query key and request use the effective promo code identity", asy
       },
       "@/shared/lib/query-freshness": { getFreshQueryData: (result) => result.data },
       "@/shared/lib/query-keys": { cartPricingQueryKey: ["cart-pricing"] },
-      "../lib/delivery-picker-state": {
-        isMatchingCheckoutCalculation: (calculation, candidate, cartId) =>
-          calculation?.cartId === cartId &&
-          calculation?.delivery?.provider === candidate.provider &&
-          calculation?.delivery?.pickupPoint?.id === candidate.pickupPointId,
-      },
+      "../lib/delivery-picker-state": deliveryState,
       "@tanstack/react-query": {
         queryOptions: (options) => options,
       },
@@ -660,10 +685,48 @@ test("checkout query key and request use the effective promo code identity", asy
   assert.equal(queryOptions[0].queryKey[3], null);
   assert.equal(queryOptions[1].queryKey[3], "SAVE10");
 
-  await queryOptions[0].queryFn();
-  await queryOptions[1].queryFn();
+  await queryOptions[0].queryFn({ signal: new AbortController().signal });
+  await queryOptions[1].queryFn({ signal: new AbortController().signal });
   assert.deepEqual(requests, [
-    { delivery, promoCode: undefined },
-    { delivery, promoCode: "SAVE10" },
+    { delivery, promoCode: undefined, loyaltyPointsToSpend: 0 },
+    { delivery, promoCode: "SAVE10", loyaltyPointsToSpend: 0 },
   ]);
+
+  const selected = checkoutCalculationQueryOptions(delivery, {
+    accountIdentity: "user-1",
+    cartId: "cart-1",
+    cartSignature: "cart-signature",
+    loyaltyPointsToSpend: 5,
+  });
+  assert.notDeepEqual(selected.queryKey, queryOptions[0].queryKey);
+  await assert.rejects(
+    selected.queryFn({ signal: new AbortController().signal }),
+    /Checkout calculation does not match delivery/u,
+  );
+  response = {
+    ...readyCalculation.calculation,
+    discount: 1,
+    total: 1_199,
+    loyalty: {
+      ...readyCalculation.calculation.loyalty,
+      pointsToSpend: 5,
+      discountKopecks: 100,
+    },
+  };
+  assert.equal(await selected.queryFn({ signal: new AbortController().signal }), response);
+  assert.equal(requests.at(-1).loyaltyPointsToSpend, 5);
+  response = { ...response, loyalty: undefined };
+  await assert.rejects(
+    selected.queryFn({ signal: new AbortController().signal }),
+    /Checkout calculation does not match delivery/u,
+  );
+
+  response = readyCalculation.calculation;
+  let finishResponse;
+  waitForResponse = new Promise((resolve) => { finishResponse = resolve; });
+  const controller = new AbortController();
+  const pending = queryOptions[0].queryFn({ signal: controller.signal });
+  controller.abort();
+  finishResponse();
+  await assert.rejects(pending, { name: "AbortError" });
 });

@@ -93,6 +93,15 @@ export type OrderDTO = {
   paidAt?: string;
 };
 
+export type CheckoutLoyaltyDTO = {
+  availablePoints: number;
+  expectedEarnedPoints: number;
+  maxPoints: number;
+  pointsToSpend: number;
+  discountKopecks: number;
+  pricingRevision: string;
+};
+
 export type CheckoutCalculationDTO = {
   cartId: string;
   itemsCount: number;
@@ -101,6 +110,7 @@ export type CheckoutCalculationDTO = {
   promoCode?: string | null;
   deliveryPrice: number;
   total: number;
+  loyalty: CheckoutLoyaltyDTO;
   currency: "RUB";
   delivery: OrderDeliveryDTO;
   estimatedDeliveryDateRange?: DeliveryDateRangeDTO;
@@ -117,6 +127,8 @@ export type CreateOrderInputDTO = {
   acceptedLegal: boolean;
   acceptedPersonalDataConsent: boolean;
   promoCode?: string;
+  loyaltyPointsToSpend?: number;
+  loyaltyPricingRevision?: string;
 };
 
 export type CreateOrderResponseDTO = {
@@ -133,6 +145,7 @@ export type PaymentRecoveryResponseDTO = {
 export type CalculateCheckoutInputDTO = {
   delivery: CreateOrderDeliveryInputDTO;
   promoCode?: string;
+  loyaltyPointsToSpend?: number;
 };
 
 export type OrderStateDTO = {

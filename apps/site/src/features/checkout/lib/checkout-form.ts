@@ -1,6 +1,6 @@
 import { z } from "zod";
 
-import type { CreateOrderInputDTO } from "@/shared/actions/orders";
+import type { CreateOrderInputDTO, CheckoutLoyaltyDTO } from "@/shared/actions/orders";
 
 export const checkoutPhonePlaceholder = "+7 (999) 999-99-99";
 export const checkoutPhonePattern = /^\+7 \(\d{3}\) \d{3}-\d{2}-\d{2}$/;
@@ -95,6 +95,7 @@ export function createCheckoutOrderAttempt(
   delivery: CheckoutDeliverySelection,
   promoCode?: string,
   previousAttempt?: CheckoutAttempt,
+  loyalty?: Pick<CheckoutLoyaltyDTO, "pointsToSpend" | "pricingRevision">,
 ) {
   const comment = values.comment.trim();
   const payload = {
@@ -111,6 +112,12 @@ export function createCheckoutOrderAttempt(
     acceptedLegal: values.acceptedLegal,
     acceptedPersonalDataConsent: values.acceptedPersonalDataConsent,
     promoCode,
+    ...(loyalty && loyalty.pointsToSpend > 0
+      ? {
+          loyaltyPointsToSpend: loyalty.pointsToSpend,
+          loyaltyPricingRevision: loyalty.pricingRevision,
+        }
+      : {}),
   };
   const payloadSignature = JSON.stringify(payload);
   const attempt =

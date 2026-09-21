@@ -509,6 +509,7 @@ test("checkout announces calculation progress and updated totals without repeati
       },
       "@/entities/session": { useSession: () => ({ isPending: false, user: undefined }) },
       "@/features/promocode": { PromoCodeForm: component("PromoCodeForm") },
+      "./loyalty-field": { LoyaltyField: component("LoyaltyField") },
       "@/shared/lib": {
         cn: (...values) => values.filter(Boolean).join(" "),
         shouldBypassNextImageOptimization: () => false,
@@ -527,6 +528,12 @@ test("checkout announces calculation progress and updated totals without repeati
         checkoutOrderFormId: "checkout-order-form",
         formatEstimatedDeliveryDateRange: () => undefined,
         formatMoney: (value) => `${value} ₽`,
+        getCheckoutExpectedEarnedPoints: (state) =>
+          state.status === "ready" &&
+          state.calculation.loyalty.pointsToSpend === 0 &&
+          state.calculation.loyalty.expectedEarnedPoints > 0
+            ? state.calculation.loyalty.expectedEarnedPoints
+            : undefined,
         useCheckout: () => ({
           checkoutCalculation,
           selectedDelivery: { pickupPointId: "point-1", provider: "cdek" },
@@ -571,6 +578,7 @@ test("checkout announces calculation progress and updated totals without repeati
       },
       deliveryPrice: 200,
       discount: 0,
+      loyalty: { expectedEarnedPoints: 50, pointsToSpend: 0, discountKopecks: 0 },
       total: 1200,
     },
     status: "ready",
@@ -579,9 +587,35 @@ test("checkout announces calculation progress and updated totals without repeati
     getText(getCalculationStatus()),
     "Стоимость доставки 200 ₽. Итого 1200 ₽.",
   );
+  let earningBadges = findNodes(
+    OrderSummary({ cart, isSubmitDisabled: true, isSubmitting: false, submitLabel: "Оплатить" }),
+    (node) => node.props?.["aria-label"] === "Будет начислено 50 баллов",
+  );
+  assert.equal(earningBadges.length, 1);
+  assert.equal(getText(earningBadges[0]), "+50 б");
+
+  checkoutCalculation = {
+    ...checkoutCalculation,
+    calculation: {
+      ...checkoutCalculation.calculation,
+      loyalty: { ...checkoutCalculation.calculation.loyalty, pointsToSpend: 1 },
+    },
+  };
+  earningBadges = findNodes(
+    OrderSummary({ cart, isSubmitDisabled: true, isSubmitting: false, submitLabel: "Оплатить" }),
+    (node) => node.props?.["aria-label"]?.startsWith("Будет начислено"),
+  );
+  assert.equal(earningBadges.length, 0);
 
   checkoutCalculation = { error: new Error("Расчет не выполнен"), status: "error" };
   assert.equal(getText(getCalculationStatus()), "");
+  assert.equal(
+    findNodes(
+      OrderSummary({ cart, isSubmitDisabled: true, isSubmitting: false, submitLabel: "Оплатить" }),
+      (node) => node.props?.["aria-label"]?.startsWith("Будет начислено"),
+    ).length,
+    0,
+  );
 });
 
 test("legal checkboxes own their errors while keeping legal links separate", async () => {

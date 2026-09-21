@@ -14,6 +14,7 @@ export {
   type CheckoutPaymentMethod,
 } from "./checkout-form";
 export {
+  getCheckoutExpectedEarnedPoints,
   getCheckoutSubmitLabel,
   resolveCheckoutCalculationState,
   type CheckoutCalculationState,

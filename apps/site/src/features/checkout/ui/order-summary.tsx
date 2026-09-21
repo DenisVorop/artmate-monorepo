@@ -23,11 +23,13 @@ import {
   checkoutOrderFormId,
   formatEstimatedDeliveryDateRange,
   formatMoney,
+  getCheckoutExpectedEarnedPoints,
   useCheckout,
   type CheckoutCalculationState,
 } from "../lib";
 
 import { CheckoutSubmitButton } from "./checkout-submit-button";
+import { LoyaltyField } from "./loyalty-field";
 
 export function OrderSummary({
   cart,
@@ -48,6 +50,7 @@ export function OrderSummary({
   const { checkoutCalculation, selectedDelivery } = useCheckout();
   const calculation =
     checkoutCalculation.status === "ready" ? checkoutCalculation.calculation : undefined;
+  const expectedEarnedPoints = getCheckoutExpectedEarnedPoints(checkoutCalculation);
   const deliveryProviderName =
     calculation?.delivery.provider === "cdek"
       ? "СДЭК"
@@ -55,6 +58,8 @@ export function OrderSummary({
         ? "Ozon"
         : undefined;
   const deliveryPrice = calculation?.deliveryPrice;
+  const loyaltyDiscount = calculation ? calculation.loyalty.discountKopecks / 100 : 0;
+  const promoDiscount = calculation ? calculation.discount - loyaltyDiscount : 0;
   const estimatedDeliveryDate = formatEstimatedDeliveryDateRange(
     calculation?.estimatedDeliveryDateRange,
   );
@@ -69,7 +74,7 @@ export function OrderSummary({
         hasDevelopmentBanner
           ? "lg:top-[calc(var(--site-header-banner-height)+var(--site-header-nav-height)+1px+1rem)] lg:max-h-[calc(100dvh-var(--site-header-banner-height)-var(--site-header-nav-height)-var(--site-cookie-consent-height)-1px-2rem)]"
           : "lg:top-[calc(var(--site-header-nav-height)+1rem)] lg:max-h-[calc(100dvh-var(--site-header-nav-height)-var(--site-cookie-consent-height)-2rem)]",
-        )}
+      )}
     >
       <p className="sr-only" role="status" aria-live="polite" aria-atomic={true}>
         {getCalculationAnnouncement(checkoutCalculation)}
@@ -100,6 +105,8 @@ export function OrderSummary({
         <Separator />
 
         <PromoCodeForm />
+
+        <LoyaltyField />
 
         <Separator />
 
@@ -146,10 +153,16 @@ export function OrderSummary({
             <span className="text-muted-foreground">Товары</span>
             <span className="font-medium">{formatMoney(cart.subtotal)}</span>
           </div>
-          {calculation && calculation.discount > 0 ? (
+          {calculation && promoDiscount > 0 ? (
             <div className="flex items-center justify-between gap-4 text-emerald-700">
               <span>Скидка{calculation.promoCode ? ` (${calculation.promoCode})` : ""}</span>
-              <span className="font-medium">-{formatMoney(calculation.discount)}</span>
+              <span className="font-medium">-{formatMoney(promoDiscount)}</span>
+            </div>
+          ) : null}
+          {loyaltyDiscount > 0 ? (
+            <div className="flex items-center justify-between gap-4 text-emerald-700">
+              <span>Баллами</span>
+              <span className="font-medium">-{formatMoney(loyaltyDiscount)}</span>
             </div>
           ) : null}
           <div className="flex items-center justify-between gap-4">
@@ -167,14 +180,21 @@ export function OrderSummary({
         </div>
 
         <Separator />
-
       </CardContent>
       <CardFooter className="shrink-0 flex-col items-stretch gap-4">
         <div className="flex w-full items-center justify-between text-lg font-semibold">
           <span>Итого</span>
-          <span>
-            {getTotalLabel(checkoutCalculation)}
-          </span>
+          <div className="flex flex-col items-end gap-1">
+            <span>{getTotalLabel(checkoutCalculation)}</span>
+            {expectedEarnedPoints !== undefined ? (
+              <span
+                className="rounded-full border border-orange-200 bg-gradient-to-r from-rose-50 to-orange-50 px-2 py-0.5 text-xs font-semibold text-orange-700"
+                aria-label={`Будет начислено ${expectedEarnedPoints} баллов`}
+              >
+                +{expectedEarnedPoints} б
+              </span>
+            ) : null}
+          </div>
         </div>
 
         <div className="hidden lg:block">
@@ -192,10 +212,7 @@ export function OrderSummary({
   );
 }
 
-function getDeliveryDescription(
-  calculationState: CheckoutCalculationState,
-  hasDelivery: boolean,
-) {
+function getDeliveryDescription(calculationState: CheckoutCalculationState, hasDelivery: boolean) {
   switch (calculationState.status) {
     case "idle":
       return hasDelivery

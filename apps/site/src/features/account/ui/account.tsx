@@ -11,6 +11,7 @@ import {
   Phone,
   Palette,
   ShoppingBag,
+  Sparkles,
   Unlink,
   UserRound,
   type LucideIcon,
@@ -115,23 +116,42 @@ export function Account() {
         </Button>
       </div>
 
-      <Card className="mb-6 border-rose-100 bg-gradient-to-br from-rose-50 via-white to-orange-50">
-        <CardHeader>
-          <CardTitle className="flex items-center gap-2">
-            <Palette className="size-5 text-rose-500" />
-            Моя мастерская
-          </CardTitle>
-        </CardHeader>
-        <CardContent className="flex flex-col justify-between gap-4 sm:flex-row sm:items-center">
-          <p className="max-w-2xl text-sm leading-6 text-stone-600">
-            Собирайте фотографии готовых раскрасок, отмечайте материалы и публикуйте выбранные
-            работы после модерации.
-          </p>
-          <Button asChild className="min-h-11 shrink-0">
-            <Link href={routes.workshop}>Открыть мастерскую</Link>
-          </Button>
-        </CardContent>
-      </Card>
+      <div className="mb-6 grid gap-4 lg:grid-cols-2">
+        <Card className="border-rose-100 bg-gradient-to-br from-rose-50 via-white to-orange-50">
+          <CardHeader>
+            <CardTitle className="flex items-center gap-2">
+              <Palette className="size-5 text-rose-500" />
+              Моя мастерская
+            </CardTitle>
+          </CardHeader>
+          <CardContent className="flex flex-1 flex-col items-start justify-between gap-4">
+            <p className="max-w-2xl text-sm leading-6 text-stone-600">
+              Собирайте фотографии готовых раскрасок, отмечайте материалы и публикуйте выбранные
+              работы после модерации.
+            </p>
+            <Button asChild className="min-h-11 shrink-0">
+              <Link href={routes.workshop}>Открыть мастерскую</Link>
+            </Button>
+          </CardContent>
+        </Card>
+
+        <Card className="border-rose-100 bg-gradient-to-br from-orange-50 via-white to-rose-50">
+          <CardHeader>
+            <CardTitle className="flex items-center gap-2">
+              <Sparkles className="size-5 text-rose-500" />
+              Клуб Artmate
+            </CardTitle>
+          </CardHeader>
+          <CardContent className="flex flex-1 flex-col items-start justify-between gap-4">
+            <p className="max-w-2xl text-sm leading-6 text-stone-600">
+              Баллы за покупки и творчество, ваши достижения и история бонусов — всё в одном месте.
+            </p>
+            <Button asChild className="min-h-11 shrink-0">
+              <Link href={routes.loyalty}>Открыть клуб</Link>
+            </Button>
+          </CardContent>
+        </Card>
+      </div>
 
       <div className="grid gap-6 lg:grid-cols-[22rem_minmax(0,1fr)] lg:items-start">
         <aside className="space-y-4">

@@ -3,6 +3,7 @@
 import { useMutation, useQueryClient } from "@tanstack/react-query";
 
 import { sessionQuery } from "@/entities/session";
+import { loyaltyQuery } from "@/entities/loyalty";
 import { logout } from "@/shared/actions/auth";
 import { ApiResult } from "@/shared/lib/api-result";
 import {
@@ -20,6 +21,8 @@ export function useLogoutMutation(options: UseLogoutMutationOptions = {}) {
   const { mutate, mutateAsync, isPending } = useMutation({
     mutationFn: async () => ApiResult.fromDTO(await logout()).unwrap(),
     onSuccess: () => {
+      void queryClient.cancelQueries({ queryKey: loyaltyQuery.baseKey });
+      queryClient.removeQueries({ queryKey: loyaltyQuery.baseKey });
       void queryClient.cancelQueries({ queryKey: featureBannersQueryKey });
       void queryClient.cancelQueries({ queryKey: welcomeOfferQueryKey });
       queryClient.removeQueries({ queryKey: featureBannersQueryKey });
