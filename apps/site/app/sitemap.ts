@@ -59,7 +59,17 @@ const staticRoutes = [
     priority: 0.7,
   },
   {
+    path: routes.legal.index,
+    changeFrequency: "monthly",
+    priority: 0.5,
+  },
+  {
     path: routes.legal.publicOffer,
+    changeFrequency: "monthly",
+    priority: 0.45,
+  },
+  {
+    path: routes.legal.loyaltyRules,
     changeFrequency: "monthly",
     priority: 0.45,
   },
@@ -75,6 +85,11 @@ const staticRoutes = [
   },
   {
     path: routes.legal.personalDataConsent,
+    changeFrequency: "monthly",
+    priority: 0.4,
+  },
+  {
+    path: routes.legal.advertisingConsent,
     changeFrequency: "monthly",
     priority: 0.4,
   },

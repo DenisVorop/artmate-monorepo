@@ -6,6 +6,20 @@ import { test } from "node:test";
 const require = createRequire(import.meta.url);
 const ts = require("typescript");
 
+test("enrollment opens the shared legal page instead of downloading the rules", async () => {
+  const { routes } = await load("shared/constants/routes.ts");
+  const form = await readFile(new URL("../src/features/loyalty-cabinet/ui/enrollment.tsx", import.meta.url), "utf8");
+  assert.match(form, /href=\{routes.legal.loyaltyRules\}/);
+  assert.match(form, /правила клуба Artmate/);
+  assert.doesNotMatch(form, /\(DOCX\)/);
+  assert.match(form, /target="_blank"/);
+  assert.doesNotMatch(form, /изложенные выше/);
+  assert.equal(routes.legal.loyaltyRules, "/legal/loyalty-rules");
+  const route = await readFile(new URL("../app/(site)/legal/loyalty-rules/page.tsx", import.meta.url), "utf8");
+  assert.match(route, /<LegalPage documentId="loyaltyRules"/);
+  assert.doesNotMatch(form, /\bdownload\b/);
+});
+
 async function load(path, mocks = {}) {
   const source = await readFile(new URL(`../src/${path}`, import.meta.url), "utf8");
   const output = ts.transpileModule(source, {
