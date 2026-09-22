@@ -1868,6 +1868,130 @@ describe("Ozon status lookup diagnostic privacy", () => {
 });
 
 describe("generic recovery publication from payment flows", () => {
+  it("publishes canceled and expired Ozon closures once through verified notifications", async () => {
+    await withOzonKeys(async () => {
+      const originalFetch = globalThis.fetch;
+      try {
+        for (const status of ["STATUS_CANCELED", "STATUS_EXPIRED"]) {
+          const fixture = createFixture({
+            paymentMethod: OrderPaymentMethod.OZON_ACQUIRING,
+          });
+          let authoritativeStatus = status;
+          globalThis.fetch = async () =>
+            jsonResponse(
+              ozonStatusResponse(fixture.state.id, authoritativeStatus),
+            );
+          const service = createOzonNotificationServiceWithStorage(
+            fixture,
+            () => {
+              assert.fail("Unpaid closure must not send a paid notification");
+            },
+          );
+          const notification = createSignedOzonNotification("canonical", {
+            merchantOrderId: fixture.state.id,
+          });
+          await service.handleOzonPaymentNotification(notification);
+          const closedAt = fixture.state.paymentClosedUnpaidAt;
+          assert.ok(closedAt);
+          await service.handleOzonPaymentNotification(notification);
+          authoritativeStatus = "STATUS_PAYMENT_PENDING";
+          await service.handleOzonPaymentNotification(notification);
+          assert.equal(
+            fixture.state.paymentStatus,
+            OrderPaymentStatus.CLOSED_UNPAID,
+          );
+          assert.equal(fixture.state.paymentClosedUnpaidAt, closedAt);
+          assert.equal(fixture.state.paymentRedirectUrl, "/checkout/failure");
+          assert.equal(fixture.paymentEvents.size, 1);
+          assert.equal(
+            [...fixture.paymentEvents.values()][0]!.kind,
+            "CLOSED_UNPAID",
+          );
+          assert.equal(fixture.releaseCount(), 1);
+          assert.equal(fixture.recovery(), null);
+          assert.equal(fixture.consumeCount(), 0);
+        }
+      } finally {
+        globalThis.fetch = originalFetch;
+      }
+    });
+  });
+
+  it("validates Ozon closure evidence and never releases an already paid order", async () => {
+    for (const status of ["STATUS_CANCELED", "STATUS_EXPIRED"]) {
+      for (const change of [
+        { acquiringOrderId: undefined },
+        { acquiringOrderId: "another-provider-order" },
+        { amount: undefined },
+        { amount: "1" },
+        { currencyCode: undefined },
+        { currencyCode: "840" },
+      ]) {
+        const fixture = createFixture({
+          paymentMethod: OrderPaymentMethod.OZON_ACQUIRING,
+          ozonAcquiringOrderId: "ozon-order-1",
+        });
+        await assert.rejects(
+          fixture.storage.applyOzonAcquiringNotification({
+            acquiringOrderId: "ozon-order-1",
+            amount: "338700",
+            currencyCode: "643",
+            authoritativeStatus: status,
+            verified: canonicalVerification(fixture.state.id),
+            raw: {},
+            ...change,
+          }),
+        );
+        assert.equal(fixture.paymentEvents.size, 0);
+        assert.equal(fixture.releaseCount(), 0);
+      }
+      const fixture = createFixture({
+        paymentMethod: OrderPaymentMethod.OZON_ACQUIRING,
+        paymentStatus: OrderPaymentStatus.PAID,
+        paidAt: new Date(),
+      });
+      await fixture.storage.applyOzonAcquiringNotification({
+        acquiringOrderId: "ozon-order-1",
+        amount: "338700",
+        currencyCode: "643",
+        authoritativeStatus: status,
+        verified: canonicalVerification(fixture.state.id),
+        raw: {},
+      });
+      assert.equal(fixture.state.paymentStatus, OrderPaymentStatus.PAID);
+      assert.equal(fixture.paymentEvents.size, 0);
+      assert.equal(fixture.releaseCount(), 0);
+    }
+  });
+
+  it("persists Ozon recovery closure once and keeps paid orders paid", async () => {
+    for (const paid of [false, true]) {
+      const fixture = createFixture({
+        paymentMethod: OrderPaymentMethod.OZON_ACQUIRING,
+      });
+      await fixture.storage.claimPaymentInitialization(fixture.state.id);
+      if (paid) {
+        fixture.state.paymentStatus = OrderPaymentStatus.PAID;
+        fixture.state.paidAt = new Date();
+      }
+      const input = {
+        orderId: fixture.state.id,
+        method: "OZON_ACQUIRING" as const,
+        providerOrderId: "ozon-order-1",
+        amountKopecks: 338700,
+        state: "closed_unpaid" as const,
+      };
+      await fixture.storage.applyPaymentReconciliation(input);
+      await fixture.storage.applyPaymentReconciliation(input);
+      assert.equal(
+        fixture.state.paymentStatus,
+        paid ? OrderPaymentStatus.PAID : OrderPaymentStatus.CLOSED_UNPAID,
+      );
+      assert.equal(fixture.paymentEvents.size, paid ? 0 : 1);
+      assert.equal(fixture.releaseCount(), paid ? 0 : 1);
+    }
+  });
+
   it("queues unresolved Ozon notifications once without resetting retry state, then publishes PAID once", async () => {
     await withOzonKeys(async () => {
       const originalFetch = globalThis.fetch;
@@ -2237,7 +2361,9 @@ function createFixture(
       strings?: readonly string[];
       values?: readonly unknown[];
     }) => {
-      const sql = Array.isArray(query) ? query.join("") : query.strings?.join("") ?? "";
+      const sql = Array.isArray(query)
+        ? query.join("")
+        : (query.strings?.join("") ?? "");
       if (
         options.cartLock &&
         sql.includes('FROM "carts"') &&
@@ -2247,7 +2373,9 @@ function createFixture(
         releaseCartLock = await options.cartLock.acquire();
       }
       if (sql.includes("clock_timestamp")) {
-        return [{ now: new Date(), nextAttemptAt: new Date(Date.now() + 60_000) }];
+        return [
+          { now: new Date(), nextAttemptAt: new Date(Date.now() + 60_000) },
+        ];
       }
       return [];
     },

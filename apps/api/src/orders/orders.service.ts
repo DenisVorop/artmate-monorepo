@@ -668,8 +668,8 @@ export class OrdersService {
       )
         return { state: "attention", reason: "amount_mismatch" };
       if (["STATUS_CANCELED", "STATUS_EXPIRED"].includes(verified.status))
-        return { state: "attention", reason: "closure_unconfirmed" };
-      if (verified.status === "STATUS_PAID") state = "paid";
+        state = "closed_unpaid";
+      else if (verified.status === "STATUS_PAID") state = "paid";
       else if (
         [
           "STATUS_UNSPECIFIED",
