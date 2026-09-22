@@ -11,10 +11,14 @@ const baseKey = "orders";
 
 export const ordersQuery = {
   baseKey: [baseKey],
-  getMyOrders: () =>
+  getMyOrders: (userId: string, limit = 20, offset = 0) =>
     queryOptions({
-      queryKey: [baseKey, "my"] as const,
-      queryFn: async () => ApiResult.fromDTO(await getMyOrders()).unwrap() ?? [],
+      queryKey: [baseKey, "my", userId, limit, offset] as const,
+      queryFn: async ({ signal }) => {
+        const result = await getMyOrders(limit, offset);
+        signal.throwIfAborted();
+        return ApiResult.fromDTO(result).unwrap() ?? [];
+      },
       staleTime: 1000 * 30,
       retryOnMount: false,
     }),

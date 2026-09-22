@@ -85,6 +85,14 @@ export class WorkshopDTO {
   updatedAt!: string;
 }
 
+/** Read-only dashboard preview. For PURCHASE rows addedAt is the qualifying paid order time. */
+export class WorkshopPreviewDTO {
+  @ApiProperty({ type: () => [WorkshopCollectionSummaryDTO], maxItems: 4 })
+  @IsArray()
+  @ArrayMaxSize(4)
+  collections!: WorkshopCollectionSummaryDTO[];
+}
+
 export class WorkshopCollectionDetailDTO extends WorkshopCollectionSummaryDTO {
   @ApiProperty()
   @IsString()

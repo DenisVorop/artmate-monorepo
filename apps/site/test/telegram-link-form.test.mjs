@@ -158,8 +158,8 @@ async function createAccountHarness({
     },
     "react/jsx-runtime": { Fragment: Symbol("Fragment"), jsx, jsxs: jsx },
   };
-  const { Account } = evaluateTypeScript(
-    await readSource("src/features/account/ui/account.tsx"),
+  const { AccountSettings } = evaluateTypeScript(
+    await readSource("src/features/account/ui/settings.tsx"),
     modules,
   );
 
@@ -180,7 +180,7 @@ async function createAccountHarness({
     };
   }
 
-  return { calls, tree: render(Account()) };
+  return { calls, tree: render(AccountSettings()) };
 }
 
 test("telegram link schema and mapper accept a trimmed six-digit code only", async () => {
@@ -234,20 +234,9 @@ test("account keeps the guest login gate and pending guards", async () => {
   assert.equal(submitButton.props.disabled, true);
 });
 
-test("account keeps its responsive grid without a sticky profile column", async () => {
+test("settings keeps profile and Telegram in a responsive grid", async () => {
   const { tree } = await createAccountHarness();
-  const aside = findNode(tree, (node) => node.type === "aside");
-
-  assert.equal(aside.props.className, "space-y-4");
-  assert.equal(aside.props.children.length, 3);
-  assert.equal(
-    findNode(
-      tree,
-      (node) =>
-        node.type === "div" &&
-        node.props.className ===
-          "grid gap-6 lg:grid-cols-[22rem_minmax(0,1fr)] lg:items-start",
-    )?.props.className,
-    "grid gap-6 lg:grid-cols-[22rem_minmax(0,1fr)] lg:items-start",
-  );
+  assert.equal(tree.props.className, "grid items-start gap-6 md:grid-cols-2");
+  assert.equal(tree.props.children.length, 2);
+  assert.equal(findNode(tree, (node) => node.type === "aside"), undefined);
 });

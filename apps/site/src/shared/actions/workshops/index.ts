@@ -4,6 +4,7 @@ export {
   deleteMyWorkshopWork,
   getCommunityWorksForColoring,
   getMyWorkshop,
+  getMyWorkshopPreview,
   getMyWorkshopCollection,
   getMyWorkshopColoring,
   getMyWorkshopTools,

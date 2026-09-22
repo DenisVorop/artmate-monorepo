@@ -3,6 +3,7 @@ import {
   ApiCreatedResponse,
   ApiOkResponse,
   ApiOperation,
+  ApiQuery,
   ApiTags,
 } from "@nestjs/swagger";
 import { CheckoutThrottleService } from "./checkout-throttle.service";
@@ -18,6 +19,7 @@ import {
   Param,
   Patch,
   Post,
+  Query,
   Req,
   UseGuards,
 } from "@nestjs/common";
@@ -40,6 +42,7 @@ import {
   OrderDTO,
   OrderStateDTO,
   OrderRefundsDTO,
+  MyOrdersQueryDTO,
   PaymentRecoveryResponseDTO,
   UpdateOrderStatusRequestDTO,
 } from "./dto";
@@ -65,10 +68,16 @@ export class OrdersController {
   @UseGuards(AuthGuard)
   @ValidateResponse(OrderDTO, { isArray: true })
   @ApiOperation({ summary: "Get current user's orders" })
+  @ApiQuery({ name: "limit", required: false, type: Number, minimum: 1, maximum: 50 })
+  @ApiQuery({ name: "offset", required: false, type: Number, minimum: 0 })
   @ApiOkResponse({ type: [OrderDTO] })
+  @Header("Cache-Control", "private, no-store")
   @Get("my")
-  getMyOrders(@Req() request: AuthenticatedRequest) {
-    return this.ordersService.getMyOrders(request.user);
+  getMyOrders(
+    @Req() request: AuthenticatedRequest,
+    @Query() query: MyOrdersQueryDTO,
+  ) {
+    return this.ordersService.getMyOrders(request.user, query);
   }
 
   @UseGuards(AuthGuard)

@@ -572,11 +572,11 @@ test("responsive media shell uses the shared light Artmate palette and spacing",
   assert.match(responsiveViewer, /px-4 text-stone-900 sm:px-5/);
   assert.match(
     responsiveViewer,
-    /<DrawerContent[\s\S]*?className="[^"]*border-rose-100 bg-white[^"]*"/,
+    /<DrawerContent[\s\S]*?className=\{[\s\S]*?border-rose-100 bg-white/,
   );
   assert.match(
     responsiveViewer,
-    /<DialogContent[\s\S]*?className="[^"]*border-rose-100 bg-white[^"]*"/,
+    /<DialogContent[\s\S]*?className=\{[\s\S]*?border-rose-100 bg-white/,
   );
   assert.doesNotMatch(
     responsiveViewer,

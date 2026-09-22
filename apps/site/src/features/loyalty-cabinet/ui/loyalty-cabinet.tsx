@@ -11,7 +11,6 @@ import { Button, DataState } from "@/shared/ui";
 import { Link } from "@/shared/ui/link";
 import { PageTitle } from "@/shared/ui/typography";
 
-import { Achievements } from "./achievements";
 import { Balance } from "./balance";
 import { Enrollment } from "./enrollment";
 import { Operations } from "./operations";
@@ -29,7 +28,7 @@ export function LoyaltyCabinet() {
       <section className="container space-y-5 py-10">
         <DataState
           title="Войдите в аккаунт"
-          description="Баланс и достижения доступны участникам клуба после входа."
+          description="Войдите, чтобы посмотреть бонусный баланс и историю операций."
         />
         <div className="flex justify-center">
           <Button asChild className="min-h-11">
@@ -87,7 +86,7 @@ function MemberCabinet({ userId }: { userId: string }) {
             </p>
             <PageTitle>Клуб Artmate</PageTitle>
             <p className="max-w-xl text-muted-foreground">
-              Ваши баллы, достижения и новые поводы творить.
+              Ваши баллы, уровень и история операций.
             </p>
           </div>
           <Button asChild variant="outline" className="min-h-11">
@@ -135,20 +134,18 @@ function MemberCabinet({ userId }: { userId: string }) {
             <>
               {dashboard.isPending ? (
                 <DataState
-                  title="Загружаем достижения"
-                  description="Скоро здесь появится ваш прогресс."
+                  title="Загружаем уровень клуба"
+                  description="Уточняем ваш процент бонусов."
                   className="max-w-none"
                 />
               ) : dashboard.isError || !dashboard.data ? (
                 <DataState
                   variant="error"
-                  title="Не удалось загрузить уровень и достижения"
+                  title="Не удалось загрузить уровень клуба"
                   description="Баланс сохранён. Попробуйте открыть клуб позже."
                   className="max-w-none"
                 />
-              ) : (
-                <Achievements items={dashboard.data.achievements} />
-              )}
+              ) : null}
               <Operations userId={userId} />
             </>
           )}

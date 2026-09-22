@@ -926,7 +926,10 @@ export class OrdersStorage {
     });
   }
 
-  async getOrdersByUserId(userId: string): Promise<OrderDTO[]> {
+  async getOrdersByUserId(
+    userId: string,
+    pagination: { limit: number; offset: number } = { limit: 20, offset: 0 },
+  ): Promise<OrderDTO[]> {
     if (!userId.trim()) {
       return [];
     }
@@ -935,9 +938,9 @@ export class OrdersStorage {
       where: {
         userId,
       },
-      orderBy: {
-        createdAt: "desc",
-      },
+      orderBy: [{ createdAt: "desc" }, { id: "desc" }],
+      take: pagination.limit,
+      skip: pagination.offset,
       include: orderInclude,
     });
 

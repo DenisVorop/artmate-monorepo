@@ -2,7 +2,9 @@
 
 import { useMutation, useQueryClient } from "@tanstack/react-query";
 
+import { achievementQuery } from "@/entities/achievement";
 import { ordersQuery } from "@/entities/orders";
+import { workshopQuery } from "@/entities/workshop";
 import { sessionQuery } from "@/entities/session";
 import { login, type AuthSessionDTO, type LoginInputDTO } from "@/shared/actions/auth";
 import { ApiResult } from "@/shared/lib/api-result";
@@ -22,11 +24,15 @@ export function useLoginMutation(options: UseLoginMutationOptions = {}) {
     mutationFn: async (input: LoginInputDTO) => ApiResult.fromDTO(await login(input)).unwrap(),
     onSuccess: async (session) => {
       await Promise.all([
+        queryClient.cancelQueries({ queryKey: achievementQuery.baseKey }),
+        queryClient.cancelQueries({ queryKey: workshopQuery.baseKey }),
         queryClient.cancelQueries({ queryKey: ordersQuery.baseKey }),
         queryClient.cancelQueries({ queryKey: featureBannersQueryKey }),
         queryClient.cancelQueries({ queryKey: welcomeOfferQueryKey }),
       ]);
+      queryClient.removeQueries({ queryKey: achievementQuery.baseKey });
       queryClient.removeQueries({ queryKey: ordersQuery.baseKey });
+      queryClient.removeQueries({ queryKey: workshopQuery.baseKey });
       queryClient.removeQueries({ queryKey: featureBannersQueryKey });
       queryClient.removeQueries({ queryKey: welcomeOfferQueryKey });
       queryClient.setQueryData(sessionQuery.getSession().queryKey, session ?? { user: null });

@@ -49,6 +49,7 @@ import type {
   CreateOrderRequestDTO,
   AdminOrderDTO,
   OrderDTO,
+  MyOrdersQueryDTO,
   OrderShipmentDTO,
   OrderStateDTO,
   OrderRefundsDTO,
@@ -158,12 +159,18 @@ export class OrdersService {
     };
   }
 
-  async getMyOrders(user: AuthUser): Promise<OrderDTO[]> {
-    const orders = await this.ordersStorage.getOrdersByUserId(user.id);
+  async getMyOrders(
+    user: AuthUser,
+    pagination: MyOrdersQueryDTO,
+  ): Promise<OrderDTO[]> {
+    const orders = await this.ordersStorage.getOrdersByUserId(
+      user.id,
+      pagination,
+    );
     const didSyncShipments = await this.syncStaleCdekShipments(orders);
 
     return didSyncShipments
-      ? this.ordersStorage.getOrdersByUserId(user.id)
+      ? this.ordersStorage.getOrdersByUserId(user.id, pagination)
       : orders;
   }
 

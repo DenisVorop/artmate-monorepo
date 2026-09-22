@@ -170,6 +170,12 @@ export const ownerWorkshopSchema = z
   })
   .strict();
 
+export const workshopPreviewSchema = z
+  .object({
+    collections: z.array(workshopCollectionSummarySchema).max(4),
+  })
+  .strict();
+
 const workshopColoringSchema = z
   .object({
     id: boundedId,

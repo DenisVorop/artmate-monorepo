@@ -47,6 +47,7 @@ import {
   WorkshopCollectionDetailDTO,
   WorkshopColoringDetailDTO,
   WorkshopDTO,
+  WorkshopPreviewDTO,
   WorkshopModerationDecisionDTO,
   WorkshopModerationDetailDTO,
   WorkshopModerationListItemDTO,
@@ -94,6 +95,14 @@ export class WorkshopController {
   @Get("me")
   getMine(@Req() request: AuthenticatedRequest) {
     return this.workshops.getMine(request.user.id);
+  }
+
+  @ValidateResponse(WorkshopPreviewDTO)
+  @ApiOkResponse({ type: WorkshopPreviewDTO })
+  @Header("Cache-Control", "private, no-store")
+  @Get("me/preview")
+  getPreview(@Req() request: AuthenticatedRequest) {
+    return this.workshops.getPreview(request.user.id);
   }
 
   @ValidateResponse(WorkshopDTO)
