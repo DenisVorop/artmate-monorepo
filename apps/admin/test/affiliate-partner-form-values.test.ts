@@ -101,14 +101,9 @@ test("new partner requires an existing user selection", () => {
   );
 });
 
-test("contract date must be a real calendar date that is not in the future", () => {
-  const tomorrow = new Date();
-  tomorrow.setDate(tomorrow.getDate() + 1);
-  const futureDate = [
-    tomorrow.getFullYear(),
-    String(tomorrow.getMonth() + 1).padStart(2, "0"),
-    String(tomorrow.getDate()).padStart(2, "0"),
-  ].join("-");
+test("contract date must be a real calendar date that is not in the future", (t) => {
+  t.mock.timers.enable({ apis: ["Date"], now: new Date("2026-09-22T21:04:00Z") });
+  const futureDate = "2026-09-24";
 
   assert.equal(
     affiliatePartnerFormSchema.safeParse({
@@ -126,6 +121,22 @@ test("contract date must be a real calendar date that is not in the future", () 
     }).success,
     false,
   );
+});
+
+test("contract validation changes day at Moscow midnight, not runner midnight", (t) => {
+  t.mock.timers.enable({ apis: ["Date"], now: new Date("2026-09-22T20:59:59Z") });
+  const acceptsDate = (signedAt: string) =>
+    affiliatePartnerFormSchema.safeParse({
+      ...validValues,
+      minimumPayoutRubles: "10",
+      signedAt,
+    }).success;
+
+  assert.equal(acceptsDate("2026-09-22"), true);
+  assert.equal(acceptsDate("2026-09-23"), false);
+  t.mock.timers.setTime(new Date("2026-09-22T21:00:00Z").getTime());
+  assert.equal(acceptsDate("2026-09-23"), true);
+  assert.equal(acceptsDate("2026-09-24"), false);
 });
 
 test("contract date boundary follows the Moscow calendar", () => {

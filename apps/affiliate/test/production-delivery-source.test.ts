@@ -73,7 +73,9 @@ test("proxies only the canonical affiliate host with security and no-index heade
 test("reloads Caddy and blocks deployment success until affiliate is healthy", () => {
   const migration = deployWorkflow.indexOf("--profile migrate run --rm api-migrate");
   const services = deployWorkflow.indexOf("up -d --remove-orphans --wait");
-  const reload = deployWorkflow.indexOf("caddy reload --config /etc/caddy/Caddyfile");
+  const reload = deployWorkflow.indexOf(
+    "-f docker-compose.prod.yml exec -T caddy caddy reload --config /etc/caddy/Caddyfile",
+  );
   const healthSmoke = deployWorkflow.indexOf("http://127.0.0.1:3006/health");
   const loginSmoke = deployWorkflow.indexOf("http://127.0.0.1:3006/login");
   const healthProbe = deployWorkflow.slice(healthSmoke, loginSmoke);

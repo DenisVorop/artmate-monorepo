@@ -69,14 +69,14 @@ jobs:
           ruff format --check .
       - name: Prepare pinned offline models
         run: python scripts/prepare_models.py
-      - name: Test
-        run: python -m pytest -q
       - name: Build and check installed package
         run: |
           python -m pip wheel --no-deps --no-build-isolation . --wheel-dir dist
           python -m pip install --no-deps dist/*.whl
           python scripts/verify_install.py
           coloring-generate --help
+      - name: Test
+        run: python -m pytest -q
 
   docker:
     name: Docker build
