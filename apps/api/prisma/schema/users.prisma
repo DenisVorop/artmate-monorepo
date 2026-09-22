@@ -53,6 +53,8 @@ model User {
   orderCompletionFacts OrderCompletionFact[]
   createdAchievementRevisions LoyaltyAchievementRevision[] @relation("AchievementRevisionCreator")
   activatedAchievements LoyaltyAchievementDefinition[] @relation("AchievementActivator")
+  achievementBadges AchievementBadge[]
+  achievementSync AchievementSync?
   affiliateContractChanges AffiliateContractRevision[] @relation("AffiliateContractRevisionActor")
   authoredOrderRefunds     OrderRefund[]                 @relation("OrderRefundAuthor")
   affiliatePayoutEvents    AffiliatePayoutEvent[]        @relation("AffiliatePayoutEventActor")

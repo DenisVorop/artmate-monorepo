@@ -36,8 +36,8 @@ export class LoyaltyMembershipService {
           where: { userId },
           select: { id: true },
         });
-        if (!member) return { tier: null, achievements: [] };
-        return readLoyaltyDashboard(tx, userId, member.id);
+        if (!member) return { tier: null };
+        return readLoyaltyDashboard(tx, userId);
       },
       { isolationLevel: Prisma.TransactionIsolationLevel.RepeatableRead },
     );

@@ -35,15 +35,6 @@ export class LoyaltyAchievementAwardService {
           if (!identity) return { processed: false, awards: 0 };
           // Serialize owner status changes without blocking source/actor FK locks.
           await tx.$queryRaw`SELECT id FROM users WHERE id = ${identity.userId} FOR NO KEY UPDATE`;
-          // Refunds lock their order before updating its published eligibility.
-          // Locking the eligibility row detects refunds committed after our
-          // serializable snapshot and makes that stale attempt retry.
-          await tx.$queryRaw`SELECT id FROM orders WHERE user_id = ${identity.userId} ORDER BY id FOR UPDATE`;
-          await tx.$queryRaw`
-            SELECT e.order_id FROM order_completion_eligibility e
-            JOIN order_completion_facts f ON f.order_id = e.order_id
-            WHERE f.user_id = ${identity.userId} ORDER BY e.order_id FOR SHARE OF e
-          `;
           await tx.$queryRaw`SELECT id FROM loyalty_members WHERE id = ${memberId} FOR UPDATE`;
           const member = await tx.loyaltyMember.findUnique({
             where: { id: memberId },
@@ -59,10 +50,11 @@ export class LoyaltyAchievementAwardService {
           ) {
             return { processed: false, awards: 0 };
           }
-          const definitions = await tx.$queryRaw<
+          const badges = await tx.$queryRaw<
             Array<{
-              id: string;
-              activeVersion: number;
+              definitionId: string;
+              badgeId: string;
+              revisionVersion: number;
               points: number;
               publicationFactId: string | null;
               completionCollectionId: string | null;
@@ -70,29 +62,26 @@ export class LoyaltyAchievementAwardService {
               qualifiedAt: Date;
             }>
           >`
-          SELECT d.id, d.active_version AS "activeVersion", r.reward_points AS points,
-            proof.publication_fact_id AS "publicationFactId", proof.qualified_at AS "qualifiedAt",
-            proof.completion_collection_id AS "completionCollectionId",
-            proof.completion_order_id AS "completionOrderId"
-          FROM loyalty_achievement_definitions d
-          JOIN loyalty_achievement_revisions r ON r.definition_id = d.id AND r.version = d.active_version
-          JOIN LATERAL loyalty_achievement_qualification(${member.userId}, r.condition_kind, r.target) proof ON true
-          WHERE d.archived_at IS NULL
-            AND NOT EXISTS (SELECT 1 FROM loyalty_achievement_awards a
-              WHERE a.member_id = ${memberId} AND a.definition_id = d.id)
-          ORDER BY d.id LIMIT ${limit} FOR SHARE OF d
+          SELECT b.definition_id AS "definitionId", b.id AS "badgeId", b.revision_version AS "revisionVersion", b.reward_points AS points,
+            b.publication_fact_id AS "publicationFactId", b.qualified_at AS "qualifiedAt",
+            b.completion_collection_id AS "completionCollectionId", b.completion_order_id AS "completionOrderId"
+          FROM achievement_badges b
+          WHERE b.user_id = ${member.userId}
+            AND NOT EXISTS (SELECT 1 FROM loyalty_achievement_awards a WHERE a.badge_id = b.id)
+          ORDER BY b.earned_at, b.id LIMIT ${limit}
         `;
-          for (const definition of definitions) {
+          for (const badge of badges) {
             const award = await tx.loyaltyAchievementAward.create({
               data: {
                 memberId,
-                definitionId: definition.id,
-                revisionVersion: definition.activeVersion,
-                publicationFactId: definition.publicationFactId,
-                completionCollectionId: definition.completionCollectionId,
-                completionOrderId: definition.completionOrderId,
-                points: definition.points,
-                qualifiedAt: definition.qualifiedAt,
+                badgeId: badge.badgeId,
+                definitionId: badge.definitionId,
+                revisionVersion: badge.revisionVersion,
+                publicationFactId: badge.publicationFactId,
+                completionCollectionId: badge.completionCollectionId,
+                completionOrderId: badge.completionOrderId,
+                points: badge.points,
+                qualifiedAt: badge.qualifiedAt,
               },
             });
             if (award.points > 0)
@@ -107,7 +96,7 @@ export class LoyaltyAchievementAwardService {
             next_attempt_at = clock_timestamp(), updated_at = clock_timestamp()
         `;
           // This independent processor never marks membership history ready.
-          return { processed: true, awards: definitions.length };
+          return { processed: true, awards: badges.length };
         },
         {
           isolationLevel: Prisma.TransactionIsolationLevel.Serializable,
@@ -139,12 +128,8 @@ export class LoyaltyAchievementAwardService {
         AND u.status = 'active' AND u.deleted_at IS NULL
         AND (s.member_id IS NULL OR s.next_attempt_at <= clock_timestamp())
         AND EXISTS (
-          SELECT 1 FROM loyalty_achievement_definitions d
-          JOIN loyalty_achievement_revisions r ON r.definition_id = d.id AND r.version = d.active_version
-          WHERE d.archived_at IS NULL
-            AND NOT EXISTS (SELECT 1 FROM loyalty_achievement_awards a
-              WHERE a.member_id = m.id AND a.definition_id = d.id)
-            AND EXISTS (SELECT 1 FROM loyalty_achievement_qualification(m.user_id, r.condition_kind, r.target))
+          SELECT 1 FROM achievement_badges b WHERE b.user_id = m.user_id
+            AND NOT EXISTS (SELECT 1 FROM loyalty_achievement_awards a WHERE a.badge_id = b.id)
         )
       ORDER BY COALESCE(s.next_attempt_at, m.joined_at), m.id LIMIT ${limit}
     `;
