@@ -8,7 +8,6 @@ export { loyaltyOverviewSchema } from "./model/types";
 export type {
   LoyaltyOverview,
   LoyaltyDashboard,
-  LoyaltyAchievement,
   LoyaltyOperation,
 } from "./model/types";
 export {

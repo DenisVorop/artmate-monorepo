@@ -2,6 +2,7 @@ import { queryOptions } from "@tanstack/react-query";
 
 import {
   getMyWorkshop,
+  getMyWorkshopPreview,
   getMyWorkshopCollection,
   getMyWorkshopColoring,
   getMyWorkshopTools,
@@ -14,6 +15,7 @@ import {
   ownerWorkshopCollectionSchema,
   ownerWorkshopColoringSchema,
   ownerWorkshopSchema,
+  workshopPreviewSchema,
   workshopMarkerColorsSchema,
   workshopToolsSchema,
 } from "./schemas";
@@ -22,6 +24,17 @@ const baseKey = "workshop";
 
 export const workshopQuery = {
   baseKey: [baseKey] as const,
+  preview: (userId: string) =>
+    queryOptions({
+      queryKey: [baseKey, "preview", userId] as const,
+      queryFn: async ({ signal }) => {
+        const result = await getMyWorkshopPreview();
+        signal.throwIfAborted();
+        return workshopPreviewSchema.parse(unwrap(result));
+      },
+      staleTime: 30_000,
+      retryOnMount: false,
+    }),
   owner: () =>
     queryOptions({
       queryKey: [baseKey, "owner"] as const,

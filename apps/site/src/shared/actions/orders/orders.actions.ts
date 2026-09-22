@@ -27,8 +27,14 @@ type CreateOrderAttribution = {
   yclid?: string;
 };
 
-export async function getMyOrders(): Promise<ApiResultDTO<OrderDTO[]>> {
-  const result = await ApiResult.prepareApi(async () => requestOrders<OrderDTO[]>("/orders/my"))();
+export async function getMyOrders(
+  limit: number,
+  offset: number,
+): Promise<ApiResultDTO<OrderDTO[]>> {
+  const params = new URLSearchParams({ limit: String(limit), offset: String(offset) });
+  const result = await ApiResult.prepareApi(async () =>
+    requestOrders<OrderDTO[]>(`/orders/my?${params}`),
+  )();
 
   return result.toDTO() as ApiResultDTO<OrderDTO[]>;
 }
@@ -40,21 +46,23 @@ export async function createOrder(
   const requestInput = { ...input } as Record<string, unknown>;
   delete requestInput.attribution;
   const allowedAttribution = {
-    ...(isValidYandexAttributionId(attribution.clientId)
-      ? { clientId: attribution.clientId }
-      : {}),
+    ...(isValidYandexAttributionId(attribution.clientId) ? { clientId: attribution.clientId } : {}),
     ...(isValidYandexAttributionId(attribution.yclid) ? { yclid: attribution.yclid } : {}),
   };
   const result = await ApiResult.prepareApi(async () =>
-    requestOrders<CreateOrderResponseDTO>("/orders", {
-      method: "POST",
-      body: JSON.stringify({
-        ...requestInput,
-        ...(Object.keys(allowedAttribution).length > 0
-          ? { attribution: allowedAttribution }
-          : {}),
-      }),
-    }, createOrderErrorMessage),
+    requestOrders<CreateOrderResponseDTO>(
+      "/orders",
+      {
+        method: "POST",
+        body: JSON.stringify({
+          ...requestInput,
+          ...(Object.keys(allowedAttribution).length > 0
+            ? { attribution: allowedAttribution }
+            : {}),
+        }),
+      },
+      createOrderErrorMessage,
+    ),
   )();
 
   return result.toDTO() as ApiResultDTO<CreateOrderResponseDTO>;
@@ -68,10 +76,14 @@ export async function calculateCheckout(
   input: CalculateCheckoutInputDTO,
 ): Promise<ApiResultDTO<CheckoutCalculationDTO>> {
   const result = await ApiResult.prepareApi(async () =>
-    requestOrders<CheckoutCalculationDTO>("/orders/checkout/calculate", {
-      method: "POST",
-      body: JSON.stringify(input),
-    }, calculateCheckoutErrorMessage),
+    requestOrders<CheckoutCalculationDTO>(
+      "/orders/checkout/calculate",
+      {
+        method: "POST",
+        body: JSON.stringify(input),
+      },
+      calculateCheckoutErrorMessage,
+    ),
   )();
 
   return result.toDTO() as ApiResultDTO<CheckoutCalculationDTO>;
@@ -106,11 +118,7 @@ export async function recoverOrderPayment(
   return result.toDTO() as ApiResultDTO<PaymentRecoveryResponseDTO>;
 }
 
-async function requestOrders<T>(
-  path: string,
-  init: RequestInit = {},
-  serverErrorMessage?: string,
-) {
+async function requestOrders<T>(path: string, init: RequestInit = {}, serverErrorMessage?: string) {
   const cookieStore = await cookies();
   const headerStore = await headers();
   const cartId = cookieStore.get(CART_COOKIE_NAME)?.value;
@@ -172,7 +180,10 @@ async function getErrorMessage(response: Response) {
     if (body.code === "LOYALTY_PRICING_CHANGED") {
       return "Сумма заказа изменилась. Проверьте новый расчёт перед оплатой.";
     }
-    if (body.code === "LOYALTY_SPENDING_UNAVAILABLE" || body.message === "Insufficient available loyalty points") {
+    if (
+      body.code === "LOYALTY_SPENDING_UNAVAILABLE" ||
+      body.message === "Insufficient available loyalty points"
+    ) {
       return "Доступное количество баллов изменилось. Уберите списание и выберите сумму заново.";
     }
 

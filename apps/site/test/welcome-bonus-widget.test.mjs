@@ -750,7 +750,7 @@ test("welcome offer copy derives percent or fixed RUB conditions and action with
     await readSource("src/features/welcome-bonus/lib/presentation.ts"),
     {
       "@/shared/constants": {
-        routes: { account: "/account", auth: "/auth" },
+        routes: { account: "/account", accountSettings: "/account/settings", auth: "/auth" },
       },
     },
   );
@@ -786,11 +786,11 @@ test("welcome offer copy derives percent or fixed RUB conditions and action with
   );
   assert.doesNotMatch(`${percentCopy.conditions}${fixedCopy.conditions}`, /code|код/u);
   assert.deepEqual(getWelcomeOfferAction("authorize"), {
-    href: "/auth?next=%2Faccount",
+    href: "/auth?next=%2Faccount%2Fsettings",
     label: "Получить бонус",
   });
   assert.deepEqual(getWelcomeOfferAction("link_telegram"), {
-    href: "/account",
+    href: "/account/settings",
     label: "Привязать Telegram",
   });
 
@@ -855,6 +855,7 @@ test("site wiring keeps welcome bonus out of service banners and uses the new no
 test("identity transitions cancel and clear personalized data before publishing new identity state", async () => {
   const loyaltyQueryKey = ["loyalty"];
   const ordersQueryKey = ["orders"];
+  const workshopQueryKey = ["workshop"];
   const featureBannersQueryKey = ["feature-banners"];
   const welcomeOfferQueryKey = ["cart-pricing", "welcome-offer"];
   const cartPricingQueryKey = ["cart-pricing"];
@@ -919,7 +920,9 @@ test("identity transitions cancel and clear personalized data before publishing 
         telegramLinkStatusQueryKey: ["telegram-link"],
       },
       "@/entities/orders": { ordersQuery: { baseKey: ordersQueryKey } },
+      "@/entities/workshop": { workshopQuery: { baseKey: workshopQueryKey } },
       "@/entities/loyalty": { loyaltyQuery: { baseKey: loyaltyQueryKey } },
+      "@/entities/achievement": { achievementQuery: { baseKey: ["achievements"] } },
       "@/shared/actions/auth": {
         confirmEmailVerification: async () => undefined,
         confirmTelegramLink: async () => undefined,
@@ -942,16 +945,24 @@ test("identity transitions cancel and clear personalized data before publishing 
 
     const includesOrders = exportName === "useLoginMutation";
     const expectedCleanup = [
+      ...(["useLogoutMutation", "useLoginMutation"].includes(exportName)
+        ? [["cancel", ["achievements"]]] : []),
       ...(exportName === "useLogoutMutation"
         ? [
+            ["remove", ["achievements"]],
+            ["cancel", workshopQueryKey],
+            ["remove", workshopQueryKey],
+            ["cancel", ordersQueryKey],
+            ["remove", ordersQueryKey],
             ["cancel", loyaltyQueryKey],
             ["remove", loyaltyQueryKey],
           ]
         : []),
-      ...(includesOrders ? [["cancel", ordersQueryKey]] : []),
+      ...(includesOrders ? [["cancel", workshopQueryKey], ["cancel", ordersQueryKey]] : []),
       ["cancel", featureBannersQueryKey],
       ["cancel", welcomeOfferQueryKey],
-      ...(includesOrders ? [["remove", ordersQueryKey]] : []),
+      ...(includesOrders ? [["remove", ["achievements"]]] : []),
+      ...(includesOrders ? [["remove", ordersQueryKey], ["remove", workshopQueryKey]] : []),
       [clearMethod, featureBannersQueryKey],
       [clearMethod, welcomeOfferQueryKey],
     ];

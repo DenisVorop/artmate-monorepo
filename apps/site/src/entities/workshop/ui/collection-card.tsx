@@ -20,13 +20,13 @@ export function WorkshopCollectionCard({ collection }: WorkshopCollectionCardPro
       className="group block rounded-2xl focus-visible:ring-3 focus-visible:ring-rose-400 focus-visible:outline-none"
     >
       <Card className="h-full gap-0 overflow-hidden py-0 transition-shadow group-hover:shadow-md">
-        <div className="relative aspect-[4/3] overflow-hidden bg-rose-50">
+        <div className="relative aspect-[3/4] overflow-hidden bg-rose-50/50">
           <Image
             fill
             unoptimized
             src={collection.cover.url}
             alt={collection.cover.alt}
-            className="object-cover transition-transform duration-300 group-hover:scale-[1.02]"
+            className="object-contain"
           />
         </div>
         <CardContent className="space-y-4 p-4 sm:p-5">
@@ -43,7 +43,7 @@ export function WorkshopCollectionCard({ collection }: WorkshopCollectionCardPro
           <div className="space-y-2">
             <div className="flex justify-between gap-3 text-sm">
               <span className="font-semibold text-stone-800">
-                {collection.workCount} из {collection.expectedColoringCount} работ
+                Добавлено {collection.workCount} из {collection.expectedColoringCount} работ
               </span>
               <span className="text-stone-500">{Math.round(progress)}%</span>
             </div>

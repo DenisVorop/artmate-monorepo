@@ -59,7 +59,7 @@ export function WorkshopOverview() {
           <h2 id="workshop-collections-heading" className="mb-4 text-2xl font-bold">
             Тематики
           </h2>
-          <ul className="grid gap-5 sm:grid-cols-2 lg:grid-cols-3">
+          <ul className="grid gap-4 sm:grid-cols-2 lg:grid-cols-4">
             {workshop.collections.map((collection) => (
               <li key={collection.id}>
                 <WorkshopCollectionCard collection={collection} />

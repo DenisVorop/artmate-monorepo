@@ -433,155 +433,206 @@ describe("WorkshopService", () => {
     assert.equal(stored, false);
   });
 
-  it("records publication consent without disabling an existing publication", async () => {
-    const current = revisionRecord({
-      id: "c".repeat(32),
-      status: WorkshopRevisionStatus.APPROVED,
-    });
-    const oldPublished = revisionRecord({
-      id: "d".repeat(32),
-      status: WorkshopRevisionStatus.APPROVED,
-    });
-    const tool = customTool();
-    const revisionCreates: Array<{ data: Record<string, unknown> }> = [];
-    const workUpdates: Array<{ data: Record<string, unknown> }> = [];
-    const work = {
-      id: "b".repeat(32),
-      publicId: "0123456789abcdef01234567",
-      workshopId: "a".repeat(32),
-      collectionId: "collection-1",
-      coloringId: "coloring-1",
-      attemptNumber: 1,
-      revisionSequence: 1,
-      currentRevisionId: current.id,
-      publishedRevisionId: oldPublished.id,
-      isPublicationEnabled: true,
-      isIndexable: false,
-      publishedAt: new Date("2026-09-01T10:00:00Z"),
-      deletedAt: null,
-      createdAt: new Date("2026-09-01T10:00:00Z"),
-      updatedAt: new Date("2026-09-01T10:00:00Z"),
-      currentRevision: current,
-      publishedRevision: oldPublished,
-    };
-    const tx = {
-      $queryRaw: async () => [{ id: work.id }],
-      workshopWork: {
-        findFirst: async () => work,
-        update: async (args: { data: Record<string, unknown> }) => {
-          workUpdates.push(args);
-          if ("revisionSequence" in args.data) {
-            return { revisionSequence: 2 };
-          }
-          return work;
-        },
-        findUnique: async () => work,
-      },
-      workshopWorkRevision: {
-        create: async (args: { data: Record<string, unknown> }) => {
-          revisionCreates.push(args);
-        },
-      },
-      workshopModerationEvent: { create: async () => ({}) },
-    };
-    const prisma = {
-      workshopCollection: {
-        findFirst: async () => ({
-          workshopId: work.workshopId,
-          collectionId: work.collectionId,
-        }),
-      },
-      coloring: {
-        findUnique: async () => ({
-          id: work.coloringId,
-          publishedRevision: {
-            id: "official-revision-2",
-            width: 800,
-            height: 1000,
-            coloredSourceChecksum: "1".repeat(64),
-            coloredStorageKey: "official",
-            coloredChecksum: "2".repeat(64),
-            cardChecksum: "3".repeat(64),
+  for (const status of [
+    WorkshopRevisionStatus.APPROVED,
+    WorkshopRevisionStatus.PENDING,
+  ]) {
+    it(`allows editing a ${status} revision with existing photo and new materials`, async () => {
+      const current = revisionRecord({
+        id: "c".repeat(32),
+        status,
+      });
+      const oldPublished = revisionRecord({
+        id: "d".repeat(32),
+        status: WorkshopRevisionStatus.APPROVED,
+      });
+      const tool = customTool();
+      const revisionCreates: Array<{ data: Record<string, unknown> }> = [];
+      const workUpdates: Array<{ data: Record<string, unknown> }> = [];
+      const work = {
+        id: "b".repeat(32),
+        publicId: "0123456789abcdef01234567",
+        workshopId: "a".repeat(32),
+        collectionId: "collection-1",
+        coloringId: "coloring-1",
+        attemptNumber: 1,
+        revisionSequence: 1,
+        currentRevisionId: current.id,
+        publishedRevisionId: oldPublished.id,
+        isPublicationEnabled: true,
+        isIndexable: false,
+        publishedAt: new Date("2026-09-01T10:00:00Z"),
+        deletedAt: null,
+        createdAt: new Date("2026-09-01T10:00:00Z"),
+        updatedAt: new Date("2026-09-01T10:00:00Z"),
+        currentRevision: current,
+        publishedRevision: oldPublished,
+      };
+      const tx = {
+        $queryRaw: async () => [{ id: work.id }],
+        workshopWork: {
+          findFirst: async () => work,
+          update: async (args: { data: Record<string, unknown> }) => {
+            workUpdates.push(args);
+            if ("revisionSequence" in args.data) {
+              return { revisionSequence: 2 };
+            }
+            return work;
           },
-        }),
-      },
-      workshopWork: { findFirst: async () => work },
-      workshopTool: {
-        findMany: async (args: { where: { id: { in: string[] } } }) =>
-          args.where.id.in.length > 0 ? [tool] : [],
-      },
-      markerColor: { findMany: async () => [] },
-      $transaction: async <T>(callback: (client: typeof tx) => Promise<T>) =>
-        callback(tx),
-    };
-    const service = createWorkshopService(prisma);
+          findUnique: async () => work,
+        },
+        workshopWorkRevision: {
+          create: async (args: { data: Record<string, unknown> }) => {
+            revisionCreates.push(args);
+          },
+        },
+        workshopModerationEvent: { create: async () => ({}) },
+      };
+      const prisma = {
+        workshopCollection: {
+          findFirst: async () => ({
+            workshopId: work.workshopId,
+            collectionId: work.collectionId,
+          }),
+        },
+        coloring: {
+          findUnique: async () => ({
+            id: work.coloringId,
+            publishedRevision: {
+              id: "official-revision-2",
+              width: 800,
+              height: 1000,
+              coloredSourceChecksum: "1".repeat(64),
+              coloredStorageKey: "official",
+              coloredChecksum: "2".repeat(64),
+              cardChecksum: "3".repeat(64),
+            },
+          }),
+        },
+        workshopWork: { findFirst: async () => work },
+        workshopTool: {
+          findMany: async (args: { where: { id: { in: string[] } } }) =>
+            args.where.id.in.length > 0 ? [tool] : [],
+        },
+        markerColor: { findMany: async () => [] },
+        $transaction: async <T>(callback: (client: typeof tx) => Promise<T>) =>
+          callback(tx),
+      };
+      const processed = processedPhoto();
+      const service = createWorkshopService(
+        prisma,
+        { processPhoto: async () => processed },
+        {
+          writeAssets: async (entries: Array<{ key: string }>) =>
+            entries.map(({ key }) => ({ key, created: true })),
+        },
+        { readProtected: async () => Buffer.from("official") },
+      );
 
-    await service.createRevision(
-      "user-1",
-      "forest",
-      1,
-      {
-        advertisingConsent: true,
-        publicationConsent: false,
-        crop: { rotation: 90, zoom: 2, x: 1, y: 1 },
-        materials: [{ toolId: tool.id }],
-        symbolMappings: [],
-      },
-      undefined,
-    );
+      await service.createRevision(
+        "user-1",
+        "forest",
+        1,
+        {
+          advertisingConsent: true,
+          publicationConsent: false,
+          crop: { rotation: 90, zoom: 2, x: 1, y: 1 },
+          materials: [{ toolId: tool.id }],
+          symbolMappings: [],
+        },
+        undefined,
+      );
 
-    assert.equal(
-      revisionCreates[0]?.data.status,
-      WorkshopRevisionStatus.PENDING,
-    );
-    assert.equal(revisionCreates[0]?.data.cropRotation, current.cropRotation);
-    assert.equal(
-      revisionCreates[0]?.data.officialRevisionId,
-      current.officialRevisionId,
-    );
-    assert.deepEqual(workUpdates[1]?.data, {
-      currentRevisionId: revisionCreates[0]?.data.id,
+      assert.equal(
+        revisionCreates[0]?.data.status,
+        WorkshopRevisionStatus.PENDING,
+      );
+      assert.equal(revisionCreates[0]?.data.cropRotation, current.cropRotation);
+      assert.equal(
+        revisionCreates[0]?.data.officialRevisionId,
+        current.officialRevisionId,
+      );
+      assert.deepEqual(workUpdates[1]?.data, {
+        currentRevisionId: revisionCreates[0]?.data.id,
+      });
+      assert.equal(revisionCreates[0]?.data.advertisingConsent, true);
+      assert.equal(
+        revisionCreates[0]?.data.advertisingConsentAt,
+        revisionCreates[0]?.data.submittedAt,
+      );
+      assert.equal(revisionCreates[0]?.data.publicationConsent, false);
+      assert.equal(revisionCreates[0]?.data.publicationConsentAt, null);
+      assert.ok(revisionCreates[0]?.data.submittedAt instanceof Date);
+      assert.equal(
+        "publishedRevisionId" in (workUpdates[1]?.data ?? {}),
+        false,
+      );
+      assert.equal(work.publishedRevisionId, oldPublished.id);
+
+      await service.createRevision(
+        "user-1",
+        "forest",
+        1,
+        {
+          advertisingConsent: false,
+          publicationConsent: true,
+          crop: { rotation: 0, zoom: 1, x: 0, y: 0 },
+          materials: [],
+          symbolMappings: [],
+        },
+        undefined,
+      );
+
+      assert.equal(revisionCreates[1]?.data.advertisingConsent, false);
+      assert.equal(revisionCreates[1]?.data.advertisingConsentAt, null);
+      assert.equal(revisionCreates[1]?.data.publicationConsent, true);
+      assert.equal(
+        revisionCreates[1]?.data.publicationConsentAt,
+        revisionCreates[1]?.data.submittedAt,
+      );
+      assert.deepEqual(revisionCreates[1]?.data.materials, { create: [] });
+      assert.deepEqual(revisionCreates[1]?.data.symbolMappings, { create: [] });
+      assert.deepEqual(workUpdates[3]?.data, {
+        currentRevisionId: revisionCreates[1]?.data.id,
+        isPublicationEnabled: true,
+      });
+      assert.equal(work.publishedRevisionId, oldPublished.id);
+
+      await service.createRevision(
+        "user-1",
+        "forest",
+        1,
+        {
+          caption: "Updated photo",
+          advertisingConsent: false,
+          publicationConsent: true,
+          crop: { rotation: 0, zoom: 1, x: 0, y: 0 },
+          materials: [],
+          symbolMappings: [],
+        },
+        {
+          buffer: Buffer.from("new photo"),
+          mimetype: "image/jpeg",
+          size: 9,
+          originalname: "replacement.jpg",
+        },
+      );
+      assert.equal(
+        revisionCreates[2]?.data.status,
+        WorkshopRevisionStatus.PENDING,
+      );
+      assert.equal(
+        revisionCreates[2]?.data.sourceChecksum,
+        processed.sourceChecksum,
+      );
+      assert.equal(revisionCreates[2]?.data.caption, "Updated photo");
+      assert.notEqual(
+        revisionCreates[2]?.data.normalizedStorageKey,
+        current.normalizedStorageKey,
+      );
+      assert.equal(work.publishedRevisionId, oldPublished.id);
     });
-    assert.equal(revisionCreates[0]?.data.advertisingConsent, true);
-    assert.equal(
-      revisionCreates[0]?.data.advertisingConsentAt,
-      revisionCreates[0]?.data.submittedAt,
-    );
-    assert.equal(revisionCreates[0]?.data.publicationConsent, false);
-    assert.equal(revisionCreates[0]?.data.publicationConsentAt, null);
-    assert.ok(revisionCreates[0]?.data.submittedAt instanceof Date);
-    assert.equal("publishedRevisionId" in (workUpdates[1]?.data ?? {}), false);
-    assert.equal(work.publishedRevisionId, oldPublished.id);
-
-    await service.createRevision(
-      "user-1",
-      "forest",
-      1,
-      {
-        advertisingConsent: false,
-        publicationConsent: true,
-        crop: { rotation: 0, zoom: 1, x: 0, y: 0 },
-        materials: [],
-        symbolMappings: [],
-      },
-      undefined,
-    );
-
-    assert.equal(revisionCreates[1]?.data.advertisingConsent, false);
-    assert.equal(revisionCreates[1]?.data.advertisingConsentAt, null);
-    assert.equal(revisionCreates[1]?.data.publicationConsent, true);
-    assert.equal(
-      revisionCreates[1]?.data.publicationConsentAt,
-      revisionCreates[1]?.data.submittedAt,
-    );
-    assert.deepEqual(revisionCreates[1]?.data.materials, { create: [] });
-    assert.deepEqual(revisionCreates[1]?.data.symbolMappings, { create: [] });
-    assert.deepEqual(workUpdates[3]?.data, {
-      currentRevisionId: revisionCreates[1]?.data.id,
-      isPublicationEnabled: true,
-    });
-    assert.equal(work.publishedRevisionId, oldPublished.id);
-  });
+  }
 
   it("unpublishes and soft deletes only an owned active work", async () => {
     const revisionId = "c".repeat(32);
@@ -642,11 +693,17 @@ describe("WorkshopService", () => {
         callback(tx),
     };
     const queued: string[][] = [];
-    const service = createWorkshopService(prisma, {}, {}, {}, {
-      enqueue: async (_tx: unknown, keys: string[]) => {
-        queued.push(keys);
+    const service = createWorkshopService(
+      prisma,
+      {},
+      {},
+      {},
+      {
+        enqueue: async (_tx: unknown, keys: string[]) => {
+          queued.push(keys);
+        },
       },
-    });
+    );
 
     const unpublished = await service.unpublish("user-1", work.id);
     await service.deleteWork("user-1", work.id);
@@ -1121,11 +1178,25 @@ describe("WorkshopModerationService", () => {
     assert.deepEqual(listWhere, {
       status: WorkshopRevisionStatus.APPROVED,
       work: { is: { deletedAt: null } },
+      OR: [
+        { status: { not: WorkshopRevisionStatus.PENDING } },
+        { currentFor: { isNot: null } },
+      ],
     });
     assert.equal(list[0]?.isPublishedRevision, false);
     assert.equal(list[1]?.isPublishedRevision, true);
     assert.equal("decisionHistory" in list[0]!, false);
     assert.equal(detail.isPublishedRevision, true);
+
+    await service.list("PENDING");
+    assert.deepEqual(listWhere, {
+      status: WorkshopRevisionStatus.PENDING,
+      work: { is: { deletedAt: null } },
+      OR: [
+        { status: { not: WorkshopRevisionStatus.PENDING } },
+        { currentFor: { isNot: null } },
+      ],
+    });
   });
 
   it("returns chronological work-scoped moderation history with revision ids", async () => {
@@ -1196,16 +1267,12 @@ describe("WorkshopModerationService", () => {
       publishedRevisionId: null,
     });
     mismatchedTimestamp.publicationConsent = true;
-    mismatchedTimestamp.publicationConsentAt = new Date(
-      "2026-09-01T09:30:01Z",
-    );
+    mismatchedTimestamp.publicationConsentAt = new Date("2026-09-01T09:30:01Z");
     const unexpectedTimestamp = moderationRevision({
       id: "f".repeat(32),
       publishedRevisionId: null,
     });
-    unexpectedTimestamp.publicationConsentAt = new Date(
-      "2026-09-01T09:30:00Z",
-    );
+    unexpectedTimestamp.publicationConsentAt = new Date("2026-09-01T09:30:00Z");
     const revisions = [
       missingTimestamp,
       mismatchedTimestamp,
@@ -1546,14 +1613,11 @@ describe("WorkshopModerationService", () => {
       [published, alreadyHidden],
       revisionUpdates,
     );
-    const service = createModerationService(
-      tx,
-      {
-        enqueue: async (keys) => {
-          queued.push(keys);
-        },
+    const service = createModerationService(tx, {
+      enqueue: async (keys) => {
+        queued.push(keys);
       },
-    );
+    });
 
     await service.decide(pending.id, "admin-1", {
       decision: "HIDE",
@@ -1579,9 +1643,8 @@ describe("WorkshopModerationService", () => {
       ),
       [pending.id, published.id],
     );
-    assert.deepEqual(
-      queued[0],
-      [...new Set([
+    assert.deepEqual(queued[0], [
+      ...new Set([
         pending.normalizedStorageKey,
         pending.webStorageKey,
         pending.thumbStorageKey,
@@ -1591,8 +1654,8 @@ describe("WorkshopModerationService", () => {
         alreadyHidden.normalizedStorageKey,
         alreadyHidden.webStorageKey,
         alreadyHidden.thumbStorageKey,
-      ])],
-    );
+      ]),
+    ]);
   });
 
   it("rejects hiding an approved revision which is no longer published", async () => {

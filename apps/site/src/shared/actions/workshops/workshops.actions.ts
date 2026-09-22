@@ -33,6 +33,10 @@ export async function getMyWorkshop(): Promise<ApiResultDTO<unknown>> {
   return requestResult(() => requestJson("/workshops/me"));
 }
 
+export async function getMyWorkshopPreview(): Promise<ApiResultDTO<unknown>> {
+  return requestResult(() => requestJson("/workshops/me/preview"));
+}
+
 export async function updateMyWorkshopVisibility(
   input: UpdateWorkshopVisibilityInput,
 ): Promise<ApiResultDTO<unknown>> {

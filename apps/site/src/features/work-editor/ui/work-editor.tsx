@@ -38,7 +38,6 @@ import {
   Slider,
   Textarea,
 } from "@/shared/ui";
-import { Link } from "@/shared/ui/link";
 import { PageTitle } from "@/shared/ui/typography";
 
 import {
@@ -77,22 +76,6 @@ export function WorkEditor({ slug, number }: { slug: string; number: number }) {
         <div className="flex justify-center">
           <Button type="button" className="min-h-11" onClick={() => void query.refetch()}>
             Повторить
-          </Button>
-        </div>
-      </div>
-    );
-  }
-
-  if (query.data.work?.currentRevision?.status === "PENDING") {
-    return (
-      <div className="space-y-4">
-        <DataState
-          title="Работа уже на проверке"
-          description="Дождитесь решения модератора. После него можно будет исправить или заменить фотографию."
-        />
-        <div className="flex justify-center">
-          <Button asChild variant="outline" className="min-h-11">
-            <Link href={routes.workshopCollection(slug)}>Вернуться к тематике</Link>
           </Button>
         </div>
       </div>
@@ -346,6 +329,12 @@ function EditorForm({
           {data.collection.title} · Картина {data.coloring.number}
         </p>
         <PageTitle>{data.work ? "Обновить работу" : "Добавить работу"}</PageTitle>
+        {data.work?.currentRevision?.status === "PENDING" ? (
+          <p className="max-w-3xl text-stone-600">
+            Работа на проверке. Вы можете заменить фото, изменить подпись или материалы.
+            После отправки модератор проверит обновлённую версию.
+          </p>
+        ) : null}
         <p className="max-w-3xl text-stone-600">
           Загрузите фото уже раскрашенной физической картины. Это не редактор рисования: здесь можно
           подготовить фотографию, а материалы и номера маркеров добавить по желанию.

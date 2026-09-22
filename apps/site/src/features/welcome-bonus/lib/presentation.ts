@@ -46,11 +46,11 @@ export function getWelcomeOfferCopy(offer: WelcomeOffer) {
 export function getWelcomeOfferAction(action: WelcomeOffer["action"]) {
   return action === "authorize"
     ? {
-        href: `${routes.auth}?next=${encodeURIComponent(routes.account)}`,
+        href: `${routes.auth}?next=${encodeURIComponent(routes.accountSettings)}`,
         label: "Получить бонус",
       }
     : {
-        href: routes.account,
+        href: routes.accountSettings,
         label: "Привязать Telegram",
       };
 }

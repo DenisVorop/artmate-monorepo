@@ -31,24 +31,6 @@ export const loyaltyDashboardSchema = z.object({
       nextRatePercent: z.number().nonnegative().nullable(),
     })
     .nullable(),
-  achievements: z.array(
-    z.object({
-      id: z.string(),
-      title: z.string(),
-      description: z.string(),
-      imageUrl: z.string().nullable(),
-      conditionKind: z.enum([
-        "published_coloring_count",
-        "distinct_collection_count",
-        "completed_collection_count",
-        "completed_order_count",
-      ]),
-      target: z.number().int().positive(),
-      rewardPoints: points,
-      progress: points,
-      earnedAt: z.string().nullable(),
-    }),
-  ),
 });
 
 export const loyaltyOperationsSchema = z.object({
@@ -71,6 +53,5 @@ export const loyaltyOperationsSchema = z.object({
 
 export type LoyaltyOverview = z.infer<typeof loyaltyOverviewSchema>;
 export type LoyaltyDashboard = z.infer<typeof loyaltyDashboardSchema>;
-export type LoyaltyAchievement = LoyaltyDashboard["achievements"][number];
 export type LoyaltyOperations = z.infer<typeof loyaltyOperationsSchema>;
 export type LoyaltyOperation = LoyaltyOperations["items"][number];

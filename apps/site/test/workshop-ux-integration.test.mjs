@@ -64,7 +64,9 @@ test("overview only shows purchase badge for a paid order", async () => {
 });
 
 test("account, menu and official digital pages integrate workshop without replacing content", async () => {
-  const account = await readSource("src/features/account/ui/account.tsx");
+  const account = await readSource("src/_pages/account/index.tsx");
+  const settings = await readSource("src/features/account/ui/settings.tsx");
+  const orders = await readSource("src/_pages/account-orders/index.tsx");
   const menu = await readSource("src/features/auth/ui/session-menu.tsx");
   const collection = await readSource("src/features/coloring-collection-gallery/ui/gallery.tsx");
   const collectionPage = await readSource("src/_pages/coloring-collection/index.tsx");
@@ -72,9 +74,10 @@ test("account, menu and official digital pages integrate workshop without replac
   const addButton = await readSource("src/features/add-workshop-collection/ui/add-button.tsx");
   const detail = await readSource("src/features/coloring-details/ui/coloring-details.tsx");
 
-  assert.match(account, /Моя мастерская/);
-  assert.match(account, /Мои заказы/);
-  assert.match(account, /TelegramLinkCard/);
+  assert.match(account, /AccountWorkshopPreview/);
+  assert.match(await readSource("src/features/account/ui/workshop-preview.tsx"), /Моя мастерская/);
+  assert.match(orders, /Мои заказы/);
+  assert.match(settings, /TelegramLinkCard/);
   assert.match(menu, /href=\{routes\.workshop\}/);
   assert.match(collection, /workshopAction/);
   assert.match(collectionPage, /AddWorkshopCollectionButton/);

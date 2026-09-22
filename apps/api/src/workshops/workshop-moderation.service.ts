@@ -71,6 +71,10 @@ export class WorkshopModerationService {
       where: {
         ...(parsedStatus ? { status: parsedStatus } : {}),
         work: { is: { deletedAt: null } },
+        OR: [
+          { status: { not: WorkshopRevisionStatus.PENDING } },
+          { currentFor: { isNot: null } },
+        ],
       },
       include: listInclude,
       orderBy: [{ submittedAt: "asc" }, { createdAt: "asc" }],

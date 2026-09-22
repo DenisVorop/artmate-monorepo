@@ -147,9 +147,12 @@ export function WorkshopColoringCard({
               </Button>
             ) : null}
             {currentStatus === "PENDING" ? (
-              <p className="min-h-11 flex-1 content-center text-sm font-semibold text-stone-600">
-                Дождитесь решения модератора
-              </p>
+              <Button asChild variant="outline" className="min-h-11 flex-1">
+                <Link href={editorHref}>
+                  <Pencil data-icon="inline-start" />
+                  Редактировать
+                </Link>
+              </Button>
             ) : null}
             {state === "PENDING" &&
             work.isPublicationEnabled &&

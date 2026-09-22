@@ -10,8 +10,8 @@ import { ApiResult } from "@/shared/lib/api-result";
 import { dehydrateQueryClient } from "@/shared/lib/dehydrate-query-client";
 
 export const metadata: Metadata = {
-  title: "Клуб Artmate — баллы и достижения",
-  description: "Ваш бонусный баланс, уровень и достижения в клубе Artmate.",
+  title: "Клуб Artmate — бонусная программа",
+  description: "Ваш бонусный баланс, уровень и история операций в клубе Artmate.",
   robots: { index: false, follow: false },
 };
 

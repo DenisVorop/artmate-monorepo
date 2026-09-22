@@ -10,6 +10,7 @@ import { Dialog, DialogClose, DialogContent, DialogDescription, DialogTitle } fr
 import { Drawer, DrawerClose, DrawerContent, DrawerDescription, DrawerTitle } from "./drawer";
 
 type ResponsiveMediaViewerProps = {
+  compact?: boolean;
   children: ReactNode;
   description: string;
   onOpenChange: (_open: boolean) => void;
@@ -54,6 +55,7 @@ function CloseButton(props: ComponentProps<typeof Button>) {
 }
 
 export function ResponsiveMediaViewer({
+  compact = false,
   children,
   description,
   onOpenChange,
@@ -78,7 +80,11 @@ export function ResponsiveMediaViewer({
         <DrawerContent
           data-responsive-media-viewer="drawer"
           onCloseAutoFocus={handleCloseAutoFocus}
-          className="h-[calc(100dvh-0.5rem)] max-h-[calc(100dvh-0.5rem)] gap-0 overflow-hidden border-rose-100 bg-white p-0 text-stone-900 shadow-2xl shadow-stone-950/20 data-[vaul-drawer-direction=bottom]:max-h-[calc(100dvh-0.5rem)] [&_[data-slot=drawer-handle]]:mt-2 [&_[data-slot=drawer-handle]]:w-12 [&_[data-slot=drawer-handle]]:bg-rose-300"
+          className={
+            compact
+              ? "max-h-[90dvh] gap-0 overflow-hidden border-rose-100 bg-white p-0 text-stone-900 [&_[data-slot=drawer-handle]]:bg-rose-300"
+              : "h-[calc(100dvh-0.5rem)] max-h-[calc(100dvh-0.5rem)] gap-0 overflow-hidden border-rose-100 bg-white p-0 text-stone-900 shadow-2xl shadow-stone-950/20 data-[vaul-drawer-direction=bottom]:max-h-[calc(100dvh-0.5rem)] [&_[data-slot=drawer-handle]]:mt-2 [&_[data-slot=drawer-handle]]:w-12 [&_[data-slot=drawer-handle]]:bg-rose-300"
+          }
         >
           <DrawerTitle className="sr-only">{title}</DrawerTitle>
           <DrawerDescription className="sr-only">{description}</DrawerDescription>
@@ -104,7 +110,11 @@ export function ResponsiveMediaViewer({
         data-responsive-media-viewer="dialog"
         onCloseAutoFocus={handleCloseAutoFocus}
         showCloseButton={false}
-        className="flex h-[min(92dvh,64rem)] max-w-[min(94vw,80rem)] flex-col gap-0 overflow-hidden border-rose-100 bg-white p-0 text-stone-900 shadow-2xl shadow-stone-950/20 ring-stone-900/10 sm:max-w-[min(94vw,80rem)]"
+        className={
+          compact
+            ? "flex max-h-[90dvh] flex-col gap-0 overflow-hidden border-rose-100 bg-white p-0 text-stone-900 shadow-2xl sm:max-w-lg"
+            : "flex h-[min(92dvh,64rem)] max-w-[min(94vw,80rem)] flex-col gap-0 overflow-hidden border-rose-100 bg-white p-0 text-stone-900 shadow-2xl shadow-stone-950/20 ring-stone-900/10 sm:max-w-[min(94vw,80rem)]"
+        }
       >
         <DialogTitle className="sr-only">{title}</DialogTitle>
         <DialogDescription className="sr-only">{description}</DialogDescription>

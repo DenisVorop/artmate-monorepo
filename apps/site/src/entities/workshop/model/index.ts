@@ -1,4 +1,5 @@
 export { workshopQuery } from "./query";
+export { useWorkshopPreview } from "./use-workshop-preview";
 export {
   ownerWorkshopCollectionSchema,
   ownerWorkshopColoringSchema,

@@ -103,6 +103,97 @@ export class WorkshopService {
     };
   }
 
+  async getPreview(userId: string) {
+    const rows = await this.prisma.$queryRaw<{
+      id: string;
+      slug: string;
+      title: string;
+      productId: string;
+      expectedColoringCount: number;
+      coverUrl: string | null;
+      coverAlt: string | null;
+      coverWidth: number | null;
+      coverHeight: number | null;
+      source: string | null;
+      membershipAddedAt: Date | null;
+      paidAt: Date | null;
+      hasPaidOrder: boolean;
+      workCount: bigint;
+    }[]>(Prisma.sql`
+      SELECT
+        cc."id",
+        cc."slug",
+        cc."title",
+        cc."product_id" AS "productId",
+        cc."expected_coloring_count" AS "expectedColoringCount",
+        cc."cover_url" AS "coverUrl",
+        cc."cover_alt" AS "coverAlt",
+        cc."cover_width" AS "coverWidth",
+        cc."cover_height" AS "coverHeight",
+        wc."source" AS "source",
+        wc."added_at" AS "membershipAddedAt",
+        paid."paid_at" AS "paidAt",
+        (paid."paid_at" IS NOT NULL) AS "hasPaidOrder",
+        COALESCE(work_counts."work_count", 0) AS "workCount"
+      FROM "coloring_collections" cc
+      LEFT JOIN "workshop_collections" wc
+        ON wc."collection_id" = cc."id"
+       AND wc."workshop_id" = (
+         SELECT w."id" FROM "workshops" w WHERE w."owner_id" = ${userId}
+       )
+      LEFT JOIN LATERAL (
+        SELECT MIN(o."created_at") AS "paid_at"
+        FROM "order_items" oi
+        JOIN "orders" o ON o."id" = oi."order_id"
+        WHERE oi."product_id" = cc."product_id"
+          AND o."user_id" = ${userId}
+          AND o."status" = 'paid'
+          AND o."payment_status" = 'paid'
+      ) paid ON TRUE
+      LEFT JOIN LATERAL (
+        SELECT COUNT(*) AS "work_count"
+        FROM "workshop_works" works
+        WHERE works."workshop_id" = wc."workshop_id"
+          AND works."collection_id" = cc."id"
+          AND works."deleted_at" IS NULL
+      ) work_counts ON TRUE
+      WHERE cc."status" = 'published'
+        AND (COALESCE(work_counts."work_count", 0) > 0 OR paid."paid_at" IS NOT NULL)
+      ORDER BY COALESCE(wc."added_at", paid."paid_at"), cc."position", cc."id"
+      LIMIT 4
+    `);
+
+    return {
+      collections: rows.map((row) => {
+        const addedAt = row.membershipAddedAt ?? row.paidAt;
+        if (!addedAt) {
+          throw new ConflictException("Workshop preview timestamp is missing");
+        }
+        const membership = {
+          source:
+            this.mapCollectionSource(row.source),
+          addedAt,
+          collection: {
+            id: row.id,
+            slug: row.slug,
+            title: row.title,
+            productId: row.productId,
+            expectedColoringCount: row.expectedColoringCount,
+            coverUrl: row.coverUrl,
+            coverAlt: row.coverAlt,
+            coverWidth: row.coverWidth,
+            coverHeight: row.coverHeight,
+          },
+          _count: { works: Number(row.workCount) },
+        };
+
+        return this.mapCollectionSummary(membership, new Set(
+          row.hasPaidOrder ? [row.productId] : [],
+        ));
+      }),
+    };
+  }
+
   async updateVisibility(userId: string, input: UpdateWorkshopVisibilityDTO) {
     const workshop = await this.getOrCreateWorkshop(userId);
 
@@ -193,7 +284,7 @@ export class WorkshopService {
   }
 
   async getCollection(userId: string, collectionSlug: string) {
-    const membership = await this.prisma.workshopCollection.findFirst({
+    const findMembership = () => this.prisma.workshopCollection.findFirst({
       where: {
         workshop: { is: { ownerId: userId } },
         collection: {
@@ -241,6 +332,47 @@ export class WorkshopService {
         _count: { select: { works: { where: { deletedAt: null } } } },
       },
     });
+
+    let membership = await findMembership();
+
+    if (!membership) {
+      const collection = await this.prisma.coloringCollection.findFirst({
+        where: {
+          slug: collectionSlug,
+          status: ColoringCollectionStatus.PUBLISHED,
+        },
+        select: { id: true, productId: true },
+      });
+
+      if (collection) {
+        const paidItem = await this.prisma.orderItem.findFirst({
+          where: {
+            productId: collection.productId,
+            order: { is: { userId, status: "PAID", paymentStatus: "PAID" } },
+          },
+          select: { orderId: true },
+        });
+
+        if (paidItem) {
+          const workshop = await this.getOrCreateWorkshop(userId);
+          await this.prisma.workshopCollection.upsert({
+            where: {
+              workshopId_collectionId: {
+                workshopId: workshop.id,
+                collectionId: collection.id,
+              },
+            },
+            create: {
+              workshopId: workshop.id,
+              collectionId: collection.id,
+              source: WorkshopCollectionSource.PURCHASE,
+            },
+            update: {},
+          });
+          membership = await findMembership();
+        }
+      }
+    }
 
     if (!membership) {
       throw this.notFound();
@@ -385,12 +517,6 @@ export class WorkshopService {
     const workId = context.work?.id ?? this.randomId();
     const revisionId = this.randomId();
     const current = context.work?.currentRevision;
-
-    if (current?.status === WorkshopRevisionStatus.PENDING) {
-      throw new ConflictException(
-        "A pending revision must be moderated before editing",
-      );
-    }
 
     if (!photo && !current) {
       throw new BadRequestException("Photo is required for the first revision");
@@ -1192,6 +1318,21 @@ export class WorkshopService {
       },
       addedAt: membership.addedAt.toISOString(),
     };
+  }
+
+  private mapCollectionSource(source: string | null): WorkshopCollectionSource {
+    switch (source) {
+      case "manual":
+        return WorkshopCollectionSource.MANUAL;
+      case "purchase":
+        return WorkshopCollectionSource.PURCHASE;
+      case "activation_code":
+        return WorkshopCollectionSource.ACTIVATION_CODE;
+      case null:
+        return WorkshopCollectionSource.PURCHASE;
+      default:
+        throw new ConflictException("Unknown workshop collection source");
+    }
   }
 
   private mapOfficialImage(
