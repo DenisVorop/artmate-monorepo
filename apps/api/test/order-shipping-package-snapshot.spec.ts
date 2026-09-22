@@ -67,6 +67,8 @@ function createFixture() {
   let saved: SavedOrder | undefined;
   const calls = { userReads: 0, transactions: 0, creates: 0, guestWrites: 0 };
   const tx = {
+    // This buyer has no completed purchases; shipping tests use the base rate.
+    $queryRaw: async () => [{ spendKopecks: "0", invalid: false }],
     order: {
       create: async ({
         data,
