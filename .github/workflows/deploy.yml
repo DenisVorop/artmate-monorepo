@@ -392,6 +392,9 @@ jobs:
             cd /opt/artmate
             docker compose --env-file .env --env-file .image.env -f docker-compose.prod.yml pull
             docker compose --env-file .env --env-file .image.env -f docker-compose.prod.yml up -d postgres
+            # Stop all application DB writers before incompatible schema changes.
+            # On migration failure set -e leaves the old API stopped; never restart it automatically.
+            docker compose --env-file .env --env-file .image.env -f docker-compose.prod.yml stop --timeout 120 api
             docker compose --env-file .env --env-file .image.env -f docker-compose.prod.yml --profile migrate run --rm api-migrate
             docker compose --env-file .env --env-file .image.env -f docker-compose.prod.yml up -d --remove-orphans --wait --wait-timeout 120
             docker compose --env-file .env --env-file .image.env -f docker-compose.prod.yml exec -T caddy caddy reload --config /etc/caddy/Caddyfile

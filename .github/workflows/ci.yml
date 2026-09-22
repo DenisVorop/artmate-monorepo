@@ -36,6 +36,9 @@ jobs:
       - name: Test
         run: yarn test
 
+      - name: Test deployment order
+        run: node --test infra/test/*.test.mjs
+
       - name: Check types
         run: yarn check-types
 
