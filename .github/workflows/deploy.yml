@@ -63,6 +63,29 @@ jobs:
           ssh "$PRODUCTION_USER@$PRODUCTION_HOST" 'sudo mkdir -p /opt/artmate/infra/caddy && sudo chown -R "$USER:$USER" /opt/artmate'
           scp docker-compose.prod.yml "$PRODUCTION_USER@$PRODUCTION_HOST:/opt/artmate/docker-compose.prod.yml"
           scp infra/caddy/Caddyfile "$PRODUCTION_USER@$PRODUCTION_HOST:/opt/artmate/infra/caddy/Caddyfile"
+          ssh "$PRODUCTION_USER@$PRODUCTION_HOST" 'mkdir -p /opt/artmate/infra/telegram-relay'
+          scp infra/telegram-relay/Caddyfile "$PRODUCTION_USER@$PRODUCTION_HOST:/opt/artmate/infra/telegram-relay/Caddyfile"
+          scp infra/telegram-relay/docker-compose.yml "$PRODUCTION_USER@$PRODUCTION_HOST:/opt/artmate/infra/telegram-relay/docker-compose.yml"
+          scp infra/telegram-relay/check.cjs "$PRODUCTION_USER@$PRODUCTION_HOST:/opt/artmate/infra/telegram-relay/check.cjs"
+          scp infra/telegram-relay/artmate-telegram-tunnel.service "$PRODUCTION_USER@$PRODUCTION_HOST:/opt/artmate/infra/telegram-relay/artmate-telegram-tunnel.service"
+          ssh "$PRODUCTION_USER@$PRODUCTION_HOST" '
+            set -eu
+            test -s /etc/artmate-telegram-tunnel/id_ed25519
+            test -s /etc/artmate-telegram-tunnel/known_hosts
+            tunnel_unit_changed=false
+            if ! sudo cmp -s /opt/artmate/infra/telegram-relay/artmate-telegram-tunnel.service /etc/systemd/system/artmate-telegram-tunnel.service; then
+              tunnel_unit_changed=true
+            fi
+            sudo install -m 644 /opt/artmate/infra/telegram-relay/artmate-telegram-tunnel.service /etc/systemd/system/artmate-telegram-tunnel.service
+            sudo systemctl daemon-reload
+            sudo systemctl enable --now artmate-telegram-tunnel.service
+            if [ "$tunnel_unit_changed" = true ]; then
+              sudo systemctl restart artmate-telegram-tunnel.service
+            fi
+            docker compose -f /opt/artmate/infra/telegram-relay/docker-compose.yml run --rm --no-deps telegram-relay caddy validate --config /etc/caddy/Caddyfile
+            docker compose -f /opt/artmate/infra/telegram-relay/docker-compose.yml up -d
+            docker compose -f /opt/artmate/infra/telegram-relay/docker-compose.yml exec -T telegram-relay caddy reload --config /etc/caddy/Caddyfile
+          '
 
       - name: Upload production env
         env:
@@ -211,11 +234,7 @@ jobs:
             OPENAI_BASE_URL="https://${AI_RELAY_DOMAIN}/v1"
           fi
 
-          if [ -z "$TELEGRAM_API_BASE_URL" ] && [ -n "$EDGE_PROXY_DOMAIN" ]; then
-            TELEGRAM_API_BASE_URL="https://${EDGE_PROXY_DOMAIN}/telegram-api"
-          elif [ -z "$TELEGRAM_API_BASE_URL" ] && [ -n "$AI_RELAY_DOMAIN" ]; then
-            TELEGRAM_API_BASE_URL="https://${AI_RELAY_DOMAIN}/telegram-api"
-          fi
+          TELEGRAM_API_BASE_URL="${TELEGRAM_API_BASE_URL:-http://telegram-relay:8080/telegram-api}"
 
           append_secret ACME_EMAIL "$ACME_EMAIL"
           append_secret COLORING_PUBLIC_URL "$COLORING_PUBLIC_URL"

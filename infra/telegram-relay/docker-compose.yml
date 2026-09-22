@@ -1,0 +1,25 @@
+# Independent project: older application deploys must not remove this transport
+# with their `up --remove-orphans` command.
+name: artmate-telegram-transport
+services:
+  telegram-relay:
+    image: caddy:2-alpine
+    restart: unless-stopped
+    extra_hosts:
+      - "host.docker.internal:host-gateway"
+    volumes:
+      - ./Caddyfile:/etc/caddy/Caddyfile:ro
+    healthcheck:
+      test: ["CMD", "wget", "-q", "-O", "/dev/null", "http://127.0.0.1:8080/health"]
+      interval: 30s
+      timeout: 5s
+      retries: 3
+    logging:
+      driver: json-file
+      options:
+        max-size: "10m"
+        max-file: "3"
+networks:
+  default:
+    external: true
+    name: artmate_default

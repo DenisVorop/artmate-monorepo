@@ -1,0 +1,23 @@
+[Unit]
+Description=Artmate Telegram transport to Finland
+Wants=network-online.target
+Requires=docker.service
+After=network-online.target docker.service
+StartLimitIntervalSec=0
+
+[Service]
+Type=simple
+User=artmate-tunnel
+ExecStart=/usr/bin/ssh -NT -i /etc/artmate-telegram-tunnel/id_ed25519 -o UserKnownHostsFile=/etc/artmate-telegram-tunnel/known_hosts -o StrictHostKeyChecking=yes -o BatchMode=yes -o IdentitiesOnly=yes -o ExitOnForwardFailure=yes -o ConnectTimeout=10 -o ServerAliveInterval=15 -o ServerAliveCountMax=2 -L 172.17.0.1:18443:127.0.0.1:443 artmate-relay@77.221.158.124
+Restart=always
+RestartSec=5
+NoNewPrivileges=yes
+PrivateTmp=yes
+ProtectSystem=strict
+ProtectHome=yes
+RestrictAddressFamilies=AF_INET AF_INET6 AF_UNIX
+CapabilityBoundingSet=
+UMask=0077
+
+[Install]
+WantedBy=multi-user.target
