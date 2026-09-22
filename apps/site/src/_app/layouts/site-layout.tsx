@@ -12,10 +12,10 @@ type SiteShellProps = {
 
 export function SiteLayout({ children }: SiteShellProps) {
   return (
-    <div className="min-h-dvh">
+    <div className="flex min-h-dvh flex-col">
       <ServiceBanners />
       <Header />
-      {children}
+      <div className="min-w-0 flex-1">{children}</div>
       <Footer />
       <WelcomeBonus />
       <CookieConsentBanner />
