@@ -10,6 +10,7 @@ import { AffiliatePayoutsService } from "../src/affiliate/affiliate-payouts.serv
 import { AnalyticsOutboxService } from "../src/analytics/analytics-outbox.service";
 import { OrderActivationService } from "../src/auth/order-activation.service";
 import { OrdersStorage } from "../src/orders/orders.storage";
+import { OrdersLoyaltyService } from "../src/orders/orders-loyalty.service";
 import { OrderRefundsService } from "../src/orders/refunds/order-refunds.service";
 import { PrismaService } from "../src/prisma/prisma.service";
 import { PromocodesService } from "../src/promocodes/promocodes.service";
@@ -25,6 +26,7 @@ import { PromocodesService } from "../src/promocodes/promocodes.service";
     { provide: PromocodesService, useValue: {} },
     { provide: OrderActivationService, useValue: {} },
     { provide: AnalyticsOutboxService, useValue: {} },
+    { provide: OrdersLoyaltyService, useValue: {} },
   ],
 })
 class AffiliateFinancialResolutionModule {}
