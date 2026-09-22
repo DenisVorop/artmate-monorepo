@@ -9,6 +9,7 @@ model ColoringCollectionManifest {
   collection ColoringCollection @relation(fields: [collectionId], references: [id], onDelete: Restrict, onUpdate: Restrict)
   items ColoringCollectionManifestItem[]
   achievementAwards LoyaltyAchievementAward[]
+  achievementBadges AchievementBadge[]
 
   @@map("coloring_collection_manifests")
 }

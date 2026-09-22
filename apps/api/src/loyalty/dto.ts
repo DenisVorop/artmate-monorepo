@@ -200,66 +200,10 @@ export class LoyaltyTierDTO {
   nextRatePercent!: number | null;
 }
 
-const achievementConditionKinds = [
-  "published_coloring_count",
-  "distinct_collection_count",
-  "completed_collection_count",
-  "completed_order_count",
-] as const;
-
-export class LoyaltyAchievementDTO {
-  @ApiProperty()
-  @IsString()
-  id!: string;
-
-  @ApiProperty()
-  @IsString()
-  title!: string;
-
-  @ApiProperty()
-  @IsString()
-  description!: string;
-
-  @ApiProperty({ nullable: true, type: String })
-  @IsOptional()
-  @IsString()
-  imageUrl!: string | null;
-
-  @ApiProperty({ enum: achievementConditionKinds })
-  @IsIn(achievementConditionKinds)
-  conditionKind!: (typeof achievementConditionKinds)[number];
-
-  @ApiProperty()
-  @IsInt()
-  @Min(1)
-  target!: number;
-
-  @ApiProperty()
-  @IsInt()
-  @Min(0)
-  rewardPoints!: number;
-
-  @ApiProperty()
-  @IsInt()
-  @Min(0)
-  progress!: number;
-
-  @ApiProperty({ nullable: true, type: String })
-  @IsOptional()
-  @IsDateString()
-  earnedAt!: string | null;
-}
-
 export class LoyaltyDashboardDTO {
   @ApiProperty({ type: LoyaltyTierDTO, nullable: true })
   @IsOptional()
   @Type(() => LoyaltyTierDTO)
   @ValidateNested()
   tier!: LoyaltyTierDTO | null;
-
-  @ApiProperty({ type: [LoyaltyAchievementDTO] })
-  @IsArray()
-  @ValidateNested({ each: true })
-  @Type(() => LoyaltyAchievementDTO)
-  achievements!: LoyaltyAchievementDTO[];
 }

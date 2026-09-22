@@ -17,6 +17,7 @@ model WorkshopPublicationFact {
   collection  ColoringCollection   @relation(fields: [collectionId], references: [id], onDelete: Restrict, onUpdate: Restrict)
   workRewards LoyaltyWorkReward[]
   achievementAwards LoyaltyAchievementAward[]
+  achievementBadges AchievementBadge[]
 
   @@index([ownerId, coloringId, qualifiedAt])
   @@index([coloringId])

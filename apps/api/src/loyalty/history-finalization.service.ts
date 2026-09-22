@@ -120,8 +120,12 @@ export class LoyaltyHistoryFinalizationService {
                 SELECT 1 FROM loyalty_achievement_definitions d
                 JOIN loyalty_achievement_revisions r ON r.definition_id = d.id AND r.version = d.active_version
                 WHERE d.archived_at IS NULL
-                  AND NOT EXISTS (SELECT 1 FROM loyalty_achievement_awards a WHERE a.member_id = m.id AND a.definition_id = d.id)
-                  AND EXISTS (SELECT 1 FROM loyalty_achievement_qualification(m.user_id, r.condition_kind, r.target))
+                  AND NOT EXISTS (SELECT 1 FROM achievement_badges b WHERE b.user_id = m.user_id AND b.definition_id = d.id)
+                  AND EXISTS (SELECT 1 FROM achievement_qualification(m.user_id, r.condition_kind, r.target))
+              )
+              AND NOT EXISTS (
+                SELECT 1 FROM achievement_badges b WHERE b.user_id = m.user_id
+                  AND NOT EXISTS (SELECT 1 FROM loyalty_achievement_awards a WHERE a.badge_id = b.id AND a.member_id = m.id)
               )
               AND NOT EXISTS (
                 SELECT 1 FROM loyalty_reservations r JOIN order_payment_events e ON e.order_id = r.order_id

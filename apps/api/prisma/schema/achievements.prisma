@@ -1,0 +1,40 @@
+// Published immutable badge facts, owned by achievements independently of loyalty.
+model AchievementBadge {
+  id String @id @default(uuid())
+  userId String @map("user_id")
+  definitionId String @map("definition_id") @db.Uuid
+  revisionVersion Int @map("revision_version")
+  publicationFactId String? @map("publication_fact_id")
+  completionOrderId String? @map("completion_order_id") @db.VarChar(32)
+  completionCollectionId String? @map("completion_collection_id") @db.VarChar(32)
+  rewardPoints Int @map("reward_points")
+  qualifiedAt DateTime @map("qualified_at")
+  earnedAt DateTime @default(dbgenerated("(CURRENT_TIMESTAMP(3) AT TIME ZONE 'UTC')")) @map("earned_at")
+
+  user User @relation(fields: [userId], references: [id], onDelete: Restrict, onUpdate: Restrict)
+  definition LoyaltyAchievementDefinition @relation(fields: [definitionId], references: [id], onDelete: Restrict, onUpdate: Restrict)
+  revision LoyaltyAchievementRevision @relation(fields: [definitionId, revisionVersion], references: [definitionId, version], onDelete: Restrict, onUpdate: Restrict)
+  publicationFact WorkshopPublicationFact? @relation(fields: [publicationFactId], references: [id], onDelete: Restrict, onUpdate: Restrict)
+  completionOrder OrderCompletionFact? @relation(fields: [completionOrderId], references: [orderId], onDelete: Restrict, onUpdate: Restrict)
+  completionManifest ColoringCollectionManifest? @relation(fields: [completionCollectionId], references: [collectionId], onDelete: Restrict, onUpdate: Restrict)
+  reward LoyaltyAchievementAward?
+
+  @@unique([userId, definitionId])
+  @@index([definitionId, revisionVersion])
+  @@index([publicationFactId])
+  @@index([completionOrderId])
+  @@index([completionCollectionId])
+  @@map("achievement_badges")
+}
+
+model AchievementSync {
+  userId String @id @map("user_id")
+  attempts Int @default(0)
+  nextAttemptAt DateTime @default(now()) @map("next_attempt_at")
+  lastError String? @map("last_error") @db.VarChar(80)
+  updatedAt DateTime @default(now()) @updatedAt @map("updated_at")
+  user User @relation(fields: [userId], references: [id], onDelete: Restrict, onUpdate: Restrict)
+
+  @@index([nextAttemptAt])
+  @@map("achievement_syncs")
+}

@@ -7,6 +7,8 @@ import { inspect } from "node:util";
 import { PrismaPg } from "@prisma/adapter-pg";
 
 import { PrismaClient, type Prisma } from "../src/generated/prisma/client";
+import { AchievementBadgeService } from "../src/achievements/badge.service";
+import { AchievementsService } from "../src/achievements/achievements.service";
 import { LoyaltyAchievementAwardService } from "../src/loyalty/achievement-award.service";
 import { LoyaltyAchievementDraftsService } from "../src/loyalty/achievement-drafts.service";
 import { LoyaltyHistoryFinalizationService } from "../src/loyalty/history-finalization.service";
@@ -69,6 +71,18 @@ describe(
         await drafts().archive(definition.id, definition.currentVersion);
     });
 
+    const badges = (client = first) =>
+      new AchievementBadgeService(client as unknown as PrismaService);
+    async function qualifyMember(memberId: string) {
+      const member = await first.loyaltyMember.findUniqueOrThrow({
+        where: { id: memberId },
+      });
+      await badges().processUser(member.userId);
+    }
+    const achievements = (userId: string) =>
+      new AchievementsService(first as unknown as PrismaService).getMine(
+        userId,
+      );
     const awards = (client = first, walletService = wallet) =>
       new LoyaltyAchievementAwardService(
         client as unknown as PrismaService,
@@ -102,7 +116,7 @@ describe(
         first as unknown as PrismaService,
       ).getDashboard(userId);
     async function dashboardCard(userId: string, definitionId: string) {
-      const cards = (await dashboard(userId)).achievements.filter(
+      const cards = (await achievements(userId)).achievements.filter(
         (card) => card.id === definitionId,
       );
       assert.equal(
@@ -300,6 +314,182 @@ describe(
       throw new Error(`Timed out waiting for blocked query: ${fragment}`);
     }
 
+    it("earns before enrollment and credits the frozen archived badge exactly once after enrollment", async () => {
+      const definition = await activateAchievement(first, authorId, {
+        rewardPoints: 41,
+      });
+      const owner = await createOwner(first, { enrolled: false });
+      await createWork(first, owner.user.id, await createColoring(first));
+      assert.equal(
+        (await dashboardCard(owner.user.id, definition.id)).earnedAt,
+        null,
+      );
+      assert.deepEqual(await badges().processUser(owner.user.id), {
+        processed: true,
+        badges: 1,
+      });
+      const badge = await first.achievementBadge.findUniqueOrThrow({
+        where: {
+          userId_definitionId: {
+            userId: owner.user.id,
+            definitionId: definition.id,
+          },
+        },
+      });
+      assert.equal(
+        (await dashboardCard(owner.user.id, definition.id)).earnedAt,
+        badge.earnedAt.toISOString(),
+      );
+      assert.equal(
+        await first.loyaltyMember.count({ where: { userId: owner.user.id } }),
+        0,
+      );
+      assert.equal(
+        await first.loyaltyAchievementAward.count({
+          where: { badgeId: badge.id },
+        }),
+        0,
+      );
+
+      await drafts().update(definition.id, authorId, {
+        ...achievementInput({ target: 8, rewardPoints: 99 }),
+        expectedVersion: 1,
+      });
+      await drafts().activate(definition.id, authorId, 2);
+      await drafts().archive(definition.id, 2);
+      const member = await enroll(first, owner.user.id, "PENDING");
+      assert.deepEqual(await awards().processMember(member.id), {
+        processed: true,
+        awards: 1,
+      });
+      assert.deepEqual(await awards().processMember(member.id), {
+        processed: true,
+        awards: 0,
+      });
+      const receipt = await first.loyaltyAchievementAward.findUniqueOrThrow({
+        where: { badgeId: badge.id },
+      });
+      assert.equal(receipt.points, 41);
+      assert.equal(receipt.revisionVersion, 1);
+      assert.equal((await balance(member.id)).balancePoints, 41n);
+      assert.equal(
+        await first.loyaltyOperation.count({
+          where: { achievementAwardId: receipt.id },
+        }),
+        1,
+      );
+      assert.deepEqual(
+        await first.achievementBadge.findUniqueOrThrow({
+          where: { id: badge.id },
+        }),
+        badge,
+      );
+      await assert.rejects(
+        first.achievementBadge.update({
+          where: { id: badge.id },
+          data: { rewardPoints: 99 },
+        }),
+      );
+      await assert.rejects(
+        first.achievementBadge.delete({ where: { id: badge.id } }),
+      );
+    });
+
+    it("credits a persisted completed-order badge after the underlying order was fully returned", async () => {
+      const definition = await activateAchievement(first, authorId, {
+        conditionKind: "completed_order_count",
+        rewardPoints: 43,
+      });
+      const owner = await createOwner(first, { enrolled: false });
+      const order = await createOrder(owner.user.id);
+      await badges().processUser(owner.user.id);
+      const before = await dashboardCard(owner.user.id, definition.id);
+      await refundOrder(order, authorId, 1);
+      await drafts().archive(definition.id, 1);
+      const member = await enroll(first, owner.user.id, "PENDING");
+      assert.deepEqual(await awards().processMember(member.id), {
+        processed: true,
+        awards: 1,
+      });
+      assert.equal((await balance(member.id)).balancePoints, 43n);
+      assert.deepEqual(
+        await dashboardCard(owner.user.id, definition.id),
+        before,
+      );
+    });
+
+    it("waits for qualification and then the unpaid badge even after archival before finalizing history", async () => {
+      const definition = await activateAchievement(first, authorId, {
+        rewardPoints: 47,
+      });
+      const owner = await createOwner(first);
+      await createWork(first, owner.user.id, await createColoring(first));
+      await workRewards().processMember(owner.member!.id);
+      await purchaseHistory().processMember(owner.member!.id);
+      assert.deepEqual(await awards().processMember(owner.member!.id), {
+        processed: true,
+        awards: 0,
+      });
+      assert.deepEqual(await finalizer().processMember(owner.member!.id), {
+        processed: true,
+        ready: false,
+      });
+      await badges().processUser(owner.user.id);
+      await drafts().archive(definition.id, 1);
+      assert.deepEqual(await finalizer().processMember(owner.member!.id), {
+        processed: true,
+        ready: false,
+      });
+      await awards().processMember(owner.member!.id);
+      assert.deepEqual(await finalizer().processMember(owner.member!.id), {
+        processed: true,
+        ready: true,
+      });
+    });
+
+    it("independent concurrent qualification awards once to a nonmember and rejects inactive users", async () => {
+      const definition = await activateAchievement(first, authorId, {
+        rewardPoints: 0,
+      });
+      const owner = await createOwner(first, { enrolled: false });
+      await createWork(first, owner.user.id, await createColoring(first));
+      await first.user.update({
+        where: { id: owner.user.id },
+        data: { status: "BLOCKED" },
+      });
+      assert.deepEqual(await badges().processUser(owner.user.id), {
+        processed: false,
+        badges: 0,
+      });
+      await first.user.update({
+        where: { id: owner.user.id },
+        data: { status: "ACTIVE" },
+      });
+      const concurrent = await Promise.allSettled([
+        badges(first).processUser(owner.user.id),
+        badges(second).processUser(owner.user.id),
+      ]);
+      assert.ok(concurrent.some((result) => result.status === "fulfilled"));
+      assert.ok(
+        concurrent.every(
+          (result) =>
+            result.status === "fulfilled" ||
+            isSerializationConflict(result.reason),
+        ),
+      );
+      await badges().processUser(owner.user.id);
+      assert.equal(
+        await first.achievementBadge.count({
+          where: { userId: owner.user.id, definitionId: definition.id },
+        }),
+        1,
+      );
+      assert.equal(
+        await first.loyaltyMember.count({ where: { userId: owner.user.id } }),
+        0,
+      );
+    });
+
     it("enforces activation versioning, supported conditions, archive state and idempotent audit", async () => {
       const versioned = await drafts().create(
         authorId,
@@ -369,6 +559,7 @@ describe(
         null,
       );
 
+      await qualifyMember(owner.member!.id);
       assert.deepEqual(await awards().processMember(owner.member!.id), {
         processed: true,
         awards: 0,
@@ -382,6 +573,7 @@ describe(
 
       const secondColoring = await createColoring(first);
       await createWork(first, owner.user.id, secondColoring);
+      await qualifyMember(owner.member!.id);
       assert.deepEqual(await awards().processMember(owner.member!.id), {
         processed: true,
         awards: 1,
@@ -419,6 +611,7 @@ describe(
         `achievement:${owner.member!.id}:${definition.id}`,
       );
       assert.equal((await balance(owner.member!.id)).balancePoints, 25n);
+      await qualifyMember(owner.member!.id);
       assert.deepEqual(await awards().processMember(owner.member!.id), {
         processed: true,
         awards: 0,
@@ -486,6 +679,7 @@ describe(
         }),
         5,
       );
+      await qualifyMember(owner.member!.id);
       assert.deepEqual(await awards().processMember(owner.member!.id), {
         processed: true,
         awards: 1,
@@ -516,6 +710,7 @@ describe(
         processed: true,
         rewards: 1,
       });
+      await qualifyMember(owner.member!.id);
       const concurrent = await Promise.allSettled([
         awards(first).processMember(owner.member!.id),
         awards(second).processMember(owner.member!.id),
@@ -524,6 +719,7 @@ describe(
       assert.ok(
         concurrent.filter(({ status }) => status === "rejected").length <= 1,
       );
+      await qualifyMember(owner.member!.id);
       await awards().processMember(owner.member!.id);
 
       const collectionAward =
@@ -548,6 +744,7 @@ describe(
         6,
       );
       assert.equal((await balance(owner.member!.id)).balancePoints, 168n);
+      await qualifyMember(owner.member!.id);
       assert.deepEqual(await awards().processMember(owner.member!.id), {
         processed: true,
         awards: 0,
@@ -608,6 +805,7 @@ describe(
         (await dashboardCard(owner.user.id, definition.id)).progress,
         1,
       );
+      await qualifyMember(owner.member!.id);
       assert.deepEqual(await awards().processMember(owner.member!.id), {
         processed: true,
         awards: 0,
@@ -618,6 +816,7 @@ describe(
         number: 2,
       });
       await createWork(first, owner.user.id, currentCollectionColoring);
+      await qualifyMember(owner.member!.id);
       assert.deepEqual(await awards().processMember(owner.member!.id), {
         processed: true,
         awards: 1,
@@ -703,6 +902,7 @@ describe(
         }),
         0,
       );
+      await qualifyMember(partialOwner.member!.id);
       assert.deepEqual(await awards().processMember(partialOwner.member!.id), {
         processed: true,
         awards: 0,
@@ -824,6 +1024,7 @@ describe(
         (await dashboardCard(owner.user.id, definition.id)).progress,
         0,
       );
+      await qualifyMember(owner.member!.id);
       assert.deepEqual(await awards().processMember(owner.member!.id), {
         processed: true,
         awards: 0,
@@ -832,14 +1033,14 @@ describe(
         where: { workId: firstWork.id },
       });
       await assert.rejects(
-        first.loyaltyAchievementAward.create({
+        first.achievementBadge.create({
           data: {
-            memberId: owner.member!.id,
+            userId: owner.user.id,
             definitionId: definition.id,
             revisionVersion: 1,
             publicationFactId: firstFact.id,
             completionCollectionId: album.collection.id,
-            points: 31,
+            rewardPoints: 31,
             qualifiedAt: firstFact.qualifiedAt,
           },
         }),
@@ -850,6 +1051,7 @@ describe(
         (await dashboardCard(owner.user.id, definition.id)).progress,
         1,
       );
+      await qualifyMember(owner.member!.id);
       assert.deepEqual(await awards().processMember(owner.member!.id), {
         processed: true,
         awards: 1,
@@ -871,6 +1073,7 @@ describe(
       await hideWork(first, firstWork.id, firstWork.revisionId);
       await hideWork(first, repeatedWork.id, repeatedWork.revisionId);
       await hideWork(first, secondWork.id, secondWork.revisionId);
+      await qualifyMember(owner.member!.id);
       assert.deepEqual(await awards().processMember(owner.member!.id), {
         processed: true,
         awards: 0,
@@ -989,6 +1192,7 @@ describe(
         (await dashboardCard(owner.user.id, definition.id)).progress,
         1,
       );
+      await qualifyMember(owner.member!.id);
       assert.deepEqual(await awards().processMember(owner.member!.id), {
         processed: true,
         awards: 0,
@@ -1010,10 +1214,12 @@ describe(
         (await dashboardCard(owner.user.id, definition.id)).earnedAt,
         null,
       );
+      await qualifyMember(owner.member!.id);
       assert.deepEqual(await awards().processMember(owner.member!.id), {
         processed: true,
         awards: 1,
       });
+      await qualifyMember(owner.member!.id);
       assert.deepEqual(await awards().processMember(owner.member!.id), {
         processed: true,
         awards: 0,
@@ -1038,6 +1244,7 @@ describe(
         await createColoring(first, { collection: album.collection }),
       );
 
+      await qualifyMember(owner.member!.id);
       assert.deepEqual(await awards().processMember(owner.member!.id), {
         processed: true,
         awards: 1,
@@ -1084,6 +1291,7 @@ describe(
         }),
         0,
       );
+      await qualifyMember(owner.member!.id);
       assert.deepEqual(await awards().processMember(owner.member!.id), {
         processed: true,
         awards: 0,
@@ -1153,6 +1361,7 @@ describe(
           data: { retainedQuantity: 1, isEligible: true },
         }),
       );
+      await qualifyMember(owner.member!.id);
       assert.deepEqual(await awards().processMember(owner.member!.id), {
         processed: true,
         awards: 0,
@@ -1174,6 +1383,7 @@ describe(
         }),
         { retainedQuantity: 4, isEligible: true },
       );
+      await qualifyMember(owner.member!.id);
       assert.deepEqual(await awards().processMember(owner.member!.id), {
         processed: true,
         awards: 1,
@@ -1205,6 +1415,7 @@ describe(
       );
       assert.ok((await dashboardCard(owner.user.id, definition.id)).earnedAt);
       assert.equal((await dashboard(owner.user.id)).tier?.spendKopecks, 0);
+      await qualifyMember(owner.member!.id);
       assert.deepEqual(await awards().processMember(owner.member!.id), {
         processed: true,
         awards: 0,
@@ -1232,14 +1443,14 @@ describe(
       });
       const foreign = await createOwner(first);
       await assert.rejects(
-        first.loyaltyAchievementAward.create({
+        first.achievementBadge.create({
           data: {
-            memberId: foreign.member!.id,
+            userId: foreign.user.id,
             definitionId: definition.id,
             revisionVersion: 1,
             publicationFactId: null,
             completionOrderId: historical.order.id,
-            points: 17,
+            rewardPoints: 17,
             qualifiedAt: fact.qualifiedAt,
           },
         }),
@@ -1252,6 +1463,7 @@ describe(
       );
 
       const member = await enroll(first, owner.user.id, "PENDING");
+      await qualifyMember(member.id);
       const concurrent = await Promise.allSettled([
         awards(first).processMember(member.id),
         awards(second).processMember(member.id),
@@ -1260,6 +1472,7 @@ describe(
       assert.ok(
         concurrent.filter(({ status }) => status === "rejected").length <= 1,
       );
+      await qualifyMember(member.id);
       await awards().processMember(member.id);
       const award = await first.loyaltyAchievementAward.findUniqueOrThrow({
         where: {
@@ -1279,6 +1492,7 @@ describe(
       assert.equal((await balance(member.id)).balancePoints, 17n);
 
       await refundOrder(historical, authorId, 1);
+      await qualifyMember(member.id);
       assert.deepEqual(await awards().processMember(member.id), {
         processed: true,
         awards: 0,
@@ -1302,6 +1516,7 @@ describe(
       const owner = await createOwner(first);
       const source = await createOrder(owner.user.id);
 
+      await qualifyMember(owner.member!.id);
       assert.deepEqual(await awards().processMember(owner.member!.id), {
         processed: true,
         awards: 1,
@@ -1338,6 +1553,7 @@ describe(
       });
       const source = await createOrder(owner.user.id);
 
+      await qualifyMember(owner.member!.id);
       const settled = await Promise.allSettled([
         awards(second).processMember(owner.member!.id),
         refundOrder(source, owner.user.id, 1),
@@ -1351,6 +1567,7 @@ describe(
         ).isEligible,
         false,
       );
+      await qualifyMember(owner.member!.id);
       await awards().processMember(owner.member!.id);
       const awardCount = await first.loyaltyAchievementAward.count({
         where: { memberId: owner.member!.id, definitionId: definition.id },
@@ -1372,7 +1589,7 @@ describe(
       await drafts().archive(definition.id, 1);
     });
 
-    it("fences a stale award attempt behind a refund that already holds the order lock", async () => {
+    it("fences a stale badge attempt behind a refund that already holds the order lock", async () => {
       const definition = await activateAchievement(first, authorId, {
         conditionKind: "completed_order_count",
         target: 1,
@@ -1400,13 +1617,13 @@ describe(
       ]);
       let settledAwardAttempt:
         | Promise<
-            PromiseSettledResult<{ processed: boolean; awards: number }>[]
+            PromiseSettledResult<{ processed: boolean; badges: number }>[]
           >
         | undefined;
       try {
         await waitForBlockedQuery("order_refunds");
         settledAwardAttempt = Promise.allSettled([
-          awards(second).processMember(owner.member!.id),
+          badges(second).processUser(owner.user.id),
         ]);
         await waitForBlockedQuery("SELECT id FROM orders WHERE user_id");
       } finally {
@@ -1421,10 +1638,10 @@ describe(
       const awardResult = firstAwardAttempt[0];
       assert.ok(
         awardResult?.status === "fulfilled"
-          ? awardResult.value.awards === 0
+          ? awardResult.value.badges === 0
           : awardResult?.status === "rejected" &&
               isSerializationConflict(awardResult.reason),
-        `Unexpected stale award result: ${inspect(awardResult, { depth: 8 })}`,
+        `Unexpected stale badge result: ${inspect(awardResult, { depth: 8 })}`,
       );
       assert.equal(
         (
@@ -1434,6 +1651,7 @@ describe(
         ).isEligible,
         false,
       );
+      await qualifyMember(owner.member!.id);
       assert.deepEqual(await awards().processMember(owner.member!.id), {
         processed: true,
         awards: 0,
@@ -1461,6 +1679,7 @@ describe(
         where: { id: owner.member!.id },
         data: { status: "BLOCKED" },
       });
+      await qualifyMember(owner.member!.id);
       assert.deepEqual(await awards().processMember(owner.member!.id), {
         processed: false,
         awards: 0,
@@ -1469,6 +1688,7 @@ describe(
         where: { id: owner.member!.id },
         data: { status: "ACTIVE", historyState: "FAILED" },
       });
+      await qualifyMember(owner.member!.id);
       assert.deepEqual(await awards().processMember(owner.member!.id), {
         processed: false,
         awards: 0,
@@ -1481,6 +1701,7 @@ describe(
         where: { id: owner.user.id },
         data: { status: "BLOCKED" },
       });
+      await qualifyMember(owner.member!.id);
       assert.deepEqual(await awards().processMember(owner.member!.id), {
         processed: false,
         awards: 0,
@@ -1496,6 +1717,7 @@ describe(
         where: { id: owner.user.id },
         data: { status: "ACTIVE" },
       });
+      await qualifyMember(owner.member!.id);
       assert.deepEqual(await awards().processMember(owner.member!.id), {
         processed: true,
         awards: 1,
@@ -1511,6 +1733,7 @@ describe(
 
       const ready = await createOwner(first, { historyState: "READY" });
       await createWork(first, ready.user.id, await createColoring(first));
+      await qualifyMember(ready.member!.id);
       assert.deepEqual(await awards().processMember(ready.member!.id), {
         processed: true,
         awards: 1,
@@ -1526,6 +1749,7 @@ describe(
       const owner = await createOwner(first);
       await createWork(first, owner.user.id, await createColoring(first));
 
+      await qualifyMember(owner.member!.id);
       const results = await Promise.allSettled([
         awards(first).processMember(owner.member!.id),
         awards(second).processMember(owner.member!.id),
@@ -1534,6 +1758,7 @@ describe(
       assert.ok(
         results.filter(({ status }) => status === "rejected").length <= 1,
       );
+      await qualifyMember(owner.member!.id);
       await awards().processMember(owner.member!.id);
       const award = await first.loyaltyAchievementAward.findUniqueOrThrow({
         where: {
@@ -1562,6 +1787,7 @@ describe(
       const owner = await createOwner(first);
       await createWork(first, owner.user.id, await createColoring(first));
 
+      await qualifyMember(owner.member!.id);
       assert.deepEqual(await awards().processMember(owner.member!.id), {
         processed: true,
         awards: 1,
@@ -1597,6 +1823,7 @@ describe(
         awardedOwner.user.id,
         await createColoring(first),
       );
+      await qualifyMember(awardedOwner.member!.id);
       await awards().processMember(awardedOwner.member!.id);
       await drafts().archive(retained.id, 1);
       const archivedCard = await dashboardCard(
@@ -1627,13 +1854,14 @@ describe(
         pendingOwner.user.id,
         await createColoring(first),
       );
+      await qualifyMember(pendingOwner.member!.id);
       assert.deepEqual(await awards().processMember(pendingOwner.member!.id), {
         processed: true,
         awards: 0,
       });
       await drafts().archive(stopped.id, 1);
       assert.ok(
-        !(await dashboard(pendingOwner.user.id)).achievements.some(
+        !(await achievements(pendingOwner.user.id)).achievements.some(
           (card) => card.id === stopped.id,
         ),
       );
@@ -1642,6 +1870,7 @@ describe(
         pendingOwner.user.id,
         await createColoring(first),
       );
+      await qualifyMember(pendingOwner.member!.id);
       assert.deepEqual(await awards().processMember(pendingOwner.member!.id), {
         processed: true,
         awards: 0,
@@ -1677,6 +1906,7 @@ describe(
       assert.equal(beforeAward.target, 1, "Draft target must not leak");
       assert.equal(beforeAward.rewardPoints, 7, "Draft reward must not leak");
       await createWork(first, firstOwner.user.id, await createColoring(first));
+      await qualifyMember(firstOwner.member!.id);
       await awards().processMember(firstOwner.member!.id);
       const originalAward =
         await first.loyaltyAchievementAward.findUniqueOrThrow({
@@ -1699,8 +1929,13 @@ describe(
       assert.equal(retainedRevision.rewardPoints, 7);
       assert.equal(
         retainedRevision.earnedAt,
-        originalAward.awardedAt.toISOString(),
+        (
+          await first.achievementBadge.findUniqueOrThrow({
+            where: { id: originalAward.badgeId },
+          })
+        ).earnedAt.toISOString(),
       );
+      await qualifyMember(firstOwner.member!.id);
       assert.deepEqual(await awards().processMember(firstOwner.member!.id), {
         processed: true,
         awards: 0,
@@ -1723,11 +1958,13 @@ describe(
       assert.equal(currentRevision.target, 2);
       assert.equal(currentRevision.rewardPoints, 99);
       await createWork(first, secondOwner.user.id, await createColoring(first));
+      await qualifyMember(secondOwner.member!.id);
       assert.deepEqual(await awards().processMember(secondOwner.member!.id), {
         processed: true,
         awards: 0,
       });
       await createWork(first, secondOwner.user.id, await createColoring(first));
+      await qualifyMember(secondOwner.member!.id);
       assert.deepEqual(await awards().processMember(secondOwner.member!.id), {
         processed: true,
         awards: 1,
@@ -1770,6 +2007,7 @@ describe(
       // The reused database can contain more than one global worker batch of
       // older eligible members. This scenario verifies this owner's backfill;
       // automatic batch discovery has separate worker tests.
+      await qualifyMember(member.id);
       assert.deepEqual(await awards().processMember(member.id), {
         processed: true,
         awards: 1,
@@ -1805,9 +2043,16 @@ describe(
         throw new Error("Injected achievement-credit failure");
       };
 
+      await qualifyMember(owner.member!.id);
       await assert.rejects(
         awards(first, failingWallet).processMember(owner.member!.id),
         /Injected achievement-credit failure/,
+      );
+      assert.equal(
+        await first.achievementBadge.count({
+          where: { userId: owner.user.id, definitionId: definition.id },
+        }),
+        1,
       );
       assert.equal(
         await first.loyaltyAchievementAward.count({
@@ -1831,6 +2076,7 @@ describe(
       assert.equal(sync.attempts, 1);
       assert.equal(sync.lastError, "achievement_processing_failed");
 
+      await qualifyMember(owner.member!.id);
       assert.deepEqual(await awards().processMember(owner.member!.id), {
         processed: true,
         awards: 1,
@@ -1853,6 +2099,7 @@ describe(
       await workRewards().processMember(owner.member!.id);
       await purchaseHistory().processMember(owner.member!.id);
 
+      await qualifyMember(owner.member!.id);
       assert.deepEqual(await awards().processMember(owner.member!.id, 1), {
         processed: true,
         awards: 1,
@@ -1867,10 +2114,12 @@ describe(
         processed: true,
         ready: false,
       });
+      await qualifyMember(owner.member!.id);
       assert.deepEqual(await awards().processMember(owner.member!.id, 1), {
         processed: true,
         awards: 1,
       });
+      await qualifyMember(owner.member!.id);
       assert.deepEqual(await awards().processMember(owner.member!.id, 1), {
         processed: true,
         awards: 0,
@@ -1905,10 +2154,20 @@ describe(
         where: { workId: work.id },
       });
       const foreign = await createOwner(first);
+      await badges().processUser(owner.user.id);
+      const badge = await first.achievementBadge.findUniqueOrThrow({
+        where: {
+          userId_definitionId: {
+            userId: owner.user.id,
+            definitionId: definition.id,
+          },
+        },
+      });
 
       await assert.rejects(
         first.loyaltyAchievementAward.create({
           data: {
+            badgeId: badge.id,
             memberId: foreign.member!.id,
             definitionId: definition.id,
             revisionVersion: 1,
@@ -1921,6 +2180,7 @@ describe(
       await assert.rejects(
         first.loyaltyAchievementAward.create({
           data: {
+            badgeId: badge.id,
             memberId: owner.member!.id,
             definitionId: definition.id,
             revisionVersion: 1,
@@ -1951,6 +2211,7 @@ describe(
       );
       assert.equal((await balance(owner.member!.id)).balancePoints, 0n);
 
+      await qualifyMember(owner.member!.id);
       await awards().processMember(owner.member!.id);
       const award = await first.loyaltyAchievementAward.findUniqueOrThrow({
         where: {

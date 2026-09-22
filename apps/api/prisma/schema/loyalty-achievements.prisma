@@ -22,6 +22,7 @@ model LoyaltyAchievementDefinition {
   activeRevision LoyaltyAchievementRevision? @relation("AchievementActiveRevision", fields: [id, activeVersion], references: [definitionId, version], onDelete: Restrict, onUpdate: Restrict)
   activatedBy User? @relation("AchievementActivator", fields: [activatedById], references: [id], onDelete: Restrict, onUpdate: Restrict)
   awards LoyaltyAchievementAward[]
+  badges AchievementBadge[]
 
   @@unique([id, currentVersion])
   @@unique([id, activeVersion])
@@ -45,6 +46,7 @@ model LoyaltyAchievementRevision {
   currentFor    LoyaltyAchievementDefinition?   @relation("AchievementCurrentRevision")
   activeFor     LoyaltyAchievementDefinition?   @relation("AchievementActiveRevision")
   awards        LoyaltyAchievementAward[]
+  badges        AchievementBadge[]
   createdBy     User                            @relation("AchievementRevisionCreator", fields: [createdById], references: [id], onDelete: Restrict, onUpdate: Restrict)
 
   @@id([definitionId, version])
@@ -54,6 +56,7 @@ model LoyaltyAchievementRevision {
 
 model LoyaltyAchievementAward {
   id                String   @id @default(uuid())
+  badgeId           String   @unique @map("badge_id")
   memberId          String   @map("member_id")
   definitionId      String   @map("definition_id") @db.Uuid
   revisionVersion   Int      @map("revision_version")
@@ -71,6 +74,7 @@ model LoyaltyAchievementAward {
   completionOrder OrderCompletionFact? @relation(fields: [completionOrderId], references: [orderId], onDelete: Restrict, onUpdate: Restrict)
   completionManifest ColoringCollectionManifest? @relation(fields: [completionCollectionId], references: [collectionId], onDelete: Restrict, onUpdate: Restrict)
   operation       LoyaltyOperation?
+  badge           AchievementBadge @relation(fields: [badgeId], references: [id], onDelete: Restrict, onUpdate: Restrict)
 
   @@unique([memberId, definitionId])
   @@index([definitionId, revisionVersion])

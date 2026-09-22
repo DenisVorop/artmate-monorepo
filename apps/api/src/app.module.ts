@@ -2,6 +2,7 @@ import { MiddlewareConsumer, Module, NestModule } from "@nestjs/common";
 
 import { AppController } from "./app.controller";
 import { AppService } from "./app.service";
+import { AchievementsModule } from "./achievements/achievements.module";
 import { AnalyticsModule } from "./analytics/analytics.module";
 import { AffiliateModule } from "./affiliate/affiliate.module";
 import { AuthModule } from "./auth/auth.module";
@@ -29,6 +30,7 @@ import { WorkshopsModule } from "./workshops/workshops.module";
 @Module({
   imports: [
     PrismaModule,
+    AchievementsModule,
     AffiliateModule,
     AnalyticsModule,
     UsersModule,

@@ -66,7 +66,7 @@ describe("loyalty cabinet read boundary", () => {
       },
     } as unknown as PrismaService);
     const result = await service.getDashboard("owner");
-    assert.deepEqual(result, { tier: null, achievements: [] });
+    assert.deepEqual(result, { tier: null });
     assert.deepEqual(
       validateSync(plainToInstance(LoyaltyDashboardDTO, result), {
         whitelist: true,
@@ -112,7 +112,6 @@ describe("loyalty cabinet read boundary", () => {
               : [],
         } as unknown as Prisma.TransactionClient,
         "owner",
-        "member",
       );
       assert.deepEqual(result.tier, {
         spendKopecks: spend,
@@ -136,48 +135,8 @@ describe("loyalty cabinet read boundary", () => {
           ],
         } as unknown as Prisma.TransactionClient,
         "owner",
-        "member",
       ),
       /safe integer/,
-    );
-  });
-
-  it("rejects private/internal fields and invalid achievement conditions in DTOs", () => {
-    const result = {
-      tier: null,
-      achievements: [
-        {
-          id: "a",
-          title: "A",
-          description: "Description",
-          imageUrl: null,
-          conditionKind: "completed_order_count",
-          target: 3,
-          rewardPoints: 25,
-          progress: 2,
-          earnedAt: null,
-        },
-      ],
-    };
-    const validate = (input: unknown) =>
-      validateSync(plainToInstance(LoyaltyDashboardDTO, input), {
-        whitelist: true,
-        forbidNonWhitelisted: true,
-      });
-    assert.deepEqual(validate(result), []);
-    assert.ok(
-      validate({
-        ...result,
-        achievements: [{ ...result.achievements[0], sourceKey: "internal" }],
-      }).length,
-    );
-    assert.ok(
-      validate({
-        ...result,
-        achievements: [
-          { ...result.achievements[0], conditionKind: "arbitrary" },
-        ],
-      }).length,
     );
   });
 
