@@ -1,59 +1,21 @@
 import { Link } from "@/shared/ui/link";
+import { Button } from "@/shared/ui/button";
 import TelegramSvg from "../assets/telegram.svg";
 import { companyDetails, externalLinks, routes } from "@/shared/constants";
-
-const legalDocs = [
-  {
-    label: "Политика конфиденциальности",
-    href: routes.legal.privacyPolicy,
-  },
-  {
-    label: "Публичная оферта",
-    href: routes.legal.publicOffer,
-  },
-  {
-    label: "Пользовательское соглашение",
-    href: routes.legal.userAgreement,
-  },
-  {
-    label: "Согласие на\u00a0обработку ПДн",
-    href: routes.legal.personalDataConsent,
-  },
-  {
-    label: "Политика Cookie",
-    href: routes.legal.cookiePolicy,
-  },
-  {
-    label: "Правила возврата",
-    href: routes.legal.returnPolicy,
-  },
-  {
-    label: "Правила промокодов",
-    href: routes.legal.promocodes,
-  },
-];
 
 export function LegalDocs() {
   const currentYear = new Date().getFullYear();
 
   return (
     <div className="border-t border-stone-800">
-      <div className="container pt-8 pb-6 md:pt-10 md:pb-8">
-        <h4 className="font-display mb-5 text-xs font-bold tracking-widest text-stone-500 uppercase">
-          Правовые документы
-        </h4>
-
-        <div className="grid grid-cols-2 gap-2.5 sm:grid-cols-3 sm:gap-3 lg:grid-cols-7">
-          {legalDocs.map((doc) => (
-            <Link
-              key={doc.href}
-              href={doc.href}
-              className="flex items-center justify-center rounded-lg border border-stone-800 px-2 py-2.5 text-center text-[11px] leading-4 text-stone-500 transition-colors hover:text-rose-300 sm:px-3 sm:text-xs"
-            >
-              {doc.label}
-            </Link>
-          ))}
-        </div>
+      <div className="container py-3 md:py-4">
+        <Button
+          asChild
+          variant="link"
+          className="h-11 justify-start px-0 text-xs font-normal text-stone-400 underline-offset-4 hover:text-stone-300 focus-visible:text-stone-300 sm:text-sm"
+        >
+          <Link href={routes.legal.index}>Правовые документы</Link>
+        </Button>
       </div>
 
       <div className="container flex flex-col items-center justify-between gap-4 border-t border-stone-800 py-6 md:flex-row md:py-8">

@@ -40,7 +40,7 @@ test("legal PDF main runtime uses the legacy compatibility build", async () => {
   const nextConfigSource = await readSource("next.config.js");
   const mainBuildSpecifier = nextConfigSource.match(/const legacyPdfJsBuild = "([^"]+)"/)?.[1];
 
-  assert.equal(mainBuildSpecifier, "pdfjs-dist/legacy/build/pdf.mjs");
+  assert.equal(mainBuildSpecifier, "pdfjs-dist/legacy/build/pdf.min.mjs");
   assert.match(nextConfigSource, /resolveAlias:\s*\{[\s\S]*"pdfjs-dist":\s*legacyPdfJsBuild/);
   assert.match(nextConfigSource, /alias\["pdfjs-dist\$"\]\s*=\s*legacyPdfJsBuild/);
 
@@ -108,17 +108,16 @@ test("legal registry uses configured repository PDFs as its only PDF document so
     "legalDocuments",
   );
   const expectedPdfFileHrefs = new Map([
-    ["personalDataConsent", "/documents/legal/personal-data-consent-2026-07-24.pdf"],
-    ["publicOffer", "/documents/legal/public-offer-2026-07-24.pdf"],
+    ["loyaltyRules", "/documents/legal/loyalty-rules-2026-09-22-v4.pdf"],
+    ["personalDataConsent", "/documents/legal/personal-data-consent-2026-09-22.pdf"],
+    ["publicOffer", "/documents/legal/public-offer-2026-09-22.pdf"],
+    ["privacyPolicy", "/documents/legal/privacy-policy-2026-09-22.pdf"],
+    ["userAgreement", "/documents/legal/user-agreement-2026-09-22.pdf"],
+    ["cookiePolicy", "/documents/legal/cookie-policy-2026-09-22.pdf"],
+    ["advertisingConsent", "/documents/legal/advertising-consent-2026-09-22.pdf"],
   ]);
   const pdfDocumentIds = [...expectedPdfFileHrefs.keys()].sort();
-  const htmlDocumentIds = [
-    "cookiePolicy",
-    "privacyPolicy",
-    "promocodes",
-    "returnPolicy",
-    "userAgreement",
-  ];
+  const htmlDocumentIds = ["promocodes", "returnPolicy"];
   const pdfMetadataKeys = ["contentType", "description", "fileHref", "href", "title", "updatedAt"];
 
   assert.deepEqual([...sourceEntries.keys()].sort(), pdfDocumentIds);
@@ -170,6 +169,59 @@ test("legal registry uses configured repository PDFs as its only PDF document so
 
   assert.match(legalPage, /document\.contentType === "pdf"/);
   assert.match(legalPage, /<PdfDocumentViewer/);
+});
+
+test("legal documents are collected on one directory page linked from the footer", async () => {
+  const [source, routes, footer, sitemap, legalPage, directoryRoute] = await Promise.all([
+    readSource("src/_pages/legal/source-documents.ts"),
+    readSource("src/shared/constants/routes.ts"),
+    readSource("src/widgets/footer/ui/legal-docs.tsx"),
+    readSource("app/sitemap.ts"),
+    readSource("src/_pages/legal/index.tsx"),
+    readSource("app/(site)/legal/page.tsx"),
+  ]);
+  const ids = [
+    ...[...source.matchAll(/href: routes\.legal\.(\w+)/g)].map((match) => match[1]),
+    "returnPolicy",
+    "promocodes",
+  ];
+
+  assert.match(routes, /index: "\/legal"/);
+  assert.deepEqual(
+    [...footer.matchAll(/routes\.legal\.(\w+)/g)].map((match) => match[1]),
+    ["index"],
+  );
+  assert.match(legalPage, /Object\.values\(legalDocuments\)\.map/);
+  const documents = getObjectProperties(
+    findVariableObject(legalPage, "index.tsx", "legalDocuments", ts.ScriptKind.TSX),
+    "legalDocuments",
+  );
+  assert.deepEqual([...documents.keys()], [
+    "publicOffer",
+    "returnPolicy",
+    "userAgreement",
+    "privacyPolicy",
+    "personalDataConsent",
+    "cookiePolicy",
+    "advertisingConsent",
+    "loyaltyRules",
+    "promocodes",
+  ]);
+  assert.match(legalPage, /<Link href=\{document\.href\}>/);
+  assert.match(legalPage, /href=\{routes\.legal\.index\}/);
+  assert.match(directoryRoute, /<LegalDirectoryPage\s*\/>/);
+  assert.match(directoryRoute, /createLegalMetadata/);
+  assert.match(sitemap, /path: routes\.legal\.index/);
+
+  for (const id of ids) {
+    const route = routes.match(new RegExp(`${id}: "([^"]+)"`))?.[1];
+    assert.ok(route, `${id} must have a route constant`);
+    assert.ok(sitemap.includes(`path: routes.legal.${id}`), `${id} must be in the sitemap`);
+    const page = await readSource(`app/(site)${route}/page.tsx`);
+    assert.match(page, /LegalPage/);
+  }
+
+  assert.doesNotMatch(source, /2026-07-24/);
 });
 
 function findVariableObject(source, fileName, variableName, scriptKind = ts.ScriptKind.TS) {

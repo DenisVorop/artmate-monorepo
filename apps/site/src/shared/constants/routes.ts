@@ -55,10 +55,13 @@ export const routes = {
       ? `/catalog/raskraski/${categorySlug}/${productSlug}`
       : `/catalog/raskraski/${productSlug}`,
   legal: {
+    index: "/legal",
+    loyaltyRules: "/legal/loyalty-rules",
     privacyPolicy: "/legal/privacy-policy",
     publicOffer: "/legal/public-offer",
     userAgreement: "/legal/user-agreement",
     personalDataConsent: "/legal/personal-data-consent",
+    advertisingConsent: "/legal/advertising-consent",
     cookiePolicy: "/legal/cookie-policy",
     returnPolicy: "/legal/return-policy",
     promocodes: "/legal/promocodes",

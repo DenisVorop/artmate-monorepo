@@ -3,7 +3,8 @@
 import path from "node:path";
 import { fileURLToPath } from "node:url";
 
-const legacyPdfJsBuild = "pdfjs-dist/legacy/build/pdf.mjs";
+// Minified PDF.js avoids nested Webpack runtime name collisions in dev eval bundles.
+const legacyPdfJsBuild = "pdfjs-dist/legacy/build/pdf.min.mjs";
 const apiImageRemotePattern = getApiImageRemotePattern("/uploads/**");
 const apiColoringRemotePattern = getApiImageRemotePattern("/colorings/**");
 const apiColoringCollectionRemotePattern = getApiImageRemotePattern("/coloring-collections/**");

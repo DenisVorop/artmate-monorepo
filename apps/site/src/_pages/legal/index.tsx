@@ -1,4 +1,4 @@
-import { Download, ExternalLink, FileText } from "lucide-react";
+import { ArrowLeft, ArrowRight, Download, ExternalLink, FileText } from "lucide-react";
 import type { ReactNode } from "react";
 
 import { companyDetails, routes } from "@/shared/constants";
@@ -10,10 +10,12 @@ import { sourceLegalDocuments } from "./source-documents";
 import { PdfDocumentViewer } from "./ui/pdf-document-viewer";
 
 export type LegalDocumentId =
+  | "loyaltyRules"
   | "privacyPolicy"
   | "publicOffer"
   | "userAgreement"
   | "personalDataConsent"
+  | "advertisingConsent"
   | "cookiePolicy"
   | "returnPolicy"
   | "promocodes";
@@ -49,132 +51,6 @@ const legalDocumentsUpdatedAt = "04.05.2026";
 
 export const legalDocuments = {
   publicOffer: sourceLegalDocuments.publicOffer,
-  privacyPolicy: {
-    contentType: "html",
-    title: "Политика конфиденциальности",
-    description: "Правила обработки персональных данных покупателей и посетителей сайта Artmate.",
-    href: routes.legal.privacyPolicy,
-    updatedAt: legalDocumentsUpdatedAt,
-    sections: [
-      {
-        title: "1. Оператор персональных данных",
-        paragraphs: [
-          `Оператор персональных данных: ${sellerName}. Контакт для обращений по вопросам персональных данных: ${companyDetails.supportEmail}.`,
-        ],
-      },
-      {
-        title: "2. Какие данные обрабатываются",
-        items: [
-          "Имя, телефон и адрес электронной почты покупателя.",
-          "Состав заказа, выбранный пункт выдачи, комментарий к заказу и история обращений.",
-          "Технические данные сайта: cookie, IP-адрес, сведения о браузере, устройстве и действиях на сайте.",
-          "Идентификаторы платежей и статусы операций, полученные от платежного сервиса.",
-        ],
-      },
-      {
-        title: "3. Цели обработки",
-        items: [
-          "Оформление, оплата, доставка и сопровождение заказов.",
-          "Направление уведомлений о статусе заказа и ответов на обращения.",
-          "Исполнение требований законодательства, включая учет операций и обработку возвратов.",
-          "Защита сайта, заказов и пользователей от мошеннических действий.",
-        ],
-      },
-      {
-        title: "4. Передача данных",
-        paragraphs: [
-          `Для исполнения заказа данные могут передаваться платежному сервису ${companyDetails.paymentProvider}, ${companyDetails.acquiringProvider}, службе доставки ${companyDetails.deliveryProvider}, хостинг-провайдерам, сервисам аналитики и иным подрядчикам, необходимым для работы сайта.`,
-          "Передаются только данные, необходимые для конкретной цели обработки.",
-        ],
-      },
-      {
-        title: "5. Права пользователя",
-        items: [
-          "Запросить сведения об обработке персональных данных.",
-          "Потребовать уточнения, блокирования или удаления данных, если это допускается законом.",
-          "Отозвать согласие на обработку персональных данных, направив обращение на email продавца.",
-        ],
-      },
-      {
-        title: "6. Защита данных",
-        paragraphs: [
-          "Продавец принимает организационные и технические меры для защиты персональных данных от неправомерного доступа, изменения, раскрытия или уничтожения.",
-        ],
-      },
-    ],
-  },
-  userAgreement: {
-    contentType: "html",
-    title: "Пользовательское соглашение",
-    description: "Правила использования сайта Artmate, каталога, корзины и личного кабинета.",
-    href: routes.legal.userAgreement,
-    updatedAt: legalDocumentsUpdatedAt,
-    sections: [
-      {
-        title: "1. Использование сайта",
-        paragraphs: [
-          `Сайт ${companyDetails.brandName} предназначен для просмотра каталога, оформления заказов, оплаты товаров и обращения в поддержку.`,
-          "Пользователь обязуется указывать достоверные данные при оформлении заказа и не использовать сайт для противоправных действий.",
-        ],
-      },
-      {
-        title: "2. Аккаунт и безопасность",
-        items: [
-          "Пользователь отвечает за сохранность доступа к своему аккаунту.",
-          "При подозрении на несанкционированный доступ пользователь должен обратиться в поддержку.",
-          "Администрация сайта может ограничить действия, похожие на автоматический подбор паролей, спам или мошеннические операции.",
-        ],
-      },
-      {
-        title: "3. Контент и интеллектуальные права",
-        paragraphs: [
-          `Тексты, изображения, дизайн, товарные обозначения и иные материалы сайта принадлежат ${companyDetails.brandName} или используются на законных основаниях.`,
-          "Копирование материалов сайта допускается только с согласия правообладателя, если иное не предусмотрено законом.",
-        ],
-      },
-      {
-        title: "4. Заказы и платежи",
-        paragraphs: [
-          "Оформление и оплата заказов регулируются публичной офертой, правилами оплаты и доставки, а также правилами платежного сервиса.",
-        ],
-      },
-      {
-        title: "5. Обратная связь",
-        items: getCompanyItems(),
-      },
-    ],
-  },
-  personalDataConsent: sourceLegalDocuments.personalDataConsent,
-  cookiePolicy: {
-    contentType: "html",
-    title: "Политика Cookie",
-    description: "Информация об использовании cookie и технических данных на сайте Artmate.",
-    href: routes.legal.cookiePolicy,
-    updatedAt: legalDocumentsUpdatedAt,
-    sections: [
-      {
-        title: "1. Что такое cookie",
-        paragraphs: [
-          "Cookie - это небольшие файлы, которые сохраняются в браузере пользователя и помогают сайту работать корректно.",
-        ],
-      },
-      {
-        title: "2. Для чего используются cookie",
-        items: [
-          "Сохранение корзины и пользовательских настроек.",
-          "Авторизация и защита аккаунта.",
-          "Аналитика посещений и улучшение интерфейса сайта.",
-          "Предотвращение технических ошибок и злоупотреблений.",
-        ],
-      },
-      {
-        title: "3. Управление cookie",
-        paragraphs: [
-          "Пользователь может ограничить или удалить cookie в настройках браузера. Некоторые функции сайта, включая корзину и авторизацию, могут работать некорректно без технических cookie.",
-        ],
-      },
-    ],
-  },
   returnPolicy: {
     contentType: "html",
     title: "Правила возврата",
@@ -218,6 +94,12 @@ export const legalDocuments = {
       },
     ],
   },
+  userAgreement: sourceLegalDocuments.userAgreement,
+  privacyPolicy: sourceLegalDocuments.privacyPolicy,
+  personalDataConsent: sourceLegalDocuments.personalDataConsent,
+  cookiePolicy: sourceLegalDocuments.cookiePolicy,
+  advertisingConsent: sourceLegalDocuments.advertisingConsent,
+  loyaltyRules: sourceLegalDocuments.loyaltyRules,
   promocodes: {
     contentType: "html",
     title: "Правила использования промокодов",
@@ -279,6 +161,36 @@ type LegalPageProps = {
   documentId: LegalDocumentId;
 };
 
+export function LegalDirectoryPage() {
+  return (
+    <main className="bg-background">
+      <section className="container py-10 md:py-14">
+        <div className="mx-auto max-w-4xl">
+          <PageTitle>Правовые документы</PageTitle>
+          <p className="mt-4 leading-7 text-muted-foreground">
+            Условия покупок, использования сайта и участия в клубе Artmate.
+          </p>
+          <nav aria-label="Правовые документы" className="mt-8 grid gap-3 sm:grid-cols-2 sm:gap-4">
+            {Object.values(legalDocuments).map((document) => (
+              <Button
+                key={document.href}
+                asChild
+                variant="outline"
+                className="h-auto min-h-20 justify-between gap-4 rounded-xl p-5 text-left text-base leading-6 whitespace-normal hover:border-rose-200 hover:bg-rose-50"
+              >
+                <Link href={document.href}>
+                  <span>{document.title}</span>
+                  <ArrowRight aria-hidden="true" className="size-4 text-rose-500" />
+                </Link>
+              </Button>
+            ))}
+          </nav>
+        </div>
+      </section>
+    </main>
+  );
+}
+
 export function LegalPage({ children, documentId }: LegalPageProps) {
   const document: LegalDocument = legalDocuments[documentId];
   const titledSections =
@@ -293,9 +205,13 @@ export function LegalPage({ children, documentId }: LegalPageProps) {
       <section className="container py-10 md:py-14">
         <div className="mx-auto max-w-4xl">
           <div className="space-y-4">
-            <p className="text-sm font-medium tracking-wide text-rose-500 uppercase">
+            <Link
+              href={routes.legal.index}
+              className="inline-flex min-h-11 items-center gap-2 text-sm font-medium text-rose-500"
+            >
+              <ArrowLeft aria-hidden="true" className="size-4" />
               Правовые документы
-            </p>
+            </Link>
             <PageTitle className="max-w-3xl text-foreground">{document.title}</PageTitle>
             <p className="max-w-3xl leading-7 text-muted-foreground">{document.description}</p>
             <p className="text-sm text-muted-foreground">Редакция от {document.updatedAt}</p>
@@ -441,19 +357,4 @@ export function PromocodesLegalPage() {
       </nav>
     </LegalPage>
   );
-}
-
-function getCompanyItems() {
-  return [
-    `Полное наименование: ${companyDetails.legalName}`,
-    `Краткое наименование: ${companyDetails.shortName}`,
-    `ИНН: ${companyDetails.inn}`,
-    `${companyDetails.registrationNumberLabel}: ${companyDetails.registrationNumber}`,
-    `Дата присвоения ${companyDetails.registrationNumberLabel}: ${companyDetails.registrationDate}`,
-    `Email: ${companyDetails.supportEmail}`,
-    `Банк: ${companyDetails.bankName}`,
-    `БИК: ${companyDetails.bankBik}`,
-    `Корреспондентский счет: ${companyDetails.correspondentAccount}`,
-    `Расчетный счет: ${companyDetails.checkingAccount}`,
-  ];
 }

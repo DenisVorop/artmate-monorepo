@@ -6,6 +6,7 @@ import { Controller, useForm } from "react-hook-form";
 
 import { Button, Card, CardContent, CardHeader, CardTitle, Label } from "@/shared/ui";
 import { Checkbox } from "@/shared/ui/checkbox";
+import { routes } from "@/shared/constants";
 
 import { enrollmentFormSchema, type EnrollmentFormValues } from "../lib/enrollment-form";
 import { useEnroll } from "../model/use-enroll";
@@ -30,7 +31,7 @@ export function Enrollment({ userId, termsVersion }: { userId: string; termsVers
         <CardTitle className="text-2xl">Творите и получайте бонусы</CardTitle>
         <p className="max-w-2xl text-sm leading-6 text-stone-600">
           Вступите в клуб Artmate, чтобы получать баллы за покупки и творчество. После вступления мы
-          соберём вашу историю и покажем достижения.
+          учтём вашу историю покупок и опубликованных работ.
         </p>
       </CardHeader>
       <CardContent className="space-y-6">
@@ -82,9 +83,18 @@ export function Enrollment({ userId, termsVersion }: { userId: string; termsVers
               />
               <Label
                 htmlFor="loyalty-terms"
-                className="min-h-11 cursor-pointer py-2.5 text-sm leading-6"
+                className="block min-h-11 cursor-pointer py-2.5 text-sm leading-6"
               >
-                Я принимаю правила клуба, изложенные выше, и хочу вступить в клуб Artmate.
+                Я принимаю{" "}
+                <a
+                  href={routes.legal.loyaltyRules}
+                  target="_blank"
+                  rel="noopener noreferrer"
+                  className="rounded-sm text-rose-700 underline underline-offset-4 hover:text-rose-800 focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-rose-500"
+                >
+                  правила клуба Artmate
+                </a>{" "}
+                и хочу вступить в клуб.
               </Label>
             </div>
             {errors.acceptedTerms && (
