@@ -158,8 +158,10 @@ test("site SEO leaves existing YML XML unchanged for empty, short and long descr
         { ...product, id: "long", description: "Реальное описание товара. ".repeat(20) },
       ],
     },
-    new Date("2026-09-16T12:00:00.000Z"),
+    // The feed formats local wall-clock time; keep that fixture identical in every TZ.
+    new Date(2026, 8, 16, 15, 0, 0),
   );
+  assert.match(xml, /<yml_catalog date="2026-09-16 15:00">/);
   assert.equal(
     createHash("sha256").update(xml).digest("hex"),
     "d4bbd336b72f8994bf3c6271796f6eb6209a8250dc10c4230fc5b5797720274b",
