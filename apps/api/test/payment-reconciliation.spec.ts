@@ -121,15 +121,23 @@ describe("original payment reconciliation", () => {
     assert.equal(f.notifications(), 1);
   });
 
-  it("does not turn Ozon canceled or expired into a confirmed unpaid closure", async () => {
+  it("publishes Ozon canceled and expired orders as closed unpaid", async () => {
     for (const status of ["STATUS_CANCELED", "STATUS_EXPIRED"]) {
       const f = fixture("OZON_ACQUIRING");
       f.state.ozon.status = status;
       assert.deepEqual(await f.service.reconcilePayment("order-1"), {
-        state: "attention",
-        reason: "closure_unconfirmed",
+        state: "closed_unpaid",
       });
-      assert.equal(f.writes.length, 0);
+      assert.deepEqual(f.writes, [
+        {
+          orderId: "order-1",
+          method: "OZON_ACQUIRING",
+          providerOrderId: "ozon-1",
+          paymentId: undefined,
+          amountKopecks: 79900,
+          state: "closed_unpaid",
+        },
+      ]);
       assert.equal(f.notifications(), 0);
     }
   });

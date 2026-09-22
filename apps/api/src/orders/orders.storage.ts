@@ -21,6 +21,7 @@ import {
   OrderPaymentStatus as PrismaOrderPaymentStatus,
   OrderStatus as PrismaOrderStatus,
   Prisma,
+  type Order,
 } from "../generated/prisma/client";
 import { PrismaService } from "../prisma/prisma.service";
 import {
@@ -557,9 +558,9 @@ export class OrdersStorage {
           input.paymentId,
         );
       } else {
-        if (!input.providerOrderId || input.state === "closed_unpaid")
+        if (!input.providerOrderId)
           throw new ConflictException(
-            "Payment closure has not been established",
+            "Payment reconciliation identity mismatch",
           );
         this.assertImmutableProviderId(
           "Ozon order id",
@@ -577,30 +578,11 @@ export class OrdersStorage {
           source: "payment_reconciliation",
         });
       }
-      if (
-        input.state === "closed_unpaid" &&
-        order.paymentStatus !== PrismaOrderPaymentStatus.PAID &&
-        !order.paidAt
-      ) {
-        await this.promocodesService.releaseInTransaction(tx, order.id, {
-          provider: "tbank_acquiring",
+      if (input.state === "closed_unpaid") {
+        await this.publishClosedUnpaidInTransaction(tx, order, {
+          provider: isTBank ? "tbank_acquiring" : "ozon_acquiring",
           source: "payment_reconciliation",
           rawStatus: "CLOSED_UNPAID",
-        });
-        const occurredAt = order.paymentClosedUnpaidAt ?? new Date();
-        await tx.order.update({
-          where: { id: order.id },
-          data: {
-            paymentStatus: PrismaOrderPaymentStatus.CLOSED_UNPAID,
-            terminalPaymentFailedAt:
-              order.terminalPaymentFailedAt ?? occurredAt,
-            paymentClosedUnpaidAt: occurredAt,
-          },
-        });
-        await tx.orderPaymentEvent.upsert({
-          where: { orderId_kind: { orderId: order.id, kind: "CLOSED_UNPAID" } },
-          create: { orderId: order.id, kind: "CLOSED_UNPAID", occurredAt },
-          update: {},
         });
       }
       // Pending responses never downgrade PAID or CLOSED_UNPAID. Provider IDs
@@ -627,6 +609,42 @@ export class OrdersStorage {
         previousStatus,
         userId: updatedOrder.userId ?? undefined,
       };
+    });
+  }
+
+  // The caller holds the order lock and has verified the provider identity,
+  // amount and final unpaid state. Loyalty consumes the persisted event only.
+  private async publishClosedUnpaidInTransaction(
+    tx: Prisma.TransactionClient,
+    order: Order,
+    evidence: {
+      provider: "tbank_acquiring" | "ozon_acquiring";
+      source: string;
+      rawStatus: string;
+    },
+  ) {
+    if (
+      order.paidAt ||
+      order.paymentStatus === PrismaOrderPaymentStatus.PAID ||
+      order.paymentStatus === PrismaOrderPaymentStatus.CLOSED_UNPAID
+    )
+      return;
+
+    await this.promocodesService.releaseInTransaction(tx, order.id, evidence);
+    const occurredAt = order.paymentClosedUnpaidAt ?? new Date();
+    await tx.order.update({
+      where: { id: order.id },
+      data: {
+        paymentStatus: PrismaOrderPaymentStatus.CLOSED_UNPAID,
+        paymentRedirectUrl: CHECKOUT_FAILURE_PATH,
+        terminalPaymentFailedAt: order.terminalPaymentFailedAt ?? occurredAt,
+        paymentClosedUnpaidAt: occurredAt,
+      },
+    });
+    await tx.orderPaymentEvent.upsert({
+      where: { orderId_kind: { orderId: order.id, kind: "CLOSED_UNPAID" } },
+      create: { orderId: order.id, kind: "CLOSED_UNPAID", occurredAt },
+      update: {},
     });
   }
 
@@ -1351,6 +1369,9 @@ export class OrdersStorage {
       );
       const previousStatus = this.mapOrderCrmStatus(order.crmStatus);
       const isPaid = input.authoritativeStatus === "STATUS_PAID";
+      const isClosedUnpaid =
+        input.authoritativeStatus === "STATUS_CANCELED" ||
+        input.authoritativeStatus === "STATUS_EXPIRED";
       const isRetryable = new Set([
         "STATUS_UNSPECIFIED",
         "STATUS_NEW",
@@ -1370,14 +1391,14 @@ export class OrdersStorage {
           "Ozon payment currency does not match order",
         );
       }
-      if (isPaid || isRetryable) {
+      if (isPaid || isRetryable || isClosedUnpaid) {
         if (!input.acquiringOrderId) {
           throw new BadRequestException(
-            "Ozon paid notification identifiers are required",
+            "Ozon notification identifiers are required",
           );
         }
         if (input.amount === undefined) {
-          throw new BadRequestException("Ozon paid amount is required");
+          throw new BadRequestException("Ozon notification amount is required");
         }
         if (input.currencyCode !== "643") {
           throw new BadRequestException(
@@ -1393,6 +1414,13 @@ export class OrdersStorage {
           source: "ozon_acquiring_notification",
         });
       }
+      if (isClosedUnpaid) {
+        await this.publishClosedUnpaidInTransaction(tx, order, {
+          provider: "ozon_acquiring",
+          source: "ozon_acquiring_notification",
+          rawStatus: input.authoritativeStatus!,
+        });
+      }
       await tx.order.update({
         where: { id: order.id },
         data: {
@@ -1405,7 +1433,13 @@ export class OrdersStorage {
         },
       });
 
-      if (!isPaid && order.paymentStatus !== PrismaOrderPaymentStatus.PAID) {
+      if (
+        !isPaid &&
+        !isClosedUnpaid &&
+        !order.paidAt &&
+        order.paymentStatus !== PrismaOrderPaymentStatus.PAID &&
+        order.paymentStatus !== PrismaOrderPaymentStatus.CLOSED_UNPAID
+      ) {
         const [schedule] = await tx.$queryRaw<Array<{ nextAttemptAt: Date }>>`
           SELECT clock_timestamp() + INTERVAL '60 seconds' AS "nextAttemptAt"
         `;
