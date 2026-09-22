@@ -1,0 +1,35 @@
+{
+	log default {
+		format filter {
+			wrap json
+			fields {
+				request>headers>X-Telegram-Bot-Token delete
+				request>headers>Authorization delete
+			}
+		}
+	}
+}
+
+# Internal only: this container has no published ports.
+:8080 {
+	@telegram {
+		method POST
+		path_regexp telegram ^/telegram-api/[A-Za-z][A-Za-z0-9_]*$
+	}
+	handle @telegram {
+		reverse_proxy https://host.docker.internal:18443 {
+			header_up Host 77-221-158-124.sslip.io
+			transport http {
+				tls_server_name 77-221-158-124.sslip.io
+				dial_timeout 5s
+				response_header_timeout 15s
+			}
+		}
+	}
+	handle /health {
+		respond "ok" 200
+	}
+	handle {
+		respond 404
+	}
+}
