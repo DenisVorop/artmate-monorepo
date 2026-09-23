@@ -4,7 +4,10 @@ import { spawnSync } from "node:child_process";
 import { test } from "node:test";
 
 const workflow = readFileSync(new URL("../../.github/workflows/deploy.yml", import.meta.url), "utf8");
-const deployScript = workflow.match(/ssh "\$PRODUCTION_USER@\$PRODUCTION_HOST" '\n(\s+set -eu\n[\s\S]*?)\n\s*'/)?.[1];
+// Earlier steps can also contain SSH blocks (for example Telegram transport).
+const deployStep = workflow.split(/^      - name: /m).find((step) => step.startsWith("Deploy\n"));
+assert.ok(deployStep, "The named Deploy step must be found");
+const deployScript = deployStep.match(/ssh "\$PRODUCTION_USER@\$PRODUCTION_HOST" '\n(\s+set -eu\n[\s\S]*?)\n\s*'/)?.[1];
 assert.ok(deployScript, "Production remote deployment script must be found");
 
 // Execute the actual remote shell block with in-memory command doubles.
