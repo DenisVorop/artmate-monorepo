@@ -1,5 +1,30 @@
 # Changelog
 
+## [0.43.0](https://github.com/DenisVorop/artmate-monorepo/compare/v0.42.0...v0.43.0) (2026-09-23)
+
+
+### Features
+
+* **account:** add dashboard and account sections ([b74c8b6](https://github.com/DenisVorop/artmate-monorepo/commit/b74c8b65488ef80b6d54758e551166932248a28f))
+* **admin:** manage loyalty achievements ([af6182a](https://github.com/DenisVorop/artmate-monorepo/commit/af6182a93f9671f30b3da8ee1bd4f7e4423512bd))
+* **api:** separate badges from loyalty ([1a79bd0](https://github.com/DenisVorop/artmate-monorepo/commit/1a79bd0807909d393d37a00cd27b4c8a8aeb36b2))
+* **legal:** refresh documents and directory ([9700ca1](https://github.com/DenisVorop/artmate-monorepo/commit/9700ca11dbff59ef3e4bbe02e707e7a8a46c71a4))
+* **loyalty:** add membership and wallet ledger ([4ed6b06](https://github.com/DenisVorop/artmate-monorepo/commit/4ed6b062b296e162dd4f80241462108f9e6b21f8))
+* **loyalty:** add rewards and event settlement ([fbbd81b](https://github.com/DenisVorop/artmate-monorepo/commit/fbbd81be60ff6aa4e24cb6225712314811649efd))
+* **loyalty:** calculate order points spending ([785a320](https://github.com/DenisVorop/artmate-monorepo/commit/785a320ff1eff5a38f1b9768df4920c3bcfd0ff7))
+* **loyalty:** calculate points in partial refunds ([ab440e3](https://github.com/DenisVorop/artmate-monorepo/commit/ab440e3d9fd83b056968ebb7a90481d24ddfaaa0))
+* **loyalty:** integrate checkout reservations ([fd1ff7f](https://github.com/DenisVorop/artmate-monorepo/commit/fd1ff7fe1bba16a240e4336b4125b5f82d5409c5))
+* **site:** add club cabinet and bonus checkout ([f825c24](https://github.com/DenisVorop/artmate-monorepo/commit/f825c249a5c0e9359330f95d1d1ff692ba314710))
+
+
+### Bug Fixes
+
+* **ci:** stabilize deployment and package tests ([8403a40](https://github.com/DenisVorop/artmate-monorepo/commit/8403a40aab831f7d010f59f571468bbecd39a892))
+* **deploy:** stop API before schema migrations ([2f4e635](https://github.com/DenisVorop/artmate-monorepo/commit/2f4e6350589d28d9474cbe4c937d16277508ab8d))
+* **payments:** release closed Ozon reservations ([ff1866c](https://github.com/DenisVorop/artmate-monorepo/commit/ff1866c42897f36da1168c3a180f840d9cdef807))
+* **site:** keep footer at the viewport bottom ([7641033](https://github.com/DenisVorop/artmate-monorepo/commit/76410331451948d3de0e268a170b37bd1618642b))
+* **telegram:** route delivery through SSH relay ([a1a33a7](https://github.com/DenisVorop/artmate-monorepo/commit/a1a33a763696dd3e2e84b76a79dfca2d20ad8f0c))
+
 ## [0.42.0](https://github.com/DenisVorop/artmate-monorepo/compare/v0.41.0...v0.42.0) (2026-09-17)
 
 
