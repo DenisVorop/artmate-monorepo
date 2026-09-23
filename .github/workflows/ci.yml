@@ -34,7 +34,7 @@ jobs:
         run: yarn install --frozen-lockfile
 
       - name: Test
-        run: yarn test
+        run: yarn test --log-order=stream --output-logs=full
 
       - name: Test deployment order
         run: node --test infra/test/*.test.mjs
