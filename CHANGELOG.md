@@ -1,5 +1,12 @@
 # Changelog
 
+## [0.44.0](https://github.com/DenisVorop/artmate-monorepo/compare/v0.43.0...v0.44.0) (2026-09-24)
+
+
+### Features
+
+* **site:** redesign account order cards ([de65c7a](https://github.com/DenisVorop/artmate-monorepo/commit/de65c7acf20ba05f0b4195b253df9388fe70bbf5))
+
 ## [0.43.0](https://github.com/DenisVorop/artmate-monorepo/compare/v0.42.0...v0.43.0) (2026-09-23)
 
 
