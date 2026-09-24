@@ -41,6 +41,27 @@ export function getCdekShipment(order: Order) {
   return order.shipments.find((shipment) => shipment.provider === "cdek");
 }
 
+// Only confirmed delivery milestones belong in the account card's summary.
+// Provider request states and free-form status names are not customer-facing milestones.
+export function getOrderDeliveryMilestone(shipment: OrderShipment | undefined) {
+  const label = getCdekShipmentStatusCodeLabel(shipment?.statusCode);
+
+  switch (label) {
+    case "Ожидает в ПВЗ":
+      return "Можно забирать";
+    case "Ожидает в постамате":
+      return "В постамате";
+    case "В городе получателя":
+    case "Получен":
+    case "Не получен":
+    case "У курьера":
+    case "В пути":
+      return label;
+    default:
+      return undefined;
+  }
+}
+
 export function getOrderShipmentStatusLabel(shipment: OrderShipment | undefined) {
   if (!shipment) {
     return undefined;
