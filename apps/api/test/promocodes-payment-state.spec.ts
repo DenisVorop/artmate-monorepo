@@ -19,6 +19,7 @@ import {
   OrderPaymentMethod,
   OrderPaymentStatus,
   OrderStatus,
+  type DeliveryTrackingRequest,
 } from "../src/generated/prisma/client";
 import { OrdersStorage } from "../src/orders/orders.storage";
 import { OrdersService } from "../src/orders/orders.service";
@@ -2298,6 +2299,10 @@ function createFixture(
   const state = Object.assign(createOrderState(), overrides);
   const history: Array<{ eventType: string; payload: unknown }> = [];
   const cartItems = options.cartItems ?? new Map<string, number>();
+  const deliveryRequests = new Map<
+    string,
+    Omit<DeliveryTrackingRequest, "updatedAt">
+  >();
   let updates = 0;
   let consumes = 0;
   let releases = 0;
@@ -2316,6 +2321,22 @@ function createFixture(
     { orderId: string; kind: string; occurredAt: Date }
   >();
   const tx = {
+    deliveryTrackingRequest: {
+      upsert: async ({
+        where,
+        create,
+        update,
+      }: {
+        where: { orderId: string };
+        create: Omit<DeliveryTrackingRequest, "updatedAt">;
+        update: Omit<DeliveryTrackingRequest, "orderId" | "updatedAt">;
+      }) => {
+        const previous = deliveryRequests.get(where.orderId);
+        const request = previous ? { ...previous, ...update } : create;
+        deliveryRequests.set(where.orderId, structuredClone(request));
+        return request;
+      },
+    },
     orderPaymentRecovery: {
       findUnique: async ({ where }: { where: { orderId: string } }) =>
         recovery?.orderId === where.orderId ? recovery : null,
@@ -2521,6 +2542,7 @@ function createFixture(
       const commissionSnapshot = structuredClone(commissions);
       const ledgerSnapshot = structuredClone(ledgerEntries);
       const paymentEventSnapshot = structuredClone(paymentEvents);
+      const deliveryRequestSnapshot = structuredClone(deliveryRequests);
       try {
         return await callback(tx);
       } catch (error) {
@@ -2536,6 +2558,9 @@ function createFixture(
         paymentEvents.clear();
         for (const [key, value] of paymentEventSnapshot)
           paymentEvents.set(key, value);
+        deliveryRequests.clear();
+        for (const [key, value] of deliveryRequestSnapshot)
+          deliveryRequests.set(key, value);
         throw error;
       } finally {
         releaseCartLock?.();
@@ -2651,6 +2676,7 @@ function createOrderState() {
     yandexClientId: "123456",
     yandexYclid: "987654",
     deliveryProvider: OrderDeliveryProvider.OZON,
+    ozonPostingNumbers: [] as string[],
     pickupPointId: "point-1",
     pickupPointTitle: "Point",
     pickupPointAddress: "Address",
