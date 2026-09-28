@@ -1,5 +1,12 @@
 # Changelog
 
+## [0.45.0](https://github.com/DenisVorop/artmate-monorepo/compare/v0.44.0...v0.45.0) (2026-09-28)
+
+
+### Features
+
+* **orders:** track Ozon deliveries with cron ([957eca2](https://github.com/DenisVorop/artmate-monorepo/commit/957eca255cc2a1000f1a72ae09566bf4e5a7ab37))
+
 ## [0.44.0](https://github.com/DenisVorop/artmate-monorepo/compare/v0.43.0...v0.44.0) (2026-09-24)
 
 
