@@ -16,6 +16,7 @@ import {
   getOrderShipmentNumber,
   getOrderShipmentStatusLabel,
   ShipmentTrackingNumber,
+  OzonPostingLinks,
   useOrder,
   type AdminOrder,
   type OrderStatus,
@@ -236,6 +237,19 @@ function CustomerPanel({ order }: { readonly order: AdminOrder }) {
       {order.delivery.provider === "cdek" ? (
         <CdekShipmentPanel order={order} />
       ) : null}
+
+      {order.delivery.provider === "ozon" ? (
+        <div className="mt-4 space-y-2">
+          <h3 className="text-sm font-medium">Отправления Ozon</h3>
+          {order.ozonPostingNumbers.length > 0 ? (
+            <OzonPostingLinks postingNumbers={order.ozonPostingNumbers} />
+          ) : (
+            <p className="text-sm text-muted-foreground">
+              Отправления пока не добавлены.
+            </p>
+          )}
+        </div>
+      ) : null}
     </section>
   );
 }
@@ -352,6 +366,9 @@ function Metric({
 }
 
 function getHistoryEventTitle(event: AdminOrder["history"][number]) {
+  if (event.eventType === "ozon_postings_updated") {
+    return "Отправления Ozon обновлены";
+  }
   if (event.eventType === "status_changed") {
     return "Статус изменен";
   }
@@ -376,6 +393,9 @@ function getHistoryEventTitle(event: AdminOrder["history"][number]) {
 }
 
 function getHistoryEventText(event: AdminOrder["history"][number]) {
+  if (event.eventType === "ozon_postings_updated") {
+    return "Администратор изменил список отправлений Ozon.";
+  }
   if (event.eventType === "status_changed") {
     const fromStatus = getStatusLabel(event.payload.fromStatus);
     const toStatus = getStatusLabel(event.payload.toStatus);

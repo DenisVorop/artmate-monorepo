@@ -35,6 +35,7 @@ import {
 } from "../promocodes/promocodes.service";
 import { TBankAcquiringService } from "../tbank/tbank-acquiring.service";
 import { ProductShippingService } from "../products/product-shipping.service";
+import type { Prisma } from "../generated/prisma/client";
 import { createShippingPackageSnapshot } from "../products/shipping-package-profile";
 
 import { ORDER_COMMENT_MAX_LENGTH } from "./orders.constants";
@@ -61,6 +62,7 @@ import { OrderRefundsService } from "./refunds/order-refunds.service";
 import {
   type ApplyCdekOrderStatusWebhookResult,
   OrdersStorage,
+  type UpdateAdminOrderStatusResult,
 } from "./orders.storage";
 
 const MAX_COMMENT_LENGTH = ORDER_COMMENT_MAX_LENGTH;
@@ -233,6 +235,45 @@ export class OrdersService {
       this.parseAdminComment(body),
       author.id,
     );
+  }
+
+  updateAdminOrderOzonPostings(
+    orderId: string,
+    postingNumbers: string[],
+    author: AuthUser,
+  ): Promise<AdminOrderDTO> {
+    return this.ordersStorage.updateAdminOrderOzonPostings(
+      this.parseOrderId(orderId),
+      postingNumbers,
+      author.id,
+    );
+  }
+
+  async enqueueStatusChangeNotifications(
+    tx: Prisma.TransactionClient,
+    result: UpdateAdminOrderStatusResult,
+  ): Promise<void> {
+    await this.notificationQueueService.enqueueEmail(
+      {
+        to: result.order.customer.email,
+        subject: `Статус заказа ${result.order.id} изменен - Artmate`,
+        text: this.renderOrderStatusChangedTextEmail(result),
+        html: this.renderOrderStatusChangedHtmlEmail(result),
+      },
+      tx,
+    );
+    if (result.userId) {
+      const account = await tx.telegramAccount.findUnique({
+        where: { userId: result.userId },
+        select: { telegramChatId: true },
+      });
+      if (account?.telegramChatId) {
+        await this.ordersTelegramService.sendOrderStatusChangedToCustomer(
+          { ...result, chatId: account.telegramChatId },
+          tx,
+        );
+      }
+    }
   }
 
   async calculateCheckout(

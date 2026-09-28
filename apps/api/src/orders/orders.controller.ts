@@ -45,6 +45,7 @@ import {
   MyOrdersQueryDTO,
   PaymentRecoveryResponseDTO,
   UpdateOrderStatusRequestDTO,
+  UpdateOrderOzonPostingsRequestDTO,
 } from "./dto";
 import { OrdersService } from "./orders.service";
 
@@ -171,6 +172,27 @@ export class OrdersController {
       orderId,
       request.body,
       authRequest.user,
+    );
+  }
+
+  @UseGuards(AuthGuard)
+  @ValidateResponse(AdminOrderDTO)
+  @ApiOperation({
+    summary: "Replace manually linked Ozon postings for an order",
+  })
+  @ApiOkResponse({ type: AdminOrderDTO })
+  @Patch("admin/:orderId/ozon-postings")
+  updateAdminOrderOzonPostings(
+    @Param("orderId") orderId: string,
+    @Body() body: UpdateOrderOzonPostingsRequestDTO,
+    @Req() request: AuthenticatedRequest,
+  ) {
+    this.usersService.assertRole(request.user, "admin");
+
+    return this.ordersService.updateAdminOrderOzonPostings(
+      orderId,
+      body.postingNumbers,
+      request.user,
     );
   }
 

@@ -63,6 +63,7 @@ model Order {
   customerPhone               String                @map("customer_phone") @db.VarChar(80)
   customerEmail               String                @map("customer_email") @db.VarChar(320)
   deliveryProvider            OrderDeliveryProvider @default(OZON) @map("delivery_provider")
+  ozonPostingNumbers          String[]              @default([]) @map("ozon_posting_numbers")
   pickupPointId               String                @map("pickup_point_id") @db.VarChar(160)
   pickupPointTitle            String                @map("pickup_point_title") @db.VarChar(180)
   pickupPointAddress          String                @map("pickup_point_address") @db.Text

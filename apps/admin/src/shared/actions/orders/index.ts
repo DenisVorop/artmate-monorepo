@@ -5,6 +5,7 @@ export {
   getAdminOrders,
   recordAdminOrderRefund,
   updateAdminOrderStatus,
+  updateAdminOrderOzonPostings,
 } from "./orders.actions";
 export type {
   AdminOrderCommentDTO,

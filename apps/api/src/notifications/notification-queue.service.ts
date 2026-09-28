@@ -140,8 +140,11 @@ export class NotificationQueueService implements OnModuleInit, OnModuleDestroy {
     return job;
   }
 
-  async enqueueTelegram(input: TelegramNotificationInput) {
-    const job = await this.prisma.notificationJob.create({
+  async enqueueTelegram(
+    input: TelegramNotificationInput,
+    writer: NotificationJobWriter = this.prisma,
+  ) {
+    const job = await writer.notificationJob.create({
       data: {
         channel: NotificationJobChannel.TELEGRAM,
         maxAttempts: notificationMaxAttempts,
