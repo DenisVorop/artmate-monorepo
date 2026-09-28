@@ -63,6 +63,16 @@ export async function createAdminOrderComment(
   );
 }
 
+export async function updateAdminOrderOzonPostings(
+  orderId: string,
+  postingNumbers: string[],
+) {
+  return requestAdminMutation(
+    `/orders/admin/${encodeURIComponent(orderId)}/ozon-postings`,
+    { method: "PATCH", body: JSON.stringify({ postingNumbers }) },
+  );
+}
+
 export async function getAdminOrderRefunds(
   orderId: string,
 ): Promise<OrderRefundsDTO> {

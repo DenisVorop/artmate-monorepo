@@ -61,6 +61,7 @@ import {
 import { readOrderPricing } from "./pricing/read-order-pricing";
 import { readPurchaseRateSnapshot } from "./pricing/purchase-rate";
 import { OrdersLoyaltyService } from "./orders-loyalty.service";
+import { publishTrackingRequest } from "./delivery-status/publish-tracking-request";
 import type { OrderPricingSnapshot } from "./pricing/pricing-snapshot";
 
 const CHECKOUT_SUCCESS_PATH = "/checkout/success";
@@ -1111,6 +1112,9 @@ export class OrdersStorage {
       const existingOrder = await tx.order.findUnique({
         where: { id: orderId },
         select: {
+          id: true,
+          deliveryProvider: true,
+          ozonPostingNumbers: true,
           crmStatus: true,
           paymentStatus: true,
           completedAt: true,
@@ -1175,6 +1179,10 @@ export class OrdersStorage {
               toStatus: status,
             }),
           },
+        });
+        await publishTrackingRequest(tx, {
+          ...existingOrder,
+          crmStatus: nextStatus,
         });
       }
 
@@ -1774,6 +1782,79 @@ export class OrdersStorage {
     return this.getAdminOrder(orderId);
   }
 
+  async updateAdminOrderOzonPostings(
+    orderId: string,
+    postingNumbers: string[],
+    authorId: string,
+  ): Promise<AdminOrderDTO> {
+    const existingAuthorId = await this.getExistingUserId(authorId);
+
+    return this.prisma.$transaction(async (tx) => {
+      // Serializes the rare list edits so one external shipment cannot be linked
+      // to two Artmate orders by concurrent administrators.
+      await tx.$executeRaw`SELECT pg_advisory_xact_lock(927281301)`;
+      await this.lockOrder(tx, orderId);
+      const order = await tx.order.findUnique({
+        where: { id: orderId },
+        include: adminOrderInclude,
+      });
+
+      if (!order) {
+        throw new NotFoundException("Order not found");
+      }
+
+      if (order.deliveryProvider !== PrismaOrderDeliveryProvider.OZON) {
+        throw new BadRequestException("Order delivery provider must be Ozon");
+      }
+
+      if (postingNumbers.length > 0) {
+        const conflictingOrder = await tx.order.findFirst({
+          where: {
+            id: { not: orderId },
+            ozonPostingNumbers: { hasSome: postingNumbers },
+          },
+          select: { id: true },
+        });
+        if (conflictingOrder) {
+          throw new ConflictException(
+            "Ozon posting is already linked to another order",
+          );
+        }
+      }
+
+      const nextNumbers = [...postingNumbers].sort();
+      const previousNumbers = [...order.ozonPostingNumbers].sort();
+      if (JSON.stringify(previousNumbers) === JSON.stringify(nextNumbers)) {
+        return this.mapAdminOrder(order);
+      }
+
+      await tx.order.update({
+        where: { id: orderId },
+        data: { ozonPostingNumbers: nextNumbers },
+      });
+      await publishTrackingRequest(tx, {
+        ...order,
+        ozonPostingNumbers: nextNumbers,
+      });
+      await tx.orderHistory.create({
+        data: {
+          orderId,
+          authorId: existingAuthorId,
+          eventType: "ozon_postings_updated",
+          payload: {
+            previousPostingNumbers: previousNumbers,
+            postingNumbers: nextNumbers,
+          },
+        },
+      });
+      const updatedOrder = await tx.order.findUniqueOrThrow({
+        where: { id: orderId },
+        include: adminOrderInclude,
+      });
+      return this.mapAdminOrder(updatedOrder);
+    });
+  }
+
   async getAdminOrder(orderId: string): Promise<AdminOrderDTO> {
     const order = await this.prisma.order.findUnique({
       where: { id: orderId },
@@ -1785,6 +1866,87 @@ export class OrdersStorage {
     }
 
     return this.mapAdminOrder(order);
+  }
+
+  async applyDeliveryCompletion(
+    eventId: string,
+    enqueueNotifications: (
+      tx: Prisma.TransactionClient,
+      result: UpdateAdminOrderStatusResult,
+    ) => Promise<void>,
+  ): Promise<boolean> {
+    return this.prisma.$transaction(async (tx) => {
+      const event = await tx.deliveryCompletionEvent.findUnique({
+        where: { id: eventId },
+      });
+      if (!event) return false;
+      await this.lockOrder(tx, event.orderId);
+      if (
+        await tx.orderDeliveryCompletionReceipt.findUnique({
+          where: { eventId },
+        })
+      )
+        return false;
+      const order = await tx.order.findUnique({
+        where: { id: event.orderId },
+        include: adminOrderInclude,
+      });
+      const request = await tx.deliveryTrackingRequest.findUnique({
+        where: { orderId: event.orderId },
+      });
+      const expectedNumbers = order?.ozonPostingNumbers ?? [];
+      const isCurrent = Boolean(
+        order &&
+        request?.enabled &&
+        request.revision === event.id &&
+        order.deliveryProvider === "OZON" &&
+        order.crmStatus === "DELIVERING" &&
+        order.paymentStatus === "PAID" &&
+        expectedNumbers.length > 0 &&
+        expectedNumbers.length === event.externalNumbers.length &&
+        new Set(event.externalNumbers).size === event.externalNumbers.length &&
+        expectedNumbers.every((number) =>
+          event.externalNumbers.includes(number),
+        ),
+      );
+      if (order && isCurrent) {
+        const completedAt = order.completedAt ?? event.observedAt;
+        const updated = await tx.order.update({
+          where: { id: order.id },
+          data: { crmStatus: "COMPLETED", completedAt },
+          include: adminOrderInclude,
+        });
+        await this.affiliateFinancialAccountingService.recordCompletionInTransaction(
+          tx,
+          order.id,
+          completedAt,
+        );
+        await tx.orderHistory.create({
+          data: {
+            orderId: order.id,
+            eventType: "status_changed",
+            payload: {
+              fromStatus: "delivering",
+              toStatus: "completed",
+              source: "delivery_tracking",
+              deliveryEventId: event.id,
+            },
+          },
+        });
+        await publishTrackingRequest(tx, updated);
+        await enqueueNotifications(tx, {
+          order: this.mapAdminOrder(updated),
+          changed: true,
+          previousStatus: "delivering",
+          nextStatus: "completed",
+          userId: order.userId ?? undefined,
+        });
+      }
+      await tx.orderDeliveryCompletionReceipt.create({
+        data: { eventId, completed: isCurrent },
+      });
+      return isCurrent;
+    });
   }
 
   private async getExistingUserId(userId: string) {
@@ -1863,6 +2025,7 @@ export class OrdersStorage {
   private mapAdminOrder(order: StoredAdminOrder): AdminOrderDTO {
     return {
       ...this.mapOrder(order),
+      ozonPostingNumbers: order.ozonPostingNumbers,
       adminComments: order.adminComments.map((comment) =>
         this.mapAdminOrderComment(comment),
       ),

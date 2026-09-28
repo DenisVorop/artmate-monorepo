@@ -51,6 +51,7 @@ import {
   type OrderCrmColumn,
 } from "../lib";
 import { useCreateOrderComment, useUpdateOrderCrmStatus } from "../model";
+import { OzonPostingsForm } from "./ozon-postings-form";
 
 export function OrdersCrm() {
   const { isError, isPending, orders } = useOrders();
@@ -317,6 +318,10 @@ function OrderCard({
 
         {order.delivery.provider === "cdek" ? (
           <ShipmentBadge order={order} />
+        ) : null}
+
+        {order.delivery.provider === "ozon" ? (
+          <OzonPostingsForm order={order} />
         ) : null}
 
         {order.comment ? (
@@ -601,6 +606,10 @@ function getCompletedOrdersCount(orders: readonly AdminOrder[]) {
 }
 
 function getHistoryEventText(event: AdminOrder["history"][number]) {
+  if (event.eventType === "ozon_postings_updated") {
+    return "Отправления Ozon обновлены";
+  }
+
   if (event.eventType === "status_changed") {
     const fromStatus = getStatusLabel(event.payload.fromStatus);
     const toStatus = getStatusLabel(event.payload.toStatus);

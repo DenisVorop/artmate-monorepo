@@ -1,0 +1,46 @@
+// Orders publishes desired tracking requests here. Delivery owns observations
+// and completion events; consumers never update provider-owned state.
+model DeliveryTrackingRequest {
+  orderId         String                @id @map("order_id") @db.VarChar(32)
+  revision        String                @unique @db.Uuid
+  provider        OrderDeliveryProvider
+  externalNumbers String[]              @map("external_numbers")
+  enabled         Boolean
+  updatedAt       DateTime              @default(now()) @updatedAt @map("updated_at")
+
+  @@map("delivery_tracking_requests")
+}
+
+model DeliveryTrackingObservation {
+  orderId       String    @id @map("order_id") @db.VarChar(32)
+  revision      String    @db.Uuid
+  states        Json      @default("[]") @db.JsonB
+  allDelivered  Boolean   @default(false) @map("all_delivered")
+  checkedAt     DateTime? @map("checked_at")
+  nextCheckAt   DateTime  @default(now()) @map("next_check_at")
+  leaseToken    String?   @map("lease_token") @db.Uuid
+  lockedUntil   DateTime? @map("locked_until")
+  lastError     String?   @map("last_error") @db.VarChar(80)
+
+  @@map("delivery_tracking_observations")
+}
+
+// Transactional outbox: delivery publishes a completion once per request revision.
+model DeliveryCompletionEvent {
+  id              String   @id @db.Uuid
+  orderId         String   @map("order_id") @db.VarChar(32)
+  externalNumbers String[] @map("external_numbers")
+  observedAt      DateTime @default(now()) @map("observed_at")
+
+  @@index([observedAt, id])
+  @@map("delivery_completion_events")
+}
+
+// Orders-owned inbox, committed together with the CRM transition and effects.
+model OrderDeliveryCompletionReceipt {
+  eventId     String   @id @map("event_id") @db.Uuid
+  completed   Boolean
+  processedAt DateTime @default(now()) @map("processed_at")
+
+  @@map("order_delivery_completion_receipts")
+}
