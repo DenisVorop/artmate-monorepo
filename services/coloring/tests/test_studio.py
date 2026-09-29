@@ -109,7 +109,12 @@ def test_settings_inheritance_overrides_and_reorder_without_new_jobs(context):
     repo.update_page(pages[1]["id"], {"overrides": {"min_area_mm2": 7}})
     current = repo.project(project["id"])
     assert current["pages"][0]["settings"]["min_area_mm2"] == 4
-    assert current["pages"][1]["settings"] == {"colors": 19, "min_area_mm2": 7, "font_size_px": 6}
+    assert current["pages"][1]["settings"] == {
+        "colors": 19,
+        "min_area_mm2": 7,
+        "font_size_px": 6,
+        "artificial_grid": True,
+    }
     ordered = repo.reorder(project["id"], [p["id"] for p in reversed(pages)], current["version"])
     assert [p["number"] for p in ordered["pages"]] == [24, 25]
     assert not any(p["jobs"] for p in ordered["pages"])
@@ -415,3 +420,69 @@ def test_algorithm_upgrade_offers_new_preview_without_replacing_accepted_result(
     new = repo.enqueue(project["id"])
     assert len(new) == 1
     assert repo.project(project["id"])["pages"][0]["selected_job_id"] == old["id"]
+
+
+def test_grid_setting_inherits_overrides_and_invalidates_results(context):
+    _, repo, _, studio = context
+    project, pages = book(repo, studio, 2)
+    assert project["settings"]["artificial_grid"] is True
+    for job in repo.enqueue(project["id"]):
+        repo.claim()
+        repo.finish(job["id"], "completed", 1, {"algorithm": ALGORITHM_VERSION})
+    original = [p["selected_job_id"] for p in repo.project(project["id"])["pages"]]
+    repo.update_project(project["id"], {"settings": {"artificial_grid": False}})
+    repo.update_page(pages[1]["id"], {"overrides": {"artificial_grid": True}})
+    current = repo.project(project["id"])
+    assert [p["settings"]["artificial_grid"] for p in current["pages"]] == [False, True]
+    assert [p["outdated"] for p in current["pages"]] == [True, False]
+    assert repo.usage()["queue"] == 0
+    jobs = repo.enqueue(project["id"])
+    assert len(jobs) == 1 and jobs[0]["settings"]["artificial_grid"] is False
+    repo.claim()
+    repo.finish(jobs[0]["id"], "completed", 1, {"algorithm": ALGORITHM_VERSION})
+    assert [p["selected_job_id"] for p in repo.project(project["id"])["pages"]] == original
+    repo.update_page(pages[1]["id"], {"overrides": {}})
+    assert repo.project(project["id"])["pages"][1]["settings"]["artificial_grid"] is False
+    assert len(repo.enqueue(project["id"])) == 1
+
+
+@pytest.mark.parametrize("invalid", [0, 1, "false", None])
+def test_grid_rejects_non_boolean_settings(context, invalid):
+    _, repo, _, studio = context
+    project, pages = book(repo, studio)
+    with pytest.raises(StudioError):
+        repo.update_project(project["id"], {"settings": {"artificial_grid": invalid}})
+    with pytest.raises(StudioError):
+        repo.update_page(pages[0]["id"], {"overrides": {"artificial_grid": invalid}})
+
+
+def test_v2_grid_migration_preserves_accepted_job_and_no_grid_provenance(context):
+    config, repo, files, studio = context
+    project, pages = book(repo, studio)
+    baseline = repo.enqueue(project["id"])[0]
+    repo.claim()
+    repo.finish(baseline["id"], "completed", 1, {"algorithm": "coloring-delivery-v8-strokes"})
+    preview = repo.enqueue(project["id"], force=True)[0]
+    repo.claim()
+    repo.finish(
+        preview["id"], "completed", 1, {"algorithm": "coloring-delivery-v9-continuous-regions"}
+    )
+    source = files.source(pages[0]["id"])
+    original = source.read_bytes()
+    with repo.transaction() as db:
+        for table in ("projects", "jobs"):
+            for row in db.execute(f"SELECT id,settings FROM {table}").fetchall():
+                values = json.loads(row["settings"])
+                del values["artificial_grid"]
+                db.execute(
+                    f"UPDATE {table} SET settings=? WHERE id=?", (json.dumps(values), row["id"])
+                )
+        db.execute("PRAGMA user_version=2")
+    migrated = SqliteRepository(repo.path.parent, config.limits)
+    current = migrated.project(project["id"])
+    assert current["settings"]["artificial_grid"] is True
+    assert migrated.job(baseline["id"])["settings"]["artificial_grid"] is True
+    assert migrated.job(preview["id"])["settings"]["artificial_grid"] is False
+    assert current["pages"][0]["selected_job_id"] == baseline["id"]
+    assert source.read_bytes() == original
+    assert SqliteRepository(repo.path.parent, config.limits).project(project["id"]) == current

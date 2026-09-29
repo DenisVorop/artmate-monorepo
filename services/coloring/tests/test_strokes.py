@@ -56,6 +56,7 @@ def test_long_curved_dark_stroke_survives_two_color_background_and_keeps_core_co
     assert first == second
     mask = mask_for(first, rgb.shape[:2])
     assert all(mask[y, x] > 0 for x, y in points[1:-1])
+    assert first.locked_ids
     selected_colors = {first.colors[index - 1] for index in np.unique(mask) if index}
     assert (38, 24, 20) in selected_colors
 
@@ -173,6 +174,7 @@ def test_long_stroke_core_color_replaces_overlapping_compact_fragment(monkeypatc
     assert np.all(result_mask[compact_mask > 0] == compact_mask[compact_mask > 0])
     compact_id = int(compact_mask[compact_pixels[0, 0], compact_pixels[0, 1]])
     assert result.colors[compact_id - 1] == (20, 10, 8)
+    assert compact_id in result.locked_ids
     highlight_id = int(result_mask[85, 80])
     assert highlight_id > 0
     assert result.colors[highlight_id - 1] == (255, 255, 255)

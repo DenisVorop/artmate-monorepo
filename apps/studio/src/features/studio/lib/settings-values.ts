@@ -11,6 +11,7 @@ export const pageValues = (page: Page): PageValues => ({
   own_colors: page.overrides.colors !== undefined,
   own_area: page.overrides.min_area_mm2 !== undefined,
   own_font: page.overrides.font_size_px !== undefined,
+  own_grid: page.overrides.artificial_grid !== undefined,
 });
 export const pagePayload = (values: PageValues) => ({
   name: values.name,
@@ -18,6 +19,9 @@ export const pagePayload = (values: PageValues) => ({
     ...(values.own_colors ? { colors: values.settings.colors } : {}),
     ...(values.own_area ? { min_area_mm2: values.settings.min_area_mm2 } : {}),
     ...(values.own_font ? { font_size_px: values.settings.font_size_px } : {}),
+    ...(values.own_grid
+      ? { artificial_grid: values.settings.artificial_grid }
+      : {}),
   },
 });
 export function movedPages(project: Project, id: string, direction: number) {

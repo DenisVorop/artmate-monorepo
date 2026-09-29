@@ -41,7 +41,7 @@ class SubdivisionInput:
 
 @dataclass(frozen=True)
 class SubdivisionSettings:
-    target_area_mm2: float = 60.0
+    target_area_mm2: float | None = 60.0
     min_area_mm2: float = 5.0
     curve_bend_mm: float = 1.2
     label_font_size_pt: float = 6.0
@@ -53,7 +53,6 @@ class SubdivisionSettings:
     def __post_init__(self) -> None:
         for value, low, high, name in (
             (self.min_area_mm2, 0.001, 10000, "Минимальная площадь"),
-            (self.target_area_mm2, 0.01, 1000000, "Целевая площадь"),
             (self.curve_bend_mm, 0.01, 20, "Изгиб линии"),
             (self.label_font_size_pt, 3, 24, "Размер номера"),
             (self.label_padding_mm, 0, 5, "Отступ номера"),
@@ -61,7 +60,13 @@ class SubdivisionSettings:
         ):
             if not isfinite(value) or not low <= value <= high:
                 raise StageError(f"{name}: допустимо от {low} до {high}.")
-        if self.target_area_mm2 < 2 * self.min_area_mm2:
+        if self.target_area_mm2 is not None and (
+            type(self.target_area_mm2) not in (int, float)
+            or not isfinite(self.target_area_mm2)
+            or not 0.01 <= self.target_area_mm2 <= 1000000
+        ):
+            raise StageError("Целевая площадь: допустимо от 0.01 до 1000000.")
+        if self.target_area_mm2 is not None and self.target_area_mm2 < 2 * self.min_area_mm2:
             raise StageError("Целевая площадь должна быть не меньше двух минимальных.")
         if type(self.seed) is not int or not 0 <= self.seed < 2**32:
             raise StageError("Seed должен быть целым числом от 0 до 2³²−1.")

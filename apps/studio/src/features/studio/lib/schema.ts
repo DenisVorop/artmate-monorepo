@@ -1,5 +1,6 @@
 import { z } from "zod";
 export const settingsSchema = z.object({
+  artificial_grid: z.boolean(),
   colors: z.number().int().min(2, "От 2 цветов").max(35, "Не больше 35 цветов"),
   min_area_mm2: z
     .number()
@@ -37,5 +38,6 @@ export const pageSchema = z.object({
   own_colors: z.boolean(),
   own_area: z.boolean(),
   own_font: z.boolean(),
+  own_grid: z.boolean(),
 });
 export type PageValues = z.infer<typeof pageSchema>;

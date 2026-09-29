@@ -6,6 +6,7 @@ import cv2
 import numpy as np
 
 from mystery_coloring.domain import StageError
+from mystery_coloring.regions.adapters.details import reconcile_details
 from mystery_coloring.regions.domain import (
     Region,
     RegionInput,
@@ -113,6 +114,7 @@ class RasterRegionProcessor:
         )
         initial_colors = tuple(key % 256 for key in keys)
         protected = frozenset(i for i, key in enumerate(keys) if key >= 256)
+        locked = frozenset(i for i, key in enumerate(keys) if key >= 512)
         areas = tuple(int(a) for a in np.bincount(initial.ravel()))
         borders = shared_borders(initial)
         rgb = np.asarray(source.palette, dtype=np.float32).reshape(1, -1, 3) / 255.0
@@ -132,14 +134,37 @@ class RasterRegionProcessor:
         labels = remap[initial].astype(np.int32)
         colors = tuple(initial_colors[root] for root in roots)
         cleaned = np.asarray(colors, dtype=np.uint8)[labels]
-        lineage: list[list[int]] = [[] for _ in roots]
+        protected_final = frozenset(int(remap[i]) for i in protected)
+        locked_final = frozenset(int(remap[i]) for i in locked)
+        if protected_final:
+            final_keys = tuple(
+                c + (512 if i in locked_final else 256 if i in protected_final else 0)
+                for i, c in enumerate(colors)
+            )
+            final_mask = np.isin(labels, tuple(protected_final)).astype(np.uint8)
+            final_mask[np.isin(labels, tuple(locked_final))] = 2
+            reconciled = reconcile_details(
+                final_mask,
+                labels,
+                final_keys,
+                shared_borders(labels),
+            )
+            if not np.array_equal(reconciled, final_mask):
+                joined, joined_keys = connected_regions(
+                    cleaned.astype(np.uint16) + reconciled.astype(np.uint16) * 256
+                )
+                _, first_pixel = np.unique(labels, return_index=True)
+                remap = joined.ravel()[first_pixel][remap]
+                labels = joined
+                colors = tuple(key % 256 for key in joined_keys)
+                protected_final = frozenset(i for i, key in enumerate(joined_keys) if key >= 256)
+        lineage: list[list[int]] = [[] for _ in colors]
         for old_id, new_id in enumerate(remap):
             lineage[int(new_id)].append(old_id)
         final_borders = shared_borders(labels)
         regions = measure_regions(
             labels, colors, final_borders, tuple(tuple(ids) for ids in lineage), threshold
         )
-        protected_final = frozenset(int(remap[i]) for i in protected)
         # Tiny islands enclosed entirely by prefilled shapes are printed too.
         neighbors = {i: set() for i in range(len(regions))}
         for border in final_borders:

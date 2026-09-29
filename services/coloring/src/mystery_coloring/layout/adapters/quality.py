@@ -80,7 +80,9 @@ def check_page(svg, source, result, settings, font, template, artwork, number, n
     )
     body = root.find(f"{SVG}g[@id='artwork']")
     require(
-        body is not None and body.get("transform") == f"translate({artwork.x} {artwork.y})",
+        body is not None
+        and body.get("transform") == artwork.transform
+        and body.get("data-rotation-deg") == str(artwork.rotation_deg),
         "вёрстка изменила масштаб рисунка.",
     )
     frame = root.find(f"{SVG}rect[@id='artwork-frame']")
@@ -163,8 +165,8 @@ def check_page(svg, source, result, settings, font, template, artwork, number, n
         require(
             x0 >= -1e-6
             and y0 >= -1e-6
-            and x1 <= artwork.width + 1e-6
-            and y1 <= artwork.height + 1e-6,
+            and x1 <= artwork.source_width + 1e-6
+            and y1 <= artwork.source_height + 1e-6,
             "символ выходит за рисунок.",
         )
     layout = template.palette(len(numbered_colors(geo.palette)), number)
@@ -231,8 +233,13 @@ def check_page(svg, source, result, settings, font, template, artwork, number, n
         "paper_white_policy": paper_white_policy(),
         "uniform_font_size_pt": settings.font_size_pt,
         "font_size_css_px": settings.font_size_pt / 0.75,
-        "rotated_labels": sum(label.angle_deg != 0 for label in result.labels),
-        "label_angles_deg": sorted({label.angle_deg for label in result.labels}),
+        "artwork_rotation_deg": artwork.rotation_deg,
+        "rotated_labels": sum(
+            label.angle_deg + artwork.rotation_deg != 0 for label in result.labels
+        ),
+        "label_angles_deg": sorted(
+            {label.angle_deg + artwork.rotation_deg for label in result.labels}
+        ),
         "unrotated_one_size_px": [(one[2] - one[0]) * size_px, (one[3] - one[1]) * size_px],
         "scheme_ink": SCHEME_INK,
         "font_name": font.name,

@@ -1,12 +1,13 @@
 "use client";
 import { useState } from "react";
-import { useForm } from "react-hook-form";
+import { Controller, useForm } from "react-hook-form";
 import { zodResolver } from "@hookform/resolvers/zod";
 import { SlidersHorizontal } from "lucide-react";
 import type { Page, Project } from "@/entities/project";
 import { Button } from "@/shared/ui/button";
 import { Input } from "@/shared/ui/input";
 import { Label } from "@/shared/ui/label";
+import { Switch } from "@/shared/ui/switch";
 import {
   Dialog,
   DialogContent,
@@ -119,6 +120,29 @@ function ProjectSettingsForm({
           </small>
         </div>
       ))}
+      <div className="parameter">
+        <div className="parameter-heading">
+          <Label htmlFor="book-grid">Искусственная сетка</Label>
+          <Controller
+            control={form.control}
+            name="settings.artificial_grid"
+            render={({ field }) => (
+              <Switch
+                id="book-grid"
+                aria-describedby="book-grid-description"
+                checked={field.value}
+                onCheckedChange={field.onChange}
+                onBlur={field.onBlur}
+                ref={field.ref}
+              />
+            )}
+          />
+        </div>
+        <small id="book-grid-description">
+          Делит крупные однотонные области на ячейки. Если выключить, они
+          останутся цельными.
+        </small>
+      </div>
       <Label htmlFor="first-page">Номер первой страницы</Label>
       <Input
         id="first-page"
@@ -190,6 +214,42 @@ export function PageSettings({ page }: { page: Page }) {
           </small>
         </div>
       ))}
+      <div className="parameter">
+        <div className="parameter-heading">
+          <Label htmlFor="page-grid">Искусственная сетка</Label>
+          <Button
+            type="button"
+            size="sm"
+            variant="ghost"
+            aria-pressed={form.watch("own_grid")}
+            onClick={() => {
+              const own = !form.getValues("own_grid");
+              form.setValue("own_grid", own, { shouldDirty: true });
+            }}
+          >
+            {form.watch("own_grid") ? "Свои" : "Из проекта"}
+          </Button>
+        </div>
+        <Controller
+          control={form.control}
+          name="settings.artificial_grid"
+          render={({ field }) => (
+            <Switch
+              id="page-grid"
+              aria-describedby="page-grid-description"
+              checked={field.value}
+              disabled={!form.watch("own_grid")}
+              onCheckedChange={field.onChange}
+              onBlur={field.onBlur}
+              ref={field.ref}
+            />
+          )}
+        />
+        <small id="page-grid-description">
+          Делит крупные однотонные области на ячейки. Закрашенные детали
+          сохраняются в обоих режимах.
+        </small>
+      </div>
       <div className="print-spec">
         <span>Печатный лист</span>
         <strong>612,28 × 858,9 px</strong>

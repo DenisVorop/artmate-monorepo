@@ -86,7 +86,8 @@ def page_document(
     )
     body = previous.find(SVG + "g")
     body.set("id", "artwork")
-    body.set("transform", f"translate({artwork.x} {artwork.y})")
+    body.set("transform", artwork.transform)
+    body.set("data-rotation-deg", str(artwork.rotation_deg))
     root.append(body)
     ET.SubElement(
         root,
@@ -101,7 +102,9 @@ def page_document(
     )
     root.append(
         palette_element(
-            geo.palette, template.palette(len(numbered_colors(geo.palette)), number), font
+            geo.palette,
+            template.palette(len(numbered_colors(geo.palette)), number),
+            font,
         )
     )
     root.append(numbers.element(number))

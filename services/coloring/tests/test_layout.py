@@ -26,13 +26,14 @@ from mystery_coloring.typography.adapters.font import ArialFont
 from mystery_coloring.typography.domain import SYMBOLS
 
 
-def layout_case():
+def layout_case(landscape=False):
     template = ArtMateTemplate()
-    pixels = np.zeros((30, 20), dtype=np.uint8)
+    width, height = (30, 20) if landscape else (20, 30)
+    pixels = np.zeros((height, width), dtype=np.uint8)
     pixels[:, 10:] = 1
-    placement = template.fit(20, 30)
+    placement = template.fit(width, height)
     source, settings, font, result = run(
-        source_for(pixels, scale=placement.width / 20, palette=((80, 0, 0), (200, 0, 0))),
+        source_for(pixels, scale=placement.source_width / width, palette=((80, 0, 0), (200, 0, 0))),
         font_size_pt=4.5,
         min_area_mm2=3.5,
     )
@@ -50,7 +51,9 @@ def test_reference_frame_and_real_aspect_fit():
     assert template.frame.height / PX_MM == pytest.approx(760.306)
     for width, height in [(736, 1120), (1120, 736), (30, 30), (2, 1000)]:
         fit = template.fit(width, height)
-        assert fit.width / fit.height == pytest.approx(width / height)
+        assert fit.source_width / fit.source_height == pytest.approx(width / height)
+        assert fit.rotation_deg == (-90 if width > height else 0)
+        assert fit.width <= fit.height
         assert fit.x + fit.width / 2 == pytest.approx(template.frame.x + template.frame.width / 2)
         assert fit.y + fit.height / 2 == pytest.approx(template.frame.y + template.frame.height / 2)
         assert fit.right <= template.frame.right + 1e-6
@@ -272,8 +275,9 @@ def test_two_page_pipeline_uses_real_print_scale_and_continuous_numbers(
         assert quality["unlabeled_regions"] == quality["paper_white_regions"]
         assert quality["missing_required_labels"] == 0
         assert quality["palette_order"] == PALETTE_ORDER_VERSION
-        assert quality["label_angles_deg"] == [0]
-        assert quality["rotated_labels"] == 0
+        rotation = page["artwork"]["rotation_deg"]
+        assert quality["label_angles_deg"] == [rotation]
+        assert quality["rotated_labels"] == (quality["labels"] if rotation else 0)
         preparation = output / page["directory"] / "01-preparation"
         first_palette = json.loads((preparation / "palette.json").read_text())["colors"]
         assert [tuple(c["rgb"]) for c in first_palette] == rgbs
@@ -288,7 +292,9 @@ def test_two_page_pipeline_uses_real_print_scale_and_continuous_numbers(
             assert label["angle_deg"] == 0
             assert label["text"] == colors[cells[label["cell_id"]]["color_index"]]["symbol"]
         settings = json.loads((output / page["directory"] / "settings.json").read_text())
-        assert settings["image_width_mm"] == pytest.approx(page["artwork"]["width"])
+        assert settings["image_width_mm"] == pytest.approx(
+            page["artwork"]["height" if rotation else "width"]
+        )
         assert (output / page["colored_preview"]).exists()
         assert (output / page["numbered_preview"]).exists()
     for manifest_path in output.rglob("manifest.json"):
@@ -316,3 +322,75 @@ def test_failed_book_cleans_only_owned_directory_and_page_overflow_fails_early(t
             PreparePagesRequest((Path("a"), Path("b")), output, LayoutSettings(start_page=999999))
         )
     assert not output.exists()
+
+
+def test_landscape_rotation_keeps_artwork_and_labels_together_and_fills_frame():
+    case = layout_case(landscape=True)
+    source, result, settings, font, template, artwork, number, _ = case
+    svg = page_document(*case)
+    quality = check_page(svg, *case)
+    assert artwork.height == pytest.approx(template.frame.height)
+    assert source.geometry.width * source.geometry.mm_per_unit == pytest.approx(artwork.height)
+    assert quality["label_angles_deg"] == [-90]
+    assert quality["rotated_labels"] == quality["labels"] > 0
+    root = ET.fromstring(svg)
+    body = root.find(f"{SVG}g[@id='artwork']")
+    assert body.get("transform") == f"translate({artwork.x} {artwork.bottom}) rotate(-90)"
+    assert body.find(f"{SVG}g[@id='labels']") is not None
+    # Palette stays upright on the sheet, independently of the artwork rotation.
+    palette = root.find(f"{SVG}g[@id='palette']")
+    expected = palette_element(
+        source.geometry.palette, template.palette(len(source.geometry.palette), number), font
+    )
+    assert ET.tostring(palette) == ET.tostring(expected)
+    first_ink = bounds(palette[0].find(SVG + "path").get("d"))
+    assert first_ink[3] - first_ink[1] > first_ink[2] - first_ink[0]  # upright numeral 1
+    # An independent corner transform verifies the final footprint, without extra scaling.
+    corners = [
+        (0, 0),
+        (artwork.source_width, 0),
+        (0, artwork.source_height),
+        (artwork.source_width, artwork.source_height),
+    ]
+    mapped = [(artwork.x + y, artwork.bottom - x) for x, y in corners]
+    assert min(x for x, y in mapped) == pytest.approx(artwork.x)
+    assert max(x for x, y in mapped) == pytest.approx(artwork.right)
+    assert min(y for x, y in mapped) == pytest.approx(artwork.y)
+    assert max(y for x, y in mapped) == pytest.approx(artwork.bottom)
+    body.set("transform", f"translate({artwork.x} {artwork.y})")
+    with pytest.raises(StageError, match="масштаб"):
+        check_page(ET.tostring(root, encoding="unicode"), *case)
+
+
+def test_landscape_book_export_preserves_rotation_when_renumbering(tmp_path):
+    from mystery_coloring.studio.adapters.export import BookExporter
+    from mystery_coloring.studio.adapters.files import StudioFiles
+    from mystery_coloring.studio.domain import Limits
+
+    case = layout_case(landscape=True)
+    source, _, _, font, template, artwork, number, _ = case
+    files = StudioFiles(tmp_path, Limits())
+    page, job = (
+        {"id": "a" * 32},
+        {
+            "id": "b" * 32,
+            "settings": {"start_page": number},
+            "report": {
+                "palette": [{"rgb": rgb} for rgb in source.geometry.palette],
+                "quality": {"palette_colors": len(source.geometry.palette)},
+            },
+        },
+    )
+    out = files.output(page["id"], job["id"])
+    out.mkdir(parents=True)
+    for variant, stem in [("outline", "page"), ("colored", "colored-page")]:
+        (out / (stem + ".svg")).write_text(page_document(*case, filled=variant == "colored"))
+        exporter = BookExporter(files)
+        root = ET.fromstring(exporter.render(page, job, 26, variant))
+        assert root.get("data-page-number") == "26"
+        assert root.find(f"{SVG}g[@id='artwork']").get("transform") == artwork.transform
+        expected = palette_element(
+            source.geometry.palette, template.palette(len(source.geometry.palette), 26), font
+        )
+        assert ET.tostring(root.find(f"{SVG}g[@id='palette']")) == ET.tostring(expected)
+        assert exporter.render(page, job, 26, variant, "png").startswith(b"\x89PNG")

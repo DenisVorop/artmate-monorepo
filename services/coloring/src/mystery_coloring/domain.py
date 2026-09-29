@@ -67,4 +67,5 @@ class SimplifiedImage:
     image: RGBImage
     palette: tuple[PaletteColor, ...]
     color_indices: bytes
+    # 0 = ordinary, 1 = generic contrast detail, 2 = confirmed stroke/face feature.
     prefilled_mask: bytes = b""

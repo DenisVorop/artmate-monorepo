@@ -56,12 +56,12 @@ class InMemoryPageProcessor:
         )
         template = ArtMateTemplate()
         artwork = template.fit(prepared.image.width, prepared.image.height)
-        effective = settings.pipeline(artwork.width)
+        effective = settings.pipeline(artwork.source_width)
         self.progress("Локальное определение черт лица и защита деталей")
         detail_map = (
             self.details.detect(
                 prepared.image,
-                DetailSettings(artwork.width / prepared.image.width, effective.min_area_mm2),
+                DetailSettings(artwork.source_width / prepared.image.width, effective.min_area_mm2),
             )
             if self.details
             else None

@@ -176,3 +176,21 @@ def test_cut_with_invalid_protected_neighbor_is_rejected(monkeypatch):
     assert attempts
     assert result.split_count == 0
     assert result.mesh == vector.mesh
+
+
+def test_simplifier_keeps_detail_provenance_separate_from_palette_colors():
+    rgb = np.full((20, 20, 3), (40, 80, 170), np.uint8)
+    detail = np.zeros((20, 20), "<u4")
+    detail[5:10, 5:10] = 1
+    detail[10:15, 10:15] = 2
+    protected = DetailMap(
+        detail.tobytes(), ((40, 80, 170), (40, 80, 170)), locked_ids=frozenset({2})
+    )
+    result = OpenCVImageSimplifier().simplify(
+        image(rgb), SimplifySettings(colors=2, smoothing=Smoothing.NONE), detail_map=protected
+    )
+    mask = np.frombuffer(result.prefilled_mask, np.uint8).reshape(20, 20)
+    assert np.all(mask[detail == 0] == 0)
+    assert np.all(mask[detail == 1] == 1)
+    assert np.all(mask[detail == 2] == 2)
+    assert result.image.pixels == image(rgb).pixels

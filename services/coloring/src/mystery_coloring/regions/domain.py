@@ -31,6 +31,7 @@ class RegionInput:
     palette: tuple[tuple[int, int, int], ...]
     color_indices: bytes
     source_manifest_sha256: str
+    # 0 = ordinary, 1 = generic contrast detail, 2 = confirmed stroke/face feature.
     prefilled_mask: bytes = b""
 
     def __post_init__(self) -> None:
@@ -46,7 +47,7 @@ class RegionInput:
         ):
             raise StageError("Недопустимые RGB-значения палитры.")
         if self.prefilled_mask and (
-            len(self.prefilled_mask) != self.width * self.height or max(self.prefilled_mask) > 1
+            len(self.prefilled_mask) != self.width * self.height or max(self.prefilled_mask) > 2
         ):
             raise StageError("Некорректная маска готовых деталей.")
         if max(self.color_indices) >= len(self.palette):
