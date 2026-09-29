@@ -198,3 +198,116 @@ def test_excessive_fragmentation_returns_actionable_error(monkeypatch):
     monkeypatch.setattr("mystery_coloring.regions.adapters.segmenter.MAX_REGIONS", 3)
     with pytest.raises(StageError, match="областей"):
         RasterRegionProcessor().process(make_input([[0, 1], [1, 0]]), RegionSettings())
+
+
+@pytest.mark.parametrize(
+    "shape,locked,retained",
+    [
+        ("thin", False, False),
+        ("thin", True, True),
+        ("diagonal", False, True),
+        ("isolated", False, True),
+        ("small_neighbor", False, False),
+        ("different", False, True),
+    ],
+)
+def test_generic_fragments_merge_by_color_while_confirmed_strokes_remain(shape, locked, retained):
+    from dataclasses import replace
+
+    colors = np.zeros((80, 100), np.uint8)
+    protected = np.zeros_like(colors)
+    colors[10:70, 10:70] = 1
+    if shape == "thin":
+        colors[30:32, 70:95] = 1
+        protected[30:32, 70:95] = 2 if locked else 1
+        point = (30, 80)
+    else:
+        start = 70 if shape not in ("diagonal", "isolated") else 71
+        colors[25:40, start : start + 12] = 1 if shape != "different" else 2
+        protected[25:40, start : start + 12] = 1
+        point = (30, start + 3)
+        if shape == "diagonal":
+            colors[24, 70] = 1
+        if shape == "small_neighbor":
+            colors[10:70, 10:70] = 0
+            colors[25:40, 65:70] = 1
+    source = replace(make_input(colors), prefilled_mask=protected.tobytes())
+    result = RasterRegionProcessor().process(
+        source, RegionSettings(image_width_mm=10, min_area_mm2=0)
+    )
+    detail = result.regions[result_labels(result)[point]]
+    assert detail.prefilled is retained
+    assert result.color_indices == source.color_indices
+
+
+@pytest.mark.parametrize(
+    "width,contact,other_color", [(10, 10, 1), (2, 2, 1), (10, 1, 1), (10, 10, 2)]
+)
+def test_generic_same_color_connections_merge_regardless_of_width_or_contact(
+    width, contact, other_color
+):
+    from dataclasses import replace
+
+    colors = np.zeros((120, 120), np.uint8)
+    colors[5:45, 5:110] = 1
+    colors[85:115, 5:110] = other_color
+    colors[44:86, 55 : 55 + width] = 1
+    colors[44:47, 55 + contact : 55 + width] = 0
+    colors[83:86, 55 + contact : 55 + width] = 0
+    protected = np.zeros_like(colors)
+    protected[45:85, 55 : 55 + width] = colors[45:85, 55 : 55 + width] == 1
+    source = replace(make_input(colors), prefilled_mask=protected.tobytes())
+    result = RasterRegionProcessor().process(
+        source, RegionSettings(image_width_mm=12, min_area_mm2=0)
+    )
+    labels = result_labels(result)
+    assert not result.regions[labels[60, 55]].prefilled
+    assert result.color_indices == source.color_indices
+    assert labels[60, 55] == labels[20, 55]
+    assert (labels[60, 55] == labels[100, 55]) == (other_color == 1)
+    assert_invariants(source, result)
+
+
+def test_same_color_flood_releases_every_generic_fragment_without_crossing_locked_features():
+    from mystery_coloring.regions.adapters.details import reconcile_details
+
+    labels = np.arange(7, dtype=np.int32).reshape(1, 7)
+    mask = np.array([[0, 1, 1, 2, 1, 1, 0]], np.uint8)
+    keys = (0, 256, 256, 512, 256, 257, 1)
+    borders = tuple(SharedBorder(i, i + 1, 1) for i in range(6))
+    result = reconcile_details(mask, labels, keys, borders)
+    assert result.tolist() == [[0, 0, 0, 2, 1, 0, 0]]
+    assert mask.tolist() == [[0, 1, 1, 2, 1, 1, 0]]
+
+
+def test_same_color_detail_joins_petal_but_pink_highlight_stays_protected():
+    from dataclasses import replace
+
+    colors = np.zeros((80, 100), np.uint8)
+    colors[10:70, 10:70] = 1
+    colors[25:55, 70:82] = 1
+    colors[55:59, 70:80] = 2
+    protected = np.zeros_like(colors)
+    protected[25:55, 70:82] = 1
+    protected[55:59, 70:80] = 1
+    source = replace(
+        make_input(colors, ((150, 170, 190), (166, 70, 191), (241, 170, 242))),
+        prefilled_mask=protected.tobytes(),
+    )
+    settings = RegionSettings(image_width_mm=10, min_area_mm2=3.5, max_color_distance=300)
+    first = RasterRegionProcessor().process(source, settings)
+    assert first == RasterRegionProcessor().process(source, settings)
+    labels = result_labels(first)
+    assert labels[30, 75] == labels[30, 60]
+    assert not first.regions[labels[30, 75]].prefilled
+    pink = first.regions[labels[57, 75]]
+    assert pink.prefilled and pink.color_index == 2 and pink.area_pixels == 40
+    assert first.color_indices == source.color_indices
+    assert_invariants(source, first)
+
+
+def test_invalid_detail_protection_level_is_rejected():
+    from dataclasses import replace
+
+    with pytest.raises(StageError, match="маска"):
+        replace(make_input([[0]]), prefilled_mask=bytes([3]))

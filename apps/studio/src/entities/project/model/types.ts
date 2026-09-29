@@ -2,6 +2,7 @@ export type Settings = {
   colors: number;
   min_area_mm2: number;
   font_size_px: number;
+  artificial_grid: boolean;
 };
 export type Quality = {
   palette_colors: number;
@@ -29,6 +30,7 @@ export type Job = {
     min_area_mm2: number;
     font_size_pt: number;
     start_page: number;
+    artificial_grid: boolean;
   };
   report: {
     quality: Quality;

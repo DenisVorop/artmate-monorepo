@@ -18,8 +18,9 @@ from mystery_coloring.layout.domain import LayoutSettings
 
 
 @pytest.mark.parametrize("white_only", [False, True])
-def test_delivery_matches_diagnostic_pipeline_exactly(tmp_path, monkeypatch, white_only):
-    image = Image.new("RGB", (64, 80), "white")
+@pytest.mark.parametrize("landscape", [False, True])
+def test_delivery_matches_diagnostic_pipeline_exactly(tmp_path, monkeypatch, white_only, landscape):
+    image = Image.new("RGB", (80, 64) if landscape else (64, 80), "white")
     if not white_only:
         draw = ImageDraw.Draw(image)
         draw.ellipse((5, 6, 56, 73), fill="#1862aa")
@@ -201,5 +202,6 @@ def test_cli_independent_parameters_and_no_preview(tmp_path):
         "min_area_mm2": 3.5,
         "font_size_pt": 4.5,
         "start_page": 25,
+        "artificial_grid": True,
     }
     assert not list(output.glob("*.png"))

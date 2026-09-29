@@ -96,6 +96,7 @@ def test_face_hint_keeps_a_weak_stroke_without_protecting_similar_background_tex
     assert np.count_nonzero(mask[235:239, 200:230]) > 30
     assert np.count_nonzero(mask[135:139, 100:130]) == 0
     assert result.face_details >= 1
+    assert set(np.unique(mask[235:239, 200:230])) - {0} <= result.locked_ids
     assert np.count_nonzero(mask) <= mask.size * 0.008
 
 

@@ -30,6 +30,25 @@ class Rectangle:
 
 
 @dataclass(frozen=True)
+class ArtworkPlacement(Rectangle):
+    rotation_deg: int = 0
+
+    @property
+    def source_width(self):
+        return self.height if self.rotation_deg == -90 else self.width
+
+    @property
+    def source_height(self):
+        return self.width if self.rotation_deg == -90 else self.height
+
+    @property
+    def transform(self):
+        if self.rotation_deg == -90:
+            return f"translate({self.x} {self.bottom}) rotate(-90)"
+        return f"translate({self.x} {self.y})"
+
+
+@dataclass(frozen=True)
 class PaletteLayout:
     x: float
     y: float
@@ -65,16 +84,20 @@ class ArtMateTemplate:
     def height_mm(self):
         return self.height_px * PX_MM
 
-    def fit(self, pixel_width: int, pixel_height: int) -> Rectangle:
+    def fit(self, pixel_width: int, pixel_height: int) -> ArtworkPlacement:
         if any(type(v) is not int or v <= 0 for v in (pixel_width, pixel_height)):
             raise StageError("Размер подготовленного изображения должен быть положительным.")
+        rotation = -90 if pixel_width > pixel_height else 0
+        if rotation:
+            pixel_width, pixel_height = pixel_height, pixel_width
         scale = min(self.frame.width / pixel_width, self.frame.height / pixel_height)
         width, height = pixel_width * scale, pixel_height * scale
-        return Rectangle(
+        return ArtworkPlacement(
             self.frame.x + (self.frame.width - width) / 2,
             self.frame.y + (self.frame.height - height) / 2,
             width,
             height,
+            rotation,
         )
 
     def palette(self, colors: int, page_number: int) -> PaletteLayout:
@@ -103,6 +126,7 @@ class LayoutSettings:
     min_area_mm2: float = 5
     font_size_pt: float = DEFAULT_FONT_SIZE_PX * 0.75
     start_page: int = 1
+    artificial_grid: bool = True
 
     def __post_init__(self):
         self.pipeline(180)
@@ -114,6 +138,7 @@ class LayoutSettings:
             min_area_mm2=self.min_area_mm2,
             font_size_pt=self.font_size_pt,
             image_width_mm=fitted_width_mm,
+            artificial_grid=self.artificial_grid,
         )
 
 
@@ -122,12 +147,12 @@ class PageSummary:
     number: int
     source: str
     directory: str
-    artwork: Rectangle
+    artwork: ArtworkPlacement
     result: PipelineResult
 
 
-def check_physical_scale(artwork: Rectangle, width: float, height: float):
+def check_physical_scale(artwork: ArtworkPlacement, width: float, height: float):
     if not all(isfinite(v) for v in (width, height)) or (
-        abs(artwork.width - width) > 1e-6 or abs(artwork.height - height) > 1e-6
+        abs(artwork.source_width - width) > 1e-6 or abs(artwork.source_height - height) > 1e-6
     ):
         raise StageError("Масштаб геометрии отличается от печатной вёрстки. Нужен пересчёт.")

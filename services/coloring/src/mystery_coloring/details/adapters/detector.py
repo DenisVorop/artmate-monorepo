@@ -143,6 +143,7 @@ class ContrastDetailDetector:
         colors = []
         selected_sizes = []
         ordinary_dark_ids = set()
+        locked_ids = set()
         covered = 0
         face_details = 0
         accents = None
@@ -180,7 +181,10 @@ class ContrastDetailDetector:
                 for old, overlap in zip(*overlaps, strict=True):
                     if old in ordinary_dark_ids and overlap >= selected_sizes[old - 1] * (2 / 3):
                         colors[old - 1] = color
+                        locked_ids.add(int(old))
             colors.append(color)
+            if polarity == "stroke" or guided:
+                locked_ids.add(len(colors))
             selected_sizes.append(len(xx))
             if polarity == "dark" and not guided:
                 ordinary_dark_ids.add(len(colors))
@@ -215,6 +219,7 @@ class ContrastDetailDetector:
             self._accents(rgb, lab, result, scale) if accents is None else accents,
             face_analysis,
             face_details,
+            frozenset(locked_ids),
         )
 
     @staticmethod

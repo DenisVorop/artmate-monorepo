@@ -122,7 +122,9 @@ class OpenCVImageSimplifier:
                 lookup[1:] = nearest(detail_lab, palette_lab)
             selected = detail_ids > 0
             color_map[selected] = lookup[detail_ids[selected]]
-            prefilled = selected.astype(np.uint8).tobytes()
+            protection = selected.astype(np.uint8)
+            protection[np.isin(detail_ids, tuple(detail_map.locked_ids))] = 2
+            prefilled = protection.tobytes()
         counts = np.bincount(color_map, minlength=len(palette))
         used = np.flatnonzero(counts)
         # Одновременно переставляем палитру и карту: RGB-пиксели остаются прежними.
