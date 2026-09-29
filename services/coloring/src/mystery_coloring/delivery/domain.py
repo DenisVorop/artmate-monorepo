@@ -7,7 +7,7 @@ from mystery_coloring.layout.domain import ArtMateTemplate, LayoutSettings, Rect
 from mystery_coloring.numbering.domain import NumberingInput, NumberingResult
 from mystery_coloring.pipeline.domain import PipelineSettings
 
-ALGORITHM_VERSION = "coloring-delivery-v5-profiles"
+ALGORITHM_VERSION = "coloring-delivery-v8-strokes"
 
 
 @dataclass(frozen=True)

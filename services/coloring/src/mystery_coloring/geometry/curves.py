@@ -9,8 +9,11 @@ def interpolate(first: Point, second: Point, amount: float) -> Point:
     return tuple(a + (b - a) * amount for a, b in zip(first, second, strict=True))
 
 
-def relax_points(points: tuple[Point, ...], weight: float, passes: int = 4) -> tuple[Point, ...]:
+def relax_points(
+    points: tuple[Point, ...], weight: float, passes: int = 4, max_offset: float | None = None
+) -> tuple[Point, ...]:
     """Убирает чередование пиксельных ступенек; узлы соединения остаются на месте."""
+    anchors = points
     for _ in range(passes):
         points = (
             points[0],
@@ -22,6 +25,16 @@ def relax_points(points: tuple[Point, ...], weight: float, passes: int = 4) -> t
             ),
             points[-1],
         )
+        if max_offset is not None:
+            # Ограничение относительно исходника не даёт острым концам усов
+            # сокращаться при повторных проходах, сохраняя сглаживание вдоль линии.
+            bounded = []
+            for anchor, point in zip(anchors, points, strict=True):
+                distance = hypot(point[0] - anchor[0], point[1] - anchor[1])
+                bounded.append(
+                    interpolate(anchor, point, min(1.0, max_offset / max(distance, 1e-12)))
+                )
+            points = tuple(bounded)
     return points
 
 
@@ -38,21 +51,36 @@ def round_polyline(
     fraction: float = 0.45,
     max_cut: float | None = None,
     preserve_loop_node: bool = False,
+    max_shift: float | None = None,
 ) -> tuple[Cubic, ...]:
     """Касательные на стыках согласованы; квадратичные дуги лежат в треугольнике угла."""
     closed = points[0] == points[-1] and not preserve_loop_node
     knots = points[:-1] if closed else points
     corners = []
 
-    def offset(center: Point, other: Point) -> Point:
+    def offset(center: Point, other: Point, limit: float | None) -> Point:
         distance = hypot(other[0] - center[0], other[1] - center[1])
-        amount = fraction if max_cut is None else min(fraction, max_cut / distance)
+        amount = fraction if limit is None else min(fraction, limit / distance)
         return interpolate(center, other, amount)
 
     for index in range(len(knots)) if closed else range(1, len(knots) - 1):
         center = knots[index]
-        lead = offset(center, knots[(index - 1) % len(knots)])
-        trail = offset(center, knots[(index + 1) % len(knots)])
+        previous, following = knots[(index - 1) % len(knots)], knots[(index + 1) % len(knots)]
+        limit = max_cut
+        if max_shift is not None:
+            before = hypot(previous[0] - center[0], previous[1] - center[1])
+            after = hypot(following[0] - center[0], following[1] - center[1])
+            bend = hypot(
+                (previous[0] - center[0]) / before + (following[0] - center[0]) / after,
+                (previous[1] - center[1]) / before + (following[1] - center[1]) / after,
+            )
+            # Для равных срезов середина дуги смещена на cut * bend / 4.
+            # Пологой дуге нужен длинный срез, острому концу — короткий.
+            # Итоговое отклонение всей кривой дополнительно проверяет topology.
+            shift_limit = 4 * max_shift / max(bend, 1e-12)
+            limit = shift_limit if limit is None else min(limit, shift_limit)
+        lead = offset(center, previous, limit)
+        trail = offset(center, following, limit)
         corners.append((lead, center, trail))
     current = corners[0][0] if closed else points[0]
     start = current
