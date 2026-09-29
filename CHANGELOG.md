@@ -1,5 +1,13 @@
 # Changelog
 
+## [0.46.0](https://github.com/DenisVorop/artmate-monorepo/compare/v0.45.0...v0.46.0) (2026-09-29)
+
+
+### Features
+
+* **coloring:** preserve and smooth thin strokes ([970c657](https://github.com/DenisVorop/artmate-monorepo/commit/970c6579a0a16e6cca8b25700dad8054b07220d1))
+* **studio:** refine coloring page generation ([6e73f68](https://github.com/DenisVorop/artmate-monorepo/commit/6e73f68c2661f83a6971a20b2fe4cff61f2e82ac))
+
 ## [0.45.0](https://github.com/DenisVorop/artmate-monorepo/compare/v0.44.0...v0.45.0) (2026-09-28)
 
 
