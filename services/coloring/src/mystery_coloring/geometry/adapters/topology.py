@@ -38,11 +38,15 @@ def smooth_boundaries(
             points = tuple(originals[index].simplify(0).coords)
             curves = line_cubics(points)
         else:
-            # Сохраняем мягкое подавление ряби и на промежуточных уровнях отката.
+            # При откате ограничиваем смещение каждой точки вместо резкого
+            # сокращения проходов: один острый конец не оставляет ступеньки по всей цепочке.
             raw = relax_points(
-                boundary.points, 0.5, passes=((10, 5, 2, 0) if detail else (32, 18, 8, 0))[level]
+                boundary.points,
+                0.5,
+                passes=((10, 10, 5, 0) if detail else (32, 32, 18, 0))[level],
+                max_offset=min(0.4, max_deviation * 0.5) if level in (1, 2) else None,
             )
-            tolerance = deviation * (0.65, 0.35, 0.1, 0)[level]
+            tolerance = deviation * (0.65, 0.35, 0.2, 0)[level]
             points = tuple(LineString(raw).simplify(tolerance).coords)
             if boundary.closed and len(points) < 4:
                 points = tuple(originals[index].simplify(0).coords)
@@ -53,6 +57,7 @@ def smooth_boundaries(
                 max_cut=(0.8 if level < 3 else 0.25)
                 if detail
                 else (None if level < 3 else min(0.25, max_deviation)),
+                max_shift=deviation * 0.4 if not detail and level in (1, 2) else None,
                 preserve_loop_node=boundary.closed and endpoint_counts[boundary.points[0]] > 2,
             )
         curves = canonical_curves(curves)

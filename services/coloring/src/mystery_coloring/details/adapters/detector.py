@@ -4,6 +4,7 @@ import cv2
 import numpy as np
 
 from mystery_coloring.details.adapters.profile_colors import printable_pixels, profile_candidates
+from mystery_coloring.details.adapters.strokes import stroke_candidates
 from mystery_coloring.details.domain import DetailMap, FaceAnalysis
 
 
@@ -137,27 +138,52 @@ class ContrastDetailDetector:
                     )
                 )
         candidates.extend(profile_candidates(rgb, lab, settings, face_analysis.profiles))
+        strokes = stroke_candidates(rgb, light, settings)
         result = np.zeros(light.shape, np.uint32)
         colors = []
+        selected_sizes = []
+        ordinary_dark_ids = set()
         covered = 0
         face_details = 0
-        for score, _identifier, polarity, (yy, xx), color, center, guided in sorted(
-            candidates, key=lambda c: (-c[0], c[2], c[1])
-        ):
+        accents = None
+        # Keep established compact details/highlights first. Extra strokes share
+        # the remaining budget instead of displacing eyes or white highlights.
+        ordered = sorted(candidates, key=lambda c: (-c[0], c[2], c[1])) + sorted(
+            strokes, key=lambda c: (-c[0], c[2], c[1])
+        )
+        for score, _identifier, polarity, (yy, xx), color, center, guided in ordered:
+            if polarity == "stroke" and accents is None:
+                # New line masks must not reserve unrelated nearby colors and
+                # change the whole image palette (for example flower petals).
+                accents = self._accents(rgb, lab, result, scale)
             # Repeated small flecks in the same vicinity are texture evidence.
             similar = sum(
                 p == polarity and np.linalg.norm(other - center) * scale < 5
-                for _, _, p, _, _, other, _ in candidates
+                for _, _, p, _, _, other, _ in (strokes if polarity == "stroke" else candidates)
             )
             if (similar > 7 and not guided) or score < 0.75 or len(colors) >= settings.max_details:
                 continue
+            overlaps = None
+            if polarity == "stroke":
+                overlaps = np.unique(result[yy, xx], return_counts=True)
             free = result[yy, xx] == 0
             yy, xx = yy[free], xx[free]
-            if face_analysis.profiles:
+            if face_analysis.profiles or polarity == "stroke":
                 yy, xx = printable_pixels(yy, xx, settings)
             if not len(xx) or covered + len(xx) > light.size * settings.max_coverage:
                 continue
+            if overlaps is not None:
+                # A compact detector may already own an antialiased fragment of
+                # this line. Give that fragment the same source-core color when
+                # most of it is confirmed by the longer stroke. Never recolor
+                # white highlights or model-guided details this way.
+                for old, overlap in zip(*overlaps, strict=True):
+                    if old in ordinary_dark_ids and overlap >= selected_sizes[old - 1] * (2 / 3):
+                        colors[old - 1] = color
             colors.append(color)
+            selected_sizes.append(len(xx))
+            if polarity == "dark" and not guided:
+                ordinary_dark_ids.add(len(colors))
             result[yy, xx] = len(colors)
             covered += len(xx)
             face_details += int(guided)
@@ -186,7 +212,7 @@ class ContrastDetailDetector:
         return DetailMap(
             result.astype("<u4").tobytes(),
             tuple(colors),
-            self._accents(rgb, lab, result, scale),
+            self._accents(rgb, lab, result, scale) if accents is None else accents,
             face_analysis,
             face_details,
         )

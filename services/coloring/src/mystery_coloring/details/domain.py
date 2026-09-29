@@ -5,7 +5,7 @@ from math import isfinite
 
 from mystery_coloring.domain import StageError
 
-DETAIL_POLICY_VERSION = "profile-color-regions-v3"
+DETAIL_POLICY_VERSION = "thin-strokes-v5"
 
 
 @dataclass(frozen=True)
