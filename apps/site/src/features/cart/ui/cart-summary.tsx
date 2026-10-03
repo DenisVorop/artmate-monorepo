@@ -3,7 +3,6 @@
 import { CreditCard } from "lucide-react";
 
 import { getPromoPricingState, PromoCodeForm, usePromocode } from "@/features/promocode";
-import { DolyameCartBadge } from "@/features/dolyame-info";
 import { routes } from "@/shared/constants";
 import { cn } from "@/shared/lib";
 import {
@@ -58,7 +57,6 @@ export function CartSummary({ itemsLabel, subtotal, isMutating }: CartSummaryPro
             <span>{formatMoney(promoPricing.preview?.total ?? subtotal)}</span>
           )}
         </div>
-        <DolyameCartBadge />
       </CardContent>
       <CardFooter className="flex-col items-stretch gap-2">
         <CheckoutButton disabled={isTotalUnavailable} />
