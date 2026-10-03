@@ -142,7 +142,7 @@ function createPickupComboboxProps(overrides = {}) {
     emptyText: "ПВЗ не найден",
     isOpen: true,
     isPending: false,
-    label: "Пункт выдачи Ozon",
+    label: "Пункт выдачи",
     onOpenChange: () => undefined,
     onQueryChange: () => undefined,
     onSelect: () => undefined,
@@ -155,6 +155,7 @@ function createPickupComboboxProps(overrides = {}) {
 }
 
 async function renderOzonSelector({
+  selectedCompany = "ozon",
   drafts,
   cityDetails,
   pickupPoints = [],
@@ -246,7 +247,7 @@ async function renderOzonSelector({
     isOzonDeliveryAvailable: true,
     onCompanyChange: () => undefined,
     onDraftChange: () => undefined,
-    selectedCompany: "ozon",
+    selectedCompany,
   });
 }
 
@@ -535,7 +536,7 @@ test("virtual pickup list exposes its name and full result positions", async () 
   );
   const [option] = findNodes(tree.props.children, (node) => node.type === "ComboboxOption");
 
-  assert.equal(tree.props.listboxLabel, "Пункт выдачи Ozon");
+  assert.equal(tree.props.listboxLabel, "Пункт выдачи");
   assert.equal(option.props.ariaPosInSet, 1);
   assert.equal(option.props.ariaSetSize, 3);
 });
@@ -591,6 +592,14 @@ test("pickup combobox virtualizes dynamic rows with stable keys and complete ARI
   assert.equal(selectorSource.match(/<PickupPointCombobox/gu)?.length, 2);
 });
 
+test("both delivery maps show the same prompt before a city is selected", async () => {
+  for (const selectedCompany of ["ozon", "cdek"]) {
+    const tree = await renderOzonSelector({ selectedCompany });
+    const [placeholder] = findNodes(tree, (node) => node.type === "MapPlaceholder");
+    assert.equal(getText(placeholder), "После выбора города покажем доступные ПВЗ");
+  }
+});
+
 test("Ozon does not request or render pickup points before an exact city is ready", async () => {
   const detailCalls = [];
   const pickupCalls = [];
@@ -600,7 +609,7 @@ test("Ozon does not request or render pickup points before an exact city is read
   });
   const [pickupField] = findNodes(
     tree,
-    (node) => node.type === "PickupPointCombobox" && node.props?.label === "Пункт выдачи Ozon",
+    (node) => node.type === "PickupPointCombobox" && node.props?.label === "Пункт выдачи",
   );
   const [placeholder] = findNodes(tree, (node) => node.type === "MapPlaceholder");
 

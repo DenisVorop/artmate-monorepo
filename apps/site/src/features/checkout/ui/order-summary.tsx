@@ -1,7 +1,7 @@
 "use client";
 
 import Image from "next/image";
-import { LoaderCircle, Truck } from "lucide-react";
+import { ChevronDown, LoaderCircle, Tag, Truck } from "lucide-react";
 
 import type { Cart, CartItem } from "@/entities/cart";
 import { useDevelopmentBanner } from "@/entities/feature-banners";
@@ -16,6 +16,7 @@ import {
   CardFooter,
   CardHeader,
   CardTitle,
+  DataState,
   Separator,
 } from "@/shared/ui";
 
@@ -30,14 +31,17 @@ import {
 
 import { CheckoutSubmitButton } from "./checkout-submit-button";
 import { LoyaltyField } from "./loyalty-field";
+import { LegalField } from "./legal-field";
 
 export function OrderSummary({
   cart,
+  createOrderError,
   isSubmitDisabled,
   isSubmitting,
   submitLabel,
 }: {
   cart: Cart;
+  createOrderError: Error | null;
   isSubmitDisabled: boolean;
   isSubmitting: boolean;
   submitLabel: string;
@@ -69,8 +73,10 @@ export function OrderSummary({
 
   return (
     <Card
+      role="complementary"
+      aria-labelledby="checkout-summary-heading"
       className={cn(
-        "lg:sticky lg:flex lg:flex-col",
+        "gap-5 rounded-2xl py-5 shadow-sm lg:sticky lg:overflow-y-auto",
         hasDevelopmentBanner
           ? "lg:top-[calc(var(--site-header-banner-height)+var(--site-header-nav-height)+1px+1rem)] lg:max-h-[calc(100dvh-var(--site-header-banner-height)-var(--site-header-nav-height)-var(--site-cookie-consent-height)-1px-2rem)]"
           : "lg:top-[calc(var(--site-header-nav-height)+1rem)] lg:max-h-[calc(100dvh-var(--site-header-nav-height)-var(--site-cookie-consent-height)-2rem)]",
@@ -79,11 +85,13 @@ export function OrderSummary({
       <p className="sr-only" role="status" aria-live="polite" aria-atomic={true}>
         {getCalculationAnnouncement(checkoutCalculation)}
       </p>
-      <CardHeader className="shrink-0">
-        <CardTitle>Ваш заказ</CardTitle>
+      <CardHeader className="shrink-0 px-5">
+        <CardTitle className="text-xl">
+          <h2 id="checkout-summary-heading">Ваш заказ</h2>
+        </CardTitle>
         <CardDescription>{formatCartItemCount(cart.itemsCount)} в корзине</CardDescription>
       </CardHeader>
-      <CardContent className="space-y-4 lg:min-h-0 lg:flex-1 lg:overflow-y-auto">
+      <CardContent className="shrink-0 space-y-5 px-5">
         <ul className="space-y-3">
           {visibleItems.map((item) => (
             <OrderItem key={item.id} item={item} />
@@ -104,11 +112,20 @@ export function OrderSummary({
 
         <Separator />
 
-        <PromoCodeForm />
-
-        <LoyaltyField />
-
-        <Separator />
+        <details className="group/discounts">
+          <summary className="flex min-h-11 cursor-pointer list-none items-center gap-2 text-sm font-medium [&::-webkit-details-marker]:hidden">
+            <Tag className="size-4 text-rose-500" aria-hidden="true" />
+            <span className="flex-1">Промокод и баллы</span>
+            <ChevronDown
+              className="size-4 text-muted-foreground transition-transform group-open/discounts:rotate-180"
+              aria-hidden="true"
+            />
+          </summary>
+          <div className="space-y-3 pt-2">
+            <PromoCodeForm />
+            <LoyaltyField />
+          </div>
+        </details>
 
         <div
           className={cn(
@@ -141,7 +158,6 @@ export function OrderSummary({
               {calculation?.delivery.pickupPoint ? (
                 <div className="space-y-0.5 text-xs text-muted-foreground">
                   <p>{calculation.delivery.pickupPoint.address}</p>
-                  <p>{calculation.delivery.pickupPoint.workHours}</p>
                 </div>
               ) : null}
             </div>
@@ -179,10 +195,7 @@ export function OrderSummary({
           ) : null}
         </div>
 
-        <Separator />
-      </CardContent>
-      <CardFooter className="shrink-0 flex-col items-stretch gap-4">
-        <div className="flex w-full items-center justify-between text-lg font-semibold">
+        <div className="flex w-full items-center justify-between gap-4 border-t pt-4 text-xl font-semibold">
           <span>Итого</span>
           <div className="flex flex-col items-end gap-1">
             <span>{getTotalLabel(checkoutCalculation)}</span>
@@ -196,13 +209,25 @@ export function OrderSummary({
             ) : null}
           </div>
         </div>
-
-        <div className="hidden lg:block">
+      </CardContent>
+      <CardFooter className="shrink-0 flex-col items-stretch gap-4 bg-transparent p-5">
+        <LegalField />
+        {createOrderError ? (
+          <div role="alert" aria-live="assertive" aria-atomic={true}>
+            <DataState
+              variant="error"
+              title="Не удалось создать заказ"
+              description={createOrderError.message || "Проверьте данные и попробуйте еще раз."}
+              className="max-w-none"
+            />
+          </div>
+        ) : null}
+        <div>
           <CheckoutSubmitButton
             form={checkoutOrderFormId}
             disabled={isSubmitDisabled}
             isSubmitting={isSubmitting}
-            className="min-h-11 w-full"
+            className="min-h-12 w-full rounded-xl"
           >
             {submitLabel}
           </CheckoutSubmitButton>

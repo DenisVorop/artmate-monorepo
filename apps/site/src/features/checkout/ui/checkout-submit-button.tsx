@@ -1,4 +1,4 @@
-import { LoaderCircle, Send } from "lucide-react";
+import { ArrowRight, LoaderCircle } from "lucide-react";
 import type { ReactNode } from "react";
 
 import { CtaGradientButton } from "@/shared/ui";
@@ -24,12 +24,9 @@ export function CheckoutSubmitButton({
       size="lg"
       className={className}
     >
-      {isSubmitting ? (
-        <LoaderCircle data-icon="inline-start" className="animate-spin" />
-      ) : (
-        <Send data-icon="inline-start" />
-      )}
+      {isSubmitting && <LoaderCircle data-icon="inline-start" className="animate-spin" />}
       {children}
+      {!isSubmitting && <ArrowRight data-icon="inline-end" />}
     </CtaGradientButton>
   );
 }

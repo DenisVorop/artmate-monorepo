@@ -17,7 +17,6 @@ import {
 import { ContactFields } from "./contact-fields";
 import { CheckoutSubmitButton } from "./checkout-submit-button";
 import { DeliveryMethodField } from "./delivery-method-field";
-import { LegalField } from "./legal-field";
 import { OrderSummary } from "./order-summary";
 import { PaymentMethodField } from "./payment-method-field";
 
@@ -35,7 +34,7 @@ function BaseCheckoutFlow({ cart, createOrderError }: CheckoutFlowProps) {
 
   return (
     <>
-      <div className="grid gap-6 pb-[calc(7rem+var(--site-cookie-consent-height))] lg:grid-cols-[minmax(0,1fr)_22rem] lg:items-start lg:pb-0">
+      <div className="grid gap-6 pb-[calc(7rem+var(--site-cookie-consent-height))] lg:grid-cols-[minmax(0,1fr)_24rem] lg:items-start lg:pb-0">
         <form id={checkoutOrderFormId} onSubmit={submitOrder}>
           <div className="overflow-hidden rounded-xl border bg-background px-4 sm:px-6">
             <CheckoutSection number="01" title="Получатель">
@@ -71,29 +70,17 @@ function BaseCheckoutFlow({ cart, createOrderError }: CheckoutFlowProps) {
                 </div>
               ) : null}
             </CheckoutSection>
-
             <Separator />
 
-            <CheckoutSection number="03" title="Оплата">
+            <CheckoutSection number="03" title="Способ оплаты">
               <PaymentMethodField />
-              <LegalField />
             </CheckoutSection>
           </div>
-
-          {createOrderError ? (
-            <div role="alert" aria-live="assertive" aria-atomic={true}>
-              <DataState
-                variant="error"
-                title="Не удалось создать заказ"
-                description={getMutationErrorMessage(createOrderError)}
-                className="max-w-none"
-              />
-            </div>
-          ) : null}
         </form>
 
         <OrderSummary
           cart={cart}
+          createOrderError={createOrderError}
           isSubmitDisabled={isSubmitDisabled}
           isSubmitting={isSubmitting}
           submitLabel={submitLabel}
@@ -104,9 +91,7 @@ function BaseCheckoutFlow({ cart, createOrderError }: CheckoutFlowProps) {
         <div className="mx-auto flex max-w-lg items-center gap-4">
           <div className="min-w-0 flex-1">
             <p className="text-xs text-muted-foreground">Итого</p>
-            <p className="truncate font-semibold">
-              {getMobileTotalLabel(checkoutCalculation)}
-            </p>
+            <p className="truncate font-semibold">{getMobileTotalLabel(checkoutCalculation)}</p>
           </div>
           <CheckoutSubmitButton
             form={checkoutOrderFormId}
@@ -159,10 +144,6 @@ function getMobileTotalLabel(calculationState: CheckoutCalculationState) {
 }
 
 export const CheckoutFlow = withCheckout(BaseCheckoutFlow);
-
-function getMutationErrorMessage(error: Error) {
-  return error.message || "Проверьте данные и попробуйте еще раз.";
-}
 
 function CheckoutSection({
   children,

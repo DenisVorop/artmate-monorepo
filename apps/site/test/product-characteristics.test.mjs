@@ -409,6 +409,7 @@ test("product layout places characteristics below description with a conditional
   for (const name of Object.keys(components)) components[name] = () => null;
   const { ProductDetails } = await load("src/features/product-details/ui/product-details.tsx", {
     "@/features/cart": { CartProductCard: box, useAddProductToCart: () => () => {} },
+    "@/features/dolyame-info": { DolyameProductBadge: box },
     "@/features/product-purchase": { ProductPurchase: box },
     "@/entities/products": {
       ...components,

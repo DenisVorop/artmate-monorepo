@@ -162,7 +162,6 @@ function CheckoutScenario({ cart }: { cart: Cart }) {
     <section className="container py-8 md:py-12">
       <div className="mb-8 flex flex-col justify-between gap-4 sm:flex-row sm:items-end">
         <div className="space-y-2">
-          <p className="text-sm font-medium tracking-wide text-rose-500 uppercase">Оформление</p>
           <PageTitle className="text-foreground">Оформление заказа</PageTitle>
           <p className="max-w-2xl text-muted-foreground">
             Проверьте товары и оставьте контакты. После создания заказа мы отправим вас на страницу

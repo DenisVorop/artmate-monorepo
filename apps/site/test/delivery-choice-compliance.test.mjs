@@ -6,13 +6,8 @@ async function readSource(path) {
   return readFile(new URL(`../${path}`, import.meta.url), "utf8");
 }
 
-test("cart explains that CDEK or Ozon is selected on the checkout step", async () => {
+test("cart links directly to checkout", async () => {
   const source = await readSource("src/features/cart/ui/cart-summary.tsx");
-
-  assert.match(
-    source,
-    /<CardFooter\b[^>]*>\s*<p\b[^>]*>\s*Службу\s+доставки\s+и\s+ПВЗ\s+СДЭК\s+или\s+Ozon\s+выберете\s+на\s+следующем\s+шаге\.\s*Доступность\s+Ozon\s+зависит\s+от\s+товаров\s+в\s+корзине\.\s*<\/p>/u,
-  );
   assert.match(source, /<CtaGradientLink\s+href=\{routes\.checkout\}>/u);
 });
 
@@ -22,7 +17,10 @@ test("checkout offers both declared delivery companies", async () => {
     readSource("src/features/checkout/ui/delivery-method-field.tsx"),
   ]);
 
-  assert.match(options, /code: "cdek"/);
+  assert.deepEqual(
+    [...options.matchAll(/code: "(ozon|cdek)"/gu)].map((match) => match[1]),
+    ["ozon", "cdek"],
+  );
   assert.match(options, /label: "СДЭК"/);
   assert.match(options, /code: "ozon"/);
   assert.match(options, /label: "Ozon"/);
@@ -44,18 +42,12 @@ test("checkout keeps CDEK neutral until calculation and shows the server-owned O
   assert.doesNotMatch(cartTypes, /minimumDeliveryPrices\s*:\s*\{[^}]*cdek\s*:/su);
 });
 
-test("checkout payment methods are flat radio rows with card and SBP badges", async () => {
+test("checkout payment methods show bank logos and supported payment badges", async () => {
   const source = await readSource("src/features/checkout/ui/payment-method-field.tsx");
-
-  assert.match(source, /RadioGroup/u);
   assert.match(source, /RadioGroupItem/u);
-  assert.doesNotMatch(source, /<Card|\bCard,/u);
-  assert.match(source, /T-Bank/u);
-  assert.match(source, /Ozon Pay/u);
-  assert.equal(source.match(/"Карта"/gu)?.length, 2);
-  assert.equal(source.match(/"СБП"/gu)?.length, 2);
-  assert.equal(source.match(/защищ[её]нную страницу/giu)?.length, 2);
-  assert.doesNotMatch(source, /Оплата картой на платежной форме/u);
+  assert.match(source, /<PaymentLogo brand=\{option\.bankBrand\}/u);
+  assert.match(source, /brands: \["mir", "sbp", "dolyame"\]/u);
+  assert.match(source, /brands: \["mir", "sbp"\]/u);
   assert.match(source, /"tbank_acquiring"/u);
   assert.match(source, /"ozon_acquiring"/u);
 });

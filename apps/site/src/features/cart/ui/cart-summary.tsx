@@ -1,8 +1,9 @@
 "use client";
 
-import { CreditCard, LoaderCircle, ShoppingBag } from "lucide-react";
+import { CreditCard } from "lucide-react";
 
 import { getPromoPricingState, PromoCodeForm, usePromocode } from "@/features/promocode";
+import { DolyameCartBadge } from "@/features/dolyame-info";
 import { routes } from "@/shared/constants";
 import { cn } from "@/shared/lib";
 import {
@@ -16,7 +17,6 @@ import {
   CtaGradientLink,
   Separator,
 } from "@/shared/ui";
-import { Link } from "@/shared/ui/link";
 
 import { formatMoney } from "../lib/cart-format";
 
@@ -24,17 +24,9 @@ type CartSummaryProps = {
   itemsLabel: string;
   subtotal: number;
   isMutating: boolean;
-  isClearingCart: boolean;
-  onClear: () => void;
 };
 
-export function CartSummary({
-  itemsLabel,
-  subtotal,
-  isMutating,
-  isClearingCart,
-  onClear,
-}: CartSummaryProps) {
+export function CartSummary({ itemsLabel, subtotal, isMutating }: CartSummaryProps) {
   const promoPricing = getPromoPricingState(usePromocode());
   const isTotalUnavailable = !promoPricing.isReady || isMutating;
 
@@ -66,29 +58,10 @@ export function CartSummary({
             <span>{formatMoney(promoPricing.preview?.total ?? subtotal)}</span>
           )}
         </div>
+        <DolyameCartBadge />
       </CardContent>
       <CardFooter className="flex-col items-stretch gap-2">
-        <p className="mb-1 text-center text-xs leading-5 text-muted-foreground">
-          Службу доставки и ПВЗ СДЭК или Ozon выберете на следующем шаге. Доступность Ozon зависит
-          от товаров в корзине.
-        </p>
         <CheckoutButton disabled={isTotalUnavailable} />
-        <Button asChild variant="outline" className="w-full">
-          <Link href={routes.catalog}>
-            <ShoppingBag data-icon="inline-start" />
-            Добавить еще товары
-          </Link>
-        </Button>
-        <Button
-          type="button"
-          variant="outline"
-          disabled={isMutating}
-          onClick={onClear}
-          className="w-full"
-        >
-          {isClearingCart && <LoaderCircle data-icon="inline-start" className="animate-spin" />}
-          Очистить корзину
-        </Button>
       </CardFooter>
     </Card>
   );
@@ -101,7 +74,7 @@ function AmountSkeleton({ className }: { className: string }) {
 function CheckoutButton({ disabled }: { disabled: boolean }) {
   if (disabled) {
     return (
-      <Button type="button" size="lg" disabled className="w-full">
+      <Button type="button" size="lg" disabled className="h-10 w-full">
         <CreditCard data-icon="inline-start" />
         Оформить заказ
       </Button>
@@ -112,7 +85,7 @@ function CheckoutButton({ disabled }: { disabled: boolean }) {
     <Button
       asChild
       size="lg"
-      className="h-9 w-full border-0 bg-gradient-to-r from-rose-500 via-rose-400 to-orange-400 font-semibold text-white shadow-sm shadow-rose-500/20 hover:from-rose-500/95 hover:via-rose-400/95 hover:to-orange-400/95"
+      className="h-10 w-full border-0 bg-gradient-to-r from-rose-500 via-rose-400 to-orange-400 font-semibold text-white shadow-sm shadow-rose-500/20 hover:from-rose-500/95 hover:via-rose-400/95 hover:to-orange-400/95"
     >
       <CtaGradientLink href={routes.checkout}>
         <CreditCard data-icon="inline-start" />

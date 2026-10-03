@@ -4,7 +4,6 @@ import { CheckCircle2, CircleAlert, LoaderCircle, MapPin } from "lucide-react";
 import { useEffect, useState } from "react";
 
 import type { DeliveryCityDTO, DeliveryPickupPointDTO } from "@/shared/actions/delivery";
-import { cn } from "@/shared/lib";
 import { Button } from "@/shared/ui/button";
 
 import {
@@ -137,15 +136,8 @@ export function DeliverySelector({
       />
 
       {selectedCompany === "cdek" ? (
-        <div
-          className={cn(
-            "grid gap-5",
-            cdekCityCode
-              ? "md:grid-cols-[minmax(0,0.95fr)_minmax(18rem,1.05fr)]"
-              : "md:grid-cols-[minmax(0,30rem)_minmax(0,1fr)]",
-          )}
-        >
-          <div className="space-y-4">
+        <div className="grid gap-5 md:grid-cols-[minmax(0,0.95fr)_minmax(18rem,1.05fr)]">
+          <div className="min-w-0 space-y-4">
             <ComboboxField
               emptyText={
                 areCitiesError
@@ -227,7 +219,6 @@ export function DeliverySelector({
           {cdekCityCode ? (
             areCdekPickupPointsError ? (
               <MapPlaceholder
-                compact
                 icon={<CircleAlert className="size-4" />}
                 title="Пункты выдачи не загрузились"
               >
@@ -250,8 +241,8 @@ export function DeliverySelector({
               />
             )
           ) : (
-            <MapPlaceholder compact icon={<MapPin className="size-4" />} title="Начните с города">
-              После выбора города покажем доступные ПВЗ и карту рядом со списком.
+            <MapPlaceholder icon={<MapPin className="size-4" />} title="Начните с города">
+              После выбора города покажем доступные ПВЗ
             </MapPlaceholder>
           )}
         </div>
@@ -321,7 +312,7 @@ export function DeliverySelector({
               }
               isOpen={isPickupPointOpen}
               isPending={ozonPickupPointsState.isPending}
-              label="Пункт выдачи Ozon"
+              label="Пункт выдачи"
               onOpenChange={setIsPickupPointOpen}
               onQueryChange={setPickupPointQuery}
               onSelect={selectOzonPickupPoint}
@@ -396,7 +387,6 @@ export function DeliverySelector({
           {ozonCityCode ? (
             ozonCityDetails.isError && !ozonCityDetails.city ? (
               <MapPlaceholder
-                compact
                 icon={<CircleAlert className="size-4" />}
                 title="Пункты Ozon не загрузились"
               >
@@ -425,8 +415,8 @@ export function DeliverySelector({
               />
             ) : null
           ) : (
-            <MapPlaceholder compact icon={<MapPin className="size-4" />} title="Начните с города">
-              После выбора города покажем его на карте.
+            <MapPlaceholder icon={<MapPin className="size-4" />} title="Начните с города">
+              После выбора города покажем доступные ПВЗ
             </MapPlaceholder>
           )}
         </div>
