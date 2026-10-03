@@ -1,5 +1,12 @@
 # Changelog
 
+## [0.47.1](https://github.com/DenisVorop/artmate-monorepo/compare/v0.47.0...v0.47.1) (2026-10-03)
+
+
+### Bug Fixes
+
+* **site:** remove Dolyame promotional widgets ([60881ca](https://github.com/DenisVorop/artmate-monorepo/commit/60881caa931d62ddb41280b23864bf5ec583fa2e))
+
 ## [0.47.0](https://github.com/DenisVorop/artmate-monorepo/compare/v0.46.0...v0.47.0) (2026-10-03)
 
 
