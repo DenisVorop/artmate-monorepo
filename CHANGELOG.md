@@ -1,5 +1,12 @@
 # Changelog
 
+## [0.47.0](https://github.com/DenisVorop/artmate-monorepo/compare/v0.46.0...v0.47.0) (2026-10-03)
+
+
+### Features
+
+* **site:** add Dolyame and refine checkout UI ([a165d36](https://github.com/DenisVorop/artmate-monorepo/commit/a165d3671ee7e6b772c50f3e7adff5e6d96c521d))
+
 ## [0.46.0](https://github.com/DenisVorop/artmate-monorepo/compare/v0.45.0...v0.46.0) (2026-09-29)
 
 
