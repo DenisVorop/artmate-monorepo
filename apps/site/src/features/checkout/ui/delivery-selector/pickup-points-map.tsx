@@ -278,7 +278,7 @@ export function PickupPointsMap({
 
   if (!initialCoordinate) {
     return (
-      <div className="flex min-h-72 items-center justify-center rounded-lg border bg-muted/30 px-4 text-center text-sm text-muted-foreground">
+      <div className="flex min-h-72 items-center justify-center rounded-lg border bg-muted/30 px-4 text-center text-sm text-muted-foreground md:min-h-96">
         <span className="max-w-72">{emptyMessage}</span>
       </div>
     );

@@ -64,15 +64,17 @@ export function DeliveryPicker({
     onConfirm();
   }
 
-  const content = (
+  const selector = (
+    <DeliverySelector
+      drafts={drafts}
+      isOzonDeliveryAvailable={isOzonDeliveryAvailable}
+      selectedCompany={selectedCompany}
+      onCompanyChange={onCompanyChange}
+      onDraftChange={onDraftChange}
+    />
+  );
+  const footer = (
     <>
-      <DeliverySelector
-        drafts={drafts}
-        isOzonDeliveryAvailable={isOzonDeliveryAvailable}
-        selectedCompany={selectedCompany}
-        onCompanyChange={onCompanyChange}
-        onDraftChange={onDraftChange}
-      />
       {confirmationError ? (
         <p className="text-sm text-destructive" role="alert">
           {confirmationError}
@@ -80,7 +82,7 @@ export function DeliveryPicker({
       ) : null}
       <Button
         type="button"
-        className="min-h-11 w-full sm:w-auto"
+        className="min-h-11 w-full"
         disabled={!canConfirm || isConfirming}
         onClick={handleConfirm}
       >
@@ -93,12 +95,13 @@ export function DeliveryPicker({
   if (isDesktop) {
     return (
       <Dialog open={isOpen} onOpenChange={onOpenChange}>
-        <DialogContent className="max-h-[90vh] overflow-y-auto sm:max-w-[min(94vw,72rem)]">
-          <DialogHeader>
+        <DialogContent className="flex h-[min(90dvh,48rem)] flex-col overflow-hidden sm:max-w-[min(94vw,72rem)]">
+          <DialogHeader className="shrink-0">
             <DialogTitle>Выберите пункт выдачи</DialogTitle>
             <DialogDescription>Найдите удобный ПВЗ в списке или на карте.</DialogDescription>
           </DialogHeader>
-          {content}
+          <div className="min-h-0 flex-1 overflow-y-auto overscroll-contain">{selector}</div>
+          <div className="shrink-0 space-y-3">{footer}</div>
         </DialogContent>
       </Dialog>
     );
@@ -106,8 +109,8 @@ export function DeliveryPicker({
 
   return (
     <Drawer open={isOpen} onOpenChange={onOpenChange}>
-      <DrawerContent className="max-h-[92vh] pb-[env(safe-area-inset-bottom)]">
-        <DrawerHeader className="relative pr-16 text-left">
+      <DrawerContent className="h-[min(92dvh,48rem)] overflow-hidden pb-[env(safe-area-inset-bottom)] data-[vaul-drawer-direction=bottom]:mt-0 data-[vaul-drawer-direction=bottom]:max-h-[92dvh]">
+        <DrawerHeader className="relative shrink-0 pr-16 text-left">
           <DrawerTitle>Выберите пункт выдачи</DrawerTitle>
           <DrawerDescription>Найдите удобный ПВЗ в списке или на карте.</DrawerDescription>
           <DrawerClose asChild>
@@ -122,7 +125,8 @@ export function DeliveryPicker({
             </Button>
           </DrawerClose>
         </DrawerHeader>
-        <div className="overflow-y-auto px-4 pb-4">{content}</div>
+        <div className="min-h-0 flex-1 overflow-y-auto overscroll-contain px-4">{selector}</div>
+        <div className="shrink-0 space-y-3 p-4">{footer}</div>
       </DrawerContent>
     </Drawer>
   );

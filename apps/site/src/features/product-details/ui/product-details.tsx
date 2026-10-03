@@ -1,6 +1,7 @@
 "use client";
 
 import { CartProductCard, useAddProductToCart } from "@/features/cart";
+import { DolyameProductBadge } from "@/features/dolyame-info";
 import { ProductPurchase } from "@/features/product-purchase";
 import {
   Characteristics,
@@ -88,6 +89,7 @@ export function ProductDetails({ productId }: ProductDetailsProps) {
           <div className="min-w-0 space-y-6">
             {reviewsStats && <ReviewRatingSummary stats={reviewsStats} className="justify-start" />}
             <Summary product={product} />
+            {!product.isOutOfStock && <DolyameProductBadge />}
             <ProductPurchase product={product} onAddToCart={addProductToCart} />
             <Highlights characteristics={product.characteristics} />
             {product.characteristics.length > 0 && (

@@ -33,7 +33,7 @@ test("checkout is one continuous RHF form with the three numbered sections", asy
   assert.match(flow, /<form\s+id=\{checkoutOrderFormId\}\s+onSubmit=\{submitOrder\}>/u);
   assert.match(flow, /01[\s\S]*Получатель/u);
   assert.match(flow, /02[\s\S]*Доставка/u);
-  assert.match(flow, /03[\s\S]*Оплата/u);
+  assert.match(flow, /03[\s\S]*Способ оплаты/u);
   assert.doesNotMatch(flow, /CheckoutStepProgress|hidden=\{step|continueFrom|goBack/u);
   assert.match(provider, /useForm<CheckoutFormValues>/u);
   assert.doesNotMatch(provider, /CheckoutStep|setStep|continueFrom|goBack|goToStep/u);
@@ -72,6 +72,17 @@ test("delivery popup controls keep native button semantics and 44px targets", as
   assert.doesNotMatch(field, /role="combobox"|role="listbox"/u);
   assert.match(option, /min-h-11/u);
   assert.doesNotMatch(option, /role="option"/u);
+});
+
+test("checkout defaults to T-Bank for guests and customers with saved contacts", async () => {
+  const { getDefaultCheckoutFormValues } = evaluateTypeScript(
+    await readSource("src/features/checkout/lib/checkout-form.ts"),
+  );
+  assert.equal(getDefaultCheckoutFormValues().paymentMethod, "tbank_acquiring");
+  assert.equal(
+    getDefaultCheckoutFormValues({ email: "buyer@example.com", name: "Иван" }).paymentMethod,
+    "tbank_acquiring",
+  );
 });
 
 test("checkout recipient phone is required, formatted, and included in create input", async () => {
@@ -156,7 +167,7 @@ test("checkout email validation accepts 254 characters and rejects 255", async (
   assert.equal(oversized.error.issues[0].message, "Email должен быть не длиннее 254 символов");
 });
 
-test("checkout keeps exactly one responsive submit CTA bound to its continuous form", async () => {
+test("checkout summary and mobile bar submit the same continuous form", async () => {
   const [flow, summary] = await Promise.all([
     readSource("src/features/checkout/ui/checkout-flow.tsx"),
     readSource("src/features/checkout/ui/order-summary.tsx"),
@@ -164,8 +175,8 @@ test("checkout keeps exactly one responsive submit CTA bound to its continuous f
 
   assert.match(flow, /lg:grid-cols-\[minmax\(0,1fr\)_/u);
   assert.doesNotMatch(flow, /mt-6\s+hidden\s+justify-end/u);
-  assert.match(summary, /hidden\s+lg:block[\s\S]*form=\{checkoutOrderFormId\}/u);
-  assert.match(summary, /className="min-h-11\s+w-full"/u);
+  assert.match(summary, /<CheckoutSubmitButton[\s\S]*form=\{checkoutOrderFormId\}/u);
+  assert.match(summary, /className="min-h-12\s+w-full\s+rounded-xl"/u);
   assert.match(flow, /fixed\s+inset-x-0[\s\S]*lg:hidden/u);
   assert.match(flow, /form=\{checkoutOrderFormId\}/u);
   assert.match(flow, /min-h-11/u);
@@ -198,7 +209,7 @@ test("checkout fixed surfaces reserve cookie consent height and sticky summary f
   assert.match(cookieBanner, /new ResizeObserver/u);
 });
 
-test("desktop checkout summary keeps its footer visible while only its middle scrolls", async () => {
+test("desktop checkout summary scrolls within the available viewport height", async () => {
   const summary = await readSource("src/features/checkout/ui/order-summary.tsx");
 
   assert.match(
@@ -209,14 +220,8 @@ test("desktop checkout summary keeps its footer visible while only its middle sc
     summary,
     /lg:max-h-\[calc\(100dvh-var\(--site-header-banner-height\)-var\(--site-header-nav-height\)-var\(--site-cookie-consent-height\)-1px-2rem\)\]/u,
   );
-  assert.match(
-    summary,
-    /<CardContent className="space-y-4 lg:min-h-0 lg:flex-1 lg:overflow-y-auto">/u,
-  );
-  assert.match(
-    summary,
-    /<CardFooter className="shrink-0 flex-col items-stretch gap-4">[\s\S]*Итого[\s\S]*hidden\s+lg:block[\s\S]*form=\{checkoutOrderFormId\}/u,
-  );
+  assert.match(summary, /lg:overflow-y-auto/u);
+  assert.match(summary, /<CardFooter[\s\S]*<LegalField \/>[\s\S]*<CheckoutSubmitButton/u);
   assert.doesNotMatch(summary, /(?<!lg:)max-h-\[/u);
   assert.doesNotMatch(summary, /(?<!lg:)overflow-y-auto/u);
 });
@@ -542,7 +547,7 @@ test("checkout displays only server-derived delivery prices", async () => {
   assert.match(source, /Доставка от/u);
 });
 
-test("checkout owns one calculation retry surface and summary stays neutral", async () => {
+test("checkout owns one calculation retry surface and summary owns order errors", async () => {
   const [flow, summary] = await Promise.all([
     readSource("src/features/checkout/ui/checkout-flow.tsx"),
     readSource("src/features/checkout/ui/order-summary.tsx"),
@@ -553,13 +558,13 @@ test("checkout owns one calculation retry surface and summary stays neutral", as
   assert.match(flow, /Нет сети/u);
   assert.match(flow, /<Button[^>]*className="min-h-11"[\s\S]*Повторить расчет/u);
   assert.doesNotMatch(summary, /Повторить расчет|onClick=\{checkoutCalculation\.retry\}/u);
-  assert.doesNotMatch(summary, /role="alert"/u);
+  assert.match(summary, /createOrderError[\s\S]*role="alert"/u);
 });
 
 test("offline calculation never renders calculating delivery copy", async () => {
   const field = await readSource("src/features/checkout/ui/delivery-method-field.tsx");
 
   assert.match(field, /checkoutCalculation\.status === "pending"/u);
-  assert.match(field, /variant="link"[\s\S]*className="min-h-11 h-auto/u);
+  assert.match(field, /variant="link"[\s\S]*className="(?=[^"]*\bmin-h-11\b)(?=[^"]*\bh-auto\b)/u);
   assert.doesNotMatch(field, /isPending|isPaused/u);
 });

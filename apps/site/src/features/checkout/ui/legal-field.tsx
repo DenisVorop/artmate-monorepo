@@ -8,7 +8,7 @@ import { cn } from "@/shared/lib";
 import { PersonalDataConsentCheckbox } from "@/shared/ui";
 import { Link } from "@/shared/ui/link";
 
-import { type CheckoutFormValues } from "../lib";
+import { checkoutOrderFormId, type CheckoutFormValues } from "../lib";
 
 import { FieldError } from "./field-error";
 
@@ -25,24 +25,25 @@ export function LegalField() {
       <div className="space-y-1">
         <div
           className={cn(
-            "flex items-start gap-1 rounded-lg border bg-muted/30 p-1 text-sm",
-            errors.acceptedLegal && "border-destructive/50 bg-destructive/5",
+            "flex items-start gap-2 rounded-lg text-xs leading-5",
+            errors.acceptedLegal && "bg-destructive/5",
           )}
         >
           <label
             htmlFor={offerId}
-            className="flex min-h-11 min-w-11 cursor-pointer items-center justify-center"
+            className="flex min-h-11 w-5 shrink-0 cursor-pointer items-center justify-center"
           >
             <input
               id={offerId}
               type="checkbox"
+              form={checkoutOrderFormId}
               className="size-4 shrink-0 rounded border-border accent-rose-500"
               aria-invalid={Boolean(errors.acceptedLegal)}
               aria-describedby={errors.acceptedLegal ? "checkout-legal-error" : undefined}
               {...register("acceptedLegal")}
             />
           </label>
-          <span className="min-h-11 py-3 pr-2 text-muted-foreground">
+          <span className="min-h-11 py-3 text-muted-foreground">
             <label htmlFor={offerId} className="cursor-pointer">
               Я принимаю условия{" "}
             </label>
@@ -65,6 +66,8 @@ export function LegalField() {
       <div className="space-y-1">
         <PersonalDataConsentCheckbox
           id={personalDataConsentId}
+          form={checkoutOrderFormId}
+          className="gap-2 border-0 bg-transparent p-0 text-xs leading-5 [&>label]:w-5 [&>label]:min-w-0 [&>label]:shrink-0 [&>span]:pr-0"
           hasError={Boolean(errors.acceptedPersonalDataConsent)}
           aria-describedby={
             errors.acceptedPersonalDataConsent ? "checkout-personal-data-consent-error" : undefined

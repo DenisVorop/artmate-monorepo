@@ -86,9 +86,6 @@ export function ContactFields() {
         />
         <p id="checkout-email-helper" className="text-xs text-muted-foreground">
           Пришлём чек и информацию о заказе.
-          {!isEmailLocked
-            ? " После оформления пришлём письмо для входа или завершения регистрации."
-            : null}
         </p>
         <FieldError id="checkout-email-error" message={errors.email?.message} />
       </div>

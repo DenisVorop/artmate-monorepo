@@ -12,7 +12,6 @@ import { Link } from "@/shared/ui/link";
 import { PageTitle } from "@/shared/ui/typography";
 
 import {
-  useClearCartMutation,
   useRemoveCartItemMutation,
   useUpdateCartItemQuantityMutation,
 } from "../model";
@@ -68,15 +67,13 @@ function BaseLoadedCart({ cart }: { cart: CartModel }) {
   const { mutate: updateCartItemQuantity, isPending: isUpdatingItemQuantity } =
     useUpdateCartItemQuantityMutation();
   const { mutate: removeCartItem, isPending: isRemovingItem } = useRemoveCartItemMutation();
-  const { mutate: clearCart, isPending: isClearingCart } = useClearCartMutation();
-  const isMutating = isUpdatingItemQuantity || isRemovingItem || isClearingCart;
+  const isMutating = isUpdatingItemQuantity || isRemovingItem;
   const itemsLabel = `${cart.itemsCount} ${getItemsWord(cart.itemsCount)}`;
 
   return (
     <section className="container py-8 md:py-12">
       <div className="mb-8 flex flex-col justify-between gap-4 sm:flex-row sm:items-end">
         <div className="space-y-2">
-          <p className="text-sm font-medium tracking-wide text-rose-500 uppercase">Корзина</p>
           <PageTitle className="text-foreground">Ваши товары</PageTitle>
           <p className="text-muted-foreground">{itemsLabel} в корзине Artmate.</p>
         </div>
@@ -109,8 +106,6 @@ function BaseLoadedCart({ cart }: { cart: CartModel }) {
           itemsLabel={itemsLabel}
           subtotal={cart.subtotal}
           isMutating={isMutating}
-          isClearingCart={isClearingCart}
-          onClear={() => clearCart()}
         />
       </div>
     </section>

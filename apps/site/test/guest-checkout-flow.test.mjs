@@ -61,10 +61,6 @@ test("checkout contact and guest success explain that access mail is sent at che
 
   assert.match(contactFields, /Пришлём чек и информацию о заказе\./u);
   assert.match(contactFields, /checkout-phone-error/u);
-  assert.match(
-    contactFields,
-    /После оформления пришлём письмо для входа или завершения регистрации\./u,
-  );
   assert.match(guestSuccess, /письмо для входа или восстановления доступа отправлены на email\./u);
   assert.doesNotMatch(`${contactFields}\n${guestSuccess}`, /после оплаты|Если аккаунта ещё нет/ui);
   assert.doesNotMatch(guestSuccess, /ссылка активации|создать пароль/ui);
