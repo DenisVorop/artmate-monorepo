@@ -150,7 +150,6 @@ test("checkout fields describe only their stable helper and error nodes", async 
     await readSource("src/features/checkout/ui/payment-method-field.tsx"),
     {
       ...commonMocks,
-      "@/features/dolyame-info": { DolyameInfo: component("DolyameInfo") },
       "@/shared/lib": { cn: (...values) => values.filter(Boolean).join(" ") },
       "@/shared/ui/payment-logos": { PaymentLogo: component("PaymentLogo") },
     },
@@ -363,7 +362,6 @@ test("delivery lists keep their local spacing and payment has a named bank selec
   const { PaymentMethodField } = evaluateComponent(
     await readSource("src/features/checkout/ui/payment-method-field.tsx"),
     {
-      "@/features/dolyame-info": { DolyameInfo: component("DolyameInfo") },
       "@/shared/lib": { cn: (...values) => values.filter(Boolean).join(" ") },
       "@/shared/ui/payment-logos": { PaymentLogo: component("PaymentLogo") },
       "@/shared/ui": sharedUi,

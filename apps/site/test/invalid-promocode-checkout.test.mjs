@@ -91,7 +91,6 @@ async function renderCartSummary(promoState) {
     await readSource("src/features/cart/ui/cart-summary.tsx"),
     {
       "../lib/cart-format": { formatMoney: (value) => `${value} RUB` },
-      "@/features/dolyame-info": { DolyameCartBadge: component("DolyameCartBadge") },
       "@/features/promocode": {
         getPromoPricingState,
         PromoCodeForm: component("PromoCodeForm"),

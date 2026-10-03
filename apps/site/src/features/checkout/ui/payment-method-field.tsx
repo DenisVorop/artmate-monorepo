@@ -2,9 +2,8 @@
 
 import { useFormContext } from "react-hook-form";
 
-import { DolyameInfo } from "@/features/dolyame-info";
 import { cn } from "@/shared/lib";
-import { Button, Label, RadioGroup, RadioGroupItem } from "@/shared/ui";
+import { Label, RadioGroup, RadioGroupItem } from "@/shared/ui";
 import { PaymentLogo } from "@/shared/ui/payment-logos";
 
 import type { CheckoutFormValues, CheckoutPaymentMethod } from "../lib";
@@ -21,7 +20,7 @@ const paymentOptions: {
   {
     bankBrand: "tbank",
     brands: ["mir", "sbp", "dolyame"],
-    description: "Оплатите картой «Мир», через СБП или Долями на странице Т-Банка.",
+    description: "Оплатите заказ на странице Т-Банка.",
     title: "Т-Банк",
     value: "tbank_acquiring",
   },
@@ -91,13 +90,6 @@ export function PaymentMethodField() {
       </RadioGroup>
       <div id="checkout-payment-description" className="text-xs leading-5 text-muted-foreground">
         <p>{selectedOption?.description}</p>
-        {selectedPaymentMethod === "tbank_acquiring" && (
-          <DolyameInfo>
-            <Button type="button" variant="link" className="h-auto p-0 text-xs leading-5">
-              Как оплатить Долями
-            </Button>
-          </DolyameInfo>
-        )}
       </div>
       <FieldError id="checkout-payment-error" message={errors.paymentMethod?.message} />
     </div>
