@@ -1,22 +1,12 @@
 "use client";
 
-import { ChevronRight, X } from "lucide-react";
 import { useId } from "react";
 
 import { useIsMobile } from "@/shared/lib/device";
-import {
-  Button,
-  Drawer,
-  DrawerClose,
-  DrawerContent,
-  DrawerDescription,
-  DrawerHeader,
-  DrawerTitle,
-  DrawerTrigger,
-} from "@/shared/ui";
 import { SectionTitle } from "@/shared/ui/typography";
 import type { ProductCharacteristic } from "../model";
 import { CharacteristicsList } from "./characteristics-list";
+import { DetailsDrawer } from "./details-drawer";
 
 const mobilePreviewLimit = 6;
 
@@ -34,35 +24,13 @@ function MobileCharacteristics({
     <>
       <CharacteristicsList characteristics={characteristics.slice(0, mobilePreviewLimit)} />
       {characteristics.length > mobilePreviewLimit && (
-        // eslint-disable-next-line jsx-a11y/no-autofocus -- Move focus into the modal only after the user opens it, not on page load.
-        <Drawer autoFocus>
-          <DrawerTrigger asChild>
-            <Button type="button" variant="outline" className="mt-4 min-h-11 w-full">
-              Все характеристики ({characteristics.length})
-              <ChevronRight aria-hidden="true" />
-            </Button>
-          </DrawerTrigger>
-          <DrawerContent className="data-[vaul-drawer-direction=bottom]:max-h-[90dvh]">
-            <DrawerHeader className="relative shrink-0 border-b pr-16 group-data-[vaul-drawer-direction=bottom]/drawer-content:text-left">
-              <DrawerTitle>Характеристики</DrawerTitle>
-              <DrawerDescription className="wrap-anywhere">{productTitle}</DrawerDescription>
-              <DrawerClose asChild>
-                <Button
-                  type="button"
-                  variant="ghost"
-                  size="icon"
-                  className="absolute top-2 right-2 size-11"
-                  aria-label="Закрыть характеристики"
-                >
-                  <X aria-hidden="true" />
-                </Button>
-              </DrawerClose>
-            </DrawerHeader>
-            <div className="min-h-0 overflow-y-auto overscroll-contain px-4 pb-[max(1rem,env(safe-area-inset-bottom))]">
-              <CharacteristicsList characteristics={characteristics} />
-            </div>
-          </DrawerContent>
-        </Drawer>
+        <DetailsDrawer
+          title="Характеристики"
+          productTitle={productTitle}
+          triggerLabel={`Все характеристики (${characteristics.length})`}
+        >
+          <CharacteristicsList characteristics={characteristics} />
+        </DetailsDrawer>
       )}
     </>
   );

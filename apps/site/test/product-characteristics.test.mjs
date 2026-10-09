@@ -295,7 +295,7 @@ function assertOrderedRows(markup, items) {
   }
 }
 
-async function loadCharacteristics({ mobile, drawerOpen = false }) {
+async function loadDetailsDrawer({ drawerOpen = false } = {}) {
   const drawerUi = {
     ...ui,
     Drawer: box,
@@ -313,16 +313,85 @@ async function loadCharacteristics({ mobile, drawerOpen = false }) {
     DrawerDescription: ({ children }) => React.createElement("p", null, children),
     DrawerClose: box,
   };
+  return load("src/entities/products/ui/details-drawer.tsx", { "@/shared/ui": drawerUi });
+}
+
+async function loadCharacteristics({ mobile, drawerOpen = false }) {
   return load("src/entities/products/ui/characteristics.tsx", {
-    "@/shared/ui": drawerUi,
     "@/shared/lib/device": { useIsMobile: () => mobile },
     "@/shared/lib/utils": { cn: classNames },
     "@/shared/ui/typography": await load("src/shared/ui/typography.tsx", {
       "../lib": { cn: classNames },
     }),
     "./characteristics-list": await loadCharacteristicsList(),
+    "./details-drawer": await loadDetailsDrawer({ drawerOpen }),
   });
 }
+
+async function loadDescription({ mobile, drawerOpen = false }) {
+  const expandable = (props) =>
+    React.createElement("div", { "data-test-expandable": props.collapsible }, props.children);
+  return load("src/entities/products/ui/description.tsx", {
+    "@/shared/lib/device": { useIsMobile: () => mobile },
+    "@/shared/ui": { ExpandableText: expandable },
+    "@/shared/ui/typography": await load("src/shared/ui/typography.tsx", {
+      "../lib": { cn: classNames },
+    }),
+    "./details-drawer": await loadDetailsDrawer({ drawerOpen }),
+  });
+}
+
+test("mobile description uses the same full-width drawer trigger as characteristics", async () => {
+  const { Description } = await loadDescription({ mobile: true });
+  const { Characteristics } = await loadCharacteristics({ mobile: true });
+  const longProduct = { ...product, description: "<p>Описание товара.</p>".repeat(50) };
+  const descriptionMarkup = renderToStaticMarkup(
+    React.createElement(Description, { product: longProduct }),
+  );
+  const characteristicsMarkup = renderToStaticMarkup(
+    React.createElement(Characteristics, {
+      characteristics: makeCharacteristics(20),
+      productTitle: product.title,
+      id: "characteristics",
+    }),
+  );
+  assert.doesNotMatch(descriptionMarkup, /data-test-expandable/);
+  const triggerClass = (markup) => markup.match(/<button[^>]*class="([^"]+)"/)[1];
+  assert.equal(triggerClass(descriptionMarkup), triggerClass(characteristicsMarkup));
+  assert.match(descriptionMarkup, /Показать полностью/);
+  assert.doesNotMatch(descriptionMarkup, /Закрыть описание/);
+  const short = renderToStaticMarkup(React.createElement(Description, { product }));
+  assert.match(short, /data-test-expandable="false"/);
+  assert.doesNotMatch(short, /Показать полностью/);
+  assert.equal(
+    renderToStaticMarkup(
+      React.createElement(Description, { product: { ...product, description: "" } }),
+    ),
+    "",
+  );
+});
+
+test("mobile description drawer contains every paragraph, formatting and accessible close control", async () => {
+  const { Description } = await loadDescription({ mobile: true, drawerOpen: true });
+  const description =
+    "<p>Абзац описания.</p>".repeat(50) + "<p><strong>Последний абзац</strong></p>";
+  const markup = renderToStaticMarkup(
+    React.createElement(Description, { product: { ...product, description } }),
+  );
+  const drawerMarkup = markup.slice(markup.indexOf('data-test-drawer="true"'));
+  assert.match(drawerMarkup, /<h3>Описание<\/h3>/);
+  assert.match(drawerMarkup, new RegExp(product.title));
+  assert.match(drawerMarkup, /aria-label="Закрыть описание"/);
+  assert.match(drawerMarkup, /overflow-y-auto/);
+  assert.ok(drawerMarkup.includes(description));
+  assert.doesNotMatch(drawerMarkup, /max-h-36|Свернуть/);
+  const { Description: DesktopDescription } = await loadDescription({ mobile: false });
+  const desktop = renderToStaticMarkup(
+    React.createElement(DesktopDescription, { product: { ...product, description } }),
+  );
+  assert.match(desktop, /data-test-expandable="true"/);
+  assert.doesNotMatch(desktop, /data-test-drawer/);
+});
 
 test("read-only characteristics list preserves all ordered rows and escapes long content", async () => {
   const { CharacteristicsList } = await loadCharacteristicsList();
