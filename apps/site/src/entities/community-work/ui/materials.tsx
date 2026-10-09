@@ -1,46 +1,13 @@
 import type { PublicCommunityWork } from "../model";
 
 export function CommunityWorkMaterials({ work }: { work: PublicCommunityWork }) {
+  if (!work.submission.materials.length && !work.submission.symbolMappings.length) return null;
+
   return (
     <div className="space-y-6">
-      <section className="rounded-2xl border border-stone-200 bg-white p-5 sm:p-6">
-        <h2 className="text-xl font-bold">Палитра Artmate для этой картины</h2>
-        <p className="mt-1 text-sm text-stone-500">
-          Официальная палитра цифровой версии · {work.official.palette.label}{" "}
-          {work.official.palette.version}
-        </p>
-        {work.official.palette.colors.length > 0 ? (
-          <ul className="mt-4 grid gap-2 sm:grid-cols-2">
-            {work.official.palette.colors.map((color) => (
-              <li
-                key={color.symbol}
-                className="flex min-h-14 items-center gap-3 rounded-xl border border-stone-100 bg-stone-50 px-3 py-2"
-              >
-                <span
-                  className="size-9 shrink-0 rounded-full border border-black/10"
-                  style={{ backgroundColor: color.hex }}
-                  aria-label={`Официальный цвет ${color.hex}`}
-                />
-                <span className="min-w-0">
-                  <span className="block font-bold text-stone-900">
-                    {color.symbol} · маркер {color.markerNumber}
-                  </span>
-                  <span className="block truncate text-xs text-stone-500">
-                    {color.hex}
-                    {color.pantone ? ` · Pantone ${color.pantone}` : ""}
-                  </span>
-                </span>
-              </li>
-            ))}
-          </ul>
-        ) : (
-          <p className="mt-3 text-sm text-stone-500">Для этой версии палитра не указана.</p>
-        )}
-      </section>
-
-      <section className="rounded-2xl border border-rose-100 bg-rose-50/60 p-5 sm:p-6">
-        <h2 className="text-xl font-bold">Материалы, указанные автором</h2>
-        {work.submission.materials.length > 0 ? (
+      {work.submission.materials.length > 0 && (
+        <section className="rounded-2xl border border-rose-100 bg-rose-50/60 p-5 sm:p-6">
+          <h2 className="text-xl font-bold">Материалы, указанные автором</h2>
           <ul className="mt-4 grid gap-3 text-sm sm:grid-cols-2">
             {work.submission.materials.map((material) => (
               <li key={material.position} className="rounded-xl bg-white p-3">
@@ -51,14 +18,12 @@ export function CommunityWorkMaterials({ work }: { work: PublicCommunityWork }) 
               </li>
             ))}
           </ul>
-        ) : (
-          <p className="mt-3 text-sm text-stone-500">Автор не указал материалы.</p>
-        )}
-      </section>
+        </section>
+      )}
 
-      <section>
-        <h2 className="text-xl font-bold">Соответствие символов</h2>
-        {work.submission.symbolMappings.length > 0 ? (
+      {work.submission.symbolMappings.length > 0 && (
+        <section>
+          <h2 className="text-xl font-bold">Соответствие символов</h2>
           <dl className="mt-4 grid grid-cols-2 gap-2 sm:grid-cols-3 md:grid-cols-4">
             {work.submission.symbolMappings.map((mapping) => {
               const material = work.submission.materials.find(
@@ -87,10 +52,8 @@ export function CommunityWorkMaterials({ work }: { work: PublicCommunityWork }) 
               );
             })}
           </dl>
-        ) : (
-          <p className="mt-3 text-sm text-stone-500">Автор не указал соответствия цветов.</p>
-        )}
-      </section>
+        </section>
+      )}
     </div>
   );
 }

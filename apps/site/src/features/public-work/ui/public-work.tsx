@@ -161,9 +161,11 @@ function PublicWorkContent({
         </section>
       ) : null}
 
-      <section className="mx-auto max-w-3xl">
-        <CommunityWorkMaterials work={work} />
-      </section>
+      {hasAuthorMaterialDetails && (
+        <section className="mx-auto max-w-3xl">
+          <CommunityWorkMaterials work={work} />
+        </section>
+      )}
 
       <section className="mx-auto grid max-w-3xl gap-4 rounded-2xl border p-5 sm:grid-cols-2 sm:p-6">
         <div>
