@@ -473,6 +473,8 @@ async function createAddMutationHarness({ actionResult, ensuredCart, previousCar
   const cacheWrites = [];
   const invalidations = [];
   const actionInputs = [];
+  const notifications = [];
+  const navigations = [];
   let mutationOptions;
   const queryClient = {
     getQueryData(queryKey) {
@@ -502,9 +504,14 @@ async function createAddMutationHarness({ actionResult, ensuredCart, previousCar
       return {
         isPending: false,
         async mutateAsync(input) {
-          const data = await options.mutationFn(input);
-          await options.onSuccess?.(data, input);
-          return data;
+          try {
+            const data = await options.mutationFn(input);
+            await options.onSuccess?.(data, input);
+            return data;
+          } catch (error) {
+            await options.onError?.(error, input);
+            throw error;
+          }
         },
       };
     },
@@ -518,6 +525,14 @@ async function createAddMutationHarness({ actionResult, ensuredCart, previousCar
     await readSource("src/features/cart/model/use-add-cart-item.ts"),
     {
       "../lib/analytics": { useAnalytics: () => analytics },
+      "next/navigation": { useRouter: () => ({ push: (href) => navigations.push(href) }) },
+      sonner: {
+        toast: {
+          success: (title, options) => notifications.push({ type: "success", title, options }),
+          error: (title, options) => notifications.push({ type: "error", title, options }),
+        },
+      },
+      "@/shared/constants": { routes: { cart: "/cart" } },
       "./cart-mutation": cartMutation,
       "@/entities/cart": { cartQuery },
       "@/shared/actions/cart": {
@@ -553,6 +568,8 @@ async function createAddMutationHarness({ actionResult, ensuredCart, previousCar
   return {
     ...mutation,
     actionInputs,
+    notifications,
+    navigations,
     analyticsCalls,
     cacheWrites,
     invalidations,
@@ -588,4 +605,47 @@ test("add mutation emits analytics only after a successful unwrapped response", 
   assert.deepEqual(failure.analyticsCalls, []);
   assert.deepEqual(failure.cacheWrites, []);
   assert.deepEqual(failure.invalidations, []);
+});
+
+test("cart confirmation names the actual added item and opens the cart", async () => {
+  const confirmedCart = createCart([createCartItem({ quantity: 1 })]);
+  const mutation = await createAddMutationHarness({
+    actionResult: { ok: true, value: confirmedCart },
+    previousCart: null,
+  });
+  assert.deepEqual(mutation.notifications, []);
+  await mutation.mutate({ productId: "product-1", quantity: 1 });
+  assert.equal(mutation.notifications.length, 1);
+  const notice = mutation.notifications[0];
+  assert.equal(notice.type, "success");
+  assert.equal(notice.title, "Добавлено в корзину");
+  assert.equal(notice.options.description, confirmedCart.items[0].title);
+  assert.equal(notice.options.action.label, "Открыть корзину");
+  notice.options.action.onClick();
+  assert.deepEqual(mutation.navigations, ["/cart"]);
+});
+
+test("failed adds show a retry message and never confirm success", async () => {
+  const mutation = await createAddMutationHarness({
+    actionResult: { ok: false, error: "private backend error" },
+    previousCart: null,
+  });
+  await assert.rejects(() => mutation.mutate({ productId: "product-1" }), /private backend error/);
+  assert.equal(mutation.notifications.length, 1);
+  assert.equal(mutation.notifications[0].type, "error");
+  assert.equal(mutation.notifications[0].title, "Не удалось добавить товар");
+  assert.equal(mutation.notifications[0].options.description, "Попробуйте ещё раз.");
+  assert.deepEqual(mutation.navigations, []);
+});
+
+test("empty or unchanged cart responses do not claim that an item was added", async () => {
+  const unchangedCart = createCart([createCartItem({ quantity: 99 })]);
+  for (const cart of [null, createCart([]), unchangedCart]) {
+    const mutation = await createAddMutationHarness({
+      actionResult: { ok: true, value: cart },
+      previousCart: unchangedCart,
+    });
+    await mutation.mutate({ productId: "product-1", quantity: 1 });
+    assert.deepEqual(mutation.notifications, []);
+  }
 });
