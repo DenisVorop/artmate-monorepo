@@ -30,7 +30,7 @@ export function CommunityWorks(props: CommunityWorksProps) {
         ref={trackRef}
         role="region"
         aria-label="Лента работ пользователей"
-        className="flex snap-x snap-proximity items-stretch gap-4 overflow-x-auto overscroll-x-contain rounded-xl pb-3 focus-visible:ring-2 focus-visible:ring-ring focus-visible:outline-none"
+        className="relative flex snap-x snap-proximity items-stretch gap-4 overflow-x-auto overscroll-x-contain rounded-xl pb-3 focus-visible:ring-2 focus-visible:ring-ring focus-visible:outline-none"
       >
         <ul className="flex flex-1 gap-4">
           {works.map((work) => (
