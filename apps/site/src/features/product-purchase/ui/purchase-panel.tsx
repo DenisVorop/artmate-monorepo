@@ -69,8 +69,14 @@ export function ProductPurchase({ product, onAddToCart }: PurchasePanelProps) {
   const ActionIcon = isAdding ? LoaderCircle : added ? Check : ShoppingBag;
 
   return (
-    <Card className="bg-background/90 bg-[radial-gradient(ellipse_at_top_left,rgba(255,228,230,0.55),transparent_55%),radial-gradient(ellipse_at_bottom_right,rgba(255,237,213,0.5),transparent_55%)] shadow-[0_12px_36px_-16px_rgba(159,18,57,0.2),0_4px_12px_-6px_rgba(28,25,23,0.08),inset_0_1px_0_rgba(255,255,255,0.95)] ring-rose-200/50 backdrop-blur-xl">
-      <CardContent className="space-y-4">
+    <Card
+      className={cn(
+        "relative isolate bg-background/65 bg-[radial-gradient(ellipse_at_top_left,rgba(255,228,230,0.55),transparent_55%),radial-gradient(ellipse_at_top_right,rgba(224,231,255,0.3),transparent_50%),radial-gradient(ellipse_at_bottom_right,rgba(255,237,213,0.5),transparent_55%)]",
+        "shadow-[0_12px_36px_-16px_rgba(159,18,57,0.2),0_4px_12px_-6px_rgba(28,25,23,0.08)] ring-rose-200/40 backdrop-blur-xl backdrop-saturate-150",
+        "before:pointer-events-none before:absolute before:inset-0 before:rounded-[inherit] before:bg-[linear-gradient(135deg,rgba(255,255,255,0.8)_0%,rgba(255,255,255,0.15)_35%,transparent_50%,rgba(255,255,255,0.45)_100%)] before:shadow-[inset_0_1px_1px_rgba(255,255,255,0.95),inset_1px_0_1px_rgba(255,255,255,0.65),inset_0_-1px_1px_rgba(255,255,255,0.45)]",
+      )}
+    >
+      <CardContent className="relative space-y-4">
         <div className="flex flex-wrap items-center justify-between gap-3">
           <div className="space-y-1">
             <p className="text-sm font-medium text-foreground">Количество</p>
