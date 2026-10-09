@@ -1,0 +1,104 @@
+// One shared contour, one original, one mutable adaptation per material set.
+// No revision sequence or historical image snapshots.
+model ColoringArtwork {
+  coloringId            String   @id @map("coloring_id") @db.VarChar(32)
+  width                 Int
+  height                Int
+  derivativeProfile     String   @map("derivative_profile") @db.VarChar(40)
+  colorSpace            String   @default("srgb") @map("color_space") @db.VarChar(20)
+  outlineStorageKey     String   @unique @map("outline_storage_key") @db.Text
+  outlineChecksum       String   @map("outline_checksum") @db.Char(64)
+  outlineByteSize       Int      @map("outline_byte_size")
+  outlineSourceChecksum String   @map("outline_source_checksum") @db.Char(64)
+  outlineSourceMime     String   @map("outline_source_mime") @db.VarChar(40)
+  outlineAlt            String   @map("outline_alt") @db.VarChar(220)
+  createdAt             DateTime @default(now()) @map("created_at")
+  updatedAt             DateTime @default(now()) @updatedAt @map("updated_at")
+
+  coloring         Coloring                  @relation(fields: [coloringId], references: [id], onDelete: Restrict)
+  original         ColoringOriginal?
+  materialVariants ColoringMaterialVariant[]
+
+  @@map("coloring_artworks")
+}
+
+model ColoringOriginal {
+  coloringId      String         @id @map("coloring_id") @db.VarChar(32)
+  imageStorageKey String         @unique @map("image_storage_key") @db.Text
+  imageChecksum   String         @map("image_checksum") @db.Char(64)
+  imageByteSize   Int            @map("image_byte_size")
+  sourceChecksum  String         @map("source_checksum") @db.Char(64)
+  sourceMime      String         @map("source_mime") @db.VarChar(40)
+  imageAlt        String         @map("image_alt") @db.VarChar(220)
+  cardStorageKey  String         @unique @map("card_storage_key") @db.Text
+  cardChecksum    String         @map("card_checksum") @db.Char(64)
+  cardByteSize    Int            @map("card_byte_size")
+  cardWidth       Int            @map("card_width")
+  cardHeight      Int            @map("card_height")
+  status          ColoringStatus @default(DRAFT)
+  publishedAt     DateTime?      @map("published_at")
+  createdAt       DateTime       @default(now()) @map("created_at")
+  updatedAt       DateTime       @default(now()) @updatedAt @map("updated_at")
+
+  artwork ColoringArtwork         @relation(fields: [coloringId], references: [coloringId], onDelete: Restrict)
+  colors  ColoringOriginalColor[]
+
+  @@map("coloring_originals")
+}
+
+model ColoringOriginalColor {
+  coloringId     String @map("coloring_id") @db.VarChar(32)
+  symbolPosition Int    @map("symbol_position")
+  hex            String @db.VarChar(7)
+
+  original ColoringOriginal @relation(fields: [coloringId], references: [coloringId], onDelete: Cascade)
+
+  @@id([coloringId, symbolPosition])
+  @@map("coloring_original_colors")
+}
+
+model ColoringMaterialVariant {
+  id              String         @id @default(cuid()) @db.VarChar(32)
+  coloringId      String         @map("coloring_id") @db.VarChar(32)
+  materialSetId   String         @map("material_set_id") @db.VarChar(32)
+  imageStorageKey String         @unique @map("image_storage_key") @db.Text
+  imageChecksum   String         @map("image_checksum") @db.Char(64)
+  imageByteSize   Int            @map("image_byte_size")
+  sourceChecksum  String         @map("source_checksum") @db.Char(64)
+  sourceMime      String         @map("source_mime") @db.VarChar(40)
+  imageAlt        String         @map("image_alt") @db.VarChar(220)
+  cardStorageKey  String         @unique @map("card_storage_key") @db.Text
+  cardChecksum    String         @map("card_checksum") @db.Char(64)
+  cardByteSize    Int            @map("card_byte_size")
+  cardWidth       Int            @map("card_width")
+  cardHeight      Int            @map("card_height")
+  status          ColoringStatus @default(DRAFT)
+  publishedAt     DateTime?      @map("published_at")
+  createdAt       DateTime       @default(now()) @map("created_at")
+  updatedAt       DateTime       @default(now()) @updatedAt @map("updated_at")
+
+  artwork     ColoringArtwork              @relation(fields: [coloringId], references: [coloringId], onDelete: Restrict)
+  materialSet MaterialSet                  @relation(fields: [materialSetId], references: [id], onDelete: Restrict)
+  assignments ColoringMaterialAssignment[]
+
+  @@unique([coloringId, materialSetId])
+  @@unique([id, materialSetId])
+  @@index([materialSetId])
+  @@map("coloring_material_variants")
+}
+
+model ColoringMaterialAssignment {
+  variantId       String @map("variant_id") @db.VarChar(32)
+  materialSetId   String @map("material_set_id") @db.VarChar(32)
+  materialColorId String @map("material_color_id") @db.VarChar(32)
+  symbolPosition  Int    @map("symbol_position")
+
+  // Composite FKs prevent assigning a color from another material set.
+  variant       ColoringMaterialVariant @relation(fields: [variantId, materialSetId], references: [id, materialSetId], onDelete: Cascade, onUpdate: Restrict)
+  materialColor MaterialColor           @relation(fields: [materialColorId, materialSetId], references: [id, materialSetId], onDelete: Restrict, onUpdate: Restrict)
+
+  // Reusing one material for several symbols is intentional.
+  @@id([variantId, symbolPosition])
+  @@index([materialColorId, materialSetId])
+  @@map("coloring_material_assignments")
+}

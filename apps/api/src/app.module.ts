@@ -27,6 +27,7 @@ import { PromocodesModule } from "./promocodes/promocodes.module";
 import { SeoModule } from "./seo/seo.module";
 import { UsersModule } from "./users/users.module";
 import { WorkshopsModule } from "./workshops/workshops.module";
+import { MaterialsModule } from "./materials/materials.module";
 
 @Module({
   imports: [
@@ -44,6 +45,7 @@ import { WorkshopsModule } from "./workshops/workshops.module";
     PromocodesModule,
     CatalogLandingsModule,
     ColoringsModule,
+    MaterialsModule,
     BlogModule,
     OzonModule,
     DeliveryModule,

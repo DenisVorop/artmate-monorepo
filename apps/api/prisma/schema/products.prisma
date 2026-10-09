@@ -54,6 +54,7 @@ model Product {
   characteristics         ProductCharacteristic[]
   tags                    ProductTagAssignment[]
   coloringCollection      ColoringCollection?
+  materialSets            MaterialSet[]
   catalogLandingOverrides CatalogLandingProductOverride[]
 
   @@index([categoryId])

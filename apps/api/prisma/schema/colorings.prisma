@@ -58,6 +58,7 @@ model Coloring {
   workshopPublicationFacts WorkshopPublicationFact[]
   loyaltyWorkRewards LoyaltyWorkReward[]
   manifestItems ColoringCollectionManifestItem[]
+  artwork ColoringArtwork?
 
   @@unique([collectionId, position])
   @@unique([collectionId, number])
