@@ -9,7 +9,7 @@ export function createColoringSeoDescription(collectionTitle: string, number: nu
 }
 
 export function createCategoryDescription(categoryTitle: string) {
-  return `Купить раскраски по номерам Artmate в категории «${categoryTitle}»: антистресс-альбомы A4 на спирали, 25 иллюстраций, бумага 190 г/м² для маркеров и карандашей.`;
+  return `Товары Artmate в категории «${categoryTitle}»: фотографии, цены и характеристики. Выберите подходящие товары для рисования.`;
 }
 
 // The YML feed retains its current description policy until its separate revision.

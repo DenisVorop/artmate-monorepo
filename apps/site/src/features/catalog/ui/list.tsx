@@ -9,17 +9,22 @@ export function List() {
   const { filteredProducts, renderProductCard, suggestedProducts } = useCatalog();
 
   return (
-    <section className="container py-6">
+    <section aria-label="Товары">
       <Summary />
 
       {filteredProducts.length > 0 ? (
-        <ul className="grid gap-5 sm:grid-cols-2 lg:grid-cols-3 xl:grid-cols-4">
+        <ul className="grid gap-4 sm:grid-cols-2 xl:grid-cols-3 2xl:grid-cols-4">
           {filteredProducts.map((product, index) => (
             <li key={product.id} className="h-full">
               {renderProductCard ? (
                 renderProductCard(product, index, "catalog")
               ) : (
-                <ProductCard product={product} eagerImage={index === 0} />
+                <ProductCard
+                  product={product}
+                  eagerImage={index === 0}
+                  mediaAspectRatio={3 / 4}
+                  variant="plain"
+                />
               )}
             </li>
           ))}
@@ -41,13 +46,13 @@ export function List() {
                 </p>
               </div>
 
-              <ul className="grid gap-5 sm:grid-cols-2 lg:grid-cols-3 xl:grid-cols-4">
+              <ul className="grid gap-4 sm:grid-cols-2 xl:grid-cols-3 2xl:grid-cols-4">
                 {suggestedProducts.map((product, index) => (
                   <li key={product.id} className="h-full">
                     {renderProductCard ? (
                       renderProductCard(product, index, "catalog_search_suggestions")
                     ) : (
-                      <ProductCard product={product} />
+                      <ProductCard product={product} mediaAspectRatio={3 / 4} variant="plain" />
                     )}
                   </li>
                 ))}

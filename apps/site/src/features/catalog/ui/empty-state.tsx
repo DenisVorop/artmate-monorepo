@@ -14,14 +14,14 @@ export function EmptyState() {
       </div>
 
       <div className="space-y-2">
-        <CardTitle>По&nbsp;вашему запросу ничего не&nbsp;нашлось</CardTitle>
+        <CardTitle>Товары не&nbsp;найдены</CardTitle>
         <CardDescription className="mx-auto max-w-xs">
           Попробуйте изменить фильтры или&nbsp;поисковый запрос.
         </CardDescription>
       </div>
 
       <Button type="button" onClick={clearAll}>
-        Сбросить фильтры
+        Очистить поиск и фильтры
       </Button>
     </Card>
   );

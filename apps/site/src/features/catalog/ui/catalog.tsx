@@ -48,6 +48,8 @@ export function Catalog({ initialCategoryId }: CatalogProps) {
       renderProductCard={(product, index, placement) => (
         <CartProductCard
           product={product}
+          mediaAspectRatio={3 / 4}
+          variant="plain"
           eagerImage={index === 0}
           list={placement}
           position={index + 1}

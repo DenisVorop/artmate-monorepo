@@ -1,39 +1,37 @@
 "use client";
 
 import { createContext, type ReactNode } from "react";
-import type { Product, ProductCategory } from "@/entities/products";
-import type { SortValue } from "../catalog-state";
+import type { Product, ProductTag } from "@/entities/products";
+import type {
+  CatalogCategory,
+  CatalogCategoryValue,
+  CatalogFacet,
+  FiltersState,
+} from "../catalog-state";
 
 export type CatalogProductPlacement = "catalog" | "catalog_search_suggestions";
-
-export type CatalogContextValue = {
-  categories: readonly ProductCategory[];
+export type CatalogContextValue = FiltersState & {
+  categories: readonly CatalogCategory[];
   products: readonly Product[];
   filteredProducts: Product[];
   suggestedProducts: Product[];
+  facets: CatalogFacet[];
+  selectedTags: ProductTag[];
+  activeCategory?: CatalogCategory;
+  categoryId?: string;
+  countLabel: string;
+  hasFilters: boolean;
+  filterCount: number;
+  updateFilters: (_patch: Partial<FiltersState>) => void;
+  setQuery: (_query: string) => void;
+  setCategory: (_categoryId?: CatalogCategoryValue) => void;
+  toggleTag: (_slug: string) => void;
+  clearFilters: () => void;
+  clearAll: () => void;
   renderProductCard?: (
     _product: Product,
     _index: number,
     _placement: CatalogProductPlacement,
   ) => ReactNode;
-  activeCategory?: ProductCategory;
-  categoryId?: string;
-  query: string;
-  onlyBestsellers: boolean;
-  onlyPixel: boolean;
-  sortBy: SortValue;
-  countLabel: string;
-  hasFilters: boolean;
-  setQuery: (_query: string) => void;
-  setCategory: (_categoryId?: string) => void;
-  setOnlyBestsellers: (_value: boolean) => void;
-  setOnlyPixel: (_value: boolean) => void;
-  setSortBy: (_sortBy: SortValue) => void;
-  clearQuery: () => void;
-  clearCategory: () => void;
-  clearBestsellers: () => void;
-  clearPixel: () => void;
-  clearAll: () => void;
 };
-
 export const CatalogContext = createContext<CatalogContextValue | null>(null);

@@ -75,7 +75,7 @@ export function createLegalMetadata(document: LegalSeoInput): Metadata {
 }
 
 export function createCategoryMetadata(category: SeoCategory): Metadata {
-  const title = `${category.title} - раскраски по\u00a0номерам Artmate`;
+  const title = `${category.title} — каталог Artmate`;
   const description = createCategoryDescription(category.title);
   const canonical = `/catalog/raskraski/${category.slug}`;
 
@@ -94,9 +94,8 @@ export function createCategoryMetadata(category: SeoCategory): Metadata {
       "products",
       "catalog",
       category.title,
-      `раскраски ${category.title}`,
-      `раскраски по номерам ${category.title}`,
-      `купить раскраски ${category.title}`,
+      `купить ${category.title}`,
+      `${category.title} Artmate`,
     ],
   });
 }
