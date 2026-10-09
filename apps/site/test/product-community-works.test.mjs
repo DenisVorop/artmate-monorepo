@@ -2,9 +2,12 @@ import assert from "node:assert/strict";
 import { readFile } from "node:fs/promises";
 import { createRequire } from "node:module";
 import { test } from "node:test";
+import React from "react";
+import { renderToStaticMarkup } from "react-dom/server";
 
 const require = createRequire(import.meta.url);
 const ts = require("typescript");
+const { QueryClient, QueryClientProvider } = require("@tanstack/react-query");
 async function load(path, mocks) {
   const source = await readFile(new URL(`../src/${path}`, import.meta.url), "utf8");
   const compiled = ts.transpileModule(source, {
@@ -46,6 +49,94 @@ function find(tree, type) {
   if (Array.isArray(tree)) return tree.flatMap((child) => find(child, type));
   return [...(tree.type === type ? [tree] : []), ...find(tree.props?.children, type)];
 }
+
+test("product renders without requesting works on the server or waiting for a pending feed", async (t) => {
+  const client = new QueryClient({
+    defaultOptions: { queries: { retry: false, gcTime: Infinity } },
+  });
+  t.after(() => client.clear());
+  let requests = 0;
+  let finishRequest;
+  const response = new Promise((resolve) => {
+    finishRequest = resolve;
+  });
+  const schemas = await load("entities/community-work/model/schemas.ts", {});
+  const { communityWorkQuery } = await load("entities/community-work/model/query.ts", {
+    "@/shared/actions/workshops": {
+      getCommunityWorksForCollection: () => {
+        requests++;
+        return response;
+      },
+    },
+    "@/shared/lib/api-result": { ApiResult: { fromDTO: (value) => ({ unwrap: () => value }) } },
+    "./schemas": schemas,
+  });
+  const { useCollectionCommunityWorks } = await load(
+    "entities/community-work/model/use-collection-community-works.ts",
+    {
+      "./query": { communityWorkQuery },
+    },
+  );
+  const product = {
+    id: "album",
+    title: "Раскраска «Котики»",
+    price: 799,
+    images: [],
+    characteristics: [],
+    digitalCollection: { slug: "cats" },
+  };
+  const empty = () => null;
+  const purchase = (props) =>
+    React.createElement("button", null, `В корзину · ${props.product.price} ₽`);
+  const summary = (props) => React.createElement("h1", null, props.product.title);
+  const { ProductDetails } = await load("features/product-details/ui/product-details.tsx", {
+    "@/features/cart": { CartProductCard: empty, useAddProductToCart: () => empty },
+    "@/features/product-purchase": { ProductPurchase: purchase },
+    "@/entities/community-work": { useCollectionCommunityWorks },
+    "@/entities/products": {
+      Characteristics: empty,
+      Description: empty,
+      DetailsTabs: empty,
+      Gallery: empty,
+      Highlights: empty,
+      Related: empty,
+      Summary: summary,
+      getProductById: () => product,
+      getRelatedProducts: () => [],
+      useProductsData: () => ({ data: { products: [product] }, isError: false }),
+    },
+    "@/entities/reviews": { useReviewsData: () => ({}), ReviewRatingSummary: empty },
+    "@/shared/ui": { Button: empty, DataState: empty, Separator: empty },
+    "../lib/use-track-product-view": { useTrackProductView: empty },
+    "./breadcrumbs": { Breadcrumbs: empty },
+    "./marketplace-links": { MarketplaceLinks: empty },
+    "./community-works": {
+      CommunityWorks: () => React.createElement("section", { id: "product-community-works" }),
+    },
+  });
+  const renderProduct = () =>
+    renderToStaticMarkup(
+      React.createElement(
+        QueryClientProvider,
+        { client },
+        React.createElement(ProductDetails, { productId: product.id }),
+      ),
+    );
+  const assertProduct = (markup) => {
+    assert.match(markup, /Раскраска «Котики»/);
+    assert.match(markup, /В корзину · 799 ₽/);
+    assert.doesNotMatch(markup, /product-community-works/);
+  };
+  assertProduct(renderProduct());
+  assert.equal(requests, 0);
+  const options = communityWorkQuery.forCollection("cats");
+  const pending = client.fetchInfiniteQuery(options);
+  assert.equal(client.getQueryState(options.queryKey).fetchStatus, "fetching");
+  assertProduct(renderProduct());
+  assert.equal(requests, 1);
+  finishRequest({ works: [], nextCursor: null });
+  await pending;
+});
 
 test("empty works hide the entire section", () => {
   assert.equal(render(), null);
@@ -102,14 +193,17 @@ test("horizontal end observer loads automatically, disconnects and stops after t
       disconnected = true;
     }
   };
-  const { useWorksScroll: renderScrollHook } = await load("features/product-details/lib/use-works-scroll.ts", {
-    react: {
-      useRef: () => ({ current: refs[refIndex++] }),
-      useEffect: (fn) => {
-        effect = fn;
+  const { useWorksScroll: renderScrollHook } = await load(
+    "features/product-details/lib/use-works-scroll.ts",
+    {
+      react: {
+        useRef: () => ({ current: refs[refIndex++] }),
+        useEffect: (fn) => {
+          effect = fn;
+        },
       },
     },
-  });
+  );
   const call = (extra = {}) => {
     refs = [{ id: "track" }, { id: "end" }];
     refIndex = 0;
