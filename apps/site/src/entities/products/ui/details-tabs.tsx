@@ -7,9 +7,10 @@ import { Card, CardContent, Tabs, TabsContent, TabsList, TabsTrigger } from "@/s
 type DetailsTabsProps = {
   usageInstructions?: string;
   reviews: ReactNode;
+  navigation?: ReactNode;
 };
 
-export function DetailsTabs({ usageInstructions, reviews }: DetailsTabsProps) {
+export function DetailsTabs({ usageInstructions, reviews, navigation }: DetailsTabsProps) {
   const [activeTab, setActiveTab] = useState("process");
   const hasInstructions = Boolean(usageInstructions?.trim());
   const availableTabs = [...(hasInstructions ? ["process"] : []), "reviews"];
@@ -17,16 +18,19 @@ export function DetailsTabs({ usageInstructions, reviews }: DetailsTabsProps) {
 
   return (
     <Tabs value={value} onValueChange={setActiveTab} className="gap-6">
-      <TabsList className="w-full flex-wrap gap-1 group-data-horizontal/tabs:h-auto sm:w-fit">
-        {hasInstructions && (
-          <TabsTrigger className="h-9" value="process">
-            Как пользоваться
+      <div className="flex flex-wrap items-center gap-1">
+        <TabsList className="flex-wrap gap-1 group-data-horizontal/tabs:h-auto">
+          {hasInstructions && (
+            <TabsTrigger className="h-9" value="process">
+              Как пользоваться
+            </TabsTrigger>
+          )}
+          <TabsTrigger className="h-9" value="reviews">
+            Отзывы
           </TabsTrigger>
-        )}
-        <TabsTrigger className="h-9" value="reviews">
-          Отзывы
-        </TabsTrigger>
-      </TabsList>
+        </TabsList>
+        {navigation}
+      </div>
 
       {hasInstructions && (
         <TabsContent value="process">

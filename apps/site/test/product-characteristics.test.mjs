@@ -234,6 +234,19 @@ test("usage/review tabs exclude characteristics and fall back when instructions 
   assert.doesNotMatch(markup, /Характеристики|Количество цветов/);
   assert.match(markup, /Как пользоваться/);
   assert.match(markup, /Встряхните маркер/);
+  const nav = React.createElement(
+    "a",
+    { href: "#product-community-works" },
+    "Работы пользователей",
+  );
+  const grouped = DetailsTabs({ ...props, navigation: nav });
+  const row = React.Children.toArray(grouped.props.children)[0];
+  assert.equal(row.type, "div");
+  assert.equal(
+    React.Children.toArray(row.props.children).at(-1).props.href,
+    "#product-community-works",
+  );
+
   full.props.onValueChange("reviews");
   assert.equal(DetailsTabs(props).props.value, "reviews");
   full.props.onValueChange("process");
@@ -392,7 +405,7 @@ test("mobile drawer contains the complete ordered list, product context and an a
   assert.doesNotMatch(drawerMarkup, /Свернуть/);
 });
 
-test("product layout places characteristics below description with a conditional anchor above", async () => {
+test("product navigation groups conditional anchors beside reviews, and works follow characteristics", async () => {
   let currentProduct = { ...product, characteristics: makeCharacteristics(20) };
   const components = Object.fromEntries(
     [
@@ -407,9 +420,12 @@ test("product layout places characteristics below description with a conditional
   );
   // Distinct identities allow testing the actual composition instead of matching source strings.
   for (const name of Object.keys(components)) components[name] = () => null;
+  const CommunityWorks = () => null;
+  let works = [];
   const { ProductDetails } = await load("src/features/product-details/ui/product-details.tsx", {
     "@/features/cart": { CartProductCard: box, useAddProductToCart: () => () => {} },
     "@/features/product-purchase": { ProductPurchase: box },
+    "@/entities/community-work": { useCollectionCommunityWorks: () => ({ works }) },
     "@/entities/products": {
       ...components,
       useProductsData: () => ({ data: { products: [currentProduct] }, isError: false }),
@@ -421,7 +437,10 @@ test("product layout places characteristics below description with a conditional
     "../lib/use-track-product-view": { useTrackProductView: () => {} },
     "./breadcrumbs": { Breadcrumbs: box },
     "./marketplace-links": { MarketplaceLinks: box },
+    "./community-works": { CommunityWorks },
   });
+  const navigation = (tree) =>
+    findElements(tree, (element) => element.type === components.DetailsTabs)[0].props.navigation;
   const tree = ProductDetails({ productId: product.id });
   const order = findElements(tree, (element) =>
     [components.Description, components.Characteristics, components.Related].includes(element.type),
@@ -434,7 +453,8 @@ test("product layout places characteristics below description with a conditional
   assert.deepEqual(order[1].props.characteristics, currentProduct.characteristics);
   assert.equal(order[1].props.productTitle, product.title);
   assert.equal(
-    findElements(tree, (element) => element.props.href === "#product-characteristics").length,
+    findElements(navigation(tree), (element) => element.props.href === "#product-characteristics")
+      .length,
     1,
   );
   const tabs = findElements(tree, (element) => element.type === components.DetailsTabs)[0];
@@ -443,8 +463,40 @@ test("product layout places characteristics below description with a conditional
   currentProduct = { ...product, characteristics: [] };
   const empty = ProductDetails({ productId: product.id });
   assert.equal(
-    findElements(empty, (element) => element.props.href === "#product-characteristics").length,
+    findElements(navigation(empty), (element) => element.props.href === "#product-characteristics")
+      .length,
     0,
+  );
+
+  assert.equal(findElements(empty, (element) => element.type === CommunityWorks).length, 0);
+  currentProduct = { ...product, digitalCollection: { slug: "animals" } };
+  const noWorks = ProductDetails({ productId: product.id });
+  assert.equal(findElements(noWorks, (element) => element.type === CommunityWorks).length, 0);
+  assert.equal(
+    findElements(
+      navigation(noWorks),
+      (element) => element.props.href === "#product-community-works",
+    ).length,
+    0,
+  );
+  works = [{ publicId: "example" }];
+  const withWorks = ProductDetails({ productId: product.id });
+  assert.equal(
+    findElements(withWorks, (element) => element.type === CommunityWorks)[0].props.works,
+    works,
+  );
+  assert.equal(
+    findElements(
+      navigation(withWorks),
+      (element) => element.props.href === "#product-community-works",
+    ).length,
+    1,
+  );
+  assert.deepEqual(
+    findElements(withWorks, (element) =>
+      [components.Description, components.Characteristics, CommunityWorks].includes(element.type),
+    ).map((element) => element.type),
+    [components.Description, components.Characteristics, CommunityWorks],
   );
 });
 

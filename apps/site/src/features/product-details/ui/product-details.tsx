@@ -2,6 +2,7 @@
 
 import { CartProductCard, useAddProductToCart } from "@/features/cart";
 import { ProductPurchase } from "@/features/product-purchase";
+import { useCollectionCommunityWorks } from "@/entities/community-work";
 import {
   Characteristics,
   Description,
@@ -19,6 +20,7 @@ import { Button, DataState, Separator } from "@/shared/ui";
 
 import { useTrackProductView } from "../lib/use-track-product-view";
 import { Breadcrumbs } from "./breadcrumbs";
+import { CommunityWorks } from "./community-works";
 import { MarketplaceLinks } from "./marketplace-links";
 
 type ProductDetailsProps = {
@@ -34,6 +36,7 @@ export function ProductDetails({ productId }: ProductDetailsProps) {
       ? getProductById(products.data.products, productId)
       : undefined;
   useTrackProductView(product);
+  const communityWorks = useCollectionCommunityWorks(product?.digitalCollection?.slug);
 
   if (products.isError) {
     return (
@@ -90,15 +93,24 @@ export function ProductDetails({ productId }: ProductDetailsProps) {
             <Summary product={product} />
             <ProductPurchase product={product} onAddToCart={addProductToCart} />
             <Highlights characteristics={product.characteristics} />
-            {product.characteristics.length > 0 && (
-              <Button asChild variant="link" className="min-h-11 px-0 text-foreground">
-                <a href="#product-characteristics">Все характеристики</a>
-              </Button>
-            )}
             <DetailsTabs
               key={product.id}
               usageInstructions={product.usageInstructions}
               reviews={<MarketplaceLinks />}
+              navigation={
+                <>
+                  {communityWorks.works.length > 0 && (
+                    <Button asChild variant="ghost" className="h-9 px-2 text-sm">
+                      <a href="#product-community-works">Работы пользователей</a>
+                    </Button>
+                  )}
+                  {product.characteristics.length > 0 && (
+                    <Button asChild variant="ghost" className="h-9 px-2 text-sm">
+                      <a href="#product-characteristics">Все характеристики</a>
+                    </Button>
+                  )}
+                </>
+              }
             />
           </div>
         </section>
@@ -113,6 +125,10 @@ export function ProductDetails({ productId }: ProductDetailsProps) {
           characteristics={product.characteristics}
           productTitle={product.title}
         />
+
+        {product.digitalCollection && communityWorks.works.length > 0 && (
+          <CommunityWorks key={product.digitalCollection.slug} {...communityWorks} />
+        )}
 
         <Separator />
 

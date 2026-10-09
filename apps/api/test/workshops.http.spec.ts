@@ -56,7 +56,12 @@ const workshopService = {
     return Buffer.from("owner-webp");
   },
 };
+const publicCollectionSlugs: string[] = [];
 const publicService = {
+  getCollectionWorks: async (slug: string) => {
+    publicCollectionSlugs.push(slug);
+    return { works: [], nextCursor: null };
+  },
   getAsset: async (publicId: string) => {
     if (publicId !== "public-work") {
       throw new NotFoundException("Club resource not found");
@@ -117,6 +122,14 @@ describe("Workshop HTTP security contract", () => {
 
   after(async () => {
     await app.close();
+  });
+
+  it("serves a collection's public works without login or a cacheable response", async () => {
+    const response = await fetch(`${baseUrl}/club/collections/forest/works`);
+    assert.equal(response.status, 200);
+    assert.equal(response.headers.get("cache-control"), "no-store");
+    assert.deepEqual(await response.json(), { works: [], nextCursor: null });
+    assert.equal(publicCollectionSlugs.at(-1), "forest");
   });
 
   it("rejects unauthenticated upload before malformed multipart parsing", async () => {

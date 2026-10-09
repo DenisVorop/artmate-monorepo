@@ -1,14 +1,20 @@
-import { queryOptions } from "@tanstack/react-query";
+import { infiniteQueryOptions, queryOptions } from "@tanstack/react-query";
 
 import {
   getCommunityWorksForColoring,
+  getCommunityWorksForCollection,
   getPublicCommunityWork,
   getPublicWorkshop,
   getPublicWorkAssetDataUrl,
 } from "@/shared/actions/workshops";
 import { ApiResult, type ApiResultDTO } from "@/shared/lib/api-result";
 
-import { communityWorksSchema, publicCommunityWorkSchema, publicWorkshopSchema } from "./schemas";
+import {
+  collectionWorksPageSchema,
+  communityWorksSchema,
+  publicCommunityWorkSchema,
+  publicWorkshopSchema,
+} from "./schemas";
 
 const baseKey = "community-work";
 
@@ -35,6 +41,19 @@ export const communityWorkQuery = {
       queryFn: async () =>
         communityWorksSchema.parse(unwrap(await getCommunityWorksForColoring(slug, number))),
       staleTime: Infinity,
+      retryOnMount: false,
+    }),
+  forCollection: (slug?: string) =>
+    infiniteQueryOptions({
+      queryKey: [baseKey, "collection", slug] as const,
+      enabled: Boolean(slug),
+      initialPageParam: undefined as string | undefined,
+      queryFn: async ({ pageParam }) =>
+        collectionWorksPageSchema.parse(
+          unwrap(await getCommunityWorksForCollection(slug!, pageParam)),
+        ),
+      getNextPageParam: (lastPage) => lastPage.nextCursor ?? undefined,
+      staleTime: 60_000,
       retryOnMount: false,
     }),
   asset: (publicId: string, variant: "web" | "thumb") =>

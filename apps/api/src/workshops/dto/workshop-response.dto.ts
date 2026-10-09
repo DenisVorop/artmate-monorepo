@@ -228,6 +228,19 @@ export class PublicWorkshopWorkDTO {
   submission!: object;
 }
 
+export class PublicCollectionWorksDTO {
+  @ApiProperty({ type: [PublicWorkshopWorkDTO], maxItems: 12 })
+  @IsArray()
+  @ArrayMaxSize(12)
+  works!: PublicWorkshopWorkDTO[];
+
+  @ApiProperty({ type: String, nullable: true })
+  @IsOptional()
+  @IsString()
+  @MaxLength(80)
+  nextCursor!: string | null;
+}
+
 export class WorkshopModerationListItemDTO {
   @ApiProperty({ pattern: idPattern.source })
   @Matches(idPattern)
