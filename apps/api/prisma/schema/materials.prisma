@@ -1,0 +1,49 @@
+// Current catalogs only: editing a color updates the same row, without revisions.
+enum MaterialKind {
+  MARKER @map("marker")
+  PENCIL @map("pencil")
+  PAINT  @map("paint")
+  OTHER  @map("other")
+
+  @@map("material_kind")
+}
+
+model MaterialSet {
+  id         String       @id @default(cuid()) @db.VarChar(32)
+  slug       String       @unique @db.VarChar(160)
+  title      String       @db.VarChar(160)
+  brand      String       @db.VarChar(120)
+  line       String?      @db.VarChar(120)
+  kind       MaterialKind @default(MARKER)
+  productId  String?      @map("product_id") @db.VarChar(32)
+  isArchived Boolean      @default(false) @map("is_archived")
+  createdAt  DateTime     @default(now()) @map("created_at")
+  updatedAt  DateTime     @default(now()) @updatedAt @map("updated_at")
+
+  product          Product?                  @relation(fields: [productId], references: [id], onDelete: SetNull)
+  colors           MaterialColor[]
+  coloringVariants ColoringMaterialVariant[]
+
+  @@index([productId])
+  @@map("material_sets")
+}
+
+model MaterialColor {
+  id            String   @id @default(cuid()) @db.VarChar(32)
+  materialSetId String   @map("material_set_id") @db.VarChar(32)
+  code          String   @db.VarChar(40)
+  name          String?  @db.VarChar(120)
+  hex           String   @db.VarChar(7)
+  pantone       String?  @db.VarChar(40)
+  position      Int
+  createdAt     DateTime @default(now()) @map("created_at")
+  updatedAt     DateTime @default(now()) @updatedAt @map("updated_at")
+
+  materialSet         MaterialSet                  @relation(fields: [materialSetId], references: [id], onDelete: Restrict)
+  coloringAssignments ColoringMaterialAssignment[]
+
+  @@unique([materialSetId, code])
+  @@unique([materialSetId, position])
+  @@unique([id, materialSetId])
+  @@map("material_colors")
+}

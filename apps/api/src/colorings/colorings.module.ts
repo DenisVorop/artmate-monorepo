@@ -18,10 +18,16 @@ import { PublicColoringsService } from "./public-colorings.service";
 import { PublicColoringCollectionsController } from "./public-coloring-collections.controller";
 import { PublicColoringCollectionsService } from "./public-coloring-collections.service";
 import { MarkerColorsService } from "./marker-colors.service";
+import { AdminColoringVariantsController } from "./coloring-variants.controller";
+import { ColoringVariantsService } from "./coloring-variants.service";
+import { PublicColoringVariantsController } from "./public-coloring-variants.controller";
+import { PublicColoringVariantsService } from "./public-coloring-variants.service";
 
 @Module({
   imports: [AuthModule, UsersModule],
   controllers: [
+    PublicColoringVariantsController,
+    AdminColoringVariantsController,
     AdminColoringCollectionsController,
     AdminColoringsController,
     AdminMarkerColorsController,
@@ -29,6 +35,8 @@ import { MarkerColorsService } from "./marker-colors.service";
     PublicColoringsController,
   ],
   providers: [
+    PublicColoringVariantsService,
+    ColoringVariantsService,
     AdminColoringsGuard,
     ColoringCollectionCoverService,
     ColoringMediaService,
@@ -40,6 +48,10 @@ import { MarkerColorsService } from "./marker-colors.service";
     PublicColoringsService,
     PublicColoringCollectionsService,
   ],
-  exports: [ColoringCollectionsService, ColoringStorageService, ColoringsService],
+  exports: [
+    ColoringCollectionsService,
+    ColoringStorageService,
+    ColoringsService,
+  ],
 })
 export class ColoringsModule {}
