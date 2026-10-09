@@ -69,7 +69,7 @@ export function ProductPurchase({ product, onAddToCart }: PurchasePanelProps) {
   const ActionIcon = isAdding ? LoaderCircle : added ? Check : ShoppingBag;
 
   return (
-    <Card>
+    <Card className="bg-background/90 bg-[radial-gradient(ellipse_at_top_left,rgba(255,228,230,0.55),transparent_55%),radial-gradient(ellipse_at_bottom_right,rgba(255,237,213,0.5),transparent_55%)] shadow-[0_12px_36px_-16px_rgba(159,18,57,0.2),0_4px_12px_-6px_rgba(28,25,23,0.08),inset_0_1px_0_rgba(255,255,255,0.95)] ring-rose-200/50 backdrop-blur-xl">
       <CardContent className="space-y-4">
         <div className="flex flex-wrap items-center justify-between gap-3">
           <div className="space-y-1">
