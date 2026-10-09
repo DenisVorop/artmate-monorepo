@@ -9,11 +9,13 @@ import {
 
 import type { ColoringStorageService } from "../src/colorings/coloring-storage.service";
 import {
+  type Prisma,
   WorkshopModerationDecision,
   WorkshopRevisionStatus,
   WorkshopToolType,
 } from "../src/generated/prisma/client";
 import type { PrismaService } from "../src/prisma/prisma.service";
+import { publicWorkshopWorkWhere } from "../src/workshops/workshop-eligibility";
 import { PublicWorkshopService } from "../src/workshops/public-workshop.service";
 import type { WorkshopAssetDeletionQueueService } from "../src/workshops/workshop-asset-deletion-queue.service";
 import type {
@@ -1053,6 +1055,122 @@ describe("WorkshopService", () => {
 });
 
 describe("PublicWorkshopService", () => {
+  it("collection feed scopes approved public works to one album and bounds a page", async () => {
+    let query:
+      | { where: { AND: unknown[] }; take: number; orderBy: unknown }
+      | undefined;
+    const prisma = {
+      workshopWork: {
+        findMany: async (input: NonNullable<typeof query>) => {
+          query = input;
+          return [];
+        },
+      },
+    };
+    const service = new PublicWorkshopService(
+      prisma as unknown as PrismaService,
+      {} as WorkshopStorageService,
+    );
+    assert.deepEqual(await service.getCollectionWorks("forest"), {
+      works: [],
+      nextCursor: null,
+    });
+    assert.ok(query);
+    assert.strictEqual(query.where.AND[0], publicWorkshopWorkWhere);
+    assert.deepEqual(query.where.AND[1], {
+      coloring: { is: { collection: { is: { slug: "forest" } } } },
+    });
+    assert.equal(query.take, 13);
+    assert.deepEqual(query.orderBy, [{ publishedAt: "desc" }, { id: "desc" }]);
+  });
+
+  it("collection pagination uses an exclusive date and id boundary and rejects malformed cursors", async () => {
+    const calls: Prisma.WorkshopWorkFindManyArgs[] = [];
+    const prisma = {
+      workshopWork: {
+        findMany: async (query: Prisma.WorkshopWorkFindManyArgs) => {
+          calls.push(query);
+          return [];
+        },
+      },
+    };
+    const service = new PublicWorkshopService(
+      prisma as unknown as PrismaService,
+      {} as WorkshopStorageService,
+    );
+    const date = "2026-10-01T10:00:00.000Z";
+    const id = "a".repeat(32);
+    await service.getCollectionWorks("forest", `${date}_${id}`);
+    assert.deepEqual((calls[0]!.where!.AND as unknown[])[2], {
+      OR: [
+        { publishedAt: { lt: new Date(date) } },
+        { publishedAt: new Date(date), id: { lt: id } },
+      ],
+    });
+    for (const cursor of [
+      "invalid",
+      `${date}_bad`,
+      `2026-99-99T10:00:00.000Z_${id}`,
+    ]) {
+      await assert.rejects(
+        service.getCollectionWorks("forest", cursor),
+        /Invalid works cursor/,
+      );
+    }
+    assert.equal(calls.length, 1);
+  });
+
+  it("collection pages return a cursor only when another page exists and expose public payloads", async () => {
+    const publishedAt = new Date("2026-10-01T10:00:00.000Z");
+    const works = Array.from({ length: 13 }, (_, index) => ({
+      id: (13 - index).toString(16).padStart(32, "0"),
+      publicId: (13 - index).toString(16).padStart(24, "0"),
+      publishedAt,
+      workshop: { handle: "author", owner: { name: "Author", image: null } },
+      coloring: {
+        number: 1,
+        title: "Forest",
+        collection: {
+          slug: "forest",
+          title: "Forest",
+          product: { slug: "forest-album", title: "Forest", category: null },
+        },
+      },
+      publishedRevision: {
+        id: "a".repeat(32),
+        caption: null,
+        materials: [],
+        symbolMappings: [],
+        publicationConsent: true,
+        officialRevision: {
+          id: "official",
+          paletteLabel: "Artmate",
+          paletteVersion: "1",
+          paletteColors: [],
+        },
+      },
+    }));
+    let rows = works;
+    const prisma = { workshopWork: { findMany: async () => rows } };
+    const service = new PublicWorkshopService(
+      prisma as unknown as PrismaService,
+      {} as WorkshopStorageService,
+    );
+    const first = await service.getCollectionWorks("forest");
+    assert.equal(first.works.length, 12);
+    assert.equal(
+      first.nextCursor,
+      `${publishedAt.toISOString()}_${works[11]!.id}`,
+    );
+    assert.equal("publicationConsent" in first.works[0]!.submission, false);
+    rows = works.slice(12);
+    const last = await service.getCollectionWorks("forest", first.nextCursor!);
+    assert.equal(last.works[0]!.publicId, works[12]!.publicId);
+    assert.equal(last.nextCursor, null);
+    rows = works.slice(0, 12);
+    assert.equal((await service.getCollectionWorks("forest")).nextCursor, null);
+  });
+
   it("rejects a stale report revision before creating a revision-scoped report", async () => {
     const publishedRevisionId = "d".repeat(32);
     let created = false;

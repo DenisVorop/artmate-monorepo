@@ -105,6 +105,13 @@ export const publicCommunityWorkSchema = z
 export const communityWorkSummarySchema = publicCommunityWorkSchema;
 export const communityWorksSchema = z.array(publicCommunityWorkSchema).max(500);
 
+export const collectionWorksPageSchema = z
+  .object({
+    works: communityWorksSchema.max(12),
+    nextCursor: z.string().max(80).nullable(),
+  })
+  .strict();
+
 export const communityWorkReportSchema = z
   .object({
     status: z.literal("OPEN"),

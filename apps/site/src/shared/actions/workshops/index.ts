@@ -3,6 +3,7 @@ export {
   createMyWorkshopRevision,
   deleteMyWorkshopWork,
   getCommunityWorksForColoring,
+  getCommunityWorksForCollection,
   getMyWorkshop,
   getMyWorkshopPreview,
   getMyWorkshopCollection,

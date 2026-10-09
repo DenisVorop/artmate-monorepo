@@ -169,6 +169,16 @@ export async function getCommunityWorksForColoring(
   );
 }
 
+export async function getCommunityWorksForCollection(
+  slug: string,
+  cursor?: string,
+): Promise<ApiResultDTO<unknown>> {
+  const query = cursor ? `?cursor=${encodeURIComponent(cursor)}` : "";
+  return requestResult(() =>
+    requestJson(`/club/collections/${encodeURIComponent(slug)}/works${query}`),
+  );
+}
+
 export async function reportCommunityWork(
   publicId: string,
   input: ReportCommunityWorkInput,

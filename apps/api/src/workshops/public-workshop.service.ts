@@ -1,6 +1,6 @@
 import { randomBytes } from "node:crypto";
 
-import { ConflictException, Injectable, NotFoundException } from "@nestjs/common";
+import { BadRequestException, ConflictException, Injectable, NotFoundException } from "@nestjs/common";
 
 import {
   Prisma,
@@ -118,6 +118,51 @@ export class PublicWorkshopService {
     return works
       .filter((work) => work.publishedRevision)
       .map((work) => this.mapWork(work as PublicWork));
+  }
+
+  async getCollectionWorks(collectionSlug: string, cursor?: string) {
+    const after: Prisma.WorkshopWorkWhereInput[] = [];
+    if (cursor !== undefined) {
+      const match =
+        typeof cursor === "string" &&
+        /^(\d{4}-\d{2}-\d{2}T\d{2}:\d{2}:\d{2}\.\d{3}Z)_([0-9a-f]{32})$/.exec(cursor);
+      if (!match || !Number.isFinite(Date.parse(match[1]!))) {
+        throw new BadRequestException("Invalid works cursor");
+      }
+      const publishedAt = new Date(match[1]!);
+      if (publishedAt.toISOString() !== match[1]) {
+        throw new BadRequestException("Invalid works cursor");
+      }
+      after.push({
+        OR: [
+          { publishedAt: { lt: publishedAt } },
+          { publishedAt, id: { lt: match[2]! } },
+        ],
+      });
+    }
+    const works = await this.prisma.workshopWork.findMany({
+      where: {
+        AND: [
+          publicWorkshopWorkWhere,
+          { coloring: { is: { collection: { is: { slug: collectionSlug } } } } },
+          ...after,
+        ],
+      },
+      include: publicWorkInclude,
+      orderBy: [{ publishedAt: "desc" }, { id: "desc" }],
+      take: 13,
+    });
+    const page = works.slice(0, 12);
+    const last = page.at(-1);
+    return {
+      works: page
+        .filter((work) => work.publishedRevision)
+        .map((work) => this.mapWork(work as PublicWork)),
+      nextCursor:
+        works.length > 12 && last?.publishedAt
+          ? `${last.publishedAt.toISOString()}_${last.id}`
+          : null,
+    };
   }
 
   async getAsset(publicId: string, variant: string) {

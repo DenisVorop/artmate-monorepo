@@ -41,6 +41,7 @@ import {
   CreateWorkshopReportDTO,
   CreateWorkshopRevisionMultipartDTO,
   CreateWorkshopToolDTO,
+  PublicCollectionWorksDTO,
   PublicWorkshopDTO,
   PublicWorkshopWorkDTO,
   UpdateWorkshopVisibilityDTO,
@@ -334,6 +335,18 @@ export class PublicWorkshopController {
     @Body() body: CreateWorkshopReportDTO,
   ) {
     return this.workshops.report(publicId, request.user.id, body);
+  }
+
+  @ValidateResponse(PublicCollectionWorksDTO)
+  @ApiOkResponse({ type: PublicCollectionWorksDTO })
+  @Get("collections/:collectionSlug/works")
+  getCollectionWorks(
+    @Param("collectionSlug") collectionSlug: string,
+    @Res({ passthrough: true }) response: HeaderResponse,
+    @Query("cursor") cursor?: string,
+  ) {
+    response.setHeader("Cache-Control", "no-store");
+    return this.workshops.getCollectionWorks(collectionSlug, cursor);
   }
 }
 
