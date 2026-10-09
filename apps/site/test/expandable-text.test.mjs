@@ -232,7 +232,7 @@ test("product description keeps its semantic section and existing HTML rendering
   assert.match(source, /product\.description\.length > 700/);
   assert.match(
     source,
-    /<ExpandableText[\s\S]*?contentClassName="whitespace-pre-wrap text-base leading-7 text-muted-foreground md:text-lg/,
+    /<ExpandableText[\s\S]*?contentClassName=\{contentClassName\}/,
   );
   assert.match(source, /dangerouslySetInnerHTML=\{\{ __html: product\.description \}\}/);
   assert.match(source, /if \(!product\.description\) \{\s*return null;/);
