@@ -2,6 +2,8 @@ import type { Metadata } from "next";
 import { notFound, redirect } from "next/navigation";
 import { HydrationBoundary } from "@tanstack/react-query";
 
+import { buildColoringVariantsData } from "@/app/lib/coloring-variants-data-builder";
+
 import { coloringCollectionsQuery } from "@/entities/coloring-collections";
 import { coloringsQuery } from "@/entities/colorings";
 import { markerColorsQuery } from "@/entities/marker-colors";
@@ -35,6 +37,7 @@ export default async function Page({ params }: Props) {
     throw error;
   }
   await Promise.all([
+    buildColoringVariantsData(queryClient, coloringId),
     queryClient.prefetchQuery(coloringsQuery.list()),
     queryClient.prefetchQuery(markerColorsQuery.catalog()),
     queryClient.prefetchQuery(coloringsQuery.revisions(coloringId)),
