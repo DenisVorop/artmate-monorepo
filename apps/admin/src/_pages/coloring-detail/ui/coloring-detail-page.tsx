@@ -4,6 +4,7 @@ import { ArrowLeft } from "lucide-react";
 import type { AuthUser } from "@/entities/session";
 import { SessionMenu } from "@/features/auth";
 import { ColoringDetails } from "@/features/colorings-management";
+import { ColoringVariantsManagement } from "@/features/coloring-variants-management";
 import { routes } from "@/shared/constants";
 import { Badge, Button } from "@/shared/ui";
 import { AdminShell } from "@/widgets/admin-shell";
@@ -14,7 +15,11 @@ type Props = {
   readonly currentUser: AuthUser;
 };
 
-export function ColoringDetailPage({ collectionId, coloringId, currentUser }: Props) {
+export function ColoringDetailPage({
+  collectionId,
+  coloringId,
+  currentUser,
+}: Props) {
   return (
     <AdminShell activePath={routes.digitalVersions}>
       <section className="min-w-0 p-4 sm:p-6 lg:p-8">
@@ -23,8 +28,8 @@ export function ColoringDetailPage({ collectionId, coloringId, currentUser }: Pr
             <div className="mb-3 flex flex-wrap items-center gap-2">
               <Button asChild size="sm" variant="outline">
                 <Link href={routes.digitalVersion(collectionId)}>
-                  <ArrowLeft data-icon="inline-start" aria-hidden="true" />
-                  К коллекции
+                  <ArrowLeft data-icon="inline-start" aria-hidden="true" />К
+                  коллекции
                 </Link>
               </Button>
               <Badge variant="outline">Раскраска</Badge>
@@ -36,6 +41,9 @@ export function ColoringDetailPage({ collectionId, coloringId, currentUser }: Pr
           <SessionMenu user={currentUser} />
         </header>
         <ColoringDetails collectionId={collectionId} coloringId={coloringId} />
+        <div className="mt-8">
+          <ColoringVariantsManagement coloringId={coloringId} />
+        </div>
       </section>
     </AdminShell>
   );

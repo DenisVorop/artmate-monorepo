@@ -9,6 +9,7 @@ import {
   LogOut,
   MailCheck,
   PackageSearch,
+  Palette,
   PanelsTopLeft,
   Percent,
   ScanSearch,
@@ -47,6 +48,7 @@ const navigation: readonly NavigationItem[] = [
   },
   { label: "Товары", href: routes.products, Icon: PackageSearch },
   { label: "Цифровые версии", href: routes.digitalVersions, Icon: Images },
+  { label: "Наборы материалов", href: routes.materialSets, Icon: Palette },
   {
     label: "Модерация работ",
     href: routes.workshopModeration,

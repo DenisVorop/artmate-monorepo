@@ -1,4 +1,15 @@
 export { Avatar, AvatarBadge, AvatarFallback, AvatarImage } from "./avatar";
+export {
+  AlertDialog,
+  AlertDialogAction,
+  AlertDialogCancel,
+  AlertDialogContent,
+  AlertDialogDescription,
+  AlertDialogFooter,
+  AlertDialogHeader,
+  AlertDialogTitle,
+  AlertDialogTrigger,
+} from "./alert-dialog";
 export { Badge, badgeVariants } from "./badge";
 export { Button, buttonVariants } from "./button";
 export { Checkbox } from "./checkbox";
