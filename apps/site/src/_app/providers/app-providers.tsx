@@ -31,10 +31,8 @@ export function AppProviders({
         <DeviceProvider initialDeviceInfo={initialDeviceInfo}>
           <UserProvider initialSession={initialSession}>
             <Suspense fallback={null}>
-              <QueryStateProvider />
+              <QueryStateProvider>{children}</QueryStateProvider>
             </Suspense>
-
-            {children}
           </UserProvider>
         </DeviceProvider>
       </HydrationBoundary>

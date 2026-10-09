@@ -1,183 +1,220 @@
 "use client";
 
-import { Blocks, ChevronDown, Search, SlidersHorizontal, Sparkles, Tags, X } from "lucide-react";
-import { useDevelopmentBanner } from "@/entities/feature-banners";
-import { useSession } from "@/entities/session";
+import { useId } from "react";
+import { SlidersHorizontal, ChevronDown } from "lucide-react";
 import {
+  Accordion,
+  AccordionContent,
+  AccordionItem,
+  AccordionTrigger,
   Button,
+  Drawer,
+  DrawerClose,
+  DrawerContent,
+  DrawerDescription,
+  DrawerFooter,
+  DrawerHeader,
+  DrawerTitle,
+  DrawerTrigger,
   DropdownMenu,
   DropdownMenuContent,
   DropdownMenuRadioGroup,
   DropdownMenuRadioItem,
   DropdownMenuTrigger,
-  Input,
-  Separator,
+  Label,
 } from "@/shared/ui";
+import { Checkbox } from "@/shared/ui/checkbox";
 import { cn } from "@/shared/lib";
-import { getQueryOwner } from "@/shared/lib/query-keys";
 import { useCatalog } from "../lib/catalog-provider";
-import { sortOptions, type SortValue } from "../lib/catalog-state";
+import type { CatalogCategoryValue } from "../lib/catalog-state";
+import { PriceFilter } from "./price-filter";
 
 export function Filters() {
-  const { isPending, user } = useSession();
-  const { hasDevelopmentBanner } = useDevelopmentBanner({
-    enabled: !isPending,
-    owner: getQueryOwner(user?.id),
-  });
   const {
+    activeCategory,
     categories,
-    categoryId,
-    query,
-    onlyBestsellers,
-    onlyPixel,
+    products,
     setCategory,
-    sortBy,
-    setQuery,
-    setOnlyBestsellers,
-    setOnlyPixel,
-    setSortBy,
+    filterCount,
+    countLabel,
+    clearFilters,
+    hasFilters,
   } = useCatalog();
-  const sortLabel = sortOptions.find((option) => option.value === sortBy)?.label ?? "Сортировка";
-
   return (
-    <div
-      className={cn(
-        "sticky z-30 border-b bg-background/95 backdrop-blur supports-[backdrop-filter]:bg-background/80",
-        hasDevelopmentBanner
-          ? "top-[calc(var(--site-header-banner-height)+var(--site-header-nav-height)+1px)]"
-          : "top-[var(--site-header-nav-height)]",
-      )}
-    >
-      <div className="container grid grid-cols-[minmax(0,1fr)_auto] items-center gap-x-2 gap-y-2 py-2 sm:gap-x-3 sm:gap-y-3 sm:py-3 lg:flex lg:flex-row lg:items-center">
-        <div className="relative min-w-0 lg:w-64">
-          <Search className="pointer-events-none absolute top-1/2 left-2.5 size-4 -translate-y-1/2 text-muted-foreground" />
-          <Input
-            type="search"
-            value={query}
-            onChange={(event) => setQuery(event.target.value)}
-            placeholder="Поиск"
-            className="pr-8 pl-8"
-          />
-          {query && (
+    <>
+      <aside
+        className="hidden min-w-0 border-r border-border/70 pr-6 lg:block"
+        aria-label="Категории и фильтры"
+      >
+        <nav className="mb-8 space-y-1" aria-label="Категории товаров">
+          <h2 className="mb-3 text-base font-semibold">Категории</h2>
+          {[{ id: "", title: "Все товары", count: products.length }, ...categories].map(
+            (category) => (
+              <Button
+                key={category.id}
+                type="button"
+                variant="ghost"
+                aria-pressed={(activeCategory?.id ?? "") === category.id}
+                onClick={() =>
+                  setCategory((category.id || undefined) as CatalogCategoryValue | undefined)
+                }
+                className={cn(
+                  "relative h-auto min-h-10 w-full justify-between gap-3 py-2 pr-3 pl-6 text-left whitespace-normal",
+                  (activeCategory?.id ?? "") === category.id &&
+                    "bg-rose-50/70 text-rose-700 before:absolute before:top-1/2 before:left-3 before:h-3.5 before:w-0.5 before:-translate-y-1/2 before:-rotate-6 before:rounded-full before:bg-rose-400 before:content-[''] hover:bg-rose-100/70 hover:text-rose-700 dark:bg-rose-950 dark:text-rose-200",
+                )}
+              >
+                <span>{category.title}</span>
+                <span className="shrink-0 text-xs text-muted-foreground">{category.count}</span>
+              </Button>
+            ),
+          )}
+        </nav>
+        <div className="mb-2 flex items-center justify-between gap-3">
+          <h2 className="text-base font-semibold">Фильтры</h2>
+          {hasFilters && (
             <Button
               type="button"
-              variant="ghost"
-              size="icon-xs"
-              aria-label="Очистить поиск"
-              onClick={() => setQuery("")}
-              className="absolute top-1/2 right-1.5 -translate-y-1/2"
+              variant="link"
+              size="sm"
+              onClick={clearFilters}
+              className="px-0 text-muted-foreground"
             >
-              <X />
+              Сбросить
             </Button>
           )}
         </div>
-
-        <div className="flex justify-end lg:order-4 lg:ml-auto lg:flex-1">
-          <DropdownMenu>
-            <DropdownMenuTrigger asChild>
-              <Button
-                type="button"
-                variant="outline"
-                size="sm"
-                aria-label={`Сортировка: ${sortLabel}`}
-                className="w-8 justify-center p-0 sm:w-auto sm:min-w-36 sm:justify-between sm:px-2.5 lg:min-w-44"
-              >
-                <span className="inline-flex min-w-0 items-center gap-1.5">
-                  <SlidersHorizontal data-icon="inline-start" />
-                  <span className="hidden truncate sm:inline">{sortLabel}</span>
-                </span>
-                <ChevronDown data-icon="inline-end" className="hidden sm:block" />
-              </Button>
-            </DropdownMenuTrigger>
-            <DropdownMenuContent align="end" className="min-w-52">
-              <DropdownMenuRadioGroup
-                value={sortBy}
-                onValueChange={(value) => setSortBy(value as SortValue)}
-              >
-                {sortOptions.map((option) => (
-                  <DropdownMenuRadioItem key={option.value} value={option.value}>
-                    {option.label}
-                  </DropdownMenuRadioItem>
-                ))}
-              </DropdownMenuRadioGroup>
-            </DropdownMenuContent>
-          </DropdownMenu>
-        </div>
-
-        <Separator orientation="vertical" className="hidden h-8 lg:order-1 lg:block" />
-
-        <div className="col-span-2 -mx-1 flex gap-1.5 overflow-x-auto px-1 pb-0.5 sm:gap-2 sm:pb-0 lg:order-2 lg:col-span-1 lg:flex-wrap lg:overflow-visible">
-          {categories.length > 0 && (
-            <>
-              <Button
-                type="button"
-                variant={!categoryId ? "default" : "outline"}
-                size="sm"
-                aria-pressed={!categoryId}
-                onClick={() => setCategory(undefined)}
-                className="w-fit shrink-0"
-              >
-                <Tags data-icon="inline-start" />
-                Все
-              </Button>
-
-              {categories.map((category) => {
-                const isActive = category.id === categoryId;
-
-                return (
-                  <Button
-                    type="button"
-                    variant={isActive ? "default" : "outline"}
-                    size="sm"
-                    aria-pressed={isActive}
-                    key={category.id}
-                    onClick={() => setCategory(category.id)}
-                    className="w-fit shrink-0"
-                  >
-                    {category.title}
-                  </Button>
-                );
-              })}
-              <Separator
-                orientation="vertical"
-                className="mx-1 h-7 self-center"
-              />
-            </>
-          )}
-
-          <Button
-            type="button"
-            variant={onlyBestsellers ? "default" : "outline"}
-            size="sm"
-            aria-pressed={onlyBestsellers}
-            onClick={() => setOnlyBestsellers(!onlyBestsellers)}
-            className={cn(
-              "w-fit",
-              onlyBestsellers &&
-                "bg-rose-500 text-white hover:bg-rose-600 focus-visible:border-rose-300 focus-visible:ring-rose-400/30",
-            )}
-          >
-            <Sparkles data-icon="inline-start" />
-            Хит
-          </Button>
-
-          <Button
-            type="button"
-            variant={onlyPixel ? "default" : "outline"}
-            size="sm"
-            aria-pressed={onlyPixel}
-            onClick={() => setOnlyPixel(!onlyPixel)}
-            className={cn(
-              "w-fit",
-              onlyPixel &&
-                "bg-stone-900 text-white hover:bg-stone-800 focus-visible:border-stone-400 focus-visible:ring-stone-500/30",
-            )}
-          >
-            <Blocks data-icon="inline-start" />
-            Пиксельная
-          </Button>
-        </div>
+        <FilterFields />
+      </aside>
+      <div className="flex min-w-0 gap-2 lg:hidden">
+        <DropdownMenu>
+          <DropdownMenuTrigger asChild>
+            <Button
+              type="button"
+              variant="outline"
+              className="h-10 min-w-0 flex-1 justify-between gap-2"
+            >
+              <span className="truncate">{activeCategory?.title ?? "Все товары"}</span>
+              <ChevronDown />
+            </Button>
+          </DropdownMenuTrigger>
+          <DropdownMenuContent className="max-h-80 max-w-[calc(100vw-2rem)] overflow-y-auto">
+            <DropdownMenuRadioGroup
+              value={activeCategory?.id ?? ""}
+              onValueChange={(value) =>
+                setCategory((value || undefined) as CatalogCategoryValue | undefined)
+              }
+            >
+              <DropdownMenuRadioItem value="">Все товары</DropdownMenuRadioItem>
+              {categories.map((category) => (
+                <DropdownMenuRadioItem key={category.id} value={category.id}>
+                  {category.title}
+                </DropdownMenuRadioItem>
+              ))}
+            </DropdownMenuRadioGroup>
+          </DropdownMenuContent>
+        </DropdownMenu>
+        <Drawer>
+          <DrawerTrigger asChild>
+            <Button type="button" variant="outline" className="h-10">
+              <SlidersHorizontal />
+              Фильтры
+              {filterCount > 0 && (
+                <span className="rounded bg-muted px-1.5 text-xs">{filterCount}</span>
+              )}
+            </Button>
+          </DrawerTrigger>
+          <DrawerContent>
+            <DrawerHeader>
+              <DrawerTitle>Фильтры</DrawerTitle>
+              <DrawerDescription>{activeCategory?.title ?? "Все товары"}</DrawerDescription>
+            </DrawerHeader>
+            <div className="min-h-0 overflow-y-auto px-4">
+              <FilterFields />
+            </div>
+            <DrawerFooter>
+              <DrawerClose asChild>
+                <Button type="button" size="lg">
+                  Показать: {countLabel}
+                </Button>
+              </DrawerClose>
+              {hasFilters && (
+                <Button type="button" variant="ghost" onClick={clearFilters}>
+                  Сбросить фильтры
+                </Button>
+              )}
+            </DrawerFooter>
+          </DrawerContent>
+        </Drawer>
       </div>
-    </div>
+    </>
+  );
+}
+
+function FilterFields() {
+  const id = useId();
+  const { facets, tagSlugs, toggleTag, onlyAvailable, onlyBestsellers, updateFilters } =
+    useCatalog();
+  return (
+    <Accordion type="multiple" defaultValue={["price", "format", "availability"]}>
+      <AccordionItem value="price">
+        <AccordionTrigger className="py-4">Цена, ₽</AccordionTrigger>
+        <AccordionContent className="pb-4">
+          <PriceFilter />
+        </AccordionContent>
+      </AccordionItem>
+      {facets.map((facet) => (
+        <AccordionItem key={facet.group} value={facet.group}>
+          <AccordionTrigger className="py-4">{facet.title}</AccordionTrigger>
+          <AccordionContent className="space-y-1 pb-4">
+            {facet.options.map((option) => {
+              const selected = tagSlugs.includes(option.slug);
+              return (
+                <Label
+                  key={option.slug}
+                  htmlFor={`${id}-${option.id}`}
+                  className={cn(
+                    "min-h-10 justify-between gap-3 py-2 font-normal",
+                    !option.count && !selected && "text-muted-foreground",
+                  )}
+                >
+                  <span className="flex min-w-0 items-center gap-3">
+                    <Checkbox
+                      id={`${id}-${option.id}`}
+                      checked={selected}
+                      disabled={!option.count && !selected}
+                      onCheckedChange={() => toggleTag(option.slug)}
+                    />
+                    <span className="leading-5">{option.title}</span>
+                  </span>
+                  <span className="shrink-0 text-xs text-muted-foreground">{option.count}</span>
+                </Label>
+              );
+            })}
+          </AccordionContent>
+        </AccordionItem>
+      ))}
+      <AccordionItem value="availability">
+        <AccordionTrigger className="py-4">Показывать</AccordionTrigger>
+        <AccordionContent className="space-y-1 pb-4">
+          <Label htmlFor={`${id}-available`} className="min-h-10 gap-3 py-2 font-normal">
+            <Checkbox
+              id={`${id}-available`}
+              checked={onlyAvailable}
+              onCheckedChange={(value) => updateFilters({ onlyAvailable: value === true })}
+            />
+            Только в наличии
+          </Label>
+          <Label htmlFor={`${id}-hits`} className="min-h-10 gap-3 py-2 font-normal">
+            <Checkbox
+              id={`${id}-hits`}
+              checked={onlyBestsellers}
+              onCheckedChange={(value) => updateFilters({ onlyBestsellers: value === true })}
+            />
+            Хиты
+          </Label>
+        </AccordionContent>
+      </AccordionItem>
+    </Accordion>
   );
 }

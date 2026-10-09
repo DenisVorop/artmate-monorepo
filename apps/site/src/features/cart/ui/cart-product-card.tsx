@@ -20,6 +20,8 @@ const maxCartItemQuantity = 99;
 
 type CartProductCardProps = {
   readonly eagerImage?: boolean;
+  readonly mediaAspectRatio?: number;
+  readonly variant?: "default" | "plain";
   readonly list: ProductListPlacement;
   readonly position?: number;
   readonly product: Product;
@@ -36,6 +38,8 @@ type CartQuantityControlsProps = {
 
 export function CartProductCard({
   eagerImage = false,
+  mediaAspectRatio,
+  variant,
   list,
   position,
   product,
@@ -141,6 +145,8 @@ export function CartProductCard({
   return (
     <ProductCard
       eagerImage={eagerImage}
+      mediaAspectRatio={mediaAspectRatio}
+      variant={variant}
       footerAction={<div className="w-[min(9.75rem,58%)] md:hidden">{renderCartAction()}</div>}
       product={product}
       mediaAction={renderCartAction()}

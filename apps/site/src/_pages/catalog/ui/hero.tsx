@@ -1,7 +1,5 @@
-import { Badge } from "@/shared/ui";
 import type { ProductCategory } from "@/entities/products";
 import { routes } from "@/shared/constants";
-import { createCategoryDescription } from "@/shared/lib/seo";
 import {
   Breadcrumb,
   BreadcrumbItem,
@@ -18,43 +16,42 @@ type HeroProps = {
 };
 
 export function Hero({ category }: HeroProps) {
-  const title = category
-    ? `${category.title} - раскраски по номерам Artmate`
-    : "Выберите свою раскраску ARTMATE";
-  const description = category
-    ? createCategoryDescription(category.title)
-    : "Подберите сюжет под\u00a0настроение, уровень детализации и\u00a0любимые материалы для\u00a0спокойного творческого вечера.";
-
   return (
-    <section className="container py-6 md:py-8">
-      <div className="space-y-5">
-        {category ? <CatalogBreadcrumbs category={category} /> : null}
-
-        <div className="grid items-end gap-4 md:grid-cols-[minmax(0,3fr)_minmax(18rem,2fr)] md:gap-8">
-          <div>
-            <Badge variant="secondary" className="mb-6">
-              {category ? "Категория" : "Каталог"}
-            </Badge>
-            <PageTitle className={category ? "max-w-full" : "max-w-lg"}>
-              {category ? (
-                title
-              ) : (
-                <>
-                  Выберите свою раскраску <span className="text-rose-500">ARTMATE</span>
-                </>
-              )}
-            </PageTitle>
+    <section className="container border-b border-border/70 py-6 md:py-8">
+      <div className="space-y-4">
+        <CatalogBreadcrumbs category={category} />
+        <div className="space-y-3">
+          <div className="flex items-center gap-3 md:gap-5">
+            <PageTitle className="min-w-0">{category?.title ?? "Каталог Artmate"}</PageTitle>
+            <svg
+              viewBox="0 0 100 76"
+              aria-hidden="true"
+              focusable="false"
+              className="pointer-events-none h-12 w-16 shrink-0 text-rose-400 md:h-16 md:w-20"
+              fill="none"
+              stroke="currentColor"
+              strokeWidth="2"
+              strokeLinecap="round"
+              strokeLinejoin="round"
+            >
+              <path d="M8 59C23 63 46 59 49 47C53 33 33 33 34 45C35 57 56 59 67 52" />
+              <path d="M64 9L68 24L83 27L69 32L65 47L60 33L46 29L59 24Z" />
+              <path d="M88 43L90 50L97 52L90 55L88 62L85 55L78 53L85 50Z" />
+              <path d="M30 14L32 19M38 9L38 15" className="text-rose-300" />
+            </svg>
           </div>
-          <SectionSubtitle className="max-w-md pb-1 md:justify-self-end">
-            {description}
-          </SectionSubtitle>
+          {!category && (
+            <SectionSubtitle className="max-w-2xl">
+              Раскраски и материалы для рисования
+            </SectionSubtitle>
+          )}
         </div>
       </div>
     </section>
   );
 }
 
-function CatalogBreadcrumbs({ category }: { category: ProductCategory }) {
+function CatalogBreadcrumbs({ category }: { category?: ProductCategory }) {
   return (
     <Breadcrumb>
       <BreadcrumbList>
@@ -65,14 +62,22 @@ function CatalogBreadcrumbs({ category }: { category: ProductCategory }) {
         </BreadcrumbItem>
         <BreadcrumbSeparator />
         <BreadcrumbItem>
-          <BreadcrumbLink asChild>
-            <Link href={routes.catalog}>Каталог</Link>
-          </BreadcrumbLink>
+          {category ? (
+            <BreadcrumbLink asChild>
+              <Link href={routes.catalog}>Каталог</Link>
+            </BreadcrumbLink>
+          ) : (
+            <BreadcrumbPage>Каталог</BreadcrumbPage>
+          )}
         </BreadcrumbItem>
-        <BreadcrumbSeparator />
-        <BreadcrumbItem>
-          <BreadcrumbPage>{category.title}</BreadcrumbPage>
-        </BreadcrumbItem>
+        {category && (
+          <>
+            <BreadcrumbSeparator />
+            <BreadcrumbItem>
+              <BreadcrumbPage>{category.title}</BreadcrumbPage>
+            </BreadcrumbItem>
+          </>
+        )}
       </BreadcrumbList>
     </Breadcrumb>
   );

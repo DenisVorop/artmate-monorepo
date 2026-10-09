@@ -12,6 +12,8 @@ import type { Product } from "../model";
 interface ProductCardProps {
   product: Product;
   eagerImage?: boolean;
+  mediaAspectRatio?: number;
+  variant?: "default" | "plain";
   footerAction?: ReactNode;
   mediaAction?: ReactNode;
   mediaActionViewport?: "all" | "desktop";
@@ -22,6 +24,8 @@ interface ProductCardProps {
 export function ProductCard({
   product,
   eagerImage = false,
+  mediaAspectRatio = 3 / 4,
+  variant = "default",
   footerAction,
   mediaAction,
   mediaActionViewport = "all",
@@ -33,10 +37,22 @@ export function ProductCard({
   const showMediaActionAlways = mediaActionVisibility === "always";
 
   return (
-    <Card className="group/product h-full gap-0 py-0 transition-shadow duration-300 hover:shadow-md">
+    <Card
+      className={cn(
+        "group/product h-full gap-0 py-0 transition-shadow duration-300 hover:shadow-md",
+        variant === "plain" && "rounded-none bg-transparent ring-0 hover:shadow-none",
+      )}
+    >
       <div className="relative">
-        <Link href={productHref} className="block overflow-hidden bg-muted" onClick={onOpen}>
-          <AspectRatio ratio={3 / 4} className="relative">
+        <Link
+          href={productHref}
+          className={cn(
+            "block overflow-hidden bg-muted",
+            variant === "plain" && "rounded-lg bg-transparent",
+          )}
+          onClick={onOpen}
+        >
+          <AspectRatio ratio={mediaAspectRatio} className="relative">
             <Image
               fill
               src={product.image}
@@ -69,8 +85,10 @@ export function ProductCard({
         ) : null}
       </div>
 
-      <CardContent className="flex flex-1 flex-col gap-1 px-4 pt-4 pb-3">
-        {product.category && (
+      <CardContent
+        className={cn("flex flex-1 flex-col gap-1 px-4 pt-4 pb-3", variant === "plain" && "px-0")}
+      >
+        {product.category && variant !== "plain" && (
           <CardDescription className="text-xs tracking-wide uppercase">
             {product.category}
           </CardDescription>
@@ -86,7 +104,12 @@ export function ProductCard({
         </CardTitle>
       </CardContent>
 
-      <CardFooter className="mt-auto justify-between gap-3 border-t-0 bg-transparent px-4 pt-0 pb-4">
+      <CardFooter
+        className={cn(
+          "mt-auto justify-between gap-3 border-t-0 bg-transparent px-4 pt-0 pb-4",
+          variant === "plain" && "px-0",
+        )}
+      >
         <p className="shrink-0 text-base font-semibold text-stone-700 md:text-sm">{price} ₽</p>
         {footerAction}
       </CardFooter>
