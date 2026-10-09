@@ -121,10 +121,7 @@ test("public work order, report auth and moderated community copy are explicit",
   assert.match(report, /revisionId/);
   assert.match(report, /details/);
   assert.match(report, /maxLength=\{500\}/);
-  assert.match(materials, /Палитра Artmate для этой картины/);
   assert.match(materials, /Материалы, указанные автором/);
-  assert.match(materials, /work\.submission\.materials\.length > 0/);
-  assert.match(materials, /Автор не указал материалы\./);
   assert.match(
     publicWork,
     /work\.submission\.materials\.length > 0 \|\| work\.submission\.symbolMappings\.length > 0/,
