@@ -7,6 +7,7 @@ import { ReactQueryDevtools } from "@tanstack/react-query-devtools";
 import { UserProvider, type AuthSession } from "@/entities/session";
 import { DeviceProvider, type DeviceInfo } from "@/shared/lib/device";
 import { QueryStateProvider } from "@/shared/lib/query-state-manager";
+import { Toaster } from "@/shared/ui/sonner";
 
 import { QueryProvider } from "./query-provider";
 
@@ -26,6 +27,13 @@ export function AppProviders({
   return (
     <QueryProvider>
       <ReactQueryDevtools initialIsOpen={false} />
+      <Toaster
+        position="bottom-right"
+        richColors
+        closeButton
+        duration={6500}
+        customAriaLabel="Уведомления"
+      />
 
       <HydrationBoundary state={dehydratedState}>
         <DeviceProvider initialDeviceInfo={initialDeviceInfo}>

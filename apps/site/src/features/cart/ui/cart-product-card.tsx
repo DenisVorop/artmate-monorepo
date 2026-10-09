@@ -67,10 +67,10 @@ export function CartProductCard({
     }
 
     try {
-      await addCartItem({ productId: product.id, quantity: 1 });
       setAddErrorLabel(undefined);
+      await addCartItem({ productId: product.id, quantity: 1 });
     } catch {
-      setAddErrorLabel("Не удалось добавить");
+      setAddErrorLabel("Повторить");
     }
   };
 
@@ -151,7 +151,7 @@ export function CartProductCard({
       product={product}
       mediaAction={renderCartAction()}
       mediaActionViewport="desktop"
-      mediaActionVisibility={isInCart ? "always" : "hover"}
+      mediaActionVisibility={isInCart || isAdding ? "always" : "hover"}
       onOpen={handleProductOpen}
     />
   );
@@ -168,7 +168,7 @@ function CartQuantityControls({
   return (
     <div
       className={cn(
-        "pointer-events-auto grid h-9 w-full grid-cols-[1.75rem_minmax(0,1fr)_1.75rem] items-center rounded-lg border border-white/70 bg-white/95 p-1 shadow-lg backdrop-blur",
+        "pointer-events-auto grid h-9 w-full grid-cols-[1.75rem_minmax(0,1fr)_1.75rem] items-center rounded-lg bg-white/95 p-1 shadow-lg backdrop-blur",
         className,
       )}
       aria-label={`${productTitle}: ${quantity} в\u00a0корзине`}
