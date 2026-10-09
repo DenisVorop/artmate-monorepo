@@ -1,5 +1,28 @@
 # Changelog
 
+## [0.48.0](https://github.com/DenisVorop/artmate-monorepo/compare/v0.47.1...v0.48.0) (2026-10-09)
+
+
+### Features
+
+* **admin:** manage materials and palettes ([e263fa9](https://github.com/DenisVorop/artmate-monorepo/commit/e263fa99306a1e611a6035fc6fc58abc21724b3e))
+* **api:** add coloring material variants ([3f1ca3a](https://github.com/DenisVorop/artmate-monorepo/commit/3f1ca3a0d019794e732531583b38c0b18afa8e90))
+* **api:** audit coloring original coverage ([66d70ad](https://github.com/DenisVorop/artmate-monorepo/commit/66d70ad09c73a0cdcbd1aa3636b4b1f7aad7be30))
+* **cart:** confirm additions with toast ([a9e1b2b](https://github.com/DenisVorop/artmate-monorepo/commit/a9e1b2b19ad956f4f4178779af8f9c585687a506))
+* **catalog:** refine search and filters ([1921a70](https://github.com/DenisVorop/artmate-monorepo/commit/1921a70745513dd2e77146425ee1eb61f4aafda4))
+* **product:** open mobile description in drawer ([5812e95](https://github.com/DenisVorop/artmate-monorepo/commit/5812e95e4c6bb61ca141322be938369682745b32))
+* **product:** show user works in a side feed ([6e1d0ae](https://github.com/DenisVorop/artmate-monorepo/commit/6e1d0aee6931e07382b7f6d35f9b50a3f2c38543))
+* **site:** add coloring palette viewer ([d76b4d3](https://github.com/DenisVorop/artmate-monorepo/commit/d76b4d3ed1afb82d28e285568760baffe069ad32))
+
+
+### Bug Fixes
+
+* **catalog:** keep price errors fully visible ([709725b](https://github.com/DenisVorop/artmate-monorepo/commit/709725bc9bc06f2c4064a4e44e181e66e77d5641))
+* **product:** contain works feed overflow ([1bef203](https://github.com/DenisVorop/artmate-monorepo/commit/1bef203e4796a893754b2afc1c46c2cf06d7450e))
+* **product:** improve highlight text wrapping ([21b4d83](https://github.com/DenisVorop/artmate-monorepo/commit/21b4d835a3728d12be615d815f577c54180c65dc))
+* **product:** keep gallery below the header ([d0e15e4](https://github.com/DenisVorop/artmate-monorepo/commit/d0e15e44195673e44b98da520729bb049fcbfff2))
+* **work:** hide palette and empty materials ([4485dff](https://github.com/DenisVorop/artmate-monorepo/commit/4485dfff19c2f2057ec55e9ec38d50e345d5a5d2))
+
 ## [0.47.1](https://github.com/DenisVorop/artmate-monorepo/compare/v0.47.0...v0.47.1) (2026-10-03)
 
 
