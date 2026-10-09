@@ -27,12 +27,12 @@ export function Highlights({ characteristics }: { characteristics: ProductCharac
         const Icon = item.icon;
 
         return (
-          <Card key={item.id} size="sm" className="min-w-0 bg-muted/30">
-            <CardContent className="flex gap-3">
+          <Card key={item.id} size="sm" className="@container/highlight min-w-0 bg-muted/30">
+            <CardContent className="flex flex-col gap-3 @min-[15rem]/highlight:flex-row">
               <span className="flex size-9 shrink-0 items-center justify-center rounded-lg bg-background text-muted-foreground ring-1 ring-border">
                 <Icon className="size-4" />
               </span>
-              <div className="min-w-0 space-y-1 wrap-anywhere">
+              <div className="min-w-0 flex-1 space-y-1 break-normal hyphens-none">
                 <CardTitle className="text-sm">{item.title}</CardTitle>
                 <p className="text-xs leading-5 text-muted-foreground">{item.description}</p>
               </div>
