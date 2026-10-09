@@ -214,7 +214,7 @@ export function Gallery({ images, title }: GalleryProps) {
       <div className="min-w-0 flex-1 space-y-3">
         <AspectRatio
           ratio={3 / 4}
-          className="group/gallery relative overflow-hidden rounded-xl bg-muted"
+          className="group/gallery relative isolate overflow-hidden rounded-xl bg-muted"
         >
           <div
             ref={mainTrackRef}
