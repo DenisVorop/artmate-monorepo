@@ -1,4 +1,5 @@
 export { AdminOrderDTO } from "./admin-order.dto";
+export { UpdateOrderOzonPostingsRequestDTO } from "./update-order-ozon-postings-request.dto";
 export { AdminOrderCommentDTO } from "./admin-order-comment.dto";
 export { AdminOrderHistoryEventDTO } from "./admin-order-history-event.dto";
 export { CalculateCheckoutRequestDTO } from "./calculate-checkout-request.dto";

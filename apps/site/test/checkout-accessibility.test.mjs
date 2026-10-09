@@ -78,7 +78,7 @@ test("checkout fields describe only their stable helper and error nodes", async 
     paymentMethod: { message: "Выберите способ оплаты" },
   };
   const sharedUi = {
-    Badge: component("Badge"),
+    Button: component("Button"),
     Input: component("Input"),
     Label: component("Label"),
     PersonalDataConsentCheckbox: component("PersonalDataConsentCheckbox"),
@@ -150,21 +150,28 @@ test("checkout fields describe only their stable helper and error nodes", async 
     await readSource("src/features/checkout/ui/payment-method-field.tsx"),
     {
       ...commonMocks,
-      "lucide-react": {
-        CreditCard: component("CreditCard"),
-        WalletCards: component("WalletCards"),
-      },
+      "@/shared/lib": { cn: (...values) => values.filter(Boolean).join(" ") },
+      "@/shared/ui/payment-logos": { PaymentLogo: component("PaymentLogo") },
     },
   );
   const paymentTree = PaymentMethodField();
   const group = findNodes(paymentTree, (node) => node.type === "RadioGroup")[0];
-  const badges = findNodes(paymentTree, (node) => node.type === "Badge").map(
-    (node) => node.props.children,
+  const brands = findNodes(paymentTree, (node) => node.type === "PaymentLogo").map(
+    (node) => node.props.brand,
   );
   assert.equal(group.props["aria-labelledby"], "checkout-payment-heading");
-  assert.equal(group.props["aria-describedby"], "checkout-payment-error");
+  assert.equal(
+    group.props["aria-describedby"],
+    "checkout-payment-description checkout-payment-error",
+  );
   assert.equal(group.props["aria-invalid"], true);
-  assert.deepEqual(badges, ["Карта", "СБП", "Карта", "СБП"]);
+  assert.deepEqual(brands, ["tbank", "mir", "sbp", "dolyame", "ozonbank", "mir", "sbp"]);
+  assert.deepEqual(
+    findNodes(paymentTree, (node) => node.type === "RadioGroupItem").map(
+      (node) => node.props.value,
+    ),
+    ["tbank_acquiring", "ozon_acquiring"],
+  );
 });
 
 test("checkout return navigation keeps a 44px target", async () => {
@@ -252,6 +259,7 @@ test("delivery choices use the checkout delivery section as their accessible nam
     await readSource("src/features/checkout/ui/delivery-method-field.tsx"),
     {
       "lucide-react": { MapPin: component("MapPin") },
+      "@/shared/lib": { cn: (...values) => values.filter(Boolean).join(" ") },
       react: {
         useEffect: () => undefined,
         useRef: (value) => ({ current: value }),
@@ -298,7 +306,7 @@ test("delivery choices use the checkout delivery section as their accessible nam
   assert.equal(group.props["aria-labelledby"], "checkout-section-02-heading");
 });
 
-test("checkout flat radio lists override the shared group gap locally", async () => {
+test("delivery lists keep their local spacing and payment has a named bank selection", async () => {
   const sharedUi = {
     Button: component("Button"),
     Label: component("Label"),
@@ -317,6 +325,7 @@ test("checkout flat radio lists override the shared group gap locally", async ()
     await readSource("src/features/checkout/ui/delivery-method-field.tsx"),
     {
       "lucide-react": { MapPin: component("MapPin") },
+      "@/shared/lib": { cn: (...values) => values.filter(Boolean).join(" ") },
       react,
       "@/shared/ui": sharedUi,
       "../lib": {
@@ -353,11 +362,9 @@ test("checkout flat radio lists override the shared group gap locally", async ()
   const { PaymentMethodField } = evaluateComponent(
     await readSource("src/features/checkout/ui/payment-method-field.tsx"),
     {
-      "lucide-react": {
-        CreditCard: component("CreditCard"),
-        WalletCards: component("WalletCards"),
-      },
-      "@/shared/ui": { ...sharedUi, Badge: component("Badge") },
+      "@/shared/lib": { cn: (...values) => values.filter(Boolean).join(" ") },
+      "@/shared/ui/payment-logos": { PaymentLogo: component("PaymentLogo") },
+      "@/shared/ui": sharedUi,
       "../lib": {},
       "./field-error": { FieldError: component("FieldError") },
       "react-hook-form": {
@@ -370,15 +377,10 @@ test("checkout flat radio lists override the shared group gap locally", async ()
       "react/jsx-runtime": jsxRuntime,
     },
   );
-  const paymentGroup = findNodes(
-    PaymentMethodField(),
-    (node) => node.type === "RadioGroup",
-  )[0];
+  const paymentGroup = findNodes(PaymentMethodField(), (node) => node.type === "RadioGroup")[0];
 
   const { DeliveryCompanySelector } = evaluateComponent(
-    await readSource(
-      "src/features/checkout/ui/delivery-selector/delivery-company-selector.tsx",
-    ),
+    await readSource("src/features/checkout/ui/delivery-selector/delivery-company-selector.tsx"),
     {
       "@/shared/lib": { cn: (...values) => values.filter(Boolean).join(" ") },
       "@/shared/ui": sharedUi,
@@ -400,7 +402,11 @@ test("checkout flat radio lists override the shared group gap locally", async ()
     (node) => node.type === "RadioGroup",
   )[0];
 
-  for (const group of [deliveryGroup, paymentGroup, companyGroup]) {
+  assert.equal(paymentGroup.props["aria-labelledby"], "checkout-payment-heading");
+  assert.equal(paymentGroup.props["aria-describedby"], "checkout-payment-description");
+  assert.equal(deliveryGroup.props.className, paymentGroup.props.className);
+  assert.ok(deliveryGroup.props["aria-labelledby"]);
+  for (const group of [companyGroup]) {
     assert.match(group.props.className, /(?:^|\s)gap-0(?:\s|$)/u);
     assert.match(group.props.className, /(?:^|\s)divide-y(?:\s|$)/u);
     assert.match(group.props.className, /(?:^|\s)border-y(?:\s|$)/u);
@@ -411,7 +417,7 @@ test("checkout flat radio lists override the shared group gap locally", async ()
   assert.match(sharedRadioGroup, /cn\("grid gap-2", className\)/u);
 });
 
-test("checkout calculation and order errors are assertive atomic alerts", async (t) => {
+test("checkout calculation errors are assertive alerts and order errors go to the summary", async (t) => {
   let checkoutCalculation;
   const { CheckoutFlow } = evaluateComponent(
     await readSource("src/features/checkout/ui/checkout-flow.tsx"),
@@ -437,7 +443,6 @@ test("checkout calculation and order errors are assertive atomic alerts", async 
       "./contact-fields": { ContactFields: component("ContactFields") },
       "./checkout-submit-button": { CheckoutSubmitButton: component("CheckoutSubmitButton") },
       "./delivery-method-field": { DeliveryMethodField: component("DeliveryMethodField") },
-      "./legal-field": { LegalField: component("LegalField") },
       "./order-summary": { OrderSummary: component("OrderSummary") },
       "./payment-method-field": { PaymentMethodField: component("PaymentMethodField") },
       "react/jsx-runtime": jsxRuntime,
@@ -455,6 +460,12 @@ test("checkout calculation and order errors are assertive atomic alerts", async 
   const deliveryHeading = findNodes(deliverySectionTree, (node) => node.type === "h2")[0];
 
   assert.equal(deliveryHeading.props.id, "checkout-section-02-heading");
+  const paymentSection = findNodes(
+    idleTree,
+    (node) => typeof node.type === "function" && node.props?.number === "03",
+  )[0];
+  assert.equal(paymentSection.props.title, "Способ оплаты");
+  assert.equal(findNodes(paymentSection, (node) => node.type === "PaymentMethodField").length, 1);
 
   async function assertCalculationAlert(name, state) {
     await t.test(name, () => {
@@ -484,13 +495,12 @@ test("checkout calculation and order errors are assertive atomic alerts", async 
 
   await t.test("create-order feedback", () => {
     checkoutCalculation = { status: "idle" };
-    const orderErrorTree = CheckoutFlow({ cart, createOrderError: new Error("Заказ не создан") });
-    const orderAlerts = findNodes(orderErrorTree, (node) => node.props?.role === "alert");
-
-    assert.equal(orderAlerts.length, 1);
-    assert.equal(orderAlerts[0].props["aria-live"], "assertive");
-    assert.equal(orderAlerts[0].props["aria-atomic"], true);
-    assert.equal(findNodes(orderAlerts[0], (node) => node.type === "DataState").length, 1);
+    const error = new Error("Заказ не создан");
+    const orderErrorTree = CheckoutFlow({ cart, createOrderError: error });
+    const summary = findNodes(orderErrorTree, (node) => node.type === "OrderSummary")[0];
+    assert.equal(summary.props.createOrderError, error);
+    assert.equal(findNodes(orderErrorTree, (node) => node.type === "form").length, 1);
+    assert.equal(findNodes(orderErrorTree, (node) => node.type === "PaymentMethodField").length, 1);
   });
 });
 
@@ -501,7 +511,9 @@ test("checkout announces calculation progress and updated totals without repeati
     {
       "next/image": component("Image"),
       "lucide-react": {
+        ChevronDown: component("ChevronDown"),
         LoaderCircle: component("LoaderCircle"),
+        Tag: component("Tag"),
         Truck: component("Truck"),
       },
       "@/entities/feature-banners": {
@@ -510,6 +522,8 @@ test("checkout announces calculation progress and updated totals without repeati
       "@/entities/session": { useSession: () => ({ isPending: false, user: undefined }) },
       "@/features/promocode": { PromoCodeForm: component("PromoCodeForm") },
       "./loyalty-field": { LoyaltyField: component("LoyaltyField") },
+      "./legal-field": { LegalField: component("LegalField") },
+      "./payment-method-field": { PaymentMethodField: component("PaymentMethodField") },
       "@/shared/lib": {
         cn: (...values) => values.filter(Boolean).join(" "),
         shouldBypassNextImageOptimization: () => false,
@@ -522,6 +536,7 @@ test("checkout announces calculation progress and updated totals without repeati
         CardFooter: component("CardFooter"),
         CardHeader: component("CardHeader"),
         CardTitle: component("CardTitle"),
+        DataState: component("DataState"),
         Separator: component("Separator"),
       },
       "../lib": {
@@ -546,6 +561,27 @@ test("checkout announces calculation progress and updated totals without repeati
     },
   );
   const cart = { items: [], itemsCount: 0, subtotal: 1000 };
+
+  const summaryTree = OrderSummary({
+    cart,
+    createOrderError: new Error("Заказ не создан"),
+    isSubmitDisabled: false,
+    isSubmitting: false,
+    submitLabel: "Оплатить",
+  });
+  const orderAlert = findNodes(summaryTree, (node) => node.props?.role === "alert")[0];
+  assert.equal(orderAlert.props["aria-live"], "assertive");
+  assert.equal(orderAlert.props["aria-atomic"], true);
+  assert.equal(
+    findNodes(orderAlert, (node) => node.type === "DataState")[0].props.description,
+    "Заказ не создан",
+  );
+  assert.equal(findNodes(summaryTree, (node) => node.type === "PaymentMethodField").length, 0);
+  assert.equal(findNodes(summaryTree, (node) => node.type === "LegalField").length, 1);
+  assert.equal(
+    findNodes(summaryTree, (node) => node.type === "CheckoutSubmitButton")[0].props.form,
+    "checkout-order-form",
+  );
 
   function getCalculationStatus() {
     const tree = OrderSummary({
@@ -583,10 +619,7 @@ test("checkout announces calculation progress and updated totals without repeati
     },
     status: "ready",
   };
-  assert.equal(
-    getText(getCalculationStatus()),
-    "Стоимость доставки 200 ₽. Итого 1200 ₽.",
-  );
+  assert.equal(getText(getCalculationStatus()), "Стоимость доставки 200 ₽. Итого 1200 ₽.");
   let earningBadges = findNodes(
     OrderSummary({ cart, isSubmitDisabled: true, isSubmitting: false, submitLabel: "Оплатить" }),
     (node) => node.props?.["aria-label"] === "Будет начислено 50 баллов",
@@ -627,7 +660,7 @@ test("legal checkboxes own their errors while keeping legal links separate", asy
   const { LegalField } = evaluateComponent(
     await readSource("src/features/checkout/ui/legal-field.tsx"),
     {
-      "../lib": {},
+      "../lib": { checkoutOrderFormId: "checkout-order-form" },
       "./field-error": { FieldError: component("FieldError") },
       "@/shared/constants": { routes: { legal: { publicOffer: "/offer" } } },
       "@/shared/lib": { cn: (...values) => values.filter(Boolean).join(" ") },
@@ -650,6 +683,8 @@ test("legal checkboxes own their errors while keeping legal links separate", asy
   );
 
   assert.equal(offer.props["aria-describedby"], "checkout-legal-error");
+  assert.equal(offer.props.form, "checkout-order-form");
+  assert.equal(consent.props.form, "checkout-order-form");
   assert.equal(consent.props["aria-describedby"], "checkout-personal-data-consent-error");
   assert.deepEqual(errorsById, ["checkout-legal-error", "checkout-personal-data-consent-error"]);
   assert.equal(findNodes(tree, (node) => node.type === "Link").length, 1);

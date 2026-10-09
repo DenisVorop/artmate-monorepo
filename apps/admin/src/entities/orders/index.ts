@@ -8,7 +8,7 @@ export {
   getOrdersTotal,
 } from "./lib";
 export { ordersQuery, ordersQueryKeys, useOrder, useOrders } from "./model";
-export { ShipmentTrackingNumber } from "./ui";
+export { ShipmentTrackingNumber, OzonPostingLinks } from "./ui";
 export type {
   AdminOrder,
   AdminOrderComment,

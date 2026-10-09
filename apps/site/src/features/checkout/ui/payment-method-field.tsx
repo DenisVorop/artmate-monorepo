@@ -1,9 +1,10 @@
 "use client";
 
-import { CreditCard, WalletCards } from "lucide-react";
 import { useFormContext } from "react-hook-form";
 
-import { Badge, Label, RadioGroup, RadioGroupItem } from "@/shared/ui";
+import { cn } from "@/shared/lib";
+import { Label, RadioGroup, RadioGroupItem } from "@/shared/ui";
+import { PaymentLogo } from "@/shared/ui/payment-logos";
 
 import type { CheckoutFormValues, CheckoutPaymentMethod } from "../lib";
 
@@ -11,24 +12,24 @@ import { FieldError } from "./field-error";
 
 const paymentOptions: {
   description: string;
-  badges: string[];
-  icon: typeof WalletCards;
+  bankBrand: "ozonbank" | "tbank";
+  brands: ("mir" | "sbp" | "dolyame")[];
   title: string;
   value: CheckoutPaymentMethod;
 }[] = [
   {
-    badges: ["Карта", "СБП"],
-    description: "После создания заказа вы перейдёте на защищённую страницу Ozon Pay для оплаты.",
-    icon: WalletCards,
-    title: "Ozon Pay",
-    value: "ozon_acquiring",
+    bankBrand: "tbank",
+    brands: ["mir", "sbp", "dolyame"],
+    description: "Оплатите заказ на странице Т-Банка.",
+    title: "Т-Банк",
+    value: "tbank_acquiring",
   },
   {
-    badges: ["Карта", "СБП"],
-    description: "После создания заказа вы перейдёте на защищённую страницу T-Bank для оплаты.",
-    icon: CreditCard,
-    title: "T-Bank",
-    value: "tbank_acquiring",
+    bankBrand: "ozonbank",
+    brands: ["mir", "sbp"],
+    description: "Оплатите картой «Мир» или через СБП на странице Ozon Pay.",
+    title: "Ozon Банк",
+    value: "ozon_acquiring",
   },
 ];
 
@@ -40,20 +41,16 @@ export function PaymentMethodField() {
   } = useFormContext<CheckoutFormValues>();
   const selectedPaymentMethod = watch("paymentMethod");
   const hasError = Boolean(errors.paymentMethod);
+  const selectedOption = paymentOptions.find((option) => option.value === selectedPaymentMethod);
 
   return (
     <div className="space-y-3">
-      <div>
-        <p id="checkout-payment-heading" className="text-sm font-medium">
-          Способ оплаты
-        </p>
-        <p className="text-xs text-muted-foreground">
-          Выберите платежную страницу, на которую мы отправим после создания заказа.
-        </p>
-      </div>
+      <p id="checkout-payment-heading" className="sr-only">
+        Способ оплаты
+      </p>
       <RadioGroup
         aria-labelledby="checkout-payment-heading"
-        aria-describedby={hasError ? "checkout-payment-error" : undefined}
+        aria-describedby={`checkout-payment-description${hasError ? " checkout-payment-error" : ""}`}
         aria-invalid={hasError}
         value={selectedPaymentMethod}
         onValueChange={(value) =>
@@ -63,36 +60,37 @@ export function PaymentMethodField() {
             shouldValidate: true,
           })
         }
-        className="gap-0 divide-y border-y"
+        className="gap-2"
       >
-        {paymentOptions.map((option) => {
-          const Icon = option.icon;
-
-          return (
-            <Label
-              key={option.value}
-              htmlFor={`payment-${option.value}`}
-              className="flex min-h-20 min-w-0 cursor-pointer items-center gap-3 py-3 font-normal hover:bg-muted/30"
-            >
-              <RadioGroupItem id={`payment-${option.value}`} value={option.value} />
-              <Icon aria-hidden="true" className="size-5 shrink-0 text-muted-foreground" />
-              <span className="min-w-0 flex-1">
-                <span className="flex min-w-0 flex-wrap items-center gap-2 font-medium">
-                  <span className="min-w-0 break-words">{option.title}</span>
-                  {option.badges.map((badge) => (
-                    <Badge key={badge} variant="secondary" className="shrink-0">
-                      {badge}
-                    </Badge>
-                  ))}
-                </span>
-                <span className="mt-1 block text-xs leading-5 text-muted-foreground">
-                  {option.description}
-                </span>
-              </span>
-            </Label>
-          );
-        })}
+        {paymentOptions.map((option) => (
+          <Label
+            key={option.value}
+            htmlFor={`payment-${option.value}`}
+            className={cn(
+              "flex min-h-16 min-w-0 cursor-pointer items-center gap-3 rounded-xl border p-3 font-normal transition-colors hover:border-rose-200 hover:bg-rose-50/40 dark:hover:bg-rose-950/20",
+              selectedPaymentMethod === option.value
+                ? "border-rose-300 bg-rose-50/60 ring-1 ring-rose-200/60 dark:border-rose-700 dark:bg-rose-950/20 dark:ring-rose-800/60"
+                : "border-border bg-background",
+            )}
+          >
+            <RadioGroupItem
+              id={`payment-${option.value}`}
+              aria-label={option.title}
+              value={option.value}
+              className="shrink-0 data-[state=checked]:border-rose-500 data-[state=checked]:text-rose-500"
+            />
+            <PaymentLogo brand={option.bankBrand} size="compact" />
+            <span className="ml-auto flex min-w-0 flex-1 flex-wrap items-center justify-end gap-x-2 gap-y-1.5">
+              {option.brands.map((brand) => (
+                <PaymentLogo key={brand} brand={brand} size="compact" />
+              ))}
+            </span>
+          </Label>
+        ))}
       </RadioGroup>
+      <div id="checkout-payment-description" className="text-xs leading-5 text-muted-foreground">
+        <p>{selectedOption?.description}</p>
+      </div>
       <FieldError id="checkout-payment-error" message={errors.paymentMethod?.message} />
     </div>
   );

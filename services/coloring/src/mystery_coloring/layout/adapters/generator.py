@@ -27,7 +27,7 @@ class PipelinePageGenerator:
     def generate(self, source, destination, settings, template, number):
         prepared = self.reader.read(source, settings.pipeline(180).preparation().max_size)
         artwork = template.fit(prepared.image.width, prepared.image.height)
-        effective = settings.pipeline(artwork.width)
+        effective = settings.pipeline(artwork.source_width)
         writer = LayoutNumberingWriter(self.font, self.numbers, template, artwork, number)
         pipeline = self.factory(
             progress=self.progress,

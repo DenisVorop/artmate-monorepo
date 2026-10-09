@@ -62,6 +62,7 @@ def test_json_and_cli_override_defaults_with_validation(tmp_path):
         "min_area_mm2": 1.5,
         "font_size_pt": 4,
         "image_width_mm": 180,
+        "artificial_grid": True,
     }
     assert settings.geometry().min_area_mm2 == settings.subdivision().min_area_mm2 == 1.5
     assert settings.numbering().min_area_mm2 == 1.5
@@ -83,6 +84,9 @@ def test_json_and_cli_override_defaults_with_validation(tmp_path):
         {"font_size_pt": 2},
         {"font_size_pt": False},
         {"image_width_mm": 0},
+        {"artificial_grid": 1},
+        {"artificial_grid": "false"},
+        {"artificial_grid": None},
     ],
 )
 def test_invalid_settings_are_rejected_before_work(value):
@@ -98,14 +102,16 @@ def test_invalid_json_or_unknown_options_are_not_ignored(tmp_path, content):
         load_settings(path, {})
 
 
-def test_large_minimum_remains_consistent_with_subdivision_target():
-    settings = PipelineSettings(min_area_mm2=100)
-    assert settings.subdivision().target_area_mm2 == 200
+@pytest.mark.parametrize("grid", [True, False])
+def test_pipeline_grid_option_and_large_minimum(grid):
+    settings = PipelineSettings(min_area_mm2=100, artificial_grid=grid)
+    assert settings.subdivision().target_area_mm2 == (200 if grid else None)
     assert settings.geometry().min_area_mm2 == settings.numbering().min_area_mm2 == 100
 
 
 @pytest.mark.parametrize("options", [(2, 5, 6), (4, 1, 3)])
-def test_full_pipeline_applies_settings_to_every_stage_and_export(tmp_path, options):
+@pytest.mark.parametrize("grid", [True, False])
+def test_full_pipeline_applies_settings_to_every_stage_and_export(tmp_path, options, grid):
     colors, area, size = options
     image = Image.new("RGB", (96, 64), "#ffffff")
     draw = ImageDraw.Draw(image)
@@ -118,7 +124,13 @@ def test_full_pipeline_applies_settings_to_every_stage_and_export(tmp_path, opti
     config = tmp_path / "settings.json"
     config.write_text(
         json.dumps(
-            {"colors": colors, "min_area_mm2": area, "font_size_pt": size, "image_width_mm": 48}
+            {
+                "colors": colors,
+                "min_area_mm2": area,
+                "font_size_pt": size,
+                "image_width_mm": 48,
+                "artificial_grid": grid,
+            }
         )
     )
     assert main([str(source), "--output", str(output), "--config", str(config)]) == 0
@@ -131,7 +143,13 @@ def test_full_pipeline_applies_settings_to_every_stage_and_export(tmp_path, opti
         stage = json.loads((output / directory / "manifest.json").read_text())
         assert stage["settings"]["min_area_mm2"] == area
     split = json.loads((output / "03-subdivision/label-spaces.json").read_text())
+    subdivision_quality = json.loads((output / "03-subdivision/quality.json").read_text())
     labels = json.loads((output / "04-numbering/labels.json").read_text())
+    if grid:
+        assert subdivision_quality["accepted_splits"] > 0
+    else:
+        assert subdivision_quality["accepted_splits"] == 0
+        assert subdivision_quality["final_regions"] == subdivision_quality["initial_regions"]
     assert split["font"] == labels["font_name"] == "ArialMT"
     assert split["font_sha256"] == labels["font_sha256"] == ArialFont().sha256
     assert split["font_size_pt"] == labels["uniform_font_size_pt"] == size

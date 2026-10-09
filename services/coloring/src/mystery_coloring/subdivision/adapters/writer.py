@@ -124,7 +124,9 @@ class SubdivisionFileWriter:
                 "below_min_area": 0,
                 "covered_area_mm2": sum(result.areas_mm2),
                 "target_area_mm2": settings.target_area_mm2,
-                "split_threshold_mm2": settings.target_area_mm2 * 1.5,
+                "split_threshold_mm2": (
+                    settings.target_area_mm2 * 1.5 if settings.target_area_mm2 is not None else None
+                ),
                 "target_area_is_hard_limit": False,
                 "unresolved_large_ids": result.unresolved_large_ids,
                 "stop_reasons": dict(result.stop_reasons),

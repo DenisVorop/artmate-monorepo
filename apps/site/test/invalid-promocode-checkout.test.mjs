@@ -120,10 +120,8 @@ async function renderCartSummary(promoState) {
   );
 
   return CartSummary({
-    isClearingCart: false,
     isMutating: false,
     itemsLabel: "1 товар",
-    onClear: () => undefined,
     subtotal: 1_000,
   });
 }

@@ -40,7 +40,11 @@ def initialize(db):
     db.execute("BEGIN IMMEDIATE")
     try:
         version = db.execute("PRAGMA user_version").fetchone()[0]
+        if version == 3:
+            db.commit()
+            return
         if version == 2:
+            add_artificial_grid(db)
             db.commit()
             return
         if version not in (0, 1):
@@ -130,8 +134,24 @@ def initialize(db):
                     job["error"],
                 ),
             )
-        db.execute("PRAGMA user_version=2")
+        add_artificial_grid(db)
         db.commit()
     except BaseException:
         db.rollback()
         raise
+
+
+def add_artificial_grid(db):
+    """Persist the new option without changing accepted artifacts or job provenance."""
+    for row in db.execute("SELECT id,settings FROM projects").fetchall():
+        values = json.loads(row["settings"])
+        values["artificial_grid"] = True
+        db.execute("UPDATE projects SET settings=? WHERE id=?", (json.dumps(values), row["id"]))
+    for row in db.execute("SELECT id,settings,report FROM jobs").fetchall():
+        values = json.loads(row["settings"])
+        report = json.loads(row["report"]) if row["report"] else {}
+        values["artificial_grid"] = (
+            report.get("algorithm") != "coloring-delivery-v9-continuous-regions"
+        )
+        db.execute("UPDATE jobs SET settings=? WHERE id=?", (json.dumps(values), row["id"]))
+    db.execute("PRAGMA user_version=3")

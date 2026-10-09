@@ -6,6 +6,7 @@ import re
 import xml.etree.ElementTree as ET
 from pathlib import Path
 
+import cv2
 import numpy as np
 import pytest
 from PIL import Image
@@ -22,6 +23,7 @@ from mystery_coloring.geometry.curves import (
     cubic_signed_area,
     interpolate,
     region_areas,
+    relax_points,
     round_polyline,
 )
 from mystery_coloring.geometry.domain import Cubic, GeometrySettings
@@ -89,6 +91,27 @@ def test_holes_are_subtracted_and_shared_areas_cover_page():
     assert sorted(item for ids in result.source_region_ids for item in ids) == [0, 1, 2]
 
 
+def test_rounding_shift_budget_smooths_shallow_arcs_and_preserves_sharp_tips():
+    from shapely import LineString
+
+    from mystery_coloring.geometry.curves import sample_curves
+
+    shallow = ((-20.0, 0.0), (0.0, 1.0), (20.0, 0.0))
+    sharp = ((-20.0, 0.0), (0.0, 20.0), (1.0, 0.0))
+    rounded = round_polyline(shallow, fraction=0.48, max_shift=0.4)
+    # Most of the shallow arc is curved, rather than long straight polygon sides.
+    arc = rounded[1]
+    assert arc.end[0] - arc.start[0] > 18
+    for points in (shallow, sharp):
+        curves = round_polyline(points, fraction=0.48, max_shift=0.4)
+        assert (
+            LineString(sample_curves(curves, error=0.001)).hausdorff_distance(LineString(points))
+            <= 0.401
+        )
+        assert curves[0].start == points[0]
+        assert curves[-1].end == points[-1]
+
+
 def test_analytic_cubic_area_against_known_quadratic_arch():
     start, control, end = (0, 0), (1, 1), (2, 0)
     curve = Cubic(start, interpolate(start, control, 2 / 3), interpolate(end, control, 2 / 3), end)
@@ -121,6 +144,42 @@ def test_dense_junctions_preserve_all_faces_and_area(seed):
     areas = region_areas(curves, len(palette), 1)
     assert all(area > 0 for area in areas)
     assert sum(areas) == pytest.approx(100)
+
+
+def test_bounded_relaxation_keeps_tips_and_junctions_near_source():
+    points = ((0, 0), (1, 0), (1, 1), (2, 1), (2, 8), (3, 1), (4, 1), (4, 2))
+    smoothed = relax_points(points, 0.5, passes=32, max_offset=0.4)
+    assert smoothed[0] == points[0]
+    assert smoothed[-1] == points[-1]
+    assert max(math.dist(a, b) for a, b in zip(points, smoothed, strict=True)) <= 0.4 + 1e-12
+    assert smoothed[2] != points[2]
+
+
+@pytest.mark.parametrize("detail", [False, True])
+def test_fallback_smooths_diagonal_stairs_without_losing_thin_shape(detail):
+    colors = np.zeros((100, 160), dtype=np.uint8)
+    cv2.ellipse(colors, (80, 50), (60, 3 if detail else 18), -20, 0, 360, 1, -1)
+    if not detail:
+        cv2.line(colors, (40, 54), (95, 80), 1, 2)  # Острый выступ на общей границе.
+    labels, palette = connected_regions(colors)
+    protected = frozenset({1}) if detail else frozenset()
+    boundaries, _, deviation = smooth_boundaries(
+        extract_boundaries(labels), 160, 100, len(palette), 1 if detail else 3, protected
+    )
+    boundary = next(b for b in boundaries if min(b.source.left, b.source.right) >= 0)
+    assert boundary.fallback  # Пример действительно проходит через исправленный откат.
+    vectors = np.diff(np.asarray(boundary.samples), axis=0)
+    vectors = vectors[np.linalg.norm(vectors, axis=1) > 1e-8]
+    # Суммарный поворот выявляет обратные изгибы ступенек даже у касательно гладких кривых.
+    turning = sum(
+        abs(math.atan2(a[0] * b[1] - a[1] * b[0], float(a @ b)))
+        for a, b in zip(vectors, np.roll(vectors, -1, axis=0), strict=True)
+    )
+    assert turning < 4 * math.pi
+    assert deviation <= (1 if detail else 3)
+    areas = region_areas(boundaries, len(palette), 1)
+    assert sum(areas) == pytest.approx(colors.size)
+    assert areas[1] == pytest.approx(np.count_nonzero(colors), rel=0.05)
 
 
 def svg_sampled_areas(path: Path):

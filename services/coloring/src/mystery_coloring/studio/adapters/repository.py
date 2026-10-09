@@ -188,7 +188,10 @@ class SqliteRepository:
 
     @staticmethod
     def same_settings(left, right):
-        return all(left[k] == right[k] for k in ("colors", "min_area_mm2", "font_size_pt"))
+        return all(
+            left[k] == right[k]
+            for k in ("colors", "min_area_mm2", "font_size_pt", "artificial_grid")
+        )
 
     def page(self, page_id):
         with closing(self.connect()) as db:

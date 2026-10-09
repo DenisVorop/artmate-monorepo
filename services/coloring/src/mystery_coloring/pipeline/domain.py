@@ -14,6 +14,7 @@ class PipelineSettings:
     min_area_mm2: float = 5
     font_size_pt: float = 6
     image_width_mm: float = 180
+    artificial_grid: bool = True
 
     def __post_init__(self):
         if type(self.colors) is not int or not 2 <= self.colors <= 35:
@@ -21,6 +22,8 @@ class PipelineSettings:
         for name in ("min_area_mm2", "font_size_pt", "image_width_mm"):
             if type(getattr(self, name)) not in (int, float):
                 raise StageError(f"{name}: требуется число.")
+        if type(self.artificial_grid) is not bool:
+            raise StageError("Искусственная сетка: требуется true или false.")
         self.geometry()
         self.subdivision()
         self.numbering()
@@ -35,7 +38,7 @@ class PipelineSettings:
         return SubdivisionSettings(
             min_area_mm2=self.min_area_mm2,
             label_font_size_pt=self.font_size_pt,
-            target_area_mm2=max(60, 2 * self.min_area_mm2),
+            target_area_mm2=max(60, 2 * self.min_area_mm2) if self.artificial_grid else None,
         )
 
     def numbering(self) -> NumberingSettings:

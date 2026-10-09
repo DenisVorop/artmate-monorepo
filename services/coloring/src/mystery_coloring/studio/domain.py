@@ -13,7 +13,12 @@ ARTIFACTS = (
     "result.json",
     "manifest.json",
 )
-DEFAULT_SETTINGS = {"colors": 20, "min_area_mm2": 3.5, "font_size_px": 5.16}
+DEFAULT_SETTINGS = {
+    "colors": 20,
+    "min_area_mm2": 3.5,
+    "font_size_px": 5.16,
+    "artificial_grid": True,
+}
 
 
 class StudioError(Exception):
@@ -55,7 +60,10 @@ def settings(values, *, partial=False):
         raise StudioError("Размер символов должен быть числом.")
     try:
         LayoutSettings(
-            colors=merged["colors"], min_area_mm2=merged["min_area_mm2"], font_size_pt=px * 0.75
+            colors=merged["colors"],
+            min_area_mm2=merged["min_area_mm2"],
+            font_size_pt=px * 0.75,
+            artificial_grid=merged["artificial_grid"],
         )
     except StageError as error:
         raise StudioError(str(error)) from error
@@ -69,6 +77,7 @@ def pipeline_settings(values):
         "min_area_mm2": merged["min_area_mm2"],
         "font_size_pt": merged["font_size_px"] * 0.75,
         "start_page": 1,
+        "artificial_grid": merged["artificial_grid"],
     }
 
 

@@ -3,11 +3,11 @@
 from dataclasses import dataclass
 
 from mystery_coloring.details.domain import FaceAnalysis
-from mystery_coloring.layout.domain import ArtMateTemplate, LayoutSettings, Rectangle
+from mystery_coloring.layout.domain import ArtMateTemplate, ArtworkPlacement, LayoutSettings
 from mystery_coloring.numbering.domain import NumberingInput, NumberingResult
 from mystery_coloring.pipeline.domain import PipelineSettings
 
-ALGORITHM_VERSION = "coloring-delivery-v5-profiles"
+ALGORITHM_VERSION = "coloring-delivery-v15-detail-provenance"
 
 
 @dataclass(frozen=True)
@@ -17,7 +17,7 @@ class ComputedPage:
     settings: LayoutSettings
     pipeline: PipelineSettings
     template: ArtMateTemplate
-    artwork: Rectangle
+    artwork: ArtworkPlacement
     source_sha256: str
     original_size: tuple[int, int]
     oriented_size: tuple[int, int]

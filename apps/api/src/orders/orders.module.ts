@@ -12,6 +12,7 @@ import { TBankModule } from "../tbank/tbank.module";
 import { UsersModule } from "../users/users.module";
 import { LoyaltyModule } from "../loyalty/loyalty.module";
 import { OrdersLoyaltyService } from "./orders-loyalty.service";
+import { OrderDeliveryStatusService } from "./delivery-status/order-delivery-status.service";
 
 import { CheckoutThrottleService } from "./checkout-throttle.service";
 import { OrdersController } from "./orders.controller";
@@ -46,6 +47,8 @@ import { OrderRefundsService } from "./refunds/order-refunds.service";
     PaymentRecoveryService,
     PaymentRecoveryWorker,
     OrderRefundsService,
+    OrderDeliveryStatusService,
   ],
+  exports: [OrderDeliveryStatusService],
 })
 export class OrdersModule {}

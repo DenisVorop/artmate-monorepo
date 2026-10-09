@@ -3,6 +3,7 @@
 import { MapPin } from "lucide-react";
 import { useEffect, useRef, useState } from "react";
 
+import { cn } from "@/shared/lib";
 import { Button, Label, RadioGroup, RadioGroupItem } from "@/shared/ui";
 
 import {
@@ -104,7 +105,7 @@ export function DeliveryMethodField({
         aria-labelledby="checkout-section-02-heading"
         value={selectedDelivery?.provider}
         onValueChange={(value) => chooseCompany(value as DeliveryCompanyCode)}
-        className="gap-0 divide-y border-y"
+        className="gap-2"
       >
         {deliveryCompanies.map((company) => {
           const isAvailable = company.code === "cdek" || isOzonDeliveryAvailable;
@@ -114,16 +115,19 @@ export function DeliveryMethodField({
             <Label
               key={company.code}
               htmlFor={`checkout-delivery-${company.code}`}
-              className="flex min-h-20 cursor-pointer items-start gap-3 py-4 font-normal"
+              className={cn(
+                "flex min-h-20 min-w-0 cursor-pointer items-start gap-3 rounded-xl border border-border bg-background p-3 font-normal transition-colors hover:border-rose-200 hover:bg-rose-50/40 has-data-[state=checked]:border-rose-300 has-data-[state=checked]:bg-rose-50/60 has-data-[state=checked]:ring-1 has-data-[state=checked]:ring-rose-200/60 dark:hover:bg-rose-950/20 dark:has-data-[state=checked]:border-rose-700 dark:has-data-[state=checked]:bg-rose-950/20 dark:has-data-[state=checked]:ring-rose-800/60",
+                !isAvailable && "cursor-not-allowed opacity-50",
+              )}
             >
               <RadioGroupItem
                 id={`checkout-delivery-${company.code}`}
                 value={company.code}
                 disabled={!isAvailable}
-                className="mt-0.5"
+                className="mt-0.5 data-[state=checked]:border-rose-500 data-[state=checked]:text-rose-500"
               />
               <span className="min-w-0 flex-1 space-y-1">
-                <span className="flex items-center justify-between gap-4">
+                <span className="flex flex-col gap-1 sm:flex-row sm:items-center sm:justify-between sm:gap-4">
                   <span className="font-medium">Пункт выдачи {company.label}</span>
                   <span className="shrink-0 font-semibold">
                     {!isAvailable
@@ -157,7 +161,7 @@ export function DeliveryMethodField({
       <Button
         type="button"
         variant="link"
-        className="min-h-11 h-auto px-0 text-rose-600"
+        className="h-auto min-h-11 px-0 text-rose-600"
         onClick={() => {
           setPickerCompany(selectedDelivery?.provider ?? pickerCompany);
           setIsPickerOpen(true);

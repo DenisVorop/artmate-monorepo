@@ -13,6 +13,7 @@ import { ColoringsModule } from "./colorings/colorings.module";
 import { CsrfMiddleware } from "./common/csrf.middleware";
 import { SecurityHeadersMiddleware } from "./common/security-headers.middleware";
 import { ContactsModule } from "./contacts/contacts.module";
+import { CronModule } from "./cron/cron.module";
 import { ContentAssistantModule } from "./content-assistant/content-assistant.module";
 import { DeliveryModule } from "./delivery/delivery.module";
 import { FeatureBannersModule } from "./feature-banners/feature-banners.module";
@@ -31,6 +32,7 @@ import { MaterialsModule } from "./materials/materials.module";
 @Module({
   imports: [
     PrismaModule,
+    CronModule,
     AchievementsModule,
     AffiliateModule,
     AnalyticsModule,

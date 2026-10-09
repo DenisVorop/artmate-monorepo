@@ -103,6 +103,7 @@ export type AdminOrderDTO = {
   currency: "RUB";
   comment?: string;
   adminComments: AdminOrderCommentDTO[];
+  ozonPostingNumbers: string[];
   history: AdminOrderHistoryEventDTO[];
   shipments: OrderShipmentDTO[];
   createdAt: string;

@@ -1,5 +1,41 @@
 # Changelog
 
+## [0.47.1](https://github.com/DenisVorop/artmate-monorepo/compare/v0.47.0...v0.47.1) (2026-10-03)
+
+
+### Bug Fixes
+
+* **site:** remove Dolyame promotional widgets ([60881ca](https://github.com/DenisVorop/artmate-monorepo/commit/60881caa931d62ddb41280b23864bf5ec583fa2e))
+
+## [0.47.0](https://github.com/DenisVorop/artmate-monorepo/compare/v0.46.0...v0.47.0) (2026-10-03)
+
+
+### Features
+
+* **site:** add Dolyame and refine checkout UI ([a165d36](https://github.com/DenisVorop/artmate-monorepo/commit/a165d3671ee7e6b772c50f3e7adff5e6d96c521d))
+
+## [0.46.0](https://github.com/DenisVorop/artmate-monorepo/compare/v0.45.0...v0.46.0) (2026-09-29)
+
+
+### Features
+
+* **coloring:** preserve and smooth thin strokes ([970c657](https://github.com/DenisVorop/artmate-monorepo/commit/970c6579a0a16e6cca8b25700dad8054b07220d1))
+* **studio:** refine coloring page generation ([6e73f68](https://github.com/DenisVorop/artmate-monorepo/commit/6e73f68c2661f83a6971a20b2fe4cff61f2e82ac))
+
+## [0.45.0](https://github.com/DenisVorop/artmate-monorepo/compare/v0.44.0...v0.45.0) (2026-09-28)
+
+
+### Features
+
+* **orders:** track Ozon deliveries with cron ([957eca2](https://github.com/DenisVorop/artmate-monorepo/commit/957eca255cc2a1000f1a72ae09566bf4e5a7ab37))
+
+## [0.44.0](https://github.com/DenisVorop/artmate-monorepo/compare/v0.43.0...v0.44.0) (2026-09-24)
+
+
+### Features
+
+* **site:** redesign account order cards ([de65c7a](https://github.com/DenisVorop/artmate-monorepo/commit/de65c7acf20ba05f0b4195b253df9388fe70bbf5))
+
 ## [0.43.0](https://github.com/DenisVorop/artmate-monorepo/compare/v0.42.0...v0.43.0) (2026-09-23)
 
 

@@ -67,11 +67,12 @@ class CurvedSubdivisionProcessor:
             raise StageError("Вход уже превышает --max-regions.")
         symbols = palette_symbols(source.palette)
         fitter = LabelFitter(settings, scale, self.font, symbols)
-        threshold = settings.target_area_mm2 * 1.5
+        threshold = settings.target_area_mm2 * 1.5 if settings.target_area_mm2 is not None else None
         pending = [
             (-area, i)
             for i, area in areas.items()
-            if area > threshold
+            if threshold is not None
+            and area > threshold
             and not cells[i].prefilled
             and symbols[cells[i].color_index] is not None
         ]
@@ -91,7 +92,7 @@ class CurvedSubdivisionProcessor:
             split_count += 1
             for child in children:
                 area = cell_area(cells[child], edges, scale)
-                if area > threshold:
+                if threshold is not None and area > threshold:
                     heapq.heappush(pending, (-area, child))
         mesh = Mesh(
             tuple(sorted(edges.values(), key=lambda e: e.id)),
@@ -121,7 +122,10 @@ class CurvedSubdivisionProcessor:
             tuple(
                 c.id
                 for c, a in zip(mesh.cells, final_areas, strict=True)
-                if a > threshold and not c.prefilled and symbols[c.color_index] is not None
+                if threshold is not None
+                and a > threshold
+                and not c.prefilled
+                and symbols[c.color_index] is not None
             ),
             tuple(sorted(stop_reasons.items())),
             drift,

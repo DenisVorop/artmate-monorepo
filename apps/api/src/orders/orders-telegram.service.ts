@@ -1,6 +1,7 @@
 import { Injectable, InternalServerErrorException } from "@nestjs/common";
 
 import { NotificationQueueService } from "../notifications/notification-queue.service";
+import type { Prisma } from "../generated/prisma/client";
 
 import type { OrderDTO } from "./dto";
 import type { OrderStatus } from "./orders.constants";
@@ -47,15 +48,20 @@ export class OrdersTelegramService {
     );
   }
 
-  async sendOrderStatusChangedToCustomer(input: {
-    chatId: string;
-    order: OrderDTO;
-    previousStatus: OrderStatus;
-    nextStatus: OrderStatus;
-  }) {
+  async sendOrderStatusChangedToCustomer(
+    input: {
+      chatId: string;
+      order: OrderDTO;
+      previousStatus: OrderStatus;
+      nextStatus: OrderStatus;
+    },
+    writer?: Prisma.TransactionClient,
+  ) {
     await this.enqueueCustomerTelegram(
       input.chatId,
       this.formatOrderStatusChangedMessage(input),
+      undefined,
+      writer,
     );
   }
 
@@ -95,26 +101,30 @@ export class OrdersTelegramService {
     chatId: string,
     text: string,
     action?: { buttonText: string; buttonUrl: string },
+    writer?: Prisma.TransactionClient,
   ) {
-    await this.notificationQueueService.enqueueTelegram({
-      bot: "mini_app",
-      chatId,
-      disableWebPagePreview: true,
-      parseMode: "HTML",
-      replyMarkup: {
-        inline_keyboard: [
-          [
-            {
-              text: action?.buttonText ?? "Открыть Artmate",
-              web_app: {
-                url: action?.buttonUrl ?? this.getTelegramWebAppUrl(),
+    await this.notificationQueueService.enqueueTelegram(
+      {
+        bot: "mini_app",
+        chatId,
+        disableWebPagePreview: true,
+        parseMode: "HTML",
+        replyMarkup: {
+          inline_keyboard: [
+            [
+              {
+                text: action?.buttonText ?? "Открыть Artmate",
+                web_app: {
+                  url: action?.buttonUrl ?? this.getTelegramWebAppUrl(),
+                },
               },
-            },
+            ],
           ],
-        ],
+        },
+        text,
       },
-      text,
-    });
+      writer,
+    );
   }
 
   private formatOrderMessage(order: OrderDTO) {
