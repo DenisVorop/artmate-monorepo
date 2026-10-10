@@ -86,6 +86,16 @@ export { RadioGroup, RadioGroupItem } from "./radio-group";
 export { ResponsiveMediaViewer } from "./responsive-media-viewer";
 export { Separator } from "./separator";
 export {
+  Sheet,
+  SheetTrigger,
+  SheetClose,
+  SheetContent,
+  SheetHeader,
+  SheetFooter,
+  SheetTitle,
+  SheetDescription,
+} from "./sheet";
+export {
   Select,
   SelectContent,
   SelectGroup,

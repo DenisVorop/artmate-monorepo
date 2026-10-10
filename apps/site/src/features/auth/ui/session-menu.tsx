@@ -1,7 +1,7 @@
 "use client";
 
 import { useRouter } from "next/navigation";
-import { LoaderCircle, LogIn, LogOut, Palette, UserRound } from "lucide-react";
+import { LoaderCircle, LogOut, Palette, UserRound } from "lucide-react";
 
 import { getSessionUserDisplayName, useSession } from "@/entities/session";
 import { routes } from "@/shared/constants";
@@ -27,19 +27,29 @@ export function SessionMenu() {
 
   if (isSessionPending) {
     return (
-      <Button type="button" variant="outline" disabled>
-        <LoaderCircle data-icon="inline-start" className="animate-spin" />
-        <span className="hidden sm:inline">Аккаунт</span>
+      <Button
+        type="button"
+        variant="ghost"
+        size="icon-lg"
+        className="size-11 rounded-full text-stone-900 hover:bg-stone-100 aria-expanded:bg-stone-100"
+        aria-label="Загружаем аккаунт"
+        disabled
+      >
+        <LoaderCircle aria-hidden="true" className="animate-spin" />
       </Button>
     );
   }
 
   if (!user) {
     return (
-      <Button asChild variant="outline">
-        <Link href={routes.auth}>
-          <LogIn data-icon="inline-start" />
-          <span className="hidden sm:inline">Войти</span>
+      <Button
+        asChild
+        variant="ghost"
+        size="icon-lg"
+        className="size-11 rounded-full text-stone-900 hover:bg-stone-100 aria-expanded:bg-stone-100"
+      >
+        <Link href={routes.auth} aria-label="Войти">
+          <UserRound aria-hidden="true" className="size-5" strokeWidth={1.5} />
         </Link>
       </Button>
     );
@@ -50,15 +60,20 @@ export function SessionMenu() {
   return (
     <DropdownMenu>
       <DropdownMenuTrigger asChild>
-        <Button type="button" variant="outline" className="max-w-44">
-          <UserRound data-icon="inline-start" />
-          <span className="hidden min-w-0 truncate sm:inline">{title}</span>
+        <Button
+          type="button"
+          variant="ghost"
+          size="icon-lg"
+          className="size-11 rounded-full text-stone-900 hover:bg-stone-100 aria-expanded:bg-stone-100"
+          aria-label={`${title} — личный кабинет`}
+        >
+          <UserRound aria-hidden="true" className="size-5" strokeWidth={1.5} />
         </Button>
       </DropdownMenuTrigger>
       <DropdownMenuContent
         align="end"
         sideOffset={16}
-        className="w-64 border-stone-200 bg-white p-2 text-stone-900 shadow-xl shadow-stone-900/10"
+        className="w-64 rounded-2xl border-stone-100 bg-white p-2 text-stone-900 shadow-lg shadow-stone-900/5"
       >
         <DropdownMenuLabel>
           <span className="block truncate font-medium">{title}</span>

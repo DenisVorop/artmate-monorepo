@@ -1,9 +1,9 @@
-import { useEffect, useState } from "react";
+"use client";
+
 import { usePathname } from "next/navigation";
-import { motion } from "motion/react";
-import { MenuIcon } from "lucide-react";
-import { routes } from "@/shared/constants";
-import { cn } from "@/shared/lib";
+import { ChevronDown } from "lucide-react";
+
+import { cn } from "@/shared/lib/utils";
 import {
   Button,
   DropdownMenu,
@@ -13,53 +13,15 @@ import {
 } from "@/shared/ui";
 import { Link } from "@/shared/ui/link";
 
-const navItems = [
-  {
-    href: routes.catalog,
-    title: "Каталог",
-  },
-  {
-    href: routes.colorings,
-    title: "Цифровые версии",
-  },
-  {
-    href: routes.paymentAndDelivery,
-    title: "Оплата и доставка",
-  },
-  {
-    href: routes.contacts,
-    title: "Контакты",
-  },
-  {
-    href: routes.blog,
-    title: "Блог",
-  },
-  {
-    href: routes.faq,
-    title: "FAQ",
-  },
-];
-
-function isRouteActive(pathname: string, href: string) {
-  return pathname === href || pathname.startsWith(`${href}/`);
-}
-
-function ActiveLinkIndicator() {
-  return (
-    <motion.span
-      layoutId="site-header-active-link"
-      className="absolute right-2 bottom-0 left-2 h-0.5 rounded-full bg-gradient-to-r from-rose-500 to-orange-400"
-      transition={{ type: "spring", stiffness: 500, damping: 38 }}
-    />
-  );
-}
+import { desktopHelpItems, desktopNavItems, isRouteActive } from "../lib/navigation";
 
 export function Menu() {
   const pathname = usePathname();
+  const isHelpActive = desktopHelpItems.some((item) => isRouteActive(pathname, item.href));
 
   return (
-    <ul className="flex items-center gap-0.5 text-xs font-medium text-muted-foreground xl:gap-1 xl:text-sm">
-      {navItems.map((item) => {
+    <ul className="flex items-center gap-5 text-sm font-medium xl:gap-7">
+      {desktopNavItems.map((item) => {
         const isActive = isRouteActive(pathname, item.href);
 
         return (
@@ -68,70 +30,56 @@ export function Menu() {
               href={item.href}
               aria-current={isActive ? "page" : undefined}
               className={cn(
-                "relative inline-flex h-9 items-center rounded-md px-2 transition-colors hover:bg-rose-50 hover:text-rose-950 xl:px-3",
-                isActive ? "text-rose-950" : "text-muted-foreground",
+                "relative inline-flex h-11 items-center whitespace-nowrap transition-colors hover:text-stone-950 focus-visible:ring-2 focus-visible:ring-stone-300",
+                isActive
+                  ? "text-stone-950 after:absolute after:inset-x-0 after:bottom-1 after:h-px after:bg-rose-500"
+                  : "text-stone-500",
               )}
             >
-              {isActive && <ActiveLinkIndicator />}
-              <span className="relative z-[1]">{item.title}</span>
+              {item.title}
             </Link>
           </li>
         );
       })}
+      <li>
+        <DropdownMenu>
+          <DropdownMenuTrigger asChild>
+            <Button
+              variant="ghost"
+              className={cn(
+                "relative h-11 gap-1.5 rounded-none px-0 transition-colors hover:bg-transparent hover:text-stone-950 focus-visible:ring-stone-300 aria-expanded:bg-transparent aria-expanded:text-stone-950",
+                isHelpActive
+                  ? "text-stone-950 after:absolute after:inset-x-0 after:bottom-1 after:h-px after:bg-rose-500"
+                  : "text-stone-500",
+              )}
+            >
+              Помощь
+              <ChevronDown
+                aria-hidden="true"
+                className="size-3.5 transition-transform group-aria-expanded/button:rotate-180"
+                strokeWidth={1.5}
+              />
+            </Button>
+          </DropdownMenuTrigger>
+          <DropdownMenuContent
+            align="end"
+            sideOffset={16}
+            className="w-56 rounded-2xl border-stone-100 p-2 shadow-lg shadow-stone-900/5"
+          >
+            {desktopHelpItems.map((item) => (
+              <DropdownMenuItem key={item.href} asChild>
+                <Link
+                  href={item.href}
+                  aria-current={isRouteActive(pathname, item.href) ? "page" : undefined}
+                  className="min-h-11 rounded-lg px-3 text-sm"
+                >
+                  {item.title}
+                </Link>
+              </DropdownMenuItem>
+            ))}
+          </DropdownMenuContent>
+        </DropdownMenu>
+      </li>
     </ul>
-  );
-}
-
-export function MobileMenu() {
-  const pathname = usePathname();
-  const [isOpen, setIsOpen] = useState(false);
-
-  useEffect(() => {
-    setIsOpen(false);
-  }, [pathname]);
-
-  return (
-    <DropdownMenu open={isOpen} onOpenChange={setIsOpen}>
-      <DropdownMenuTrigger asChild>
-        <Button
-          type="button"
-          variant="outline"
-          size="icon-lg"
-          aria-label="Открыть меню"
-          className="lg:hidden"
-        >
-          <MenuIcon />
-        </Button>
-      </DropdownMenuTrigger>
-      <DropdownMenuContent
-        align="end"
-        sideOffset={12}
-        className="w-[min(calc(100vw-2rem),20rem)] border-stone-200 bg-white p-2 text-stone-900 shadow-xl shadow-stone-900/10 lg:hidden"
-      >
-        {navItems.map((item) => {
-          const isActive = isRouteActive(pathname, item.href);
-
-          return (
-            <DropdownMenuItem key={item.href} asChild onSelect={() => setIsOpen(false)}>
-              <Link
-                href={item.href}
-                aria-current={isActive ? "page" : undefined}
-                onClick={() => setIsOpen(false)}
-                className={cn(
-                  "relative flex min-h-11 w-full items-center rounded-md px-3 text-sm font-medium text-muted-foreground",
-                  "hover:bg-rose-50 hover:text-rose-950",
-                  isActive && "bg-rose-50 text-rose-950",
-                )}
-              >
-                {isActive && (
-                  <span className="absolute top-2 bottom-2 left-0 w-0.5 rounded-full bg-gradient-to-b from-rose-500 to-orange-400" />
-                )}
-                {item.title}
-              </Link>
-            </DropdownMenuItem>
-          );
-        })}
-      </DropdownMenuContent>
-    </DropdownMenu>
   );
 }
