@@ -16,6 +16,7 @@ interface ProductCardProps {
   mediaAspectRatio?: number;
   variant?: "default" | "plain";
   footerAction?: ReactNode;
+  mediaBadge?: ReactNode;
   mediaAction?: ReactNode;
   mediaActionViewport?: "all" | "desktop";
   mediaActionVisibility?: "always" | "hover";
@@ -28,6 +29,7 @@ export function ProductCard({
   mediaAspectRatio = 3 / 4,
   variant = "default",
   footerAction,
+  mediaBadge,
   mediaAction,
   mediaActionViewport = "all",
   mediaActionVisibility = "hover",
@@ -70,12 +72,18 @@ export function ProductCard({
           </AspectRatio>
         </Link>
 
-        {product.isHit && (
-          <Badge className="absolute top-3 left-3 bg-rose-500 text-white shadow-sm">Хит</Badge>
-        )}
+        <div
+          className={cn(
+            "absolute top-3 left-3 z-10 flex flex-wrap items-center gap-1.5 empty:hidden",
+            discountPercent > 0 ? "max-w-[calc(100%-5.5rem)]" : "max-w-[calc(100%-1.5rem)]",
+          )}
+        >
+          {product.isHit && <Badge className="h-6 bg-rose-500 text-white shadow-sm">Хит</Badge>}
+          {mediaBadge}
+        </div>
 
         {discountPercent > 0 && (
-          <Badge className="pointer-events-none absolute top-3 right-3 border-rose-100 bg-white text-rose-700 shadow-sm">
+          <Badge className="pointer-events-none absolute top-3 right-3 h-6 border-rose-100 bg-white text-rose-700 shadow-sm">
             −{discountPercent}%
           </Badge>
         )}

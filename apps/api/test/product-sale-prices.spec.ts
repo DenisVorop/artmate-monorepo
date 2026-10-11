@@ -110,6 +110,12 @@ describe("Product sale prices", () => {
     assert.equal(created.priceRub, 799);
     assert.equal(created.salePrice, 69_900);
     assert.equal(created.salePriceRub, 699);
+    assert.deepEqual(created.loyaltyRewards, [
+      { ratePercent: 3, points: 105 },
+      { ratePercent: 5, points: 175 },
+      { ratePercent: 7, points: 245 },
+      { ratePercent: 10, points: 350 },
+    ]);
     assert.equal(getProductPrice(stored()), 69_900);
     const unchanged = await service.updateProduct("album", {
       title: "Новое название",
@@ -119,6 +125,7 @@ describe("Product sale prices", () => {
       salePriceRub: null,
     });
     assert.equal(cleared.salePriceRub, null);
+    assert.equal(cleared.loyaltyRewards[0]?.points, 120);
     assert.equal(getProductPrice(stored()), 79_900);
   });
 

@@ -77,6 +77,7 @@ function mapCatalogLanding(landing: ApiCatalogLandingPageDTO): CatalogLandingPag
           slug: product.slug,
           price: product.salePriceRub ?? product.priceRub,
           originalPrice: product.salePriceRub != null ? product.priceRub : undefined,
+          loyaltyRewards: product.loyaltyRewards,
           category: product.category?.title,
           categoryId: product.categoryId,
           categorySlug: product.category?.slug,

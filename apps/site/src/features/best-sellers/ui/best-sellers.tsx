@@ -2,6 +2,7 @@
 
 import { useProductsData } from "@/entities/products";
 import { CartProductCard } from "@/features/cart";
+import { ProductCashback } from "@/features/product-cashback";
 import { DataState } from "@/shared/ui";
 
 import { BaseBestsellers } from "./base-bestsellers";
@@ -36,7 +37,12 @@ export function Bestsellers({ className }: BestsellersProps) {
       products={products.data.products}
       className={className}
       renderProductCard={(product, index) => (
-        <CartProductCard product={product} list="best_sellers" position={index + 1} />
+        <CartProductCard
+          product={product}
+          cashback={<ProductCashback product={product} />}
+          list="best_sellers"
+          position={index + 1}
+        />
       )}
     />
   );

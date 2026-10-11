@@ -494,6 +494,7 @@ test("product navigation groups conditional anchors beside reviews, and works fo
   const { ProductDetails } = await load("src/features/product-details/ui/product-details.tsx", {
     "@/features/cart": { CartProductCard: box, useAddProductToCart: () => () => {} },
     "@/features/product-purchase": { ProductPurchase: box },
+    "@/features/product-cashback": { ProductCashback: box },
     "@/entities/community-work": { useCollectionCommunityWorks: () => ({ works }) },
     "@/entities/products": {
       ...components,

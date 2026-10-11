@@ -26,6 +26,7 @@ export type Product = {
   slug: string;
   price: number;
   originalPrice?: number;
+  loyaltyRewards: { ratePercent: number; points: number }[];
   category?: string;
   categoryId?: string;
   categorySlug?: string;
@@ -96,6 +97,7 @@ export type ApiProductDTO = {
   priceRub: number;
   salePrice: number | null;
   salePriceRub: number | null;
+  loyaltyRewards: { ratePercent: number; points: number }[];
   currency: "RUB";
   images: ApiProductImageDTO[];
   tags: ApiProductTagDTO[];

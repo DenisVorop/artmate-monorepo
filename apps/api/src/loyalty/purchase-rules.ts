@@ -31,3 +31,11 @@ export function purchasePointsForAmount(kopecks: bigint, rate: number): bigint {
     throw new Error("Purchase reward exceeds safe point range");
   return points;
 }
+
+/** Public estimates for one item, before order-level promo codes or point spending. */
+export function purchaseRewardsForAmount(kopecks: bigint) {
+  return purchaseTiers.map(({ ratePercent }) => ({
+    ratePercent,
+    points: Number(purchasePointsForAmount(kopecks, ratePercent)),
+  }));
+}

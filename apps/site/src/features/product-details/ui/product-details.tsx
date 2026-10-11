@@ -2,6 +2,7 @@
 
 import { CartProductCard, useAddProductToCart } from "@/features/cart";
 import { ProductPurchase } from "@/features/product-purchase";
+import { ProductCashback } from "@/features/product-cashback";
 import { useCollectionCommunityWorks } from "@/entities/community-work";
 import {
   Characteristics,
@@ -90,7 +91,7 @@ export function ProductDetails({ productId }: ProductDetailsProps) {
 
           <div className="min-w-0 space-y-6">
             {reviewsStats && <ReviewRatingSummary stats={reviewsStats} className="justify-start" />}
-            <Summary product={product} />
+            <Summary product={product} cashback={<ProductCashback product={product} />} />
             <ProductPurchase product={product} onAddToCart={addProductToCart} />
             <Highlights characteristics={product.characteristics} />
             <DetailsTabs
@@ -137,6 +138,7 @@ export function ProductDetails({ productId }: ProductDetailsProps) {
           renderProductCard={(relatedProduct, index) => (
             <CartProductCard
               product={relatedProduct}
+              cashback={<ProductCashback product={relatedProduct} />}
               list="related_products"
               position={index + 1}
             />
