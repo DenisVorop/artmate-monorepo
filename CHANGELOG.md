@@ -1,5 +1,21 @@
 # Changelog
 
+## [0.49.0](https://github.com/DenisVorop/artmate-monorepo/compare/v0.48.0...v0.49.0) (2026-10-11)
+
+
+### Features
+
+* add sale prices and refine product cards ([0604fb7](https://github.com/DenisVorop/artmate-monorepo/commit/0604fb73dc97b9913a1b6cfc0e2f520fbf17d7ae))
+* **site:** add product cashback badges ([39b181f](https://github.com/DenisVorop/artmate-monorepo/commit/39b181f60270ed5fde00e8949469975f738c36ad))
+* **site:** redesign header and mobile menu ([bda63ea](https://github.com/DenisVorop/artmate-monorepo/commit/bda63ea2e299471322425b43180f7cab099160c8))
+* **site:** refine cart and checkout UX ([83245dc](https://github.com/DenisVorop/artmate-monorepo/commit/83245dc1fe16bdadf57734ca67639db1c558b63c))
+
+
+### Bug Fixes
+
+* **site:** contain horizontal page overflow ([4242b5e](https://github.com/DenisVorop/artmate-monorepo/commit/4242b5ecfd055db647c1fbebc0b5ce836b0e8ded))
+* **site:** refine catalog button and header border ([dbd3408](https://github.com/DenisVorop/artmate-monorepo/commit/dbd3408b257da3a6a64ebbc0954059e7fb671bd7))
+
 ## [0.48.0](https://github.com/DenisVorop/artmate-monorepo/compare/v0.47.1...v0.48.0) (2026-10-09)
 
 
