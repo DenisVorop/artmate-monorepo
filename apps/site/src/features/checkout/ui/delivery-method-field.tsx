@@ -8,6 +8,7 @@ import { Label, RadioGroup, RadioGroupItem } from "@/shared/ui";
 
 import {
   createDeliveryPickerDrafts,
+  formatEstimatedDeliveryDateRange,
   formatMoney,
   getDeliveryDraftCandidate,
   isSameDeliverySelection,
@@ -47,6 +48,9 @@ export function DeliveryMethodField({
   const calculation =
     checkoutCalculation.status === "ready" ? checkoutCalculation.calculation : undefined;
   const selectedAddress = calculation?.delivery.pickupPoint.address;
+  const estimatedDeliveryDate = calculation?.estimatedDeliveryDateRange
+    ? formatEstimatedDeliveryDateRange(calculation.estimatedDeliveryDateRange)
+    : undefined;
   const candidate = getDeliveryDraftCandidate(drafts, pickerCompany);
 
   useEffect(() => {
@@ -144,17 +148,24 @@ export function DeliveryMethodField({
                           : `Доставка от ${formatMoney(minimumDeliveryPrices.ozon)}`}
                   </span>
                 </span>
-                <span className="block text-sm text-muted-foreground">
-                  {isAvailable
-                    ? isSelected && checkoutCalculation.status === "pending"
-                      ? "Считаем точную стоимость и срок"
-                      : "Точная стоимость и срок после выбора ПВЗ"
-                    : "Недоступно для этой корзины"}
-                </span>
+                {!(isSelected && calculation) ? (
+                  <span className="block text-sm text-muted-foreground">
+                    {isAvailable
+                      ? isSelected && checkoutCalculation.status === "pending"
+                        ? "Считаем точную стоимость и срок"
+                        : "Точная стоимость и срок после выбора ПВЗ"
+                      : "Недоступно для этой корзины"}
+                  </span>
+                ) : null}
                 {isSelected && selectedAddress ? (
                   <span className="flex items-start gap-2 pt-1 text-sm text-muted-foreground">
                     <MapPin aria-hidden="true" className="mt-0.5 size-4 shrink-0" />
-                    <span>{selectedAddress}</span>
+                    <span>
+                      {selectedAddress}
+                      {estimatedDeliveryDate ? (
+                        <span className="mt-1 block text-xs">{estimatedDeliveryDate}</span>
+                      ) : null}
+                    </span>
                   </span>
                 ) : null}
               </span>

@@ -2,8 +2,13 @@
 
 import { useState, type ReactNode } from "react";
 import { FormProvider, useForm } from "react-hook-form";
+import { zodResolver } from "@hookform/resolvers/zod";
 
-import { getDefaultCheckoutFormValues, type CheckoutFormValues } from "../checkout-form";
+import {
+  checkoutFormValidationSchema,
+  getDefaultCheckoutFormValues,
+  type CheckoutFormValues,
+} from "../checkout-form";
 import { CheckoutContext, type CheckoutContextValue } from "../checkout-provider/checkout.context";
 import { createPreviewCalculation } from "../preview-data";
 import { CheckoutPreviewContext } from "./checkout-preview.context";
@@ -14,6 +19,7 @@ export function CheckoutPreviewProvider({ children }: { children: ReactNode }) {
   const [hasDelivery, setHasDelivery] = useState(true);
   const [notice, setNotice] = useState("");
   const form = useForm<CheckoutFormValues>({
+    resolver: zodResolver(checkoutFormValidationSchema),
     defaultValues: getDefaultCheckoutFormValues({
       name: "Анна Иванова",
       phone: "+7 (999) 123-45-67",
@@ -46,7 +52,7 @@ export function CheckoutPreviewProvider({ children }: { children: ReactNode }) {
     submitOrder: (event) => {
       event.preventDefault();
       if (!hasDelivery) setHasDelivery(true);
-      else setNotice("Это предпросмотр. Заказ не создаётся.");
+      else void form.handleSubmit(() => setNotice("Это предпросмотр. Заказ не создаётся."))(event);
     },
   };
   return (

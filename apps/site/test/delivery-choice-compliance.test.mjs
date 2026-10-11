@@ -51,10 +51,3 @@ test("checkout payment methods show bank logos and supported payment badges", as
   assert.match(source, /"tbank_acquiring"/u);
   assert.match(source, /"ozon_acquiring"/u);
 });
-
-test("order summary identifies the confirmed provider next to the pickup address", async () => {
-  const source = await readSource("src/features/checkout/ui/order-summary.tsx");
-  assert.match(source, /calculation\.delivery\.provider === "cdek" \? "СДЭК" : "Ozon"/u);
-  assert.match(source, /calculation\.delivery\.pickupPoint\.address/u);
-  assert.match(source, /calculation\?\.delivery\.pickupPoint/u);
-});

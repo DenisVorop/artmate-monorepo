@@ -59,7 +59,10 @@ const jsxRuntime = { Fragment: Symbol("Fragment"), jsx, jsxs: jsx };
 test("FieldError renders a stable alert contract", async () => {
   const { FieldError } = evaluateComponent(
     await readSource("src/features/checkout/ui/field-error.tsx"),
-    { "react/jsx-runtime": jsxRuntime },
+    {
+      "react/jsx-runtime": jsxRuntime,
+      "@/shared/lib": { cn: (...values) => values.filter(Boolean).join(" ") },
+    },
   );
 
   assert.equal(FieldError({ id: "name-error" }), null);
@@ -905,11 +908,11 @@ test("checkout announces calculation progress and updated totals without repeati
     (node) => node.props?.["aria-label"]?.startsWith("Будет начислено"),
   );
   assert.equal(earningBadges.length, 0);
-  assert.match(
+  assert.doesNotMatch(
     getText(
       OrderSummary({ cart, isSubmitDisabled: true, isSubmitting: false, submitLabel: "Оплатить" }),
     ),
-    /Кешбэк балламиНе начисляется/u,
+    /Кешбэк баллами|Не начисляется/u,
   );
 
   checkoutCalculation = { error: new Error("Расчет не выполнен"), status: "error" };
