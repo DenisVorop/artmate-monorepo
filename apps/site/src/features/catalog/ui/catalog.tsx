@@ -2,6 +2,7 @@
 
 import { useProductsData } from "@/entities/products";
 import { CartProductCard } from "@/features/cart";
+import { ProductCashback } from "@/features/product-cashback";
 import { DataState } from "@/shared/ui";
 
 import { BaseCatalog } from "./base-catalog";
@@ -48,6 +49,7 @@ export function Catalog({ initialCategoryId }: CatalogProps) {
       renderProductCard={(product, index, placement) => (
         <CartProductCard
           product={product}
+          cashback={<ProductCashback product={product} />}
           mediaAspectRatio={3 / 4}
           variant="plain"
           eagerImage={index === 0}

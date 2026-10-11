@@ -92,6 +92,7 @@ test("product renders without requesting works on the server or waiting for a pe
   const { ProductDetails } = await load("features/product-details/ui/product-details.tsx", {
     "@/features/cart": { CartProductCard: empty, useAddProductToCart: () => empty },
     "@/features/product-purchase": { ProductPurchase: purchase },
+    "@/features/product-cashback": { ProductCashback: empty },
     "@/entities/community-work": { useCollectionCommunityWorks },
     "@/entities/products": {
       Characteristics: empty,

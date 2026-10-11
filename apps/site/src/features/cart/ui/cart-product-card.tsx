@@ -1,7 +1,7 @@
 "use client";
 
 import { LoaderCircle, Minus, Plus, ShoppingBag } from "lucide-react";
-import type { MouseEvent, MouseEventHandler } from "react";
+import type { MouseEvent, MouseEventHandler, ReactNode } from "react";
 import { useState } from "react";
 
 import { useCartData } from "@/entities/cart";
@@ -25,6 +25,7 @@ type CartProductCardProps = {
   readonly list: ProductListPlacement;
   readonly position?: number;
   readonly product: Product;
+  readonly cashback?: ReactNode;
 };
 
 type CartQuantityControlsProps = {
@@ -43,6 +44,7 @@ export function CartProductCard({
   list,
   position,
   product,
+  cashback,
 }: CartProductCardProps) {
   const [addErrorLabel, setAddErrorLabel] = useState<string>();
   const cart = useCartData();
@@ -149,6 +151,7 @@ export function CartProductCard({
       variant={variant}
       footerAction={<div className="w-[min(9.75rem,58%)] md:hidden">{renderCartAction()}</div>}
       product={product}
+      mediaBadge={cashback}
       mediaAction={renderCartAction()}
       mediaActionViewport="desktop"
       mediaActionVisibility={isInCart || isAdding ? "always" : "hover"}

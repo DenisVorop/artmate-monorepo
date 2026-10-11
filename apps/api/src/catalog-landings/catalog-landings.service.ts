@@ -16,6 +16,8 @@ import {
   ProductTagGroup as PrismaProductTagGroup,
 } from "../generated/prisma/client";
 import { PrismaService } from "../prisma/prisma.service";
+import { purchaseRewardsForAmount } from "../loyalty/purchase-rules";
+import { getProductPrice } from "../products/product-pricing";
 import { productTagGroups, type ProductTagGroup } from "../products/products.types";
 
 import type {
@@ -902,6 +904,7 @@ export class CatalogLandingsService {
       priceRub: Math.trunc(product.price / 100),
       salePrice: product.salePrice,
       salePriceRub: product.salePrice == null ? null : product.salePrice / 100,
+      loyaltyRewards: purchaseRewardsForAmount(BigInt(getProductPrice(product))),
       currency: product.currency as "RUB",
       images: product.images.map((image) => ({
         id: image.id,

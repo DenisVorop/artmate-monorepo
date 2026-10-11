@@ -31,6 +31,16 @@ export class ProductDigitalCollectionDTO {
   title!: string;
 }
 
+export class ProductLoyaltyRewardDTO {
+  @IsInt()
+  @Min(0)
+  ratePercent!: number;
+
+  @IsInt()
+  @Min(0)
+  points!: number;
+}
+
 export class ProductDTO {
   @IsString()
   id!: string;
@@ -92,6 +102,11 @@ export class ProductDTO {
   @IsInt()
   @Min(1)
   salePriceRub!: number | null;
+
+  @IsArray()
+  @ValidateNested({ each: true })
+  @Type(() => ProductLoyaltyRewardDTO)
+  loyaltyRewards!: ProductLoyaltyRewardDTO[];
 
   @IsIn(productCurrencies)
   currency!: ProductCurrency;

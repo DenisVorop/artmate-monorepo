@@ -2,6 +2,7 @@
 
 import type { Product } from "@/entities/products";
 import { CartProductCard } from "@/features/cart";
+import { ProductCashback } from "@/features/product-cashback";
 
 type CatalogLandingProductsProps = {
   readonly products: readonly Product[];
@@ -15,6 +16,7 @@ export function CatalogLandingProducts({ products }: CatalogLandingProductsProps
           <CartProductCard
             key={product.id}
             product={product}
+            cashback={<ProductCashback product={product} />}
             eagerImage={index === 0}
             list="catalog_landing"
             position={index + 1}
