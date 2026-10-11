@@ -472,7 +472,10 @@ test("checkout preview retains full and custom spending when removing or applyin
     {
       react: reactHarness.react,
       "react-hook-form": { FormProvider: "FormProvider", useForm: () => ({}) },
-      "../checkout-form": { getDefaultCheckoutFormValues: () => ({}) },
+      "../checkout-form": evaluateTypeScript(
+        await readSource("src/features/checkout/lib/checkout-form.ts"),
+        {},
+      ),
       "../checkout-provider/checkout.context": { CheckoutContext: { Provider: "CheckoutContext" } },
       "../preview-data": previewData,
       "./checkout-preview.context": {

@@ -4,7 +4,6 @@ import { useId } from "react";
 import { useFormContext } from "react-hook-form";
 
 import { routes } from "@/shared/constants";
-import { cn } from "@/shared/lib";
 import { PersonalDataConsentCheckbox } from "@/shared/ui";
 import { Link } from "@/shared/ui/link";
 
@@ -21,53 +20,50 @@ export function LegalField() {
   const personalDataConsentId = useId();
 
   return (
-    <div className="space-y-0">
-      <div className="space-y-1">
-        <div
-          className={cn(
-            "flex items-start gap-2 rounded-lg text-xs leading-5",
-            errors.acceptedLegal && "bg-destructive/5",
-          )}
+    <div className="space-y-2 [&_input[aria-invalid=true]]:outline [&_input[aria-invalid=true]]:outline-1 [&_input[aria-invalid=true]]:outline-offset-2 [&_input[aria-invalid=true]]:outline-destructive/50">
+      <div className="grid grid-cols-[1.25rem_minmax(0,1fr)] items-start gap-x-2 gap-y-1 text-xs leading-5">
+        <label
+          htmlFor={offerId}
+          className="row-span-2 flex min-h-11 w-5 shrink-0 cursor-pointer items-start justify-center pt-0.5"
         >
-          <label
-            htmlFor={offerId}
-            className="flex min-h-11 w-5 shrink-0 cursor-pointer items-center justify-center"
-          >
-            <input
-              id={offerId}
-              type="checkbox"
-              form={checkoutOrderFormId}
-              className="size-4 shrink-0 rounded border-border accent-rose-500"
-              aria-invalid={Boolean(errors.acceptedLegal)}
-              aria-describedby={errors.acceptedLegal ? "checkout-legal-error" : undefined}
-              {...register("acceptedLegal")}
-            />
+          <input
+            id={offerId}
+            type="checkbox"
+            form={checkoutOrderFormId}
+            className="size-4 shrink-0 rounded border-border accent-rose-500"
+            aria-invalid={Boolean(errors.acceptedLegal)}
+            aria-describedby={errors.acceptedLegal ? "checkout-legal-error" : undefined}
+            {...register("acceptedLegal")}
+          />
+        </label>
+        <span className="text-muted-foreground">
+          <label htmlFor={offerId} className="cursor-pointer">
+            Я принимаю условия{" "}
           </label>
-          <span className="self-center text-muted-foreground">
-            <label htmlFor={offerId} className="cursor-pointer">
-              Я принимаю условия{" "}
-            </label>
-            <Link
-              href={routes.legal.publicOffer}
-              target="_blank"
-              rel="noreferrer"
-              aria-label="Публичная оферта (откроется в новой вкладке)"
-              className="text-foreground underline"
-            >
-              публичной оферты
-            </Link>
-            <label htmlFor={offerId} className="cursor-pointer">
-              .
-            </label>
-          </span>
-        </div>
-        <FieldError id="checkout-legal-error" message={errors.acceptedLegal?.message} />
+          <Link
+            href={routes.legal.publicOffer}
+            target="_blank"
+            rel="noreferrer"
+            aria-label="Публичная оферта (откроется в новой вкладке)"
+            className="text-foreground underline"
+          >
+            публичной оферты
+          </Link>
+          <label htmlFor={offerId} className="cursor-pointer">
+            .
+          </label>
+        </span>
+        <FieldError
+          id="checkout-legal-error"
+          message={errors.acceptedLegal?.message}
+          className="col-start-2"
+        />
       </div>
-      <div className="space-y-1">
+      <div className="grid grid-cols-[1.25rem_minmax(0,1fr)] items-start gap-x-2 gap-y-1 text-xs leading-5">
         <PersonalDataConsentCheckbox
           id={personalDataConsentId}
           form={checkoutOrderFormId}
-          className="gap-2 border-0 bg-transparent p-0 text-xs leading-5 [&>label]:w-5 [&>label]:min-w-0 [&>label]:shrink-0 [&>label]:items-start [&>label]:pt-0.5 [&>span]:min-h-0 [&>span]:py-0 [&>span]:pr-0"
+          className="contents text-xs leading-5 [&>label]:row-span-2 [&>label]:w-5 [&>label]:min-w-0 [&>label]:shrink-0 [&>label]:items-start [&>label]:pt-0.5 [&>span]:min-h-0 [&>span]:py-0 [&>span]:pr-0"
           hasError={Boolean(errors.acceptedPersonalDataConsent)}
           aria-describedby={
             errors.acceptedPersonalDataConsent ? "checkout-personal-data-consent-error" : undefined
@@ -77,6 +73,7 @@ export function LegalField() {
         <FieldError
           id="checkout-personal-data-consent-error"
           message={errors.acceptedPersonalDataConsent?.message}
+          className="col-start-2"
         />
       </div>
     </div>

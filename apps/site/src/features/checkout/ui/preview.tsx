@@ -12,7 +12,7 @@ import {
 } from "@/shared/ui";
 import { PageTitle } from "@/shared/ui/typography";
 
-import { checkoutOrderFormId, useCheckout } from "../lib";
+import { checkoutOrderFormId, formatEstimatedDeliveryDateRange, useCheckout } from "../lib";
 import { useCheckoutPreview, withCheckoutPreview } from "../lib/checkout-preview-provider";
 import { previewCart, previewLoyalty } from "../lib/preview-data";
 import { ContactFields } from "./contact-fields";
@@ -23,6 +23,13 @@ import { BaseOrderSummary } from "./order-summary";
 function BaseCheckoutPreview() {
   const checkout = useCheckout();
   const { hasPromo, setHasPromo, hasDelivery, setHasDelivery, notice } = useCheckoutPreview();
+  const calculation =
+    checkout.checkoutCalculation.status === "ready"
+      ? checkout.checkoutCalculation.calculation
+      : undefined;
+  const estimatedDeliveryDate = formatEstimatedDeliveryDateRange(
+    calculation?.estimatedDeliveryDateRange,
+  );
   const promoPreview = hasPromo
     ? {
         code: "ART10",
@@ -83,13 +90,16 @@ function BaseCheckoutPreview() {
             >
               <div className="flex justify-between gap-3 font-medium">
                 <span>Пункт выдачи Ozon</span>
-                <span>Доставка от 100 ₽</span>
+                <span>{hasDelivery ? "100 ₽" : "Доставка от 100 ₽"}</span>
               </div>
               <p className="mt-2 text-muted-foreground">
                 {hasDelivery
                   ? "Москва, ул. Большая Полянка, 28"
                   : "Точная стоимость и срок после выбора ПВЗ"}
               </p>
+              {hasDelivery && estimatedDeliveryDate ? (
+                <p className="mt-1 text-xs text-muted-foreground">{estimatedDeliveryDate}</p>
+              ) : null}
             </Button>
           </section>
           <Separator />

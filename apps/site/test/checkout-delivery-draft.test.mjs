@@ -588,7 +588,7 @@ test("display and submit require the server calculation matching confirmed deliv
   assert.match(provider, /isMatchingCheckoutCalculation/u);
   assert.match(provider, /checkoutCalculation\.status\s*!==\s*"ready"/u);
   assert.match(provider, /createCheckoutOrderAttempt\([\s\S]*selectedDelivery/u);
-  assert.match(summary, /calculation\.delivery\.pickupPoint\.address/u);
+  assert.match(summary, /getCheckoutPriceSummary\(cart, checkoutCalculation/u);
   assert.match(field, /calculation\?\.delivery\.pickupPoint\.address/u);
 });
 

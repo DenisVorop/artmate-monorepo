@@ -30,7 +30,6 @@ import {
 
 import {
   checkoutOrderFormId,
-  formatEstimatedDeliveryDateRange,
   formatMoney,
   getCheckoutExpectedEarnedPoints,
   useCheckout,
@@ -92,12 +91,7 @@ export function BaseOrderSummary({
   loyaltySlot: ReactNode;
 }) {
   const pricing = getCheckoutPriceSummary(cart, checkoutCalculation, promoPreview);
-  const calculation =
-    checkoutCalculation.status === "ready" ? checkoutCalculation.calculation : undefined;
   const expectedEarnedPoints = getCheckoutExpectedEarnedPoints(checkoutCalculation);
-  const estimatedDeliveryDate = formatEstimatedDeliveryDateRange(
-    calculation?.estimatedDeliveryDateRange,
-  );
   const discounts = [
     ...(pricing.saleDiscount > 0
       ? [{ label: "Скидки на товары", amount: formatMoney(pricing.saleDiscount) }]
@@ -146,55 +140,31 @@ export function BaseOrderSummary({
           <span className="font-medium tabular-nums">{formatMoney(pricing.originalSubtotal)}</span>
         </div>
         <DiscountBreakdown total={formatMoney(pricing.totalDiscount)} rows={discounts} />
-        <div className="flex items-center justify-between gap-4 pt-2 text-sm">
-          <span className="text-muted-foreground">Доставка</span>
+        <div className="flex items-center justify-between gap-4 text-sm">
+          <span>Доставка</span>
           <span className="text-right font-medium tabular-nums">
             {getDeliveryPriceLabel(checkoutCalculation)}
           </span>
         </div>
-        {calculation?.delivery.pickupPoint ? (
-          <p className="pt-1 text-xs leading-5 text-muted-foreground">
-            {calculation.delivery.provider === "cdek" ? "СДЭК" : "Ozon"} ·{" "}
-            {calculation.delivery.pickupPoint.address}
-            {estimatedDeliveryDate ? (
-              <span className="mt-1 block">{estimatedDeliveryDate}</span>
-            ) : null}
-          </p>
-        ) : null}
         <div className="pt-5" aria-busy={checkoutCalculation.status === "pending" || !isPromoReady}>
           <div className="flex items-baseline justify-between gap-4 text-xl font-bold">
             <span>{pricing.includesDelivery ? "Итого" : "Сумма"}</span>
             <span className="tabular-nums">{formatMoney(pricing.amount)}</span>
           </div>
-          <p className="mt-2 text-xs leading-5 text-muted-foreground">
-            {pricing.includesDelivery ? "С учётом доставки" : "Без учёта доставки"}
-          </p>
+          {!pricing.includesDelivery ? (
+            <p className="mt-2 text-xs leading-5 text-muted-foreground">Без учёта доставки</p>
+          ) : null}
           {!isPromoReady || checkoutCalculation.status === "pending" ? (
             <p className="mt-1 text-xs text-muted-foreground">Обновляем расчёт…</p>
           ) : null}
-          {expectedEarnedPoints !== undefined || (calculation?.loyalty.pointsToSpend ?? 0) > 0 ? (
+          {expectedEarnedPoints !== undefined ? (
             <div
               className="mt-3 flex items-center justify-between gap-3 text-sm"
-              aria-label={
-                expectedEarnedPoints !== undefined
-                  ? `Будет начислено ${expectedEarnedPoints} баллов`
-                  : undefined
-              }
+              aria-label={`Будет начислено ${expectedEarnedPoints} баллов`}
             >
               <span>Кешбэк баллами</span>
-              <span
-                className={cn(
-                  "text-right tabular-nums",
-                  expectedEarnedPoints !== undefined
-                    ? "font-semibold text-emerald-600 dark:text-emerald-400"
-                    : "text-muted-foreground",
-                )}
-              >
-                {expectedEarnedPoints !== undefined ? (
-                  <LoyaltyPoints points={expectedEarnedPoints} prefix="+" />
-                ) : (
-                  "Не начисляется"
-                )}
+              <span className="text-right font-semibold text-emerald-600 tabular-nums dark:text-emerald-400">
+                <LoyaltyPoints points={expectedEarnedPoints} prefix="+" />
               </span>
             </div>
           ) : null}
