@@ -15,7 +15,7 @@ export function Related({ products, renderProductCard }: RelatedProps) {
   }
 
   return (
-    <section className="space-y-6" aria-labelledby="related-products-title">
+    <section className="w-full min-w-0 space-y-6" aria-labelledby="related-products-title">
       <div className="space-y-2">
         <SectionTitle id="related-products-title" className="text-foreground">
           Вам также может понравиться
@@ -23,8 +23,8 @@ export function Related({ products, renderProductCard }: RelatedProps) {
         <SectionSubtitle>Другие товары Artmate.</SectionSubtitle>
       </div>
 
-      <div className="relative right-[50%] left-[50%] -mr-[50vw] -ml-[50vw] w-screen sm:right-auto sm:left-auto sm:mr-0 sm:ml-0 sm:w-auto">
-        <ul className="flex snap-x snap-mandatory scroll-px-4 [scrollbar-width:thin] flex-nowrap gap-4 overflow-x-auto overscroll-x-contain px-4 pb-4 sm:scroll-px-0 sm:gap-5 sm:px-0 xl:gap-6">
+      <div className="w-full min-w-0 overflow-hidden [contain:inline-size]">
+        <ul className="flex w-full min-w-0 snap-x snap-mandatory scroll-px-1 [scrollbar-width:thin] flex-nowrap gap-4 overflow-x-auto overscroll-x-contain p-1 pb-4 sm:gap-5 xl:gap-6">
           {products.map((product, index) => (
             <li
               key={product.id}

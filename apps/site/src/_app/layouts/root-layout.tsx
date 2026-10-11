@@ -41,7 +41,7 @@ export async function RootLayout({ children }: RootLayoutProps) {
   await queryClient.prefetchQuery(featureBannersQuery.list(getQueryOwner(initialSession.user?.id)));
 
   return (
-    <html lang="ru" className={`${comfortaa.variable} ${nunito.variable}`}>
+    <html lang="ru" className={`${comfortaa.variable} ${nunito.variable} overflow-x-hidden`}>
       <body>
         <RootStructuredData />
         <GoogleAnalytics />
