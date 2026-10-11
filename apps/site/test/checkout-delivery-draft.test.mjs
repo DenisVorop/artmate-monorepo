@@ -549,7 +549,7 @@ test("field owns controlled carrier drafts and point clicks do not close or comm
   ]);
 
   assert.match(field, /useState\(\(\)\s*=>\s*createDeliveryPickerDrafts/u);
-  assert.match(field, /value=\{selectedDelivery\?\.provider\}/u);
+  assert.match(field, /value=\{selectedDelivery\?\.provider \?\? ""\}/u);
   assert.doesNotMatch(field, /setSelectedDelivery/u);
   assert.match(field, /seedDeliveryPickerDrafts/u);
   assert.match(field, /invalidatePendingConfirmation/u);

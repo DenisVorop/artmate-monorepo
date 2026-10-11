@@ -100,10 +100,9 @@ test("calculation resolver returns each of the five discriminated states", async
   const { resolveCheckoutCalculationState } = await loadCalculationState();
   const error = new Error("Calculation failed");
 
-  assert.deepEqual(
-    resolveCheckoutCalculationState(signals({ confirmedDelivery: undefined })),
-    { status: "idle" },
-  );
+  assert.deepEqual(resolveCheckoutCalculationState(signals({ confirmedDelivery: undefined })), {
+    status: "idle",
+  });
   assert.deepEqual(resolveCheckoutCalculationState(signals({ isOffline: true })), {
     retry,
     status: "offline",
@@ -192,10 +191,12 @@ test("calculation resolver rejects a quote for a different selected points amoun
     loyalty: { ...calculation.loyalty, pointsToSpend: 5, discountKopecks: 100 },
   };
   assert.equal(
-    resolveCheckoutCalculationState(signals({
-      calculation: selectedCalculation,
-      loyaltyPointsToSpend: 5,
-    })).status,
+    resolveCheckoutCalculationState(
+      signals({
+        calculation: selectedCalculation,
+        loyaltyPointsToSpend: 5,
+      }),
+    ).status,
     "ready",
   );
 });
@@ -236,11 +237,11 @@ test("submit label is exhaustive and says calculating only for pending", async (
   const { getCheckoutSubmitLabel } = await loadCalculationState();
   const error = new Error("Calculation failed");
   const states = [
-    [{ status: "idle" }, "Выберите ПВЗ"],
+    [{ status: "idle" }, "Оформить заказ"],
     [{ status: "pending" }, "Пересчитываем заказ"],
-    [{ retry, status: "offline" }, "Нет сети"],
-    [{ error, retry, status: "error" }, "Расчет недоступен"],
-    [{ calculation, status: "ready" }, "Перейти к оплате"],
+    [{ retry, status: "offline" }, "Оформить заказ"],
+    [{ error, retry, status: "error" }, "Оформить заказ"],
+    [{ calculation, status: "ready" }, "Оформить заказ"],
   ];
 
   for (const [state, label] of states) {

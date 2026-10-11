@@ -3,6 +3,8 @@ import { createRequire } from "node:module";
 import { readFile } from "node:fs/promises";
 import { test } from "node:test";
 
+import { loadPriceSummary } from "./helpers/price-summary.mjs";
+
 const require = createRequire(import.meta.url);
 const ts = require("typescript");
 
@@ -85,11 +87,13 @@ function renderedText(node) {
 
 async function renderCartSummary(promoState) {
   const getPromoPricingState = await loadPromoPricingState();
+  const { getCartPriceBreakdown } = await loadPriceSummary();
   const jsx = (type, props, key) => ({ key, props, type });
   const component = (name) => name;
   const { CartSummary } = evaluateTypeScript(
     await readSource("src/features/cart/ui/cart-summary.tsx"),
     {
+      "@/entities/cart": { getCartPriceBreakdown },
       "../lib/cart-format": { formatMoney: (value) => `${value} RUB` },
       "@/features/promocode": {
         getPromoPricingState,
@@ -108,10 +112,12 @@ async function renderCartSummary(promoState) {
         CardTitle: component("CardTitle"),
         CtaGradientLink: component("CtaGradientLink"),
         Separator: component("Separator"),
+        DiscountBreakdown: component("DiscountBreakdown"),
       },
       "@/shared/ui/link": { Link: component("Link") },
       "lucide-react": {
         CreditCard: component("CreditCard"),
+        ArrowRight: component("ArrowRight"),
         LoaderCircle: component("LoaderCircle"),
         ShoppingBag: component("ShoppingBag"),
       },
@@ -122,7 +128,7 @@ async function renderCartSummary(promoState) {
   return CartSummary({
     isMutating: false,
     itemsLabel: "1 товар",
-    subtotal: 1_000,
+    cart: { items: [], subtotal: 1_000 },
   });
 }
 
@@ -175,7 +181,12 @@ const validFormValues = {
   phone: "+7 (999) 123-45-67",
 };
 
-async function createCheckoutHarness({ calculationState, persistedDelivery, promoState }) {
+async function createCheckoutHarness({
+  calculationState,
+  persistedDelivery,
+  promoState,
+  pointsToSpend = 0,
+}) {
   const getPromoPricingState = await loadPromoPricingState();
   const deliveryState = evaluateTypeScript(
     await readSource("src/features/checkout/lib/delivery-picker-state.ts"),
@@ -193,12 +204,17 @@ async function createCheckoutHarness({ calculationState, persistedDelivery, prom
     },
   );
   const calculationCalls = [];
+  const selectionKeys = [];
   const submitted = [];
   const submitVariables = [];
   let formValues = validFormValues;
+  const validationCalls = [];
   const form = {
     formState: { isDirty: false },
-    handleSubmit: (submit) => (event) => submit(formValues, event),
+    handleSubmit: (submit) => {
+      validationCalls.push(true);
+      return (event) => submit(formValues, event);
+    },
     reset: () => undefined,
     trigger: async () => true,
   };
@@ -213,16 +229,23 @@ async function createCheckoutHarness({ calculationState, persistedDelivery, prom
         }),
         useCheckoutCalculation: (delivery, identity) => {
           calculationCalls.push({ delivery, identity });
-          return calculationState;
+          return typeof calculationState === "function"
+            ? calculationState(delivery, identity)
+            : calculationState;
         },
       },
       "../checkout-form": checkoutForm,
       "../use-loyalty-selection": {
-        useLoyaltySelection: (selectionKey) => ({
-          selectionKey,
-          pointsToSpend: 0,
-          setPoints: () => undefined,
-        }),
+        useLoyaltySelection: (selectionKey) => {
+          selectionKeys.push(selectionKey);
+          return {
+            selectionKey,
+            pointsToSpend,
+            setPoints: (points) => {
+              pointsToSpend = points;
+            },
+          };
+        },
       },
       "../calculation-state": checkoutCalculationState,
       "../delivery-picker-state": {
@@ -304,6 +327,8 @@ async function createCheckoutHarness({ calculationState, persistedDelivery, prom
 
   return {
     calculationCalls,
+    selectionKeys,
+    validationCalls,
     render,
     setFormValues: (values) => {
       formValues = values;
@@ -354,6 +379,126 @@ async function selectDelivery(harness) {
   await harness.render().confirmDelivery(delivery);
   return harness.render();
 }
+
+test("promo changes retain selected points and clamp spending to the newly confirmed limit", async () => {
+  const promoState = {
+    isError: false,
+    isHydrating: false,
+    isPaused: false,
+    isPending: false,
+    selectedCode: "SAVE10",
+    preview: { code: "SAVE10", discount: 100 },
+  };
+  let limitPending = false;
+  const harness = await createCheckoutHarness({
+    promoState,
+    pointsToSpend: 75,
+    persistedDelivery: delivery,
+    calculationState: (_, identity) => {
+      if (limitPending && identity.loyaltyPointsToSpend === 0) {
+        return { ...readyCalculation, calculation: undefined, isPending: true };
+      }
+      if (!identity.enabled) return { ...readyCalculation, calculation: undefined };
+      const maxPoints = identity.promoCode ? 100 : 150;
+      assert.ok(identity.loyaltyPointsToSpend <= maxPoints);
+      const discount = (identity.promoCode ? 100 : 0) + identity.loyaltyPointsToSpend / 5;
+      return {
+        ...readyCalculation,
+        calculation: {
+          ...readyCalculation.calculation,
+          promoCode: identity.promoCode,
+          discount,
+          total: 1200 - discount,
+          loyalty: {
+            ...readyCalculation.calculation.loyalty,
+            availablePoints: 150,
+            expectedEarnedPoints: identity.loyaltyPointsToSpend === 0 ? 50 : 0,
+            maxPoints,
+            pointsToSpend: identity.loyaltyPointsToSpend,
+            discountKopecks: identity.loyaltyPointsToSpend * 20,
+          },
+        },
+      };
+    },
+  });
+  harness.render();
+  let checkout = harness.render();
+  assert.equal(checkout.checkoutCalculation.status, "ready");
+  assert.equal(checkout.loyalty.pointsToSpend, 75);
+  const selectionKey = checkout.loyalty.selectionKey;
+
+  promoState.selectedCode = undefined;
+  promoState.preview = undefined;
+  checkout = harness.render();
+  assert.equal(checkout.loyalty.pointsToSpend, 75);
+  assert.equal(checkout.checkoutCalculation.calculation.loyalty.pointsToSpend, 75);
+  assert.equal(checkout.loyalty.selectionKey, selectionKey);
+
+  checkout.loyalty.setPoints(140);
+  assert.equal(harness.render().loyalty.pointsToSpend, 140);
+  promoState.isPending = true;
+  assert.equal(harness.render().loyalty.pointsToSpend, 140);
+  assert.equal(harness.render().checkoutCalculation.status, "pending");
+  promoState.isPending = false;
+  promoState.selectedCode = "SAVE10";
+  promoState.preview = { code: "SAVE10", discount: 100 };
+  limitPending = true;
+  checkout = harness.render();
+  assert.equal(checkout.loyalty.pointsToSpend, 140);
+  assert.equal(checkout.checkoutCalculation.status, "pending");
+  assert.equal(harness.calculationCalls.at(-1).identity.enabled, false);
+  await checkout.submitOrder({ preventDefault() {} });
+  assert.equal(harness.submitted.length, 0);
+
+  limitPending = false;
+  checkout = harness.render();
+  assert.equal(checkout.loyalty.pointsToSpend, 100);
+  assert.equal(checkout.checkoutCalculation.calculation.loyalty.pointsToSpend, 100);
+  assert.equal(harness.render().loyalty.pointsToSpend, 100);
+  assert.ok(harness.selectionKeys.every((key) => key === selectionKey));
+});
+
+test("checkout preview retains full and custom spending when removing or applying its promo", async () => {
+  const reactHarness = createReactHarness();
+  const previewData = evaluateTypeScript(
+    await readSource("src/features/checkout/lib/preview-data.ts"),
+    {},
+  );
+  const jsx = (type, props) => ({ type, props });
+  const { CheckoutPreviewProvider } = evaluateTypeScript(
+    await readSource(
+      "src/features/checkout/lib/checkout-preview-provider/checkout-preview-provider.tsx",
+    ),
+    {
+      react: reactHarness.react,
+      "react-hook-form": { FormProvider: "FormProvider", useForm: () => ({}) },
+      "../checkout-form": { getDefaultCheckoutFormValues: () => ({}) },
+      "../checkout-provider/checkout.context": { CheckoutContext: { Provider: "CheckoutContext" } },
+      "../preview-data": previewData,
+      "./checkout-preview.context": {
+        CheckoutPreviewContext: { Provider: "CheckoutPreviewContext" },
+      },
+      "react/jsx-runtime": { jsx, jsxs: jsx },
+    },
+  );
+  const render = () => {
+    reactHarness.beginRender();
+    const tree = CheckoutPreviewProvider({ children: "preview" });
+    return { preview: tree.props.value, checkout: tree.props.children.props.value };
+  };
+  render().checkout.loyalty.setPoints(1250);
+  render().preview.setHasPromo(false);
+  let state = render();
+  assert.equal(state.checkout.loyalty.pointsToSpend, 1250);
+  assert.equal(state.checkout.checkoutCalculation.calculation.total, 1248);
+  assert.equal(state.checkout.checkoutCalculation.calculation.discount, 250);
+  state.checkout.loyalty.setPoints(500);
+  render().preview.setHasPromo(true);
+  state = render();
+  assert.equal(state.checkout.loyalty.pointsToSpend, 500);
+  assert.equal(state.checkout.checkoutCalculation.calculation.total, 1258.2);
+  assert.equal(state.checkout.checkoutCalculation.calculation.discount, 239.8);
+});
 
 test("rejected promo stays visible but cart uses base total and enables checkout", async () => {
   const tree = await renderCartSummary({
@@ -433,7 +578,10 @@ test("valid matching promo keeps its discount while stale and unresolved preview
     preview,
     selectedCode: "SAVE10",
   });
-  assert.match(renderedText(tree), /Скидка \(SAVE10\).*100 RUB.*900 RUB/u);
+  const discount = findNode(tree, (node) => node.type === "DiscountBreakdown");
+  assert.equal(discount.props.total, "100 RUB");
+  assert.deepEqual(discount.props.rows, [{ label: "Промокод SAVE10", amount: "100 RUB" }]);
+  assert.match(renderedText(tree), /900 RUB/u);
 });
 
 test("invalid promo calculates without a code and omits it for both payments", async () => {
@@ -537,7 +685,10 @@ test("pending or failed actual checkout calculation still prevents order submiss
     });
     const context = await selectDelivery(harness);
 
-    assert.equal(context.checkoutCalculation.status, calculationState.isPending ? "pending" : "error");
+    assert.equal(
+      context.checkoutCalculation.status,
+      calculationState.isPending ? "pending" : "error",
+    );
     context.submitOrder({ preventDefault: () => undefined });
     await new Promise((resolve) => setTimeout(resolve, 0));
     assert.equal(harness.submitted.length, 0);
@@ -600,7 +751,10 @@ test("checkout submits only a ready calculation matching the confirmed delivery"
   assert.equal(mismatchContext.checkoutCalculation.retry, readyCalculation.retry);
   assert.equal(mismatchHarness.submitted.length, 0);
 
-  const readyHarness = await createCheckoutHarness({ calculationState: readyCalculation, promoState });
+  const readyHarness = await createCheckoutHarness({
+    calculationState: readyCalculation,
+    promoState,
+  });
   const readyContext = await selectDelivery(readyHarness);
   readyContext.submitOrder({ preventDefault: () => undefined });
   await new Promise((resolve) => setTimeout(resolve, 0));
@@ -721,10 +875,61 @@ test("checkout query keys and responses bind promo and selected points and disca
 
   response = readyCalculation.calculation;
   let finishResponse;
-  waitForResponse = new Promise((resolve) => { finishResponse = resolve; });
+  waitForResponse = new Promise((resolve) => {
+    finishResponse = resolve;
+  });
   const controller = new AbortController();
   const pending = queryOptions[0].queryFn({ signal: controller.signal });
   controller.abort();
   finishResponse();
   await assert.rejects(pending, { name: "AbortError" });
+});
+
+test("checkout opens delivery before validating contacts or consents", async () => {
+  const harness = await createCheckoutHarness({
+    calculationState: readyCalculation,
+    promoState: { isError: false, isHydrating: false, isPaused: false, isPending: false },
+  });
+  harness.setFormValues({
+    ...validFormValues,
+    phone: "",
+    acceptedLegal: false,
+    acceptedPersonalDataConsent: false,
+  });
+  let prevented = false;
+  const before = harness.render();
+  assert.equal(before.isDeliveryPickerOpen, false);
+  assert.equal(before.submitLabel, "Оформить заказ");
+  before.submitOrder({
+    preventDefault: () => {
+      prevented = true;
+    },
+  });
+  assert.equal(prevented, true);
+  assert.equal(harness.render().isDeliveryPickerOpen, true);
+  assert.equal(harness.validationCalls.length, 0);
+  assert.equal(harness.submitted.length, 0);
+});
+
+test("checkout retries an unavailable calculation without creating an order", async () => {
+  let retries = 0;
+  const harness = await createCheckoutHarness({
+    calculationState: {
+      ...readyCalculation,
+      isError: true,
+      error: new Error("Не удалось рассчитать заказ"),
+      retry: () => {
+        retries += 1;
+      },
+    },
+    persistedDelivery: delivery,
+    promoState: { isError: false, isHydrating: false, isPaused: false, isPending: false },
+  });
+  harness.render();
+  const context = harness.render();
+  assert.equal(context.submitLabel, "Оформить заказ");
+  context.submitOrder({ preventDefault: () => {} });
+  assert.equal(retries, 1);
+  assert.equal(harness.validationCalls.length, 0);
+  assert.equal(harness.submitted.length, 0);
 });

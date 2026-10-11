@@ -47,7 +47,7 @@ export function Checkout() {
         <DataState
           variant="error"
           title="Не удалось загрузить корзину"
-          description="Проверьте, что API запущен, и попробуйте обновить страницу."
+          description="Обновите страницу или попробуйте немного позже."
         />
       </section>
     );
@@ -164,8 +164,7 @@ function CheckoutScenario({ cart }: { cart: Cart }) {
         <div className="space-y-2">
           <PageTitle className="text-foreground">Оформление заказа</PageTitle>
           <p className="max-w-2xl text-muted-foreground">
-            Проверьте товары и оставьте контакты. После создания заказа мы отправим вас на страницу
-            оплаты.
+            Укажите контакты и выберите пункт выдачи.
           </p>
         </div>
 

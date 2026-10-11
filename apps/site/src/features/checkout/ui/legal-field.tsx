@@ -21,7 +21,7 @@ export function LegalField() {
   const personalDataConsentId = useId();
 
   return (
-    <div className="space-y-2">
+    <div className="space-y-0">
       <div className="space-y-1">
         <div
           className={cn(
@@ -43,7 +43,7 @@ export function LegalField() {
               {...register("acceptedLegal")}
             />
           </label>
-          <span className="min-h-11 py-3 text-muted-foreground">
+          <span className="self-center text-muted-foreground">
             <label htmlFor={offerId} className="cursor-pointer">
               Я принимаю условия{" "}
             </label>
@@ -67,7 +67,7 @@ export function LegalField() {
         <PersonalDataConsentCheckbox
           id={personalDataConsentId}
           form={checkoutOrderFormId}
-          className="gap-2 border-0 bg-transparent p-0 text-xs leading-5 [&>label]:w-5 [&>label]:min-w-0 [&>label]:shrink-0 [&>span]:pr-0"
+          className="gap-2 border-0 bg-transparent p-0 text-xs leading-5 [&>label]:w-5 [&>label]:min-w-0 [&>label]:shrink-0 [&>label]:items-start [&>label]:pt-0.5 [&>span]:min-h-0 [&>span]:py-0 [&>span]:pr-0"
           hasError={Boolean(errors.acceptedPersonalDataConsent)}
           aria-describedby={
             errors.acceptedPersonalDataConsent ? "checkout-personal-data-consent-error" : undefined

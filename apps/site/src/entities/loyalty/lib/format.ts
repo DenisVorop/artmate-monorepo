@@ -1,9 +1,5 @@
 import type { LoyaltyOperation } from "../model/types";
 
-export function formatLoyaltyPoints(points: number) {
-  return `${points.toLocaleString("ru-RU")} б`;
-}
-
 export function formatLoyaltyMoney(kopecks: number) {
   return (kopecks / 100).toLocaleString("ru-RU", {
     style: "currency",
@@ -24,22 +20,26 @@ export function formatLoyaltyDate(value: string) {
 export function getOperationPresentation(operation: LoyaltyOperation) {
   if (operation.kind === "reserve") {
     return {
-      amount: formatLoyaltyPoints(Math.abs(operation.reservedDelta)),
+      points: Math.abs(operation.reservedDelta),
+      prefix: "",
       detail: "Зарезервировано для заказа · ещё не списано",
       tone: "neutral",
     } as const;
   }
   if (operation.kind === "release") {
     return {
-      amount: formatLoyaltyPoints(Math.abs(operation.reservedDelta)),
+      points: Math.abs(operation.reservedDelta),
+      prefix: "",
       detail: "Резерв снят · баллы снова доступны",
       tone: "neutral",
     } as const;
   }
   const delta = operation.balanceDelta;
   return {
-    amount: `${delta > 0 ? "+" : delta < 0 ? "−" : ""}${formatLoyaltyPoints(Math.abs(delta))}`,
-    detail: `Баланс после операции: ${formatLoyaltyPoints(operation.balanceAfter)}`,
+    points: Math.abs(delta),
+    prefix: delta > 0 ? "+" : delta < 0 ? "−" : "",
+    detail: "Баланс после операции:",
+    balanceAfter: operation.balanceAfter,
     tone: delta > 0 ? "positive" : "neutral",
   } as const;
 }

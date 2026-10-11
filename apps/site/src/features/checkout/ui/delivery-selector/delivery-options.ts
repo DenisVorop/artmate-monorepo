@@ -25,4 +25,4 @@ export const deliveryCompanies: DeliveryCompanyOption[] = [
   },
 ];
 
-export const defaultDeliveryCompany: DeliveryCompanyCode = "cdek";
+export const defaultDeliveryCompany: DeliveryCompanyCode = "ozon";

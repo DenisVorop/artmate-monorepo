@@ -3,7 +3,7 @@
 import { ArrowUpRight, Sparkles } from "lucide-react";
 import {
   formatLoyaltyMoney,
-  formatLoyaltyPoints,
+  LoyaltyPoints,
   useLoyaltyData,
   useLoyaltyDashboard,
 } from "@/entities/loyalty";
@@ -87,7 +87,10 @@ function MemberPreview({ userId }: { userId: string }) {
                   <div>
                     <p className="mb-2 text-sm text-stone-600">Доступно баллов</p>
                     <p className="text-4xl font-semibold tracking-tight break-words tabular-nums">
-                      {formatLoyaltyPoints(member.wallet.availablePoints)}
+                      <LoyaltyPoints
+                        points={member.wallet.availablePoints}
+                        iconClassName="size-8"
+                      />
                     </p>
                   </div>
                 )}

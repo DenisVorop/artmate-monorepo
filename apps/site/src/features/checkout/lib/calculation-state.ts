@@ -78,21 +78,17 @@ export function getCheckoutSubmitLabel(
 
   switch (calculationState.status) {
     case "idle":
-      return "Выберите ПВЗ";
+      return "Оформить заказ";
     case "pending":
       return "Пересчитываем заказ";
     case "offline":
-      return "Нет сети";
     case "error":
-      return "Расчет недоступен";
     case "ready":
-      return "Перейти к оплате";
+      return "Оформить заказ";
   }
 }
 
-export function getCheckoutExpectedEarnedPoints(
-  calculationState: CheckoutCalculationState,
-) {
+export function getCheckoutExpectedEarnedPoints(calculationState: CheckoutCalculationState) {
   if (calculationState.status !== "ready") return undefined;
 
   const { expectedEarnedPoints, pointsToSpend } = calculationState.calculation.loyalty;

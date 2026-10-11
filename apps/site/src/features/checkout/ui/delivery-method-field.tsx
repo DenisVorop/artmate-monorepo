@@ -4,7 +4,7 @@ import { MapPin } from "lucide-react";
 import { useEffect, useRef, useState } from "react";
 
 import { cn } from "@/shared/lib";
-import { Button, Label, RadioGroup, RadioGroupItem } from "@/shared/ui";
+import { Label, RadioGroup, RadioGroupItem } from "@/shared/ui";
 
 import {
   createDeliveryPickerDrafts,
@@ -29,11 +29,16 @@ export function DeliveryMethodField({
   isOzonDeliveryAvailable,
   minimumDeliveryPrices,
 }: DeliveryMethodFieldProps) {
-  const { checkoutCalculation, confirmDelivery, invalidateDeliveryConfirmation, selectedDelivery } =
-    useCheckout();
-  const [isPickerOpen, setIsPickerOpen] = useState(false);
+  const {
+    checkoutCalculation,
+    confirmDelivery,
+    invalidateDeliveryConfirmation,
+    selectedDelivery,
+    isDeliveryPickerOpen: isPickerOpen,
+    setDeliveryPickerOpen: setIsPickerOpen,
+  } = useCheckout();
   const [pickerCompany, setPickerCompany] = useState<DeliveryCompanyCode>(
-    selectedDelivery?.provider ?? "cdek",
+    selectedDelivery?.provider ?? (isOzonDeliveryAvailable ? "ozon" : "cdek"),
   );
   const [drafts, setDrafts] = useState(() => createDeliveryPickerDrafts(selectedDelivery));
   const [confirmationError, setConfirmationError] = useState<string>();
@@ -103,8 +108,7 @@ export function DeliveryMethodField({
     <div className="space-y-3">
       <RadioGroup
         aria-labelledby="checkout-section-02-heading"
-        value={selectedDelivery?.provider}
-        onValueChange={(value) => chooseCompany(value as DeliveryCompanyCode)}
+        value={selectedDelivery?.provider ?? ""}
         className="gap-2"
       >
         {deliveryCompanies.map((company) => {
@@ -124,6 +128,7 @@ export function DeliveryMethodField({
                 id={`checkout-delivery-${company.code}`}
                 value={company.code}
                 disabled={!isAvailable}
+                onClick={() => chooseCompany(company.code)}
                 className="mt-0.5 data-[state=checked]:border-rose-500 data-[state=checked]:text-rose-500"
               />
               <span className="min-w-0 flex-1 space-y-1">
@@ -135,7 +140,7 @@ export function DeliveryMethodField({
                       : isSelected && calculation
                         ? formatMoney(calculation.deliveryPrice)
                         : company.code === "cdek"
-                          ? "Рассчитать"
+                          ? "Доставка от 150 ₽"
                           : `Доставка от ${formatMoney(minimumDeliveryPrices.ozon)}`}
                   </span>
                 </span>
@@ -157,18 +162,6 @@ export function DeliveryMethodField({
           );
         })}
       </RadioGroup>
-
-      <Button
-        type="button"
-        variant="link"
-        className="h-auto min-h-11 px-0 text-rose-600"
-        onClick={() => {
-          setPickerCompany(selectedDelivery?.provider ?? pickerCompany);
-          setIsPickerOpen(true);
-        }}
-      >
-        {selectedDelivery ? "Изменить ПВЗ" : "Выбрать ПВЗ"}
-      </Button>
 
       <DeliveryPicker
         canConfirm={Boolean(candidate)}

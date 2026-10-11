@@ -1,5 +1,6 @@
 export { useCreateOrderMutation } from "./model";
 export { Checkout } from "./ui/checkout";
+export { CheckoutPreview } from "./ui/preview";
 export { CheckoutFailure } from "./ui/failure";
 export { GuestCheckoutFailure } from "./ui/guest-failure";
 export { GuestCheckoutSuccess } from "./ui/guest-success";

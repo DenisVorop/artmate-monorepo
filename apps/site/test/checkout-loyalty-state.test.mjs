@@ -72,7 +72,7 @@ test("checkout attempt keeps retries stable and renews identity for points or pr
   assert.equal(noPoints.attempt, zero.attempt);
 });
 
-test("loyalty selection resets for account, cart, cart content or promo changes and cannot revive old spending", async () => {
+test("loyalty selection resets for account, cart or cart content changes and cannot revive old spending", async () => {
   const slots = [];
   let cursor = 0;
   let effects = [];
@@ -106,13 +106,12 @@ test("loyalty selection resets for account, cart, cart content or promo changes 
     for (const effect of effects) effect();
     return result;
   };
-  const base = ["user-1", "cart-1", "cart-signature", null];
+  const base = ["user-1", "cart-1", "cart-signature"];
   for (const identity of [
-    ["guest", "cart-1", "cart-signature", null],
-    ["user-2", "cart-1", "cart-signature", null],
-    ["user-1", "cart-2", "cart-signature", null],
-    ["user-1", "cart-1", "changed-cart", null],
-    ["user-1", "cart-1", "cart-signature", "SALE"],
+    ["guest", "cart-1", "cart-signature"],
+    ["user-2", "cart-1", "cart-signature"],
+    ["user-1", "cart-2", "cart-signature"],
+    ["user-1", "cart-1", "changed-cart"],
   ]) {
     render(base).setPoints(25);
     assert.equal(render(base).pointsToSpend, 25);
