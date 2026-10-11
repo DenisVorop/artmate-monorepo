@@ -445,6 +445,7 @@ test("ProductCard wires the same open callback to image and title links", async 
         CardTitle: "CardTitle",
       },
       "@/shared/ui/link": { Link: "ProductLink" },
+      "./price": { ProductPrice: "ProductPrice" },
       "next/image": "Image",
     },
   );

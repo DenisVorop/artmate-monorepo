@@ -7,6 +7,7 @@ import { Trash2 } from "lucide-react";
 import {
   formatProductDate,
   formatProductPrice,
+  formatProductRegularPrice,
   getProductPrimaryImage,
   getProductStatusBadgeVariant,
   getProductStatusLabel,
@@ -77,7 +78,10 @@ export function ProductEditorCard({
             <CardTitle className="truncate">{product.title}</CardTitle>
             <CardDescription>
               {product.slug} · {product.category?.title ?? "Без категории"} ·{" "}
-              {formatProductPrice(product)} · обновлен{" "}
+              {formatProductPrice(product)}
+              {product.salePrice !== null &&
+                ` (обычная цена ${formatProductRegularPrice(product)})`}
+              {" · обновлен "}
               {formatProductDate(product.updatedAt)}
             </CardDescription>
           </div>

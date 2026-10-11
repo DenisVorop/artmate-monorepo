@@ -40,6 +40,16 @@ export function getProductPrimaryImage(product: Product) {
 }
 
 export function formatProductPrice(product: Product) {
+  const amount = (product.salePrice ?? product.price) / 100;
+
+  return new Intl.NumberFormat("ru-RU", {
+    currency: product.currency,
+    maximumFractionDigits: 0,
+    style: "currency",
+  }).format(amount);
+}
+
+export function formatProductRegularPrice(product: Product) {
   const amount = product.price / 100;
 
   return new Intl.NumberFormat("ru-RU", {

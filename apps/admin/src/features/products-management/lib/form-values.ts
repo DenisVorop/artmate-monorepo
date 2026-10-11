@@ -26,6 +26,7 @@ const plainTextSchema = z
   .refine((value) => !/[<>]/.test(value), {
     message: "Используйте обычный текст без символов < и >",
   });
+const maxPriceRub = 21_474_836;
 
 export const productCharacteristicsSchema = z
   .array(
@@ -71,27 +72,44 @@ export const productCharacteristicsSchema = z
     });
   });
 
-export const productFormSchema = z.object({
-  categoryId: optionalTextSchema,
-  characteristics: productCharacteristicsSchema,
-  description: optionalTextSchema,
-  isHit: z.boolean(),
-  isOutOfStock: z.boolean(),
-  isOzonDeliveryAvailable: z.boolean(),
-  priceRub: z
-    .number()
-    .finite("Укажите цену")
-    .min(0, "Цена не может быть отрицательной"),
-  slug: requiredTextSchema("Укажите slug"),
-  status: z.enum(productStatuses),
-  tagIds: z.array(z.string()),
-  title: requiredTextSchema("Укажите название"),
-  usageInstructions: z
-    .string()
-    .trim()
-    .max(6000, "Не больше 6000 символов")
-    .pipe(plainTextSchema),
-});
+export const productFormSchema = z
+  .object({
+    categoryId: optionalTextSchema,
+    characteristics: productCharacteristicsSchema,
+    description: optionalTextSchema,
+    isHit: z.boolean(),
+    isOutOfStock: z.boolean(),
+    isOzonDeliveryAvailable: z.boolean(),
+    priceRub: z
+      .number()
+      .int("Цена должна быть целым числом")
+      .min(0, "Цена не может быть отрицательной")
+      .max(maxPriceRub, `Цена не может быть больше ${maxPriceRub} ₽`),
+    salePriceRub: z
+      .number()
+      .int("Цена должна быть целым числом")
+      .min(1, "Цена со скидкой должна быть больше нуля")
+      .max(maxPriceRub, `Цена не может быть больше ${maxPriceRub} ₽`)
+      .nullable(),
+    slug: requiredTextSchema("Укажите slug"),
+    status: z.enum(productStatuses),
+    tagIds: z.array(z.string()),
+    title: requiredTextSchema("Укажите название"),
+    usageInstructions: z
+      .string()
+      .trim()
+      .max(6000, "Не больше 6000 символов")
+      .pipe(plainTextSchema),
+  })
+  .superRefine(({ priceRub, salePriceRub }, context) => {
+    if (salePriceRub !== null && salePriceRub >= priceRub) {
+      context.addIssue({
+        code: z.ZodIssueCode.custom,
+        message: "Цена со скидкой должна быть ниже обычной цены",
+        path: ["salePriceRub"],
+      });
+    }
+  });
 
 export const productCategoryFormSchema = z.object({
   image: optionalTextSchema,
@@ -167,6 +185,7 @@ export const createProductDefaultValues = {
   isOutOfStock: false,
   isOzonDeliveryAvailable: true,
   priceRub: 0,
+  salePriceRub: null,
   slug: "",
   status: "draft",
   tagIds: [],
@@ -198,6 +217,7 @@ export function getProductDefaultValues({
   isOutOfStock,
   isOzonDeliveryAvailable,
   priceRub,
+  salePriceRub,
   slug,
   status,
   tags,
@@ -211,6 +231,7 @@ export function getProductDefaultValues({
   readonly isOutOfStock: boolean;
   readonly isOzonDeliveryAvailable: boolean;
   readonly priceRub: number;
+  readonly salePriceRub?: number | null;
   readonly slug: string;
   readonly status: ProductStatusDTO;
   readonly tags?: readonly {
@@ -227,6 +248,7 @@ export function getProductDefaultValues({
     isOutOfStock,
     isOzonDeliveryAvailable,
     priceRub,
+    salePriceRub: salePriceRub ?? null,
     slug,
     status,
     tagIds: tags?.map((tag) => tag.id) ?? [],
@@ -253,6 +275,9 @@ export function getCreateProductInput(
     isOutOfStock: values.isOutOfStock,
     isOzonDeliveryAvailable: values.isOzonDeliveryAvailable,
     priceRub: values.priceRub,
+    ...(values.salePriceRub === null
+      ? {}
+      : { salePriceRub: values.salePriceRub }),
     slug: values.slug.trim(),
     status: values.status,
     tagIds: values.tagIds,
@@ -279,6 +304,7 @@ export function getUpdateProductInput(
     isOutOfStock: values.isOutOfStock,
     isOzonDeliveryAvailable: values.isOzonDeliveryAvailable,
     priceRub: values.priceRub,
+    salePriceRub: values.salePriceRub,
     slug: values.slug.trim(),
     status: values.status,
     tagIds: values.tagIds,

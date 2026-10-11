@@ -4,6 +4,7 @@ import Image from "next/image";
 import { ChevronDown, LoaderCircle, Tag, Truck } from "lucide-react";
 
 import type { Cart, CartItem } from "@/entities/cart";
+import { ProductPrice } from "@/entities/products";
 import { useDevelopmentBanner } from "@/entities/feature-banners";
 import { useSession } from "@/entities/session";
 import { PromoCodeForm } from "@/features/promocode";
@@ -318,7 +319,13 @@ function OrderItem({ item }: { item: CartItem }) {
           {item.quantity} шт. x {formatMoney(item.price)}
         </p>
       </div>
-      <p className="shrink-0 text-sm font-semibold">{formatMoney(item.lineTotal)}</p>
+      <ProductPrice
+        price={item.lineTotal}
+        originalPrice={
+          item.originalPrice === undefined ? undefined : item.originalPrice * item.quantity
+        }
+        className="max-w-28 shrink-0 text-right [&>div]:justify-end"
+      />
     </li>
   );
 }

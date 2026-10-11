@@ -27,10 +27,7 @@ export async function getProductsData(): Promise<ApiResultDTO<ProductsData>> {
 
 async function requestCatalogApi<T>(path: string) {
   const response = await fetch(`${getApiBaseUrl()}${path}`, {
-    next: {
-      revalidate: 300,
-      tags: ["catalog-products"],
-    },
+    cache: "no-store",
   });
 
   if (!response.ok) {
@@ -54,7 +51,8 @@ function mapProducts(products: readonly ApiProductDTO[]): Product[] {
         id: product.id,
         title: product.title,
         slug: product.slug,
-        price: product.priceRub,
+        price: product.salePriceRub ?? product.priceRub,
+        originalPrice: product.salePriceRub != null ? product.priceRub : undefined,
         category: product.category?.title,
         categoryId: product.categoryId,
         categorySlug: product.category?.slug,

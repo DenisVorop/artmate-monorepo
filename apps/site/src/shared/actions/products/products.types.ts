@@ -25,6 +25,7 @@ export type Product = {
   title: string;
   slug: string;
   price: number;
+  originalPrice?: number;
   category?: string;
   categoryId?: string;
   categorySlug?: string;
@@ -93,6 +94,8 @@ export type ApiProductDTO = {
   category?: ApiProductCategoryDTO;
   price: number;
   priceRub: number;
+  salePrice: number | null;
+  salePriceRub: number | null;
   currency: "RUB";
   images: ApiProductImageDTO[];
   tags: ApiProductTagDTO[];

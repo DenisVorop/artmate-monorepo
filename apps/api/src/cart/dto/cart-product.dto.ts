@@ -1,4 +1,10 @@
-import { IsNotEmpty, IsNumber, IsOptional, IsString, Min } from "class-validator";
+import {
+  IsNotEmpty,
+  IsNumber,
+  IsOptional,
+  IsString,
+  Min,
+} from "class-validator";
 
 export class CartProductDTO {
   @IsString()
@@ -16,6 +22,11 @@ export class CartProductDTO {
   @IsNumber({ allowInfinity: false, allowNaN: false })
   @Min(0)
   price!: number;
+
+  @IsOptional()
+  @IsNumber({ allowInfinity: false, allowNaN: false })
+  @Min(0)
+  originalPrice?: number;
 
   @IsOptional()
   @IsString()

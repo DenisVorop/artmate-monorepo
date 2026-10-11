@@ -900,6 +900,8 @@ export class CatalogLandingsService {
         : undefined,
       price: product.price,
       priceRub: Math.trunc(product.price / 100),
+      salePrice: product.salePrice,
+      salePriceRub: product.salePrice == null ? null : product.salePrice / 100,
       currency: product.currency as "RUB",
       images: product.images.map((image) => ({
         id: image.id,

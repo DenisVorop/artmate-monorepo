@@ -65,6 +65,9 @@ describe("PromocodesService", () => {
           };
         },
       },
+      product: {
+        findMany: async () => [],
+      },
       promoRedemption: { count: async () => 0 },
       $transaction: () => assert.fail("preview must not start a transaction"),
     } as unknown as PrismaService;
@@ -82,6 +85,44 @@ describe("PromocodesService", () => {
       },
     );
     assert.deepEqual(calls, ["promo.findUnique", "cart.findUnique"]);
+  });
+
+  it("calculates a promocode on the current sale price", async () => {
+    const prisma = {
+      promoCode: { findUnique: async () => promo() },
+      cart: {
+        findUnique: async () => ({
+          id: "cart-1",
+          items: [
+            {
+              productId: "item-1",
+              price: { toString: () => "100.00" },
+              quantity: 2,
+            },
+          ],
+        }),
+      },
+      product: {
+        findMany: async () => [
+          { id: "item-1", price: 10_000, salePrice: 7_000 },
+        ],
+      },
+      promoRedemption: { count: async () => 0 },
+      $transaction: () => assert.fail("preview must not start a transaction"),
+    } as unknown as PrismaService;
+    const service = new PromocodesService(prisma);
+
+    assert.deepEqual(
+      await service.preview({ code: "sale10", cartId: "cart-1" }),
+      {
+        code: "SALE10",
+        cartId: "cart-1",
+        subtotal: 140,
+        discount: 14,
+        total: 126,
+        currency: "RUB",
+      },
+    );
   });
 
   it("rejects zero-priced net groups before any reservation write", async () => {
@@ -206,7 +247,8 @@ describe("PromocodesService", () => {
   });
 
   it("rejects an inactive affiliate and snapshots immutable affiliate attribution", async () => {
-    const calls: Array<{ operation: string; data?: Record<string, unknown> }> = [];
+    const calls: Array<{ operation: string; data?: Record<string, unknown> }> =
+      [];
     const affiliatePromo = promo({
       kind: "AFFILIATE",
       basisPoints: 1_200,
@@ -274,6 +316,7 @@ describe("PromocodesService", () => {
       },
       promoCode: tx.promoCode,
       promoRedemption: tx.promoRedemption,
+      product: { findMany: async () => [] },
       telegramAccount: { findUnique: async () => null },
     } as unknown as PrismaService);
 

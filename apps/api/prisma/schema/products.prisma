@@ -44,6 +44,8 @@ model Product {
   /// Price is stored in minor currency units.
   /// For RUB this means kopecks: 129000 = 1290 ₽.
   price                   Int
+  /// Optional sale price in minor currency units; must be lower than price.
+  salePrice               Int?          @map("sale_price")
   currency                String        @default("RUB") @db.VarChar(3)
   createdAt               DateTime      @default(now()) @map("created_at")
   updatedAt               DateTime      @default(now()) @updatedAt @map("updated_at")

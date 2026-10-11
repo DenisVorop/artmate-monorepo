@@ -17,6 +17,10 @@ import {
   UserStatus as PrismaUserStatus,
 } from "../generated/prisma/client";
 import { PrismaService } from "../prisma/prisma.service";
+import {
+  getProductPrice,
+  readProductPrices,
+} from "../products/product-pricing";
 
 import type { PromoCodeInputDTO, UpdatePromoCodeInputDTO } from "./dto";
 import {
@@ -264,9 +268,15 @@ export class PromocodesService {
     if (!promo) throw new BadRequestException("Промокод не найден");
     if (!cart || cart.items.length === 0)
       throw new BadRequestException("Корзина пуста");
+    const productPrices = await readProductPrices(
+      this.prisma,
+      cart.items.map((item) => item.productId),
+    );
     const items = cart.items.map((item) => ({
       id: item.productId,
-      unitPriceKopecks: rublesToKopecks(item.price),
+      unitPriceKopecks: productPrices.has(item.productId)
+        ? getProductPrice(productPrices.get(item.productId)!)
+        : rublesToKopecks(item.price),
       quantity: item.quantity,
     }));
     const pricing = await this.evaluate(
@@ -663,10 +673,7 @@ export class PromocodesService {
     client: Pick<PromoEvaluationClient, "affiliatePartner">,
   ) {
     if (promo.kind !== PrismaPromoCodeKind.AFFILIATE) return undefined;
-    if (
-      !promo.affiliatePartnerId ||
-      promo.affiliatePartnerPercent === null
-    ) {
+    if (!promo.affiliatePartnerId || promo.affiliatePartnerPercent === null) {
       throw new BadRequestException("Промокод недоступен");
     }
     const partner = await client.affiliatePartner.findUnique({
@@ -695,10 +702,7 @@ export class PromocodesService {
     };
   }
 
-  private async getOrderPurchaseUserIds(
-    tx: PromoTransaction,
-    orderId: string,
-  ) {
+  private async getOrderPurchaseUserIds(tx: PromoTransaction, orderId: string) {
     const order = await tx.order.findUnique({
       where: { id: orderId },
       select: { checkoutActorUserId: true, userId: true },

@@ -60,6 +60,8 @@ export type ProductDTO = {
   category?: ProductCategoryDTO;
   price: number;
   priceRub: number;
+  salePrice: number | null;
+  salePriceRub: number | null;
   currency: ProductCurrencyDTO;
   images: ProductImageDTO[];
   tags: ProductTagDTO[];
@@ -79,6 +81,7 @@ export type CreateProductInputDTO = {
   isOzonDeliveryAvailable?: boolean;
   categoryId?: string;
   priceRub: number;
+  salePriceRub?: number | null;
   currency?: ProductCurrencyDTO;
   tagIds?: string[];
 };

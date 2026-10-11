@@ -60,6 +60,11 @@ export class UpdateProductRequestDTO extends ProductContentRequestDTO {
   priceRub?: number;
 
   @IsOptional()
+  @IsInt()
+  @Min(1)
+  salePriceRub?: number | null;
+
+  @IsOptional()
   @IsIn(productCurrencies)
   currency?: ProductCurrency;
 

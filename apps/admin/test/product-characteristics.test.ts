@@ -109,6 +109,56 @@ test("update sends empty array and blank instructions as explicit clear", () => 
   );
 });
 
+test("sale price is optional on create, explicitly cleared on update, and must be a lower positive integer", () => {
+  const noDiscount = values({ priceRub: 1000, salePriceRub: null });
+  const createWithoutSalePrice = formValues.getCreateProductInput(noDiscount);
+  const updateWithoutSalePrice = formValues.getUpdateProductInput(noDiscount);
+
+  assert.equal(Object.hasOwn(createWithoutSalePrice, "salePriceRub"), false);
+  assert.equal(updateWithoutSalePrice.salePriceRub, null);
+  assert.ok(
+    Object.hasOwn(
+      JSON.parse(JSON.stringify(updateWithoutSalePrice)),
+      "salePriceRub",
+    ),
+  );
+
+  const withSalePrice = values({ priceRub: 1000, salePriceRub: 750 });
+  assert.equal(
+    formValues.productFormSchema.safeParse(withSalePrice).success,
+    true,
+  );
+  assert.equal(
+    formValues.getCreateProductInput(withSalePrice).salePriceRub,
+    750,
+  );
+  assert.equal(
+    formValues.getUpdateProductInput(withSalePrice).salePriceRub,
+    750,
+  );
+
+  for (const salePriceRub of [0, 1000, 1001, 1.5, 21_474_837]) {
+    assert.equal(
+      formValues.productFormSchema.safeParse(
+        values({ priceRub: 1000, salePriceRub }),
+      ).success,
+      false,
+      `Expected sale price ${salePriceRub} to be rejected`,
+    );
+  }
+  assert.equal(
+    formValues.productFormSchema.safeParse(
+      values({ priceRub: 21_474_836, salePriceRub: 21_474_835 }),
+    ).success,
+    true,
+  );
+  assert.equal(
+    formValues.productFormSchema.safeParse(values({ priceRub: 21_474_837 }))
+      .success,
+    false,
+  );
+});
+
 test("characteristics validation rejects blank fields, excessive lengths and markup", () => {
   for (const invalid of [
     { ...row(), name: " " },

@@ -16,6 +16,7 @@ import {
   ProductTagGroup as PrismaProductTagGroup,
 } from "../generated/prisma/client";
 import { PrismaService } from "../prisma/prisma.service";
+import { getProductPrice } from "./product-pricing";
 
 import type {
   CreateProductCategoryRequestDTO,
@@ -335,7 +336,9 @@ export class ProductsService {
       id: product.id,
       title: product.title,
       slug: product.slug,
-      price: Math.trunc(product.price / 100),
+      price: getProductPrice(product) / 100,
+      originalPrice:
+        product.salePrice != null ? product.price / 100 : undefined,
       category: product.category?.title,
       categorySlug: product.category?.slug,
       image: primaryImage.url,
@@ -492,6 +495,8 @@ export class ProductsService {
   }
 
   async createProduct(input: CreateProductRequestDTO) {
+    const price = this.parsePriceRub(input.priceRub) * 100;
+    const salePrice = this.parseSalePriceRub(input.salePriceRub, price);
     const status = input.status
       ? this.mapProductStatus(input.status)
       : PrismaProductStatus.DRAFT;
@@ -526,7 +531,8 @@ export class ProductsService {
           isOzonDeliveryAvailable: input.isOzonDeliveryAvailable ?? true,
           ...this.getCategoryCreateData(input.categoryId),
           ...this.getTagAssignmentsCreateData(input.tagIds),
-          price: this.parsePriceRub(input.priceRub) * 100,
+          price,
+          salePrice,
           currency: this.parseCurrency(input.currency),
         },
         include: productInclude,
@@ -544,6 +550,7 @@ export class ProductsService {
 
   async updateProduct(productId: string, input: UpdateProductRequestDTO) {
     const data: Prisma.ProductUpdateInput = {};
+    const priceVersion: { price?: number; salePrice?: number | null } = {};
 
     if (input.title !== undefined) {
       data.title = this.parseRequiredString(input.title, "title");
@@ -599,8 +606,27 @@ export class ProductsService {
       data.category = this.getCategoryUpdateData(input.categoryId);
     }
 
-    if (input.priceRub !== undefined) {
-      data.price = this.parsePriceRub(input.priceRub) * 100;
+    if (input.priceRub !== undefined || input.salePriceRub !== undefined) {
+      const current = await this.prisma.product.findUnique({
+        where: { id: productId },
+        select: { price: true, salePrice: true },
+      });
+      if (!current) throw new NotFoundException("Product not found");
+      priceVersion.price = current.price;
+      priceVersion.salePrice = current.salePrice;
+
+      const price =
+        input.priceRub === undefined
+          ? current.price
+          : this.parsePriceRub(input.priceRub) * 100;
+      const salePriceRub =
+        input.salePriceRub === undefined
+          ? current.salePrice == null
+            ? null
+            : current.salePrice / 100
+          : input.salePriceRub;
+      data.price = price;
+      data.salePrice = this.parseSalePriceRub(salePriceRub, price);
     }
 
     if (input.currency !== undefined) {
@@ -613,13 +639,22 @@ export class ProductsService {
 
     try {
       const product = await this.prisma.product.update({
-        where: { id: productId },
+        where: { id: productId, ...priceVersion },
         data,
         include: productInclude,
       });
 
       return this.mapProduct(product);
     } catch (error) {
+      if (
+        priceVersion.price !== undefined &&
+        error instanceof Prisma.PrismaClientKnownRequestError &&
+        error.code === "P2025"
+      ) {
+        throw new ConflictException(
+          "Цена товара изменилась. Обновите страницу и попробуйте ещё раз.",
+        );
+      }
       this.handlePrismaMutationError(error, "Product slug already exists");
     }
   }
@@ -920,6 +955,21 @@ export class ProductsService {
     return currency;
   }
 
+  private parseSalePriceRub(value: number | null | undefined, price: number) {
+    if (value == null) return null;
+    if (
+      !Number.isSafeInteger(value) ||
+      value < 1 ||
+      value > maxPriceRub ||
+      value * 100 >= price
+    ) {
+      throw new BadRequestException(
+        "Цена со скидкой должна быть положительным целым числом и ниже обычной цены",
+      );
+    }
+    return value * 100;
+  }
+
   private mapProductStatus(status: ProductStatus) {
     switch (status) {
       case "draft":
@@ -996,6 +1046,8 @@ export class ProductsService {
         : undefined,
       price: product.price,
       priceRub: Math.trunc(product.price / 100),
+      salePrice: product.salePrice,
+      salePriceRub: product.salePrice == null ? null : product.salePrice / 100,
       currency: product.currency as ProductCurrency,
       images: product.images.map((image) => this.mapProductImage(image)),
       tags: product.tags
