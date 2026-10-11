@@ -23,7 +23,7 @@ export function Header() {
   return (
     <header
       className={cn(
-        "sticky top-0 z-11 border-b border-stone-100 bg-white",
+        "sticky top-0 z-11 border-b border-stone-200 bg-white",
         hasDevelopmentBanner
           ? "h-[calc(var(--site-header-banner-height)+var(--site-header-nav-height)+1px)]"
           : "h-[var(--site-header-nav-height)]",
