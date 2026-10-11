@@ -2,7 +2,7 @@ import { Sparkles } from "lucide-react";
 
 import {
   formatLoyaltyMoney,
-  formatLoyaltyPoints,
+  LoyaltyPoints,
   type LoyaltyDashboard,
   type LoyaltyOverview,
 } from "@/entities/loyalty";
@@ -22,19 +22,24 @@ export function Balance({
         <div className="space-y-3">
           <p className="text-sm font-medium text-stone-600">Ваш баланс</p>
           <p className="font-display text-5xl font-bold tracking-tight text-stone-900 sm:text-6xl">
-            {formatLoyaltyPoints(member.wallet.balancePoints)}
+            <LoyaltyPoints
+              points={member.wallet.balancePoints}
+              iconClassName="size-10 sm:size-12"
+            />
           </p>
-          <p className="text-sm text-stone-600">5 б = 1 ₽ · Баллы бессрочные</p>
+          <p className="text-sm text-stone-600">
+            <LoyaltyPoints points={5} /> = 1 ₽ · Баллы бессрочные
+          </p>
           {ready ? (
             <p className="text-sm font-medium">
-              Доступно для покупок: {formatLoyaltyPoints(member.wallet.availablePoints)}
+              Доступно для покупок: <LoyaltyPoints points={member.wallet.availablePoints} />
             </p>
           ) : (
             <p className="text-sm leading-6 text-stone-600">Списание баллов пока недоступно.</p>
           )}
           {member.wallet.reservedPoints > 0 && (
             <p className="text-sm text-stone-600">
-              В резерве для заказов: {formatLoyaltyPoints(member.wallet.reservedPoints)}
+              В резерве для заказов: <LoyaltyPoints points={member.wallet.reservedPoints} />
             </p>
           )}
         </div>

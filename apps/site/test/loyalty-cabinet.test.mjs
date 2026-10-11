@@ -8,14 +8,20 @@ const ts = require("typescript");
 
 test("enrollment opens the shared legal page instead of downloading the rules", async () => {
   const { routes } = await load("shared/constants/routes.ts");
-  const form = await readFile(new URL("../src/features/loyalty-cabinet/ui/enrollment.tsx", import.meta.url), "utf8");
+  const form = await readFile(
+    new URL("../src/features/loyalty-cabinet/ui/enrollment.tsx", import.meta.url),
+    "utf8",
+  );
   assert.match(form, /href=\{routes.legal.loyaltyRules\}/);
   assert.match(form, /правила клуба Artmate/);
   assert.doesNotMatch(form, /\(DOCX\)/);
   assert.match(form, /target="_blank"/);
   assert.doesNotMatch(form, /изложенные выше/);
   assert.equal(routes.legal.loyaltyRules, "/legal/loyalty-rules");
-  const route = await readFile(new URL("../app/(site)/legal/loyalty-rules/page.tsx", import.meta.url), "utf8");
+  const route = await readFile(
+    new URL("../app/(site)/legal/loyalty-rules/page.tsx", import.meta.url),
+    "utf8",
+  );
   assert.match(route, /<LegalPage documentId="loyaltyRules"/);
   assert.doesNotMatch(form, /\bdownload\b/);
 });
@@ -59,7 +65,8 @@ test("reservation and release describe held points without duplicating a balance
     reservedDelta: 50,
     balanceAfter: 100,
   });
-  assert.equal(reserve.amount, "50 б");
+  assert.equal(reserve.points, 50);
+  assert.equal(reserve.prefix, "");
   assert.match(reserve.detail, /ещё не списано/u);
   const consume = getOperationPresentation({
     kind: "consume",
@@ -67,14 +74,16 @@ test("reservation and release describe held points without duplicating a balance
     reservedDelta: -50,
     balanceAfter: 50,
   });
-  assert.equal(consume.amount, "−50 б");
+  assert.equal(consume.points, 50);
+  assert.equal(consume.prefix, "−");
   const release = getOperationPresentation({
     kind: "release",
     balanceDelta: 0,
     reservedDelta: -50,
     balanceAfter: 100,
   });
-  assert.equal(release.amount, "50 б");
+  assert.equal(release.points, 50);
+  assert.equal(release.prefix, "");
   assert.match(release.detail, /снова доступны/u);
   const credit = getOperationPresentation({
     kind: "credit",
@@ -82,7 +91,9 @@ test("reservation and release describe held points without duplicating a balance
     reservedDelta: 0,
     balanceAfter: 125,
   });
-  assert.equal(credit.amount, "+25 б");
+  assert.equal(credit.points, 25);
+  assert.equal(credit.prefix, "+");
+  assert.equal(credit.balanceAfter, 125);
   assert.equal(credit.tone, "positive");
 });
 

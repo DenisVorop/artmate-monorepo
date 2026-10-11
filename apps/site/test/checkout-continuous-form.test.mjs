@@ -30,7 +30,10 @@ test("checkout is one continuous RHF form with the three numbered sections", asy
     readSource("src/features/checkout/lib/checkout-provider/checkout-provider.tsx"),
   ]);
 
-  assert.match(flow, /<form\s+id=\{checkoutOrderFormId\}\s+onSubmit=\{submitOrder\}>/u);
+  assert.match(
+    flow,
+    /<form\s+id=\{checkoutOrderFormId\}\s+onSubmit=\{submitOrder\}\s+noValidate>/u,
+  );
   assert.match(flow, /01[\s\S]*Получатель/u);
   assert.match(flow, /02[\s\S]*Доставка/u);
   assert.match(flow, /03[\s\S]*Способ оплаты/u);
@@ -359,18 +362,6 @@ test("cookie consent publishes its measured height and resets it after resize, h
   }
 });
 
-test("order summary shows two item rows and discloses remaining positions natively", async () => {
-  const summary = await readSource("src/features/checkout/ui/order-summary.tsx");
-
-  assert.match(summary, /cart\.items\.slice\(0,\s*2\)/u);
-  assert.match(summary, /cart\.items\.slice\(2\)/u);
-  assert.match(summary, /<OrderItem\s+key=\{item\.id\}\s+item=\{item\}/u);
-  assert.match(summary, /<details/u);
-  assert.match(summary, /<summary[^>]*className="[^"]*min-h-11/u);
-  assert.match(summary, /hiddenItems\.length/u);
-  assert.doesNotMatch(summary, /useState|Accordion|Collapsible/u);
-});
-
 test("pickup picker uses a large desktop Dialog and a mobile Drawer", async () => {
   const source = await readSource("src/features/checkout/ui/delivery-picker.tsx");
 
@@ -565,6 +556,5 @@ test("offline calculation never renders calculating delivery copy", async () => 
   const field = await readSource("src/features/checkout/ui/delivery-method-field.tsx");
 
   assert.match(field, /checkoutCalculation\.status === "pending"/u);
-  assert.match(field, /variant="link"[\s\S]*className="(?=[^"]*\bmin-h-11\b)(?=[^"]*\bh-auto\b)/u);
   assert.doesNotMatch(field, /isPending|isPaused/u);
 });

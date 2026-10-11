@@ -5,6 +5,7 @@ import { ArrowLeft, ArrowRight } from "lucide-react";
 
 import {
   formatLoyaltyDate,
+  LoyaltyPoints,
   getOperationPresentation,
   useLoyaltyOperations,
 } from "@/entities/loyalty";
@@ -56,7 +57,15 @@ export function Operations({ userId }: { userId: string }) {
                   >
                     <div className="min-w-0 space-y-1">
                       <p className="text-sm font-medium break-words">{operation.title}</p>
-                      <p className="text-xs leading-5 text-muted-foreground">{display.detail}</p>
+                      <p className="text-xs leading-5 text-muted-foreground">
+                        {display.detail}
+                        {display.balanceAfter !== undefined ? (
+                          <>
+                            {" "}
+                            <LoyaltyPoints points={display.balanceAfter} />
+                          </>
+                        ) : null}
+                      </p>
                       <time
                         dateTime={operation.occurredAt}
                         className="block text-xs text-muted-foreground"
@@ -70,7 +79,7 @@ export function Operations({ userId }: { userId: string }) {
                         display.tone === "positive" ? "text-emerald-700" : "text-stone-700",
                       )}
                     >
-                      {display.amount}
+                      <LoyaltyPoints points={display.points} prefix={display.prefix} />
                     </p>
                   </li>
                 );

@@ -4,6 +4,7 @@ import { RefreshCw } from "lucide-react";
 import type { ReactNode } from "react";
 
 import type { Cart } from "@/entities/cart";
+import { getPromoPricingState, usePromocode } from "@/features/promocode";
 import { Button, DataState, Separator } from "@/shared/ui";
 
 import {
@@ -13,6 +14,8 @@ import {
   withCheckout,
   type CheckoutCalculationState,
 } from "../lib";
+
+import { getCheckoutPriceSummary } from "../lib/price-summary";
 
 import { ContactFields } from "./contact-fields";
 import { CheckoutSubmitButton } from "./checkout-submit-button";
@@ -26,16 +29,16 @@ type CheckoutFlowProps = {
 };
 
 function BaseCheckoutFlow({ cart, createOrderError }: CheckoutFlowProps) {
-  const { checkoutCalculation, isSubmitting, selectedDelivery, submitLabel, submitOrder } =
-    useCheckout();
-  const isSubmitDisabled =
-    isSubmitting || checkoutCalculation.status !== "ready" || !selectedDelivery;
+  const { checkoutCalculation, isSubmitting, submitLabel, submitOrder } = useCheckout();
+  const promoPricing = getPromoPricingState(usePromocode());
+  const pricing = getCheckoutPriceSummary(cart, checkoutCalculation, promoPricing.preview);
+  const isSubmitDisabled = isSubmitting || checkoutCalculation.status === "pending";
   const calculationFeedback = getCalculationFeedback(checkoutCalculation);
 
   return (
     <>
       <div className="grid gap-6 pb-[calc(7rem+var(--site-cookie-consent-height))] lg:grid-cols-[minmax(0,1fr)_24rem] lg:items-start lg:pb-0">
-        <form id={checkoutOrderFormId} onSubmit={submitOrder}>
+        <form id={checkoutOrderFormId} onSubmit={submitOrder} noValidate>
           <div className="overflow-hidden rounded-xl border bg-background px-4 sm:px-6">
             <CheckoutSection number="01" title="Получатель">
               <ContactFields />
@@ -90,8 +93,10 @@ function BaseCheckoutFlow({ cart, createOrderError }: CheckoutFlowProps) {
       <div className="fixed inset-x-0 bottom-[var(--site-cookie-consent-height)] z-40 border-t bg-background/95 px-4 pt-3 pb-[calc(env(safe-area-inset-bottom)+0.75rem)] backdrop-blur lg:hidden">
         <div className="mx-auto flex max-w-lg items-center gap-4">
           <div className="min-w-0 flex-1">
-            <p className="text-xs text-muted-foreground">Итого</p>
-            <p className="truncate font-semibold">{getMobileTotalLabel(checkoutCalculation)}</p>
+            <p className="text-xs text-muted-foreground">
+              {pricing.includesDelivery ? "Итого" : "Без доставки"}
+            </p>
+            <p className="truncate font-semibold tabular-nums">{formatMoney(pricing.amount)}</p>
           </div>
           <CheckoutSubmitButton
             form={checkoutOrderFormId}
@@ -126,21 +131,6 @@ function getCalculationFeedback(calculationState: CheckoutCalculationState) {
   }
 
   return undefined;
-}
-
-function getMobileTotalLabel(calculationState: CheckoutCalculationState) {
-  switch (calculationState.status) {
-    case "idle":
-      return "После выбора доставки";
-    case "pending":
-      return "Пересчитываем";
-    case "offline":
-      return "Нет сети";
-    case "error":
-      return "Недоступно";
-    case "ready":
-      return formatMoney(calculationState.calculation.total);
-  }
 }
 
 export const CheckoutFlow = withCheckout(BaseCheckoutFlow);

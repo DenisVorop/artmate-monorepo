@@ -31,6 +31,7 @@ export {
 } from "./card";
 export { CtaGradientLink } from "./cta-gradient-link";
 export { DataState } from "./data-state";
+export { DiscountBreakdown } from "./discount-breakdown";
 export { DecorDots } from "./decor-dots";
 export {
   Dialog,

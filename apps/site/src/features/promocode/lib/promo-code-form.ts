@@ -6,7 +6,10 @@ export const promoCodeFormSchema = z.object({
   code: z
     .string()
     .transform(normalizePromoCode)
-    .refine((value) => promoCodePattern.test(value), "Введите промокод"),
+    .refine(
+      (value) => value === "" || promoCodePattern.test(value),
+      "Проверьте написание промокода",
+    ),
 });
 
 export type PromoCodeFormValues = z.input<typeof promoCodeFormSchema>;

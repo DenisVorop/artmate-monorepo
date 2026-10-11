@@ -114,6 +114,10 @@ async function createFormHarness(initialState = {}) {
     {
       "../lib": { ...promoCode, usePromocode: () => state },
       "@/shared/ui": {
+        Accordion: component("Accordion"),
+        AccordionContent: component("AccordionContent"),
+        AccordionItem: component("AccordionItem"),
+        AccordionTrigger: component("AccordionTrigger"),
         Button: component("Button"),
         Input: component("Input"),
         Label: component("Label"),
@@ -123,8 +127,10 @@ async function createFormHarness(initialState = {}) {
         LoaderCircle: component("LoaderCircle"),
         LogIn: component("LogIn"),
         Tag: component("Tag"),
+        Check: component("Check"),
+        Trash2: component("Trash2"),
       },
-      react: { useEffect: (effect) => effect() },
+      react: { useEffect: (effect) => effect(), useState: (initial) => [initial, () => undefined] },
       "react-hook-form": {
         useForm: () => ({
           formState: { errors: formErrors },
@@ -141,6 +147,10 @@ async function createFormHarness(initialState = {}) {
           reset: ({ code }) => {
             submittedCode = code;
           },
+          watch: () => submittedCode,
+          clearErrors: (name) => {
+            delete formErrors[name];
+          },
         }),
       },
       "react/jsx-runtime": { Fragment: Symbol("Fragment"), jsx, jsxs: jsx },
@@ -150,33 +160,40 @@ async function createFormHarness(initialState = {}) {
   return { calls, render: () => PromoCodeForm() };
 }
 
-test("promo schema keeps normalization and uses one concise validation error", async () => {
+test("promo schema allows an empty optional code and validates entered codes", async () => {
   const { promoCodeFormSchema } = await loadPromoCodeModules();
 
-  for (const code of ["", "ab", "A".repeat(41), "SAVE CODE", "ПРОМО"]) {
+  for (const code of ["ab", "A".repeat(41), "SAVE CODE", "ПРОМО"]) {
     const result = promoCodeFormSchema.safeParse({ code });
 
     assert.equal(result.success, false);
-    assert.equal(result.error.issues[0].message, "Введите промокод");
+    assert.equal(result.error.issues[0].message, "Проверьте написание промокода");
   }
 
   assert.deepEqual(promoCodeFormSchema.parse({ code: " save-10 " }), { code: "SAVE-10" });
+  assert.deepEqual(promoCodeFormSchema.parse({ code: "   " }), { code: "" });
   assert.deepEqual(promoCodeFormSchema.parse({ code: "save_10" }), { code: "SAVE_10" });
   assert.equal(promoCodeFormSchema.parse({ code: "abc" }).code, "ABC");
   assert.equal(promoCodeFormSchema.parse({ code: "a".repeat(40) }).code, "A".repeat(40));
 });
 
-test("selected, error and paused states omit secondary retry and delete actions", async () => {
+test("selected, error and paused states allow removing a code without a retry control", async () => {
   for (const state of [
     { selectedCode: "SAVE10" },
     { error: new Error("Промокод истек"), isError: true, selectedCode: "SAVE10" },
     { isPaused: true, isPending: true, selectedCode: "SAVE10" },
   ]) {
-    const { render } = await createFormHarness(state);
-    const text = renderedText(render());
+    const { render, calls } = await createFormHarness(state);
+    const tree = render();
+    const text = renderedText(tree);
 
-    assert.doesNotMatch(text, /Повторить проверку|Удалить промокод/u);
+    assert.doesNotMatch(text, /Повторить проверку/u);
     assert.match(text, /Заменить/u);
+    assert.doesNotMatch(text, /Убрать промокод/u);
+    const remove = findNode(tree, (node) => node.props?.["aria-label"] === "Убрать промокод");
+    assert.ok(findNode(remove, (node) => node.type === "Trash2"));
+    remove.props.onClick();
+    assert.equal(calls.clear, 1);
   }
 });
 
@@ -195,7 +212,7 @@ test("main action reapplies the same selected code while paused and guest login 
 
   assert.equal(submitButton.props.disabled, false);
   assert.match(renderedText(submitButton), /Заменить/u);
-  assert.match(renderedText(pausedTree), /Нет сети\. Скидка будет доступна/u);
+  assert.match(renderedText(pausedTree), /Нет сети\. Подключитесь к интернету/u);
   form.props.onSubmit();
   assert.deepEqual(paused.calls.apply, ["SAVE10"]);
 
@@ -208,7 +225,7 @@ test("main action reapplies the same selected code while paused and guest login 
     },
   });
   const guestTree = guest.render();
-  const loginButton = findNode(guestTree, (node) => renderedText(node) === "Войти и проверить");
+  const loginButton = findNode(guestTree, (node) => renderedText(node) === "Войти и применить");
 
   assert.ok(loginButton);
   loginButton.props.onClick();
@@ -242,7 +259,7 @@ test("pending, hydration, success and error states keep their status semantics",
       .disabled,
     true,
   );
-  assert.match(renderedText(hydratingTree), /Проверяем сохраненный промокод/u);
+  assert.match(renderedText(hydratingTree), /Проверяем промокод/u);
 
   const pending = await createFormHarness({ isPending: true });
   const pendingTree = pending.render();
@@ -252,13 +269,13 @@ test("pending, hydration, success and error states keep their status semantics",
     true,
   );
   assert.match(renderedText(pendingTree), /Применить/u);
-  assert.match(renderedText(pendingTree), /Проверяем промокод и сумму скидки/u);
+  assert.match(renderedText(pendingTree), /Проверяем промокод/u);
 
   const success = await createFormHarness({
     preview: { code: "SAVE10", discount: 100 },
     selectedCode: "SAVE10",
   });
-  assert.match(renderedText(success.render()), /Промокод SAVE10 применен\. Скидка 100 ₽\./u);
+  assert.match(renderedText(success.render()), /SAVE10.*Скидка 100 ₽/u);
 
   const failure = await createFormHarness({ error: new Error("Промокод истек"), isError: true });
   assert.match(renderedText(failure.render()), /Промокод истек/u);
@@ -266,7 +283,8 @@ test("pending, hydration, success and error states keep their status semantics",
 
 test("promo controls keep 44px targets and associate validation errors without duplicating status", async () => {
   const harness = await createFormHarness({
-    formErrors: { code: { message: "Введите промокод" } },
+    selectedCode: "ab",
+    formErrors: { code: { message: "Проверьте написание промокода" } },
   });
   const tree = harness.render();
   const input = findNode(tree, (node) => node.type === "Input");
@@ -291,6 +309,58 @@ test("promo controls keep 44px targets and associate validation errors without d
     isGuest: true,
     onLoginRequested: () => undefined,
   });
-  const login = findNode(guest.render(), (node) => renderedText(node) === "Войти и проверить");
+  const login = findNode(guest.render(), (node) => renderedText(node) === "Войти и применить");
   assert.match(login.props.className, /min-h-11/u);
+});
+
+test("an empty promo does not apply, clear an active code, or render validation errors", async () => {
+  const harness = await createFormHarness({
+    formErrors: { code: { message: "Введите промокод" } },
+  });
+  const tree = harness.render();
+  const input = findNode(tree, (node) => node.type === "Input");
+  const submit = findNode(tree, (node) => node.type === "Button" && node.props.type === "submit");
+  assert.equal(input.props["aria-invalid"], false);
+  assert.equal(submit.props.disabled, true);
+  assert.equal(
+    findNode(tree, (node) => node.props?.id === "promo-code-error"),
+    undefined,
+  );
+  findNode(tree, (node) => node.type === "form").props.onSubmit();
+  assert.deepEqual(harness.calls.apply, []);
+  assert.equal(harness.calls.clear, 0);
+});
+
+test("clearing an invalid promo input clears its error and disables applying", async () => {
+  const harness = await createFormHarness({
+    selectedCode: "ab",
+    formErrors: { code: { message: "Проверьте написание промокода" } },
+  });
+  findNode(harness.render(), (node) => node.type === "Input").props.onChange({
+    target: { value: "   " },
+  });
+  const tree = harness.render();
+  assert.equal(findNode(tree, (node) => node.type === "Input").props["aria-invalid"], false);
+  assert.equal(
+    findNode(tree, (node) => node.type === "Button" && node.props.type === "submit").props.disabled,
+    true,
+  );
+  assert.equal(
+    findNode(tree, (node) => node.props?.id === "promo-code-error"),
+    undefined,
+  );
+});
+
+test("rejected promo can be removed without emptying the input first", async () => {
+  const harness = await createFormHarness({
+    selectedCode: "BAD10",
+    isError: true,
+    error: new Error("Промокод истек"),
+  });
+  const remove = findNode(
+    harness.render(),
+    (node) => node.type === "Button" && node.props["aria-label"] === "Убрать промокод",
+  );
+  remove.props.onClick();
+  assert.equal(harness.calls.clear, 1);
 });

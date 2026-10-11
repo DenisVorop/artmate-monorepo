@@ -3,7 +3,7 @@
 import { useCallback, useEffect, useState } from "react";
 import type { CheckoutLoyaltyDTO } from "@/shared/actions/orders";
 
-/** Choices belong to one buyer/cart/promo; never carry spending into another checkout. */
+/** Choices belong to one buyer/cart; promo changes recalculate the spending limit. */
 export function useLoyaltySelection(selectionKey: string) {
   const [selection, setSelection] = useState({ key: selectionKey, points: 0 });
   const pointsToSpend = selection.key === selectionKey ? selection.points : 0;

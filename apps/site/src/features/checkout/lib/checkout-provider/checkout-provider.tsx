@@ -73,6 +73,7 @@ export function CheckoutProvider({
   const promoCode = usePromocode();
   const promoPricing = getPromoPricingState(promoCode);
   const [selectedDelivery, setSelectedDeliveryState] = useState<CheckoutDeliverySelection>();
+  const [isDeliveryPickerOpen, setDeliveryPickerOpen] = useState(false);
   const checkoutAttemptRef = useRef<CheckoutAttempt | undefined>(undefined);
   const confirmationCoordinatorRef = useRef<
     ReturnType<typeof createDeliveryConfirmationCoordinator> | undefined
@@ -80,14 +81,31 @@ export function CheckoutProvider({
   confirmationCoordinatorRef.current ??= createDeliveryConfirmationCoordinator();
   const cartSignature = getCartPricingSignature(cart);
   const accountIdentity = user?.id ?? "guest";
-  const selectionKey = JSON.stringify([
-    accountIdentity,
-    cart.id,
-    cartSignature,
-    promoPricing.code ?? null,
-  ]);
+  const selectionKey = JSON.stringify([accountIdentity, cart.id, cartSignature]);
   const loyaltySelection = useLoyaltySelection(selectionKey);
-  const { pointsToSpend } = loyaltySelection;
+  const { pointsToSpend: requestedPoints, setPoints } = loyaltySelection;
+  const limitCalculation = useCheckoutCalculation(selectedDelivery, {
+    accountIdentity,
+    cartId: cart.id,
+    cartSignature,
+    promoCode: promoPricing.code,
+    loyaltyPointsToSpend: 0,
+    enabled: promoPricing.isReady && requestedPoints > 0,
+  });
+  const limitState = resolveCheckoutCalculationState({
+    ...limitCalculation,
+    cartId: cart.id,
+    confirmedDelivery: selectedDelivery,
+    isOffline: limitCalculation.isPaused,
+    loyaltyPointsToSpend: 0,
+  });
+  const pointsToSpend =
+    promoPricing.isReady && limitState.status === "ready"
+      ? Math.min(requestedPoints, limitState.calculation.loyalty.maxPoints)
+      : requestedPoints;
+  useEffect(() => {
+    if (pointsToSpend < requestedPoints) setPoints(pointsToSpend);
+  }, [pointsToSpend, requestedPoints, setPoints]);
   const attemptOwnerRef = useRef(selectionKey);
   const calculationIdentity = useMemo<CheckoutCalculationIdentity>(
     () => ({
@@ -112,21 +130,25 @@ export function CheckoutProvider({
   latestConfirmationIdentityRef.current = confirmationIdentity;
   const serverCheckoutCalculation = useCheckoutCalculation(selectedDelivery, {
     ...calculationIdentity,
-    enabled: promoPricing.isReady,
+    enabled: promoPricing.isReady && (requestedPoints === 0 || limitState.status === "ready"),
   });
+  const activeCalculation =
+    requestedPoints > 0 && limitState.status !== "ready"
+      ? limitCalculation
+      : serverCheckoutCalculation;
   const checkoutCalculation = useMemo(
     () =>
       resolveCheckoutCalculationState({
-        calculation: promoPricing.isReady ? serverCheckoutCalculation.calculation : undefined,
+        calculation: promoPricing.isReady ? activeCalculation.calculation : undefined,
         cartId: cart.id,
         confirmedDelivery: selectedDelivery,
-        error: serverCheckoutCalculation.error,
-        isError: promoPricing.isReady && serverCheckoutCalculation.isError,
-        isOffline: promoPricing.isReady ? serverCheckoutCalculation.isPaused : promoCode.isPaused,
+        error: activeCalculation.error,
+        isError: promoPricing.isReady && activeCalculation.isError,
+        isOffline: promoPricing.isReady ? activeCalculation.isPaused : promoCode.isPaused,
         isPending: promoPricing.isReady
-          ? serverCheckoutCalculation.isPending
+          ? activeCalculation.isPending
           : promoCode.isHydrating || promoCode.isPending,
-        retry: promoPricing.isReady ? serverCheckoutCalculation.retry : promoCode.retry,
+        retry: promoPricing.isReady ? activeCalculation.retry : promoCode.retry,
         loyaltyPointsToSpend: pointsToSpend,
       }),
     [
@@ -138,7 +160,7 @@ export function CheckoutProvider({
       promoCode.isPending,
       promoCode.retry,
       selectedDelivery,
-      serverCheckoutCalculation,
+      activeCalculation,
     ],
   );
   const loyaltyPreview =
@@ -147,17 +169,11 @@ export function CheckoutProvider({
     () => ({
       selectionKey,
       pointsToSpend,
-      setPoints: loyaltySelection.setPoints,
+      setPoints,
       preview: loyaltyPreview,
       isPending: checkoutCalculation.status === "pending",
     }),
-    [
-      selectionKey,
-      pointsToSpend,
-      loyaltySelection.setPoints,
-      loyaltyPreview,
-      checkoutCalculation.status,
-    ],
+    [selectionKey, pointsToSpend, setPoints, loyaltyPreview, checkoutCalculation.status],
   );
   const defaultValues = useMemo(
     () => getDefaultCheckoutFormValues(customerDefaults),
@@ -245,6 +261,16 @@ export function CheckoutProvider({
 
   const submitOrder = useCallback<FormEventHandler<HTMLFormElement>>(
     (event) => {
+      if (!selectedDelivery) {
+        event.preventDefault();
+        setDeliveryPickerOpen(true);
+        return;
+      }
+      if (checkoutCalculation.status === "error" || checkoutCalculation.status === "offline") {
+        event.preventDefault();
+        checkoutCalculation.retry();
+        return;
+      }
       void form.handleSubmit(async (values) => {
         if (
           !selectedDelivery ||
@@ -290,6 +316,8 @@ export function CheckoutProvider({
       form,
       isEmailLocked,
       isSubmitting,
+      isDeliveryPickerOpen,
+      setDeliveryPickerOpen,
       invalidateDeliveryConfirmation,
       selectedDelivery,
       submitLabel,
@@ -303,6 +331,7 @@ export function CheckoutProvider({
       form,
       isEmailLocked,
       isSubmitting,
+      isDeliveryPickerOpen,
       invalidateDeliveryConfirmation,
       selectedDelivery,
       submitLabel,

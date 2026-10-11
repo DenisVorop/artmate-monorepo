@@ -1,23 +1,30 @@
 "use client";
 
 import Image from "next/image";
-import { ChevronDown, LoaderCircle, Tag, Truck } from "lucide-react";
+import { ShoppingBag } from "lucide-react";
+import type { ReactNode } from "react";
 
 import type { Cart, CartItem } from "@/entities/cart";
+import type { PromoPreview } from "@/entities/promocode";
 import { ProductPrice } from "@/entities/products";
 import { useDevelopmentBanner } from "@/entities/feature-banners";
+import { LoyaltyPoints } from "@/entities/loyalty";
 import { useSession } from "@/entities/session";
-import { PromoCodeForm } from "@/features/promocode";
+import { getPromoPricingState, PromoCodeForm, usePromocode } from "@/features/promocode";
 import { cn, shouldBypassNextImageOptimization } from "@/shared/lib";
 import { getQueryOwner } from "@/shared/lib/query-keys";
 import {
+  Accordion,
+  AccordionContent,
+  AccordionItem,
+  AccordionTrigger,
   Card,
   CardContent,
-  CardDescription,
   CardFooter,
   CardHeader,
   CardTitle,
   DataState,
+  DiscountBreakdown,
   Separator,
 } from "@/shared/ui";
 
@@ -29,55 +36,97 @@ import {
   useCheckout,
   type CheckoutCalculationState,
 } from "../lib";
+import { getCheckoutPriceSummary } from "../lib/price-summary";
 
 import { CheckoutSubmitButton } from "./checkout-submit-button";
 import { LoyaltyField } from "./loyalty-field";
 import { LegalField } from "./legal-field";
 
-export function OrderSummary({
-  cart,
-  createOrderError,
-  isSubmitDisabled,
-  isSubmitting,
-  submitLabel,
-}: {
+type OrderSummaryProps = {
   cart: Cart;
   createOrderError: Error | null;
   isSubmitDisabled: boolean;
   isSubmitting: boolean;
   submitLabel: string;
-}) {
+};
+
+export function OrderSummary(props: OrderSummaryProps) {
   const { isPending, user } = useSession();
   const { hasDevelopmentBanner } = useDevelopmentBanner({
     enabled: !isPending,
     owner: getQueryOwner(user?.id),
   });
-  const { checkoutCalculation, selectedDelivery } = useCheckout();
+  const { checkoutCalculation } = useCheckout();
+  const promoPricing = getPromoPricingState(usePromocode());
+  return (
+    <BaseOrderSummary
+      {...props}
+      checkoutCalculation={checkoutCalculation}
+      hasDevelopmentBanner={hasDevelopmentBanner}
+      promoPreview={promoPricing.preview}
+      isPromoReady={promoPricing.isReady}
+      promoSlot={<PromoCodeForm />}
+      loyaltySlot={<LoyaltyField />}
+    />
+  );
+}
+
+export function BaseOrderSummary({
+  cart,
+  createOrderError,
+  isSubmitDisabled,
+  isSubmitting,
+  submitLabel,
+  checkoutCalculation,
+  hasDevelopmentBanner,
+  promoPreview,
+  isPromoReady,
+  promoSlot,
+  loyaltySlot,
+}: OrderSummaryProps & {
+  checkoutCalculation: CheckoutCalculationState;
+  hasDevelopmentBanner: boolean;
+  promoPreview?: PromoPreview;
+  isPromoReady: boolean;
+  promoSlot: ReactNode;
+  loyaltySlot: ReactNode;
+}) {
+  const pricing = getCheckoutPriceSummary(cart, checkoutCalculation, promoPreview);
   const calculation =
     checkoutCalculation.status === "ready" ? checkoutCalculation.calculation : undefined;
   const expectedEarnedPoints = getCheckoutExpectedEarnedPoints(checkoutCalculation);
-  const deliveryProviderName =
-    calculation?.delivery.provider === "cdek"
-      ? "СДЭК"
-      : calculation?.delivery.provider === "ozon"
-        ? "Ozon"
-        : undefined;
-  const deliveryPrice = calculation?.deliveryPrice;
-  const loyaltyDiscount = calculation ? calculation.loyalty.discountKopecks / 100 : 0;
-  const promoDiscount = calculation ? calculation.discount - loyaltyDiscount : 0;
   const estimatedDeliveryDate = formatEstimatedDeliveryDateRange(
     calculation?.estimatedDeliveryDateRange,
   );
-  const hasDelivery = Boolean(selectedDelivery);
-  const visibleItems = cart.items.slice(0, 2);
-  const hiddenItems = cart.items.slice(2);
+  const discounts = [
+    ...(pricing.saleDiscount > 0
+      ? [{ label: "Скидки на товары", amount: formatMoney(pricing.saleDiscount) }]
+      : []),
+    ...(pricing.promoDiscount > 0
+      ? [
+          {
+            label: `Промокод ${pricing.promoCode ?? ""}`.trim(),
+            amount: formatMoney(pricing.promoDiscount),
+          },
+        ]
+      : []),
+    ...(pricing.loyaltyDiscount > 0
+      ? [
+          {
+            label: "Баллами",
+            detail: <LoyaltyPoints points={pricing.pointsToSpend} />,
+            amount: formatMoney(pricing.loyaltyDiscount),
+          },
+        ]
+      : []),
+  ];
 
   return (
     <Card
       role="complementary"
       aria-labelledby="checkout-summary-heading"
       className={cn(
-        "gap-5 rounded-2xl py-5 shadow-sm lg:sticky lg:overflow-y-auto",
+        "gap-0 overflow-hidden rounded-2xl py-0 shadow-sm lg:sticky lg:overflow-y-auto",
         hasDevelopmentBanner
           ? "lg:top-[calc(var(--site-header-banner-height)+var(--site-header-nav-height)+1px+1rem)] lg:max-h-[calc(100dvh-var(--site-header-banner-height)-var(--site-header-nav-height)-var(--site-cookie-consent-height)-1px-2rem)]"
           : "lg:top-[calc(var(--site-header-nav-height)+1rem)] lg:max-h-[calc(100dvh-var(--site-header-nav-height)-var(--site-cookie-consent-height)-2rem)]",
@@ -86,216 +135,139 @@ export function OrderSummary({
       <p className="sr-only" role="status" aria-live="polite" aria-atomic={true}>
         {getCalculationAnnouncement(checkoutCalculation)}
       </p>
-      <CardHeader className="shrink-0 px-5">
+      <CardHeader className="shrink-0 px-5 pt-5 pb-4">
         <CardTitle className="text-xl">
-          <h2 id="checkout-summary-heading">Ваш заказ</h2>
+          <h2 id="checkout-summary-heading">Сумма заказа</h2>
         </CardTitle>
-        <CardDescription>{formatCartItemCount(cart.itemsCount)} в корзине</CardDescription>
       </CardHeader>
-      <CardContent className="shrink-0 space-y-5 px-5">
-        <ul className="space-y-3">
-          {visibleItems.map((item) => (
-            <OrderItem key={item.id} item={item} />
-          ))}
-        </ul>
-        {hiddenItems.length > 0 ? (
-          <details>
-            <summary className="flex min-h-11 cursor-pointer items-center text-sm font-medium text-muted-foreground">
-              Еще {formatHiddenPositionCount(hiddenItems.length)}
-            </summary>
-            <ul className="space-y-3 pt-1">
-              {hiddenItems.map((item) => (
-                <OrderItem key={item.id} item={item} />
-              ))}
-            </ul>
-          </details>
-        ) : null}
-
-        <Separator />
-
-        <details className="group/discounts">
-          <summary className="flex min-h-11 cursor-pointer list-none items-center gap-2 text-sm font-medium [&::-webkit-details-marker]:hidden">
-            <Tag className="size-4 text-rose-500" aria-hidden="true" />
-            <span className="flex-1">Промокод и баллы</span>
-            <ChevronDown
-              className="size-4 text-muted-foreground transition-transform group-open/discounts:rotate-180"
-              aria-hidden="true"
-            />
-          </summary>
-          <div className="space-y-3 pt-2">
-            <PromoCodeForm />
-            <LoyaltyField />
-          </div>
-        </details>
-
-        <div
-          className={cn(
-            "rounded-lg border bg-muted/30 p-3 text-sm",
-            calculation && "border-emerald-200 bg-emerald-50/60",
-          )}
-        >
-          <div className="flex items-start gap-2">
-            {checkoutCalculation.status === "pending" ? (
-              <LoaderCircle className="mt-0.5 size-4 shrink-0 animate-spin text-muted-foreground" />
-            ) : (
-              <Truck
-                className={cn(
-                  "mt-0.5 size-4 shrink-0 text-muted-foreground",
-                  calculation && "text-emerald-600",
-                )}
-              />
-            )}
-            <div className="min-w-0 space-y-1">
-              <p className="font-medium">
-                {deliveryProviderName
-                  ? `${deliveryProviderName}, пункт выдачи`
-                  : hasDelivery
-                    ? "Пункт выбран"
-                    : "Доставка не выбрана"}
-              </p>
-              <p className="text-xs text-muted-foreground">
-                {getDeliveryDescription(checkoutCalculation, hasDelivery)}
-              </p>
-              {calculation?.delivery.pickupPoint ? (
-                <div className="space-y-0.5 text-xs text-muted-foreground">
-                  <p>{calculation.delivery.pickupPoint.address}</p>
-                </div>
-              ) : null}
-            </div>
-          </div>
+      <CardContent className="shrink-0 space-y-1 px-5">
+        <div className="flex items-center justify-between gap-4 text-sm">
+          <span>{formatCartItemCount(cart.itemsCount)}</span>
+          <span className="font-medium tabular-nums">{formatMoney(pricing.originalSubtotal)}</span>
         </div>
-
-        <div className="space-y-2 text-sm">
-          <div className="flex items-center justify-between gap-4">
-            <span className="text-muted-foreground">Товары</span>
-            <span className="font-medium">{formatMoney(cart.subtotal)}</span>
-          </div>
-          {calculation && promoDiscount > 0 ? (
-            <div className="flex items-center justify-between gap-4 text-emerald-700">
-              <span>Скидка{calculation.promoCode ? ` (${calculation.promoCode})` : ""}</span>
-              <span className="font-medium">-{formatMoney(promoDiscount)}</span>
-            </div>
-          ) : null}
-          {loyaltyDiscount > 0 ? (
-            <div className="flex items-center justify-between gap-4 text-emerald-700">
-              <span>Баллами</span>
-              <span className="font-medium">-{formatMoney(loyaltyDiscount)}</span>
-            </div>
-          ) : null}
-          <div className="flex items-center justify-between gap-4">
-            <span className="text-muted-foreground">Доставка</span>
-            <span className="font-medium">
-              {getDeliveryPriceLabel(checkoutCalculation, deliveryPrice)}
-            </span>
-          </div>
-          {estimatedDeliveryDate ? (
-            <div className="flex items-center justify-between gap-4">
-              <span className="text-muted-foreground">Дата доставки</span>
-              <span className="text-right font-medium">{estimatedDeliveryDate}</span>
-            </div>
-          ) : null}
+        <DiscountBreakdown total={formatMoney(pricing.totalDiscount)} rows={discounts} />
+        <div className="flex items-center justify-between gap-4 pt-2 text-sm">
+          <span className="text-muted-foreground">Доставка</span>
+          <span className="text-right font-medium tabular-nums">
+            {getDeliveryPriceLabel(checkoutCalculation)}
+          </span>
         </div>
-
-        <div className="flex w-full items-center justify-between gap-4 border-t pt-4 text-xl font-semibold">
-          <span>Итого</span>
-          <div className="flex flex-col items-end gap-1">
-            <span>{getTotalLabel(checkoutCalculation)}</span>
-            {expectedEarnedPoints !== undefined ? (
-              <span
-                className="rounded-full border border-orange-200 bg-gradient-to-r from-rose-50 to-orange-50 px-2 py-0.5 text-xs font-semibold text-orange-700"
-                aria-label={`Будет начислено ${expectedEarnedPoints} баллов`}
-              >
-                +{expectedEarnedPoints} б
-              </span>
+        {calculation?.delivery.pickupPoint ? (
+          <p className="pt-1 text-xs leading-5 text-muted-foreground">
+            {calculation.delivery.provider === "cdek" ? "СДЭК" : "Ozon"} ·{" "}
+            {calculation.delivery.pickupPoint.address}
+            {estimatedDeliveryDate ? (
+              <span className="mt-1 block">{estimatedDeliveryDate}</span>
             ) : null}
+          </p>
+        ) : null}
+        <div className="pt-5" aria-busy={checkoutCalculation.status === "pending" || !isPromoReady}>
+          <div className="flex items-baseline justify-between gap-4 text-xl font-bold">
+            <span>{pricing.includesDelivery ? "Итого" : "Сумма"}</span>
+            <span className="tabular-nums">{formatMoney(pricing.amount)}</span>
           </div>
+          <p className="mt-2 text-xs leading-5 text-muted-foreground">
+            {pricing.includesDelivery ? "С учётом доставки" : "Без учёта доставки"}
+          </p>
+          {!isPromoReady || checkoutCalculation.status === "pending" ? (
+            <p className="mt-1 text-xs text-muted-foreground">Обновляем расчёт…</p>
+          ) : null}
+          {expectedEarnedPoints !== undefined || (calculation?.loyalty.pointsToSpend ?? 0) > 0 ? (
+            <div
+              className="mt-3 flex items-center justify-between gap-3 text-sm"
+              aria-label={
+                expectedEarnedPoints !== undefined
+                  ? `Будет начислено ${expectedEarnedPoints} баллов`
+                  : undefined
+              }
+            >
+              <span>Кешбэк баллами</span>
+              <span
+                className={cn(
+                  "text-right tabular-nums",
+                  expectedEarnedPoints !== undefined
+                    ? "font-semibold text-emerald-600 dark:text-emerald-400"
+                    : "text-muted-foreground",
+                )}
+              >
+                {expectedEarnedPoints !== undefined ? (
+                  <LoyaltyPoints points={expectedEarnedPoints} prefix="+" />
+                ) : (
+                  "Не начисляется"
+                )}
+              </span>
+            </div>
+          ) : null}
         </div>
       </CardContent>
-      <CardFooter className="shrink-0 flex-col items-stretch gap-4 bg-transparent p-5">
+      <CardFooter className="shrink-0 flex-col items-stretch gap-4 border-0 bg-transparent px-5 pt-4 pb-5">
         <LegalField />
         {createOrderError ? (
           <div role="alert" aria-live="assertive" aria-atomic={true}>
             <DataState
               variant="error"
               title="Не удалось создать заказ"
-              description={createOrderError.message || "Проверьте данные и попробуйте еще раз."}
+              description={createOrderError.message || "Проверьте данные и попробуйте ещё раз."}
               className="max-w-none"
             />
           </div>
         ) : null}
-        <div>
-          <CheckoutSubmitButton
-            form={checkoutOrderFormId}
-            disabled={isSubmitDisabled}
-            isSubmitting={isSubmitting}
-            className="min-h-12 w-full rounded-xl"
-          >
-            {submitLabel}
-          </CheckoutSubmitButton>
-        </div>
+        <CheckoutSubmitButton
+          form={checkoutOrderFormId}
+          disabled={isSubmitDisabled}
+          isSubmitting={isSubmitting}
+          className="min-h-12 w-full rounded-xl"
+        >
+          {submitLabel}
+        </CheckoutSubmitButton>
       </CardFooter>
+      <Separator />
+      <div className="shrink-0 px-5">
+        {promoSlot}
+        {loyaltySlot}
+        <Accordion type="single" collapsible className="border-t">
+          <AccordionItem value="items" className="border-0">
+            <AccordionTrigger className="min-h-12 items-center gap-2 hover:no-underline">
+              <ShoppingBag className="size-4 shrink-0 text-muted-foreground" aria-hidden="true" />
+              <span className="flex-1">Товары в заказе</span>
+            </AccordionTrigger>
+            <AccordionContent className="pb-4">
+              <ul className="space-y-4">
+                {cart.items.map((item) => (
+                  <OrderItem key={item.id} item={item} />
+                ))}
+              </ul>
+            </AccordionContent>
+          </AccordionItem>
+        </Accordion>
+      </div>
     </Card>
   );
 }
 
-function getDeliveryDescription(calculationState: CheckoutCalculationState, hasDelivery: boolean) {
-  switch (calculationState.status) {
+function getDeliveryPriceLabel(state: CheckoutCalculationState) {
+  switch (state.status) {
     case "idle":
-      return hasDelivery
-        ? "Стоимость доставки пока недоступна."
-        : "Выберите город и ПВЗ в блоке доставки.";
+      return "После выбора пункта выдачи";
     case "pending":
-      return "Обновляем стоимость доставки.";
+      return "Рассчитываем…";
     case "offline":
-      return "Нет сети. Стоимость доставки пока недоступна.";
     case "error":
-      return "Стоимость доставки временно недоступна.";
+      return "Пока не рассчитана";
     case "ready":
-      return "Стоимость доставки уже учтена в итоговой сумме.";
+      return state.calculation.deliveryPrice === 0
+        ? "Бесплатно"
+        : formatMoney(state.calculation.deliveryPrice);
   }
 }
 
-function getDeliveryPriceLabel(
-  calculationState: CheckoutCalculationState,
-  deliveryPrice: number | undefined,
-) {
-  switch (calculationState.status) {
-    case "idle":
-      return "Выберите ПВЗ";
-    case "pending":
-      return "Считаем";
-    case "offline":
-      return "Нет сети";
-    case "error":
-      return "Недоступно";
-    case "ready":
-      return formatMoney(deliveryPrice ?? calculationState.calculation.deliveryPrice);
-  }
-}
-
-function getTotalLabel(calculationState: CheckoutCalculationState) {
-  switch (calculationState.status) {
-    case "idle":
-    case "error":
-      return "Недоступно";
-    case "pending":
-      return "Пересчитываем";
-    case "offline":
-      return "Нет сети";
-    case "ready":
-      return formatMoney(calculationState.calculation.total);
-  }
-}
-
-function getCalculationAnnouncement(calculationState: CheckoutCalculationState) {
-  switch (calculationState.status) {
+function getCalculationAnnouncement(state: CheckoutCalculationState) {
+  switch (state.status) {
     case "pending":
       return "Обновляем стоимость доставки.";
     case "ready":
-      return `Стоимость доставки ${formatMoney(calculationState.calculation.deliveryPrice)}. Итого ${formatMoney(calculationState.calculation.total)}.`;
-    case "idle":
-    case "offline":
-    case "error":
+      return `Стоимость доставки ${formatMoney(state.calculation.deliveryPrice)}. Итого ${formatMoney(state.calculation.total)}.`;
+    default:
       return "";
   }
 }
@@ -328,21 +300,6 @@ function OrderItem({ item }: { item: CartItem }) {
       />
     </li>
   );
-}
-
-function formatHiddenPositionCount(count: number) {
-  const mod10 = count % 10;
-  const mod100 = count % 100;
-
-  if (mod10 === 1 && mod100 !== 11) {
-    return `${count} позиция`;
-  }
-
-  if (mod10 >= 2 && mod10 <= 4 && (mod100 < 12 || mod100 > 14)) {
-    return `${count} позиции`;
-  }
-
-  return `${count} позиций`;
 }
 
 function formatCartItemCount(count: number) {

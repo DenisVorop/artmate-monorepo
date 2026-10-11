@@ -11,7 +11,6 @@ import type { CheckoutFormValues, CheckoutPaymentMethod } from "../lib";
 import { FieldError } from "./field-error";
 
 const paymentOptions: {
-  description: string;
   bankBrand: "ozonbank" | "tbank";
   brands: ("mir" | "sbp" | "dolyame")[];
   title: string;
@@ -20,14 +19,12 @@ const paymentOptions: {
   {
     bankBrand: "tbank",
     brands: ["mir", "sbp", "dolyame"],
-    description: "Оплатите заказ на странице Т-Банка.",
     title: "Т-Банк",
     value: "tbank_acquiring",
   },
   {
     bankBrand: "ozonbank",
     brands: ["mir", "sbp"],
-    description: "Оплатите картой «Мир» или через СБП на странице Ozon Pay.",
     title: "Ozon Банк",
     value: "ozon_acquiring",
   },
@@ -41,7 +38,6 @@ export function PaymentMethodField() {
   } = useFormContext<CheckoutFormValues>();
   const selectedPaymentMethod = watch("paymentMethod");
   const hasError = Boolean(errors.paymentMethod);
-  const selectedOption = paymentOptions.find((option) => option.value === selectedPaymentMethod);
 
   return (
     <div className="space-y-3">
@@ -50,7 +46,7 @@ export function PaymentMethodField() {
       </p>
       <RadioGroup
         aria-labelledby="checkout-payment-heading"
-        aria-describedby={`checkout-payment-description${hasError ? " checkout-payment-error" : ""}`}
+        aria-describedby={hasError ? "checkout-payment-error" : undefined}
         aria-invalid={hasError}
         value={selectedPaymentMethod}
         onValueChange={(value) =>
@@ -88,9 +84,6 @@ export function PaymentMethodField() {
           </Label>
         ))}
       </RadioGroup>
-      <div id="checkout-payment-description" className="text-xs leading-5 text-muted-foreground">
-        <p>{selectedOption?.description}</p>
-      </div>
       <FieldError id="checkout-payment-error" message={errors.paymentMethod?.message} />
     </div>
   );

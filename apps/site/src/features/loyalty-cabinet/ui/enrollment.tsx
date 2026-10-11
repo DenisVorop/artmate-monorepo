@@ -3,6 +3,7 @@
 import { zodResolver } from "@hookform/resolvers/zod";
 import { Gift, Palette, Sparkles } from "lucide-react";
 import { Controller, useForm } from "react-hook-form";
+import { LoyaltyPoints } from "@/entities/loyalty";
 
 import { Button, Card, CardContent, CardHeader, CardTitle, Label } from "@/shared/ui";
 import { Checkbox } from "@/shared/ui/checkbox";
@@ -38,14 +39,18 @@ export function Enrollment({ userId, termsVersion }: { userId: string; termsVers
         <div id="loyalty-rules" className="grid gap-4 text-sm sm:grid-cols-3">
           <div className="rounded-xl border border-rose-100 bg-white/80 p-4">
             <Gift className="mb-3 size-5 text-rose-500" />
-            <p className="font-semibold">5 б = 1 ₽</p>
+            <p className="font-semibold">
+              <LoyaltyPoints points={5} /> = 1 ₽
+            </p>
             <p className="mt-1 leading-6 text-stone-600">
               Баллы бессрочные. Ими можно оплатить часть покупки.
             </p>
           </div>
           <div className="rounded-xl border border-rose-100 bg-white/80 p-4">
             <Palette className="mb-3 size-5 text-orange-500" />
-            <p className="font-semibold">25 б за картину</p>
+            <p className="font-semibold">
+              <LoyaltyPoints points={25} /> за картину
+            </p>
             <p className="mt-1 leading-6 text-stone-600">
               За одобренную публичную работу в мастерской — один раз за каждую картину.
             </p>

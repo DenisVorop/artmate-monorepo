@@ -27,16 +27,16 @@ test("checkout offers both declared delivery companies", async () => {
   assert.match(field, /RadioGroup/u);
   assert.match(field, /RadioGroupItem/u);
   assert.doesNotMatch(field, /Card/u);
-  assert.match(field, /Изменить ПВЗ/u);
+  assert.doesNotMatch(field, /Выбрать ПВЗ|Изменить ПВЗ/u);
 });
 
-test("checkout keeps CDEK neutral until calculation and shows the server-owned Ozon minimum", async () => {
+test("checkout shows the CDEK starting price and the server-owned Ozon minimum", async () => {
   const [field, cartTypes] = await Promise.all([
     readSource("src/features/checkout/ui/delivery-method-field.tsx"),
     readSource("src/shared/actions/cart/cart.types.ts"),
   ]);
 
-  assert.match(field, /company\.code\s*===\s*"cdek"\s*\?\s*"Рассчитать"/u);
+  assert.match(field, /company\.code\s*===\s*"cdek"\s*\?\s*"Доставка от 150 ₽"/u);
   assert.match(field, /minimumDeliveryPrices\.ozon/u);
   assert.doesNotMatch(field, /Доставка от 100|formatMoney\(100\)/u);
   assert.doesNotMatch(cartTypes, /minimumDeliveryPrices\s*:\s*\{[^}]*cdek\s*:/su);
@@ -52,15 +52,9 @@ test("checkout payment methods show bank logos and supported payment badges", as
   assert.match(source, /"ozon_acquiring"/u);
 });
 
-test("order summary derives the visible company from the checkout calculation", async () => {
+test("order summary identifies the confirmed provider next to the pickup address", async () => {
   const source = await readSource("src/features/checkout/ui/order-summary.tsx");
-
-  assert.match(
-    source,
-    /const\s+deliveryProviderName\s*=\s*calculation\?\.delivery\.provider\s*===\s*"cdek"\s*\?\s*"СДЭК"\s*:\s*calculation\?\.delivery\.provider\s*===\s*"ozon"\s*\?\s*"Ozon"\s*:\s*undefined\s*;/u,
-  );
-  assert.match(
-    source,
-    /<p\b[^>]*className="font-medium"[^>]*>\s*\{\s*deliveryProviderName\s*\?\s*`\$\{deliveryProviderName\},\s*пункт\s+выдачи`\s*:\s*hasDelivery\s*\?\s*"Пункт выбран"\s*:\s*"Доставка не выбрана"\s*\}\s*<\/p>/u,
-  );
+  assert.match(source, /calculation\.delivery\.provider === "cdek" \? "СДЭК" : "Ozon"/u);
+  assert.match(source, /calculation\.delivery\.pickupPoint\.address/u);
+  assert.match(source, /calculation\?\.delivery\.pickupPoint/u);
 });

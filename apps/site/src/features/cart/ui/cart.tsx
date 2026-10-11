@@ -11,10 +11,7 @@ import { Button, DataState } from "@/shared/ui";
 import { Link } from "@/shared/ui/link";
 import { PageTitle } from "@/shared/ui/typography";
 
-import {
-  useRemoveCartItemMutation,
-  useUpdateCartItemQuantityMutation,
-} from "../model";
+import { useRemoveCartItemMutation, useUpdateCartItemQuantityMutation } from "../model";
 import { getItemsWord } from "../lib/cart-format";
 
 import { CartLine } from "./cart-line";
@@ -39,7 +36,7 @@ export function Cart() {
         <DataState
           variant="error"
           title="Не удалось загрузить корзину"
-          description="Проверьте, что API запущен, и попробуйте обновить страницу."
+          description="Обновите страницу или попробуйте немного позже."
         />
       </section>
     );
@@ -74,8 +71,8 @@ function BaseLoadedCart({ cart }: { cart: CartModel }) {
     <section className="container py-8 md:py-12">
       <div className="mb-8 flex flex-col justify-between gap-4 sm:flex-row sm:items-end">
         <div className="space-y-2">
-          <PageTitle className="text-foreground">Ваши товары</PageTitle>
-          <p className="text-muted-foreground">{itemsLabel} в корзине Artmate.</p>
+          <PageTitle className="text-foreground">Корзина</PageTitle>
+          <p className="text-muted-foreground">{itemsLabel}</p>
         </div>
 
         <Button asChild variant="outline">
@@ -87,7 +84,7 @@ function BaseLoadedCart({ cart }: { cart: CartModel }) {
       </div>
 
       <div className="grid gap-6 lg:grid-cols-[minmax(0,1fr)_22rem] lg:items-start">
-        <ul className="space-y-4" aria-busy={isMutating}>
+        <ul className="min-w-0 divide-y border-y" aria-busy={isMutating}>
           {cart.items.map((item) => (
             <li key={item.id}>
               <CartLine
@@ -102,11 +99,7 @@ function BaseLoadedCart({ cart }: { cart: CartModel }) {
           ))}
         </ul>
 
-        <CartSummary
-          itemsLabel={itemsLabel}
-          subtotal={cart.subtotal}
-          isMutating={isMutating}
-        />
+        <CartSummary itemsLabel={itemsLabel} cart={cart} isMutating={isMutating} />
       </div>
     </section>
   );

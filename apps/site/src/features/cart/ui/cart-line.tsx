@@ -24,7 +24,7 @@ export function CartLine({ item, disabled, onUpdateQuantity, onRemove }: CartLin
   const canDecrease = item.quantity > 1 && !disabled;
 
   return (
-    <div className="rounded-lg border bg-background p-3 sm:p-4">
+    <div className="bg-background py-5">
       <div className="grid grid-cols-[4.5rem_minmax(0,1fr)] gap-3 sm:grid-cols-[5rem_minmax(0,1fr)_auto] sm:items-center sm:gap-4">
         <Link
           href={productHref}
@@ -48,7 +48,7 @@ export function CartLine({ item, disabled, onUpdateQuantity, onRemove }: CartLin
           )}
           <Link
             href={productHref}
-            className="mt-1 block truncate font-medium text-foreground hover:text-rose-500"
+            className="mt-1 line-clamp-2 font-semibold text-foreground hover:text-rose-500"
           >
             {item.title}
           </Link>

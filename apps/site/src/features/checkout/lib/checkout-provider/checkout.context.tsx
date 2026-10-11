@@ -20,6 +20,8 @@ export type CheckoutContextValue = {
   form: UseFormReturn<CheckoutFormValues>;
   isEmailLocked: boolean;
   isSubmitting: boolean;
+  isDeliveryPickerOpen: boolean;
+  setDeliveryPickerOpen: (_isOpen: boolean) => void;
   selectedDelivery?: CheckoutDeliverySelection;
   confirmDelivery: (_delivery: CheckoutDeliverySelection) => Promise<DeliveryConfirmationResult>;
   invalidateDeliveryConfirmation: () => void;
