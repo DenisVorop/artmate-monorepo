@@ -20,5 +20,6 @@ export { DetailsTabs } from "./ui/details-tabs";
 export { Gallery } from "./ui/gallery";
 export { Highlights } from "./ui/highlights";
 export { ProductCard } from "./ui/product-card";
+export { ProductPrice } from "./ui/price";
 export { Related } from "./ui/related";
 export { Summary } from "./ui/summary";

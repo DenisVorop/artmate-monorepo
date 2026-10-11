@@ -521,6 +521,7 @@ test("checkout announces calculation progress and updated totals without repeati
       },
       "@/entities/session": { useSession: () => ({ isPending: false, user: undefined }) },
       "@/features/promocode": { PromoCodeForm: component("PromoCodeForm") },
+      "@/entities/products": { ProductPrice: component("ProductPrice") },
       "./loyalty-field": { LoyaltyField: component("LoyaltyField") },
       "./legal-field": { LegalField: component("LegalField") },
       "./payment-method-field": { PaymentMethodField: component("PaymentMethodField") },

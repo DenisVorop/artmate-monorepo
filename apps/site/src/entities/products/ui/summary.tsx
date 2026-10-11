@@ -1,14 +1,13 @@
 import { Badge } from "@/shared/ui";
 import { PageTitle } from "@/shared/ui/typography";
 import type { Product } from "../model";
+import { ProductPrice } from "./price";
 
 type SummaryProps = {
   product: Product;
 };
 
 export function Summary({ product }: SummaryProps) {
-  const price = product.price.toLocaleString("ru-RU");
-
   return (
     <div className="space-y-4">
       {(product.category || product.isHit) && (
@@ -20,7 +19,11 @@ export function Summary({ product }: SummaryProps) {
 
       <div className="space-y-3">
         <PageTitle className="max-w-3xl text-foreground">{product.title}</PageTitle>
-        <p className="text-3xl font-bold text-foreground">{price} ₽</p>
+        <ProductPrice
+          price={product.price}
+          originalPrice={product.originalPrice}
+          variant="detail"
+        />
       </div>
     </div>
   );

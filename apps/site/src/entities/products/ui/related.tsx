@@ -24,11 +24,11 @@ export function Related({ products, renderProductCard }: RelatedProps) {
       </div>
 
       <div className="relative right-[50%] left-[50%] -mr-[50vw] -ml-[50vw] w-screen sm:right-auto sm:left-auto sm:mr-0 sm:ml-0 sm:w-auto">
-        <ul className="flex snap-x snap-mandatory scroll-px-4 [scrollbar-width:thin] gap-4 overflow-x-auto overscroll-x-contain px-4 pb-4 sm:grid sm:[scrollbar-width:auto] sm:grid-cols-2 sm:gap-5 sm:overflow-visible sm:px-0 sm:pb-0 lg:grid-cols-3 xl:grid-cols-4 xl:gap-6">
+        <ul className="flex snap-x snap-mandatory scroll-px-4 [scrollbar-width:thin] flex-nowrap gap-4 overflow-x-auto overscroll-x-contain px-4 pb-4 sm:scroll-px-0 sm:gap-5 sm:px-0 xl:gap-6">
           {products.map((product, index) => (
             <li
               key={product.id}
-              className="w-[min(82vw,20rem)] flex-none snap-start sm:w-auto sm:flex-auto"
+              className="w-[min(82vw,20rem)] min-w-0 flex-none snap-start sm:w-[calc((100%-1.25rem)/2)] lg:w-[calc((100%-2.5rem)/3)] xl:w-[calc((100%-4.5rem)/4)]"
             >
               {renderProductCard ? (
                 renderProductCard(product, index)

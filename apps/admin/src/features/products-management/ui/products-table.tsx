@@ -6,6 +6,7 @@ import { Eye } from "lucide-react";
 import {
   formatProductDate,
   formatProductPrice,
+  formatProductRegularPrice,
   getProductPrimaryImage,
   getProductStatusBadgeVariant,
   getProductStatusLabel,
@@ -81,10 +82,25 @@ export function ProductsTable({ products }: ProductsTableProps) {
                   <TableCell>
                     {product.category?.title ?? "Без категории"}
                   </TableCell>
-                  <TableCell>{formatProductPrice(product)}</TableCell>
+                  <TableCell>
+                    {product.salePrice !== null ? (
+                      <div className="grid">
+                        <span className="font-medium">
+                          {formatProductPrice(product)}
+                        </span>
+                        <span className="text-xs text-muted-foreground line-through">
+                          {formatProductRegularPrice(product)}
+                        </span>
+                      </div>
+                    ) : (
+                      formatProductPrice(product)
+                    )}
+                  </TableCell>
                   <TableCell>
                     <div className="flex flex-wrap gap-1">
-                      <Badge variant={getProductStatusBadgeVariant(product.status)}>
+                      <Badge
+                        variant={getProductStatusBadgeVariant(product.status)}
+                      >
                         {getProductStatusLabel(product.status)}
                       </Badge>
                       {product.isHit ? (

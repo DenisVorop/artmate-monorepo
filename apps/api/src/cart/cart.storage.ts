@@ -4,6 +4,10 @@ import { Injectable } from "@nestjs/common";
 
 import { Prisma } from "../generated/prisma/client";
 import { PrismaService } from "../prisma/prisma.service";
+import {
+  getProductPrice,
+  readProductPrices,
+} from "../products/product-pricing";
 
 import type { CartDTO, CartItemDTO, CartProductDTO } from "./dto";
 
@@ -19,6 +23,15 @@ type StoredCart = Prisma.CartGetPayload<{
   include: typeof cartInclude;
 }>;
 
+type CartWithCurrentPrices = Omit<StoredCart, "items"> & {
+  items: Array<
+    StoredCart["items"][number] & {
+      effectivePrice?: number;
+      originalPrice?: number;
+    }
+  >;
+};
+
 @Injectable()
 export class CartStorage {
   constructor(private readonly prisma: PrismaService) {}
@@ -27,12 +40,14 @@ export class CartStorage {
     const normalizedCartId = this.normalizeCartId(cartId);
     const id = normalizedCartId ?? randomUUID();
 
-    return this.prisma.cart.upsert({
+    const cart = await this.prisma.cart.upsert({
       where: { id },
       create: { id },
       update: {},
       include: cartInclude,
     });
+
+    return this.withCurrentPrices(cart, this.prisma);
   }
 
   async addItem(
@@ -131,16 +146,17 @@ export class CartStorage {
   }
 
   getDTO(
-    cart: StoredCart,
+    cart: CartWithCurrentPrices,
   ): Omit<CartDTO, "isOzonDeliveryAvailable" | "minimumDeliveryPrices"> {
     const items = cart.items.map<CartItemDTO>((item) => {
-      const price = this.toNumber(item.price);
+      const price = item.effectivePrice ?? this.toNumber(item.price);
 
       return {
         id: item.productId,
         title: item.title,
         slug: item.slug,
         price,
+        originalPrice: item.originalPrice,
         category: item.category ?? undefined,
         categorySlug: item.categorySlug ?? undefined,
         image: item.image,
@@ -165,11 +181,40 @@ export class CartStorage {
     cartId: string,
     client: Prisma.TransactionClient | PrismaService = this.prisma,
   ) {
-    return client.cart.update({
+    const cart = await client.cart.update({
       where: { id: cartId },
       data: { updatedAt: new Date() },
       include: cartInclude,
     });
+
+    return this.withCurrentPrices(cart, client);
+  }
+
+  private async withCurrentPrices(
+    cart: StoredCart,
+    client: Pick<Prisma.TransactionClient, "product"> | PrismaService,
+  ): Promise<CartWithCurrentPrices> {
+    const prices = await readProductPrices(
+      client,
+      cart.items.map((item) => item.productId),
+    );
+
+    return {
+      ...cart,
+      items: cart.items.map((item) => {
+        const productPrices = prices.get(item.productId);
+
+        if (!productPrices) return item;
+
+        const hasSalePrice = productPrices.salePrice !== null;
+
+        return {
+          ...item,
+          effectivePrice: getProductPrice(productPrices) / 100,
+          originalPrice: hasSalePrice ? productPrices.price / 100 : undefined,
+        };
+      }),
+    };
   }
 
   private lockCart(tx: Prisma.TransactionClient, cartId: string) {

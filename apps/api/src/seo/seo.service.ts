@@ -13,6 +13,7 @@ import {
   SeoSnapshotKind as PrismaSeoSnapshotKind,
 } from "../generated/prisma/client";
 import { PrismaService } from "../prisma/prisma.service";
+import { getProductPrice } from "../products/product-pricing";
 
 import type {
   CreateSeoEntryRequestDTO,
@@ -466,8 +467,8 @@ export class SeoService {
         slug: product.slug,
         title: product.title,
         description: product.description ?? undefined,
-        price: product.price,
-        priceRub: Math.trunc(product.price / 100),
+        price: getProductPrice(product),
+        priceRub: getProductPrice(product) / 100,
         currency: product.currency,
         image: primaryImage?.url ?? product.category?.image ?? undefined,
         images: product.images.map((image) => image.url),

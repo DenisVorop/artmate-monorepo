@@ -83,6 +83,16 @@ export class ProductDTO {
   @Min(0)
   priceRub!: number;
 
+  @IsOptional()
+  @IsInt()
+  @Min(1)
+  salePrice!: number | null;
+
+  @IsOptional()
+  @IsInt()
+  @Min(1)
+  salePriceRub!: number | null;
+
   @IsIn(productCurrencies)
   currency!: ProductCurrency;
 

@@ -81,7 +81,7 @@ export function ProductEditForm({
       onSubmit={submitForm}
     >
       <fieldset className="grid min-w-0 gap-3" disabled={isUpdatingProduct}>
-        <div className="grid gap-3 sm:grid-cols-2 xl:grid-cols-[minmax(12rem,1.4fr)_minmax(10rem,1fr)_8rem_11rem_minmax(10rem,1fr)]">
+        <div className="grid gap-3 sm:grid-cols-2 xl:grid-cols-[minmax(12rem,1.4fr)_minmax(10rem,1fr)_8rem_8rem_11rem_minmax(10rem,1fr)]">
           <LabeledField label="Название" error={errors.title?.message}>
             <Input
               aria-invalid={Boolean(errors.title)}
@@ -96,7 +96,10 @@ export function ProductEditForm({
               {...register("slug")}
             />
           </LabeledField>
-          <LabeledField label="Цена, ₽" error={errors.priceRub?.message}>
+          <LabeledField
+            label="Обычная цена, ₽"
+            error={errors.priceRub?.message}
+          >
             <Input
               aria-invalid={Boolean(errors.priceRub)}
               min={0}
@@ -108,6 +111,27 @@ export function ProductEditForm({
               })}
             />
           </LabeledField>
+          <div className="grid content-start gap-1.5">
+            <LabeledField
+              label="Цена со скидкой, ₽"
+              error={errors.salePriceRub?.message}
+            >
+              <Input
+                aria-invalid={Boolean(errors.salePriceRub)}
+                min={1}
+                placeholder="Без скидки"
+                step={1}
+                type="number"
+                {...register("salePriceRub", {
+                  setValueAs: (value: string) =>
+                    value === "" ? null : Number(value),
+                })}
+              />
+            </LabeledField>
+            <p className="text-xs text-muted-foreground">
+              Оставьте пустым, чтобы продавать без скидки.
+            </p>
+          </div>
           <LabeledField label="Статус" error={errors.status?.message}>
             <ProductStatusSelect
               defaultValue={product.status}

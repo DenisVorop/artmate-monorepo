@@ -91,8 +91,12 @@ describe("Cart Ozon delivery availability", () => {
 
   it("adds availability to every cart mutation response", async () => {
     const storedCart = { id: "cart-1" };
+    const addedProducts: Array<{ originalPrice?: number }> = [];
     const cartStorage = {
-      addItem: async () => storedCart,
+      addItem: async (_cartId: string, product: { originalPrice?: number }) => {
+        addedProducts.push(product);
+        return storedCart;
+      },
       clearCart: async () => storedCart,
       getDTO: () => createCartDTO(),
       removeItem: async () => storedCart,
@@ -104,6 +108,7 @@ describe("Cart Ozon delivery availability", () => {
         id: "product-1",
         image: "/product.jpg",
         price: 1_000,
+        originalPrice: 1_200,
         slug: "product-1",
         title: "Product 1",
       }),
@@ -126,6 +131,7 @@ describe("Cart Ozon delivery availability", () => {
       true,
       true,
     ]);
+    assert.equal(addedProducts[0]?.originalPrice, 1_200);
   });
 });
 

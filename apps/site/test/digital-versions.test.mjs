@@ -275,7 +275,7 @@ test("digital catalog UI keeps covers clean, uses light card derivatives, and ha
     readSource("src/entities/products/ui/product-card.tsx"),
     readSource("src/features/product-purchase/ui/purchase-panel.tsx"),
     readSource("src/shared/actions/products/products.actions.ts"),
-    readSource("src/widgets/header/ui/menu.tsx"),
+    readSource("src/widgets/header/lib/navigation.ts"),
   ]);
 
   assert.match(catalog, /aria-label=\{`Открыть тематику «\$\{collection\.title\}»`\}/);

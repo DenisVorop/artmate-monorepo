@@ -4,6 +4,7 @@ import { Minus, Plus, Trash2 } from "lucide-react";
 import Image from "next/image";
 
 import type { CartItem } from "@/entities/cart";
+import { ProductPrice } from "@/entities/products";
 import { routes } from "@/shared/constants";
 import { cn, shouldBypassNextImageOptimization } from "@/shared/lib";
 import { Button } from "@/shared/ui";
@@ -51,7 +52,10 @@ export function CartLine({ item, disabled, onUpdateQuantity, onRemove }: CartLin
           >
             {item.title}
           </Link>
-          <p className="mt-1 text-sm text-muted-foreground">{formatMoney(item.price)} за штуку</p>
+          <div className="mt-1 flex flex-wrap items-baseline gap-x-1.5 gap-y-1">
+            <ProductPrice price={item.price} originalPrice={item.originalPrice} />
+            <span className="text-xs text-muted-foreground">за штуку</span>
+          </div>
         </div>
 
         <div className="col-span-2 flex items-center justify-between gap-3 border-t pt-3 sm:col-span-1 sm:border-t-0 sm:pt-0">

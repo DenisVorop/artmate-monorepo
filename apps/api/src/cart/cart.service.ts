@@ -114,6 +114,10 @@ export class CartService {
       categorySlug: this.parseOptionalString(product.categorySlug),
       image: this.parseRequiredString(product.image, "product.image"),
       price: this.parsePrice(product.price),
+      originalPrice:
+        product.originalPrice === undefined
+          ? undefined
+          : this.parsePrice(product.originalPrice),
     };
 
     return parsedProduct;

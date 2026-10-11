@@ -8,6 +8,7 @@ import { AspectRatio } from "@/shared/ui/aspect-ratio";
 import { Card, CardContent, CardDescription, CardFooter, CardTitle } from "@/shared/ui/card";
 import { Link } from "@/shared/ui/link";
 import type { Product } from "../model";
+import { ProductPrice } from "./price";
 
 interface ProductCardProps {
   product: Product;
@@ -32,7 +33,10 @@ export function ProductCard({
   mediaActionVisibility = "hover",
   onOpen,
 }: ProductCardProps) {
-  const price = product.price.toLocaleString("ru-RU");
+  const discountPercent =
+    product.originalPrice !== undefined && product.originalPrice > product.price
+      ? Math.floor(((product.originalPrice - product.price) / product.originalPrice) * 100)
+      : 0;
   const productHref = routes.product(product.categorySlug, product.slug);
   const showMediaActionAlways = mediaActionVisibility === "always";
 
@@ -70,6 +74,12 @@ export function ProductCard({
           <Badge className="absolute top-3 left-3 bg-rose-500 text-white shadow-sm">Хит</Badge>
         )}
 
+        {discountPercent > 0 && (
+          <Badge className="pointer-events-none absolute top-3 right-3 border-rose-100 bg-white text-rose-700 shadow-sm">
+            −{discountPercent}%
+          </Badge>
+        )}
+
         {mediaAction ? (
           <div
             className={cn(
@@ -86,7 +96,7 @@ export function ProductCard({
       </div>
 
       <CardContent
-        className={cn("flex flex-1 flex-col gap-1 px-4 pt-4 pb-3", variant === "plain" && "px-0")}
+        className={cn("flex flex-1 flex-col gap-1 px-4 pt-4 pb-2", variant === "plain" && "px-0")}
       >
         {product.category && variant !== "plain" && (
           <CardDescription className="text-xs tracking-wide uppercase">
@@ -106,11 +116,16 @@ export function ProductCard({
 
       <CardFooter
         className={cn(
-          "mt-auto justify-between gap-3 border-t-0 bg-transparent px-4 pt-0 pb-4",
+          "mt-auto flex-wrap items-center justify-between gap-3 border-t-0 bg-transparent px-4 pt-0 pb-4",
           variant === "plain" && "px-0",
         )}
       >
-        <p className="shrink-0 text-base font-semibold text-stone-700 md:text-sm">{price} ₽</p>
+        <ProductPrice
+          price={product.price}
+          originalPrice={product.originalPrice}
+          variant="card"
+          className="min-w-32 flex-1"
+        />
         {footerAction}
       </CardFooter>
     </Card>

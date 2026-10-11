@@ -1,6 +1,7 @@
 export {
   formatProductDate,
   formatProductPrice,
+  formatProductRegularPrice,
   getProductPrimaryImage,
   getProductStatusBadgeVariant,
   getProductStatusLabel,
