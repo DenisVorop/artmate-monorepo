@@ -81,8 +81,8 @@ export function ProductDetails({ productId }: ProductDetailsProps) {
   const reviewsStats = !reviews.isError && reviews.data ? reviews.data.stats : undefined;
 
   return (
-    <main className="bg-background">
-      <div className="container space-y-3 py-4 md:space-y-5 md:py-8">
+    <main className="min-w-0 bg-background">
+      <div className="container min-w-0 space-y-3 py-4 md:space-y-5 md:py-8">
         <Breadcrumbs product={product} />
 
         <section className="grid min-w-0 gap-8 lg:grid-cols-[minmax(0,1fr)_minmax(360px,0.86fr)] lg:gap-12">
