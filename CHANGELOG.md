@@ -1,5 +1,12 @@
 # Changelog
 
+## [0.49.1](https://github.com/DenisVorop/artmate-monorepo/compare/v0.49.0...v0.49.1) (2026-10-11)
+
+
+### Bug Fixes
+
+* **checkout:** tidy summary and consent errors ([2e2f520](https://github.com/DenisVorop/artmate-monorepo/commit/2e2f520d21b6bbbf80e4e574ed76ebc7ddc314c9))
+
 ## [0.49.0](https://github.com/DenisVorop/artmate-monorepo/compare/v0.48.0...v0.49.0) (2026-10-11)
 
 
