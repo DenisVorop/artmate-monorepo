@@ -36,6 +36,7 @@ const detail = {
   title: "Лесные друзья",
   description: "Сюжет с лесными животными",
   publishedRevisionId: "revision-current",
+  viewerMode: "revision",
   publishedAt: "2026-08-29T10:00:00.000Z",
   firstPublishedAt: "2026-08-29T09:00:00.000Z",
   themes: [{ id: "theme-1", slug: "forest", title: "Лес" }],
