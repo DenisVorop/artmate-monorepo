@@ -10,7 +10,8 @@ import { ColoringStorageService } from "./coloring-storage.service";
 import { formatColoringNumber } from "./coloring-number";
 import { getColoringPaletteSymbol } from "./coloring-palette";
 import {
-  isCompleteOriginalPalette,
+  isReadyPublishedArtwork,
+  publicArtworkSelect,
   publicVariantColoringWhere,
 } from "./public-coloring-variant-eligibility";
 import type { PublicColoringAssetDescriptor } from "./public-colorings.service";
@@ -28,10 +29,8 @@ const coloringInclude = {
     include: { tag: { select: { id: true, slug: true, title: true } } },
   },
   artwork: {
-    include: {
-      original: {
-        include: { colors: { orderBy: { symbolPosition: "asc" as const } } },
-      },
+    select: {
+      ...publicArtworkSelect,
       materialVariants: {
         where: {
           status: ColoringStatus.PUBLISHED,
@@ -225,23 +224,11 @@ export class PublicColoringVariantsService {
       include: coloringInclude,
     });
     const artwork = coloring?.artwork;
-    const original = artwork?.original;
     if (
       !coloring?.description?.trim() ||
       !coloring.publishedAt ||
-      !artwork ||
-      !original ||
+      !isReadyPublishedArtwork(artwork) ||
       coloring.status !== ColoringStatus.PUBLISHED ||
-      original.status !== ColoringStatus.PUBLISHED ||
-      !original.publishedAt ||
-      !isCompleteOriginalPalette(original.colors) ||
-      !this.completeImage(original) ||
-      !artwork.outlineAlt.trim() ||
-      !artwork.outlineStorageKey ||
-      !artwork.outlineByteSize ||
-      !/^[a-f0-9]{64}$/.test(artwork.outlineChecksum) ||
-      artwork.width <= 0 ||
-      artwork.height <= 0 ||
       !coloring.themes.length ||
       coloring.collection.status !== "PUBLISHED" ||
       !coloring.collection.publishedAt ||
@@ -254,6 +241,7 @@ export class PublicColoringVariantsService {
       coloring.collection.product.status !== ProductStatus.PUBLISHED
     )
       throw this.notFound();
+    const original = artwork.original;
     const positions = new Set(
       original.colors.map((color) => color.symbolPosition),
     );
@@ -279,7 +267,7 @@ export class PublicColoringVariantsService {
     return { coloring, artwork, original, variants };
   }
 
-  private completeImage(record: Original | Variant) {
+  private completeImage(record: Variant) {
     return (
       record.imageAlt.trim() &&
       record.imageStorageKey &&
@@ -287,7 +275,9 @@ export class PublicColoringVariantsService {
       record.imageByteSize > 0 &&
       record.cardByteSize > 0 &&
       record.cardWidth > 0 &&
+      record.cardWidth <= 640 &&
       record.cardHeight > 0 &&
+      record.cardHeight <= 640 &&
       /^[a-f0-9]{64}$/.test(record.imageChecksum) &&
       /^[a-f0-9]{64}$/.test(record.cardChecksum)
     );

@@ -3,8 +3,10 @@ import type { Metadata } from "next";
 import { notFound } from "next/navigation";
 
 import { ColoringDataBuilder } from "@/app/lib/coloring-data-builder";
+import { ColoringVariantsDataBuilder } from "@/app/lib/coloring-variants-data-builder";
 import { CommunityDataBuilder } from "@/app/lib/community-data-builder";
 import { ColoringPage } from "@/pages/coloring";
+import { ColoringVariantsPage } from "@/pages/coloring-variants";
 import { parseColoringNumber } from "@/shared/constants";
 import { dehydrateQueryClient } from "@/shared/lib/dehydrate-query-client";
 import { ColoringStructuredData, createColoringMetadata } from "@/shared/lib/seo";
@@ -50,6 +52,19 @@ export default async function Page({ params }: ColoringRouteProps) {
     notFound();
   }
 
+  const variants =
+    coloring.viewerMode === "materials"
+      ? (
+          await new ColoringVariantsDataBuilder(undefined, undefined, queryClient)
+            .withColoringVariants(collectionSlug, number)
+            .build()
+        ).coloring
+      : null;
+
+  if (coloring.viewerMode === "materials" && variants === null) {
+    throw new Error(`Coloring materials viewer is unavailable for "${collectionSlug}/${number}"`);
+  }
+
   await new CommunityDataBuilder(undefined, undefined, queryClient)
     .withRelatedWorks(collectionSlug, number)
     .build();
@@ -58,11 +73,19 @@ export default async function Page({ params }: ColoringRouteProps) {
     <>
       <ColoringStructuredData coloring={coloring} />
       <HydrationBoundary state={dehydrateQueryClient(queryClient)}>
-        <ColoringPage
-          collectionSlug={collectionSlug}
-          number={number}
-          publishedRevisionId={coloring.publishedRevisionId}
-        />
+        {variants ? (
+          <ColoringVariantsPage
+            collectionSlug={collectionSlug}
+            number={number}
+            token={variants.token}
+          />
+        ) : (
+          <ColoringPage
+            collectionSlug={collectionSlug}
+            number={number}
+            publishedRevisionId={coloring.publishedRevisionId}
+          />
+        )}
       </HydrationBoundary>
     </>
   );

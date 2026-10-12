@@ -5,6 +5,7 @@ import {
   IsArray,
   IsDefined,
   IsInt,
+  IsIn,
   IsISO8601,
   IsOptional,
   IsString,
@@ -179,6 +180,10 @@ export class PublicColoringAssetDTO {
 }
 
 export class PublicColoringDTO {
+  @ApiProperty({ enum: ["materials", "revision"] })
+  @IsIn(["materials", "revision"])
+  viewerMode!: "materials" | "revision";
+
   @ApiProperty()
   @IsString()
   id!: string;

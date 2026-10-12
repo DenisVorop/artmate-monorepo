@@ -80,6 +80,7 @@ export const publicColoringSchema = z
     number: z.number().int().min(1).max(99),
     title: z.string(),
     description: z.string(),
+    viewerMode: z.enum(["materials", "revision"]),
     publishedRevisionId: z.string(),
     publishedAt: z.string().datetime({ offset: true }),
     firstPublishedAt: z.string().datetime({ offset: true }),

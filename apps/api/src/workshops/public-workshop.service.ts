@@ -10,6 +10,11 @@ import { PrismaService } from "../prisma/prisma.service";
 import type { CreateWorkshopReportDTO } from "./dto";
 import { publicWorkshopWorkWhere } from "./workshop-eligibility";
 import { WorkshopStorageService } from "./workshop-storage.service";
+import {
+  isReadyPublishedArtwork,
+  publicOriginalAssetUrl,
+  publicArtworkSelect,
+} from "../colorings/public-coloring-variant-eligibility";
 
 const publicWorkInclude = {
   workshop: { select: { handle: true, owner: { select: { name: true, image: true } } } },
@@ -17,6 +22,7 @@ const publicWorkInclude = {
     select: {
       number: true,
       title: true,
+      artwork: { select: publicArtworkSelect },
       collection: {
         select: {
           slug: true,
@@ -228,6 +234,9 @@ export class PublicWorkshopService {
     const official = revision.officialRevision;
     const collectionSlug = work.coloring.collection.slug;
     const number = String(work.coloring.number).padStart(2, "0");
+    const original = isReadyPublishedArtwork(work.coloring.artwork)
+      ? work.coloring.artwork.original
+      : null;
 
     return {
       revisionId: revision.id,
@@ -240,7 +249,15 @@ export class PublicWorkshopService {
       official: {
         collection: { slug: collectionSlug, title: work.coloring.collection.title },
         coloring: { number: work.coloring.number, title: work.coloring.title },
-        coloredUrl: `${this.apiUrl()}/colorings/${encodeURIComponent(collectionSlug)}/${number}/assets/${official.id}/colored/content`,
+        coloredUrl: original
+          ? publicOriginalAssetUrl(
+              this.apiUrl(),
+              collectionSlug,
+              work.coloring.number,
+              "colored",
+              original.imageChecksum,
+            )
+          : `${this.apiUrl()}/colorings/${encodeURIComponent(collectionSlug)}/${number}/assets/${official.id}/colored/content`,
         palette: {
           label: official.paletteLabel,
           version: official.paletteVersion,

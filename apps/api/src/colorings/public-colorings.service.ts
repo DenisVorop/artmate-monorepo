@@ -7,6 +7,11 @@ import { formatColoringNumber } from "./coloring-number";
 import { getColoringPaletteSymbol } from "./coloring-palette";
 import { ColoringStorageService } from "./coloring-storage.service";
 import { publicColoringWhere } from "./public-coloring-eligibility";
+import {
+  isReadyPublishedArtwork,
+  publicOriginalAssetUrl,
+  publicArtworkSelect,
+} from "./public-coloring-variant-eligibility";
 
 const publicColoringSelect = {
   id: true,
@@ -60,12 +65,18 @@ const publicColoringSelect = {
       coloredAlt: true,
     },
   },
+  artwork: {
+    select: publicArtworkSelect,
+  },
 } satisfies Prisma.ColoringSelect;
 
 const publicManifestSelect = {
   number: true,
   description: true,
   updatedAt: true,
+  artwork: {
+    select: { updatedAt: true, original: { select: { updatedAt: true } } },
+  },
   collection: {
     select: {
       slug: true,
@@ -117,6 +128,8 @@ export class PublicColoringsService {
         lastModified: new Date(
           Math.max(
             coloring.updatedAt.getTime(),
+            coloring.artwork?.updatedAt.getTime() ?? 0,
+            coloring.artwork?.original?.updatedAt.getTime() ?? 0,
             coloring.collection.updatedAt.getTime(),
             coloring.collection.product.updatedAt.getTime(),
             coloring.collection.product.category?.updatedAt.getTime() ?? 0,
@@ -147,10 +160,14 @@ export class PublicColoringsService {
 
     const revision = coloring.publishedRevision;
     const formattedNumber = formatColoringNumber(coloring.number);
+    const original = isReadyPublishedArtwork(coloring.artwork)
+      ? coloring.artwork.original
+      : null;
     const assetUrl = (kind: "outline" | "colored") =>
       `${this.getApiPublicUrl()}/colorings/${encodeURIComponent(coloring.collection.slug)}/${formattedNumber}/assets/${encodeURIComponent(revision.id)}/${kind}/content`;
 
     return {
+      viewerMode: original ? ("materials" as const) : ("revision" as const),
       id: coloring.id,
       number: coloring.number,
       title: coloring.title,
@@ -202,10 +219,21 @@ export class PublicColoringsService {
           markerNumber: color.markerNumber,
         })),
       },
-      width: revision.width,
-      height: revision.height,
+      width: original ? coloring.artwork!.width : revision.width,
+      height: original ? coloring.artwork!.height : revision.height,
       outline: { url: assetUrl("outline"), alt: revision.outlineAlt },
-      colored: { url: assetUrl("colored"), alt: revision.coloredAlt },
+      colored: original
+        ? {
+            url: publicOriginalAssetUrl(
+              this.getApiPublicUrl(),
+              coloring.collection.slug,
+              coloring.number,
+              "colored",
+              original.imageChecksum,
+            ),
+            alt: original.imageAlt,
+          }
+        : { url: assetUrl("colored"), alt: revision.coloredAlt },
     };
   }
 

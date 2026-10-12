@@ -151,11 +151,11 @@ describe("ColoringCollectionsService", () => {
 
   it("rejects expected counts above 99 in create and update DTOs", () => {
     const createDto = plainToInstance(CreateColoringCollectionRequestDTO, {
-        productId: "product-1",
-        slug: "mysterious-forest",
-        title: "Загадочный лес",
-        position: 0,
-        expectedColoringCount: 100,
+      productId: "product-1",
+      slug: "mysterious-forest",
+      title: "Загадочный лес",
+      position: 0,
+      expectedColoringCount: 100,
     });
     const updateDto = plainToInstance(UpdateColoringCollectionRequestDTO, {
       expectedColoringCount: 100,
@@ -216,33 +216,31 @@ describe("ColoringCollectionsService", () => {
 
     assert.equal(result.status, "published");
     assert.equal(calls.length, 2);
-    assert.deepEqual(
-      (calls[0] as { where: Record<string, unknown> }).where,
-      {
-        collectionId: draft.id,
-        status: ColoringStatus.PUBLISHED,
-        publishedRevisionId: { not: null },
-        publishedAt: { not: null },
-        description: { not: null },
-        themes: { some: {} },
-        publishedRevision: {
-          is: {
-            firstPublishedAt: { not: null },
-            review: {
-              is: {
-                decision: ColoringRevisionReviewDecision.APPROVED,
-              },
+    assert.deepEqual((calls[0] as { where: Record<string, unknown> }).where, {
+      collectionId: draft.id,
+      status: ColoringStatus.PUBLISHED,
+      publishedRevisionId: { not: null },
+      publishedAt: { not: null },
+      description: { not: null },
+      themes: { some: {} },
+      publishedRevision: {
+        is: {
+          firstPublishedAt: { not: null },
+          review: {
+            is: {
+              decision: ColoringRevisionReviewDecision.APPROVED,
             },
           },
         },
       },
-    );
+    });
   });
 
   for (const [name, change, message] of [
     [
       "draft product",
-      (value: PublishFixture) => void (value.product.status = ProductStatus.DRAFT),
+      (value: PublishFixture) =>
+        void (value.product.status = ProductStatus.DRAFT),
       "Coloring collection product must be published first",
     ],
     [
@@ -397,10 +395,51 @@ describe("PublicColoringCollectionsService", () => {
     });
   });
 
+  it("uses a complete published original card and keeps legacy cards for incomplete originals", async () => {
+    const fixture = createPublicCollection();
+    const coloring = fixture.colorings[0]!;
+    coloring.artwork.original = createReadyOriginal();
+    const service = new PublicColoringCollectionsService({
+      coloringCollection: { findFirst: async () => fixture },
+    } as unknown as PrismaService);
+    const ready = await service.getCollection(fixture.slug);
+    assert.deepEqual(ready.colorings[0]?.card, {
+      url: `http://localhost:3002/colorings/mysterious-forest/01/variants/assets/original/card/${"d".repeat(64)}/content`,
+      alt: "Лесной дракон, оригинал",
+      width: 640,
+      height: 480,
+    });
+
+    Object.assign(coloring.artwork.original!, { status: ColoringStatus.DRAFT });
+    const draft = await service.getCollection(fixture.slug);
+    assert.equal(
+      draft.colorings[0]?.card.url.includes("/assets/revision-1/card/content"),
+      true,
+    );
+  });
+
+  it("keeps the revision card when the published original contour is incomplete", async () => {
+    const fixture = createPublicCollection();
+    const coloring = fixture.colorings[0]!;
+    coloring.artwork.original = createReadyOriginal();
+    coloring.artwork.outlineStorageKey = "";
+    const service = new PublicColoringCollectionsService({
+      coloringCollection: { findFirst: async () => fixture },
+    } as unknown as PrismaService);
+    const result = await service.getCollection(fixture.slug);
+    assert.equal(
+      result.colorings[0]?.card.url.includes("/assets/revision-1/card/content"),
+      true,
+    );
+  });
+
   for (const [name, fixture] of [
     ["missing collection", null],
     ["blank cover alt", createPublicCollection({ coverAlt: "   " })],
-    ["blank coloring description", createPublicCollection({ coloringDescription: "   " })],
+    [
+      "blank coloring description",
+      createPublicCollection({ coloringDescription: "   " }),
+    ],
   ] as const) {
     it(`returns uniform 404 for ${name}`, async () => {
       const service = new PublicColoringCollectionsService({
@@ -587,9 +626,21 @@ function createPublicCollection(
         publishedRevisionId: "revision-1",
         publishedAt: new Date("2026-08-29T11:30:00.000Z"),
         updatedAt: new Date("2026-08-29T11:30:00.000Z"),
-        themes: [
-          { tag: { updatedAt: new Date("2026-08-29T10:30:00.000Z") } },
-        ],
+        artwork: {
+          width: 1200,
+          height: 800,
+          derivativeProfile: "webp-preview-v3",
+          colorSpace: "srgb",
+          outlineStorageKey: "public/outline.webp",
+          outlineChecksum: "e".repeat(64),
+          outlineByteSize: 1_000,
+          outlineSourceChecksum: "f".repeat(64),
+          outlineSourceMime: "image/png",
+          outlineAlt: "Контур лесного дракона",
+          updatedAt: new Date("2026-08-29T10:00:00.000Z"),
+          original: null as ReturnType<typeof createReadyOriginal> | null,
+        },
+        themes: [{ tag: { updatedAt: new Date("2026-08-29T10:30:00.000Z") } }],
         publishedRevision: {
           id: "revision-1",
           firstPublishedAt: new Date("2026-08-29T11:00:00.000Z"),
@@ -607,6 +658,26 @@ function createPublicCollection(
         },
       },
     ],
+  };
+}
+
+function createReadyOriginal() {
+  return {
+    imageStorageKey: "public/original.webp",
+    imageChecksum: "a".repeat(64),
+    imageByteSize: 1_000,
+    sourceChecksum: "b".repeat(64),
+    sourceMime: "image/png",
+    imageAlt: "Лесной дракон, оригинал",
+    cardStorageKey: "public/original-card.webp",
+    cardChecksum: "d".repeat(64),
+    cardByteSize: 300,
+    cardWidth: 640,
+    cardHeight: 480,
+    status: ColoringStatus.PUBLISHED,
+    publishedAt: new Date("2026-08-29T10:00:00.000Z"),
+    updatedAt: new Date("2026-08-29T10:00:00.000Z"),
+    colors: [{ symbolPosition: 1, hex: "#123456" }],
   };
 }
 
