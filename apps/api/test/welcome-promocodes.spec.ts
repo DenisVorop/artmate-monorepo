@@ -176,12 +176,15 @@ describe("welcome promocode", () => {
           items: [
             {
               createdAt: now,
-              price: 100,
+              price: 80,
               productId: "item-1",
               quantity: 1,
             },
           ],
         }),
+      },
+      product: {
+        findMany: async () => [{ id: "item-1", price: 10_000, salePrice: null }],
       },
       telegramAccount: { findUnique: async () => ({ id: "telegram-1" }) },
       promoRedemption: { count: async () => 0 },
