@@ -21,7 +21,9 @@
     "lint": "eslint --max-warnings 0",
     "precheck-types": "prisma generate",
     "check-types": "tsc --noEmit",
-    "prisma": "prisma"
+    "prisma": "prisma",
+    "prepare:coloring-originals": "ts-node src/colorings/prepare-original-import.ts",
+    "import:coloring-originals": "ts-node src/colorings/import-originals.ts"
   },
   "dependencies": {
     "@nestjs/common": "^11.1.24",
