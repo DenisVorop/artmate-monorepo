@@ -1,5 +1,13 @@
 # Changelog
 
+## [0.50.0](https://github.com/DenisVorop/artmate-monorepo/compare/v0.49.1...v0.50.0) (2026-10-12)
+
+
+### Features
+
+* **colorings:** enable phased viewer rollout ([b46038d](https://github.com/DenisVorop/artmate-monorepo/commit/b46038dd1ec7e9ab74119d09462d1087faa7d262))
+* **colorings:** import original archives ([093e99e](https://github.com/DenisVorop/artmate-monorepo/commit/093e99e2f8305cc9ed693c20c55792f3a4935967))
+
 ## [0.49.1](https://github.com/DenisVorop/artmate-monorepo/compare/v0.49.0...v0.49.1) (2026-10-11)
 
 
