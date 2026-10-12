@@ -43,6 +43,7 @@ const coloring = {
   number: 1,
   title: "Лиса и сова",
   description: "Раскраска с лесными героями",
+  viewerMode: "revision",
   publishedRevisionId: "revision-2",
   publishedAt: "2026-08-29T10:00:00.000Z",
   firstPublishedAt: "2026-08-28T10:00:00.000Z",
@@ -145,6 +146,22 @@ async function loadActions() {
     "./colorings.schemas": schemas,
   });
 }
+
+test("public coloring requires an explicit supported viewer mode", async () => {
+  const { publicColoringSchema } = await loadSchemas();
+
+  for (const viewerMode of ["materials", "revision"]) {
+    assert.equal(publicColoringSchema.parse({ ...coloring, viewerMode }).viewerMode, viewerMode);
+  }
+
+  const withoutViewerMode = { ...coloring };
+  delete withoutViewerMode.viewerMode;
+  assert.equal(publicColoringSchema.safeParse(withoutViewerMode).success, false);
+  assert.equal(
+    publicColoringSchema.safeParse({ ...coloring, viewerMode: "automatic" }).success,
+    false,
+  );
+});
 
 test("coloring route helpers enforce canonical two-digit numbers", async () => {
   const { formatColoringNumber, parseColoringNumber, routes } = evaluateTypeScript(

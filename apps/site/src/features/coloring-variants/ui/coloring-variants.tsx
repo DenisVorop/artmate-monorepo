@@ -5,6 +5,7 @@ import type { ReactNode } from "react";
 import { useColoringVariantsData } from "@/entities/coloring-variants";
 import { Button, DataState } from "@/shared/ui";
 
+import { useTrackOpen } from "../lib/use-track-open";
 import { PaletteViewer } from "./palette-viewer";
 
 type ColoringVariantsProps = {
@@ -24,6 +25,10 @@ export function ColoringVariants({
     collectionSlug,
     number,
     token,
+  );
+  useTrackOpen(
+    !isPending && !isError ? coloring?.collection.slug : undefined,
+    !isPending && !isError ? coloring?.number : undefined,
   );
 
   if (isPending) {

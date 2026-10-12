@@ -8,6 +8,11 @@ import {
   publicColoringReadinessWhere,
 } from "./public-coloring-eligibility";
 import { formatColoringNumber } from "./coloring-number";
+import {
+  isReadyPublishedArtwork,
+  publicOriginalAssetUrl,
+  publicArtworkSelect,
+} from "./public-coloring-variant-eligibility";
 
 const publicCollectionSelect = {
   id: true,
@@ -49,6 +54,9 @@ const publicCollectionSelect = {
       publishedRevisionId: true,
       publishedAt: true,
       updatedAt: true,
+      artwork: {
+        select: publicArtworkSelect,
+      },
       themes: {
         select: { tag: { select: { updatedAt: true } } },
       },
@@ -163,8 +171,13 @@ export class PublicColoringCollectionsService {
       summary,
       colorings: colorings.map((coloring) => {
         const revision = coloring.publishedRevision;
-        const dimensions = this.getCardDimensions(revision);
-        const version = this.getCardVersion(revision);
+        const original = isReadyPublishedArtwork(coloring.artwork)
+          ? coloring.artwork.original
+          : null;
+        const dimensions = original
+          ? { width: original.cardWidth, height: original.cardHeight }
+          : this.getCardDimensions(revision);
+        const version = original?.cardChecksum ?? this.getCardVersion(revision);
 
         return {
           id: coloring.id,
@@ -173,8 +186,16 @@ export class PublicColoringCollectionsService {
           position: coloring.position,
           publishedRevisionId: coloring.publishedRevisionId,
           card: {
-            url: `${this.getApiPublicUrl()}/colorings/${encodeURIComponent(collection.slug)}/${formatColoringNumber(coloring.number)}/assets/${encodeURIComponent(revision.id)}/card/content?v=${version}`,
-            alt: revision.coloredAlt,
+            url: original
+              ? publicOriginalAssetUrl(
+                  this.getApiPublicUrl(),
+                  collection.slug,
+                  coloring.number,
+                  "card",
+                  original.cardChecksum,
+                )
+              : `${this.getApiPublicUrl()}/colorings/${encodeURIComponent(collection.slug)}/${formatColoringNumber(coloring.number)}/assets/${encodeURIComponent(revision.id)}/card/content?v=${version}`,
+            alt: original?.imageAlt ?? revision.coloredAlt,
             width: dimensions.width,
             height: dimensions.height,
           },
@@ -203,13 +224,14 @@ export class PublicColoringCollectionsService {
     );
   }
 
-  private hasCompleteCover(collection: PublicCollectionRecord): collection is
-    PublicCollectionRecord & {
-      coverUrl: string;
-      coverAlt: string;
-      coverWidth: number;
-      coverHeight: number;
-    } {
+  private hasCompleteCover(
+    collection: PublicCollectionRecord,
+  ): collection is PublicCollectionRecord & {
+    coverUrl: string;
+    coverAlt: string;
+    coverWidth: number;
+    coverHeight: number;
+  } {
     return Boolean(
       collection.coverUrl?.trim() &&
       collection.coverAlt?.trim() &&
@@ -270,6 +292,8 @@ export class PublicColoringCollectionsService {
         collection.product.category?.updatedAt.getTime() ?? 0,
         ...colorings.flatMap((coloring) => [
           coloring.updatedAt.getTime(),
+          coloring.artwork?.updatedAt.getTime() ?? 0,
+          coloring.artwork?.original?.updatedAt.getTime() ?? 0,
           coloring.publishedAt?.getTime() ?? 0,
           coloring.publishedRevision.firstPublishedAt?.getTime() ?? 0,
           ...coloring.themes.map(({ tag }) => tag.updatedAt.getTime()),

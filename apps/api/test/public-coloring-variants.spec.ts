@@ -27,6 +27,8 @@ function fixture() {
     imageStorageKey: "coloring/image.webp",
     imageChecksum: checksum,
     imageByteSize: 4,
+    sourceChecksum: "d".repeat(64),
+    sourceMime: "image/png",
     cardStorageKey: "coloring/card.webp",
     cardChecksum,
     cardByteSize: 4,
@@ -35,6 +37,7 @@ function fixture() {
     imageAlt: "Собачка",
     status: "PUBLISHED",
     publishedAt: date,
+    updatedAt: date,
   };
   const product = {
     id: "product",
@@ -72,10 +75,15 @@ function fixture() {
     artwork: {
       width: 1200,
       height: 900,
+      derivativeProfile: "webp-preview-v3",
+      colorSpace: "srgb",
       outlineStorageKey: "coloring/outline.webp",
       outlineChecksum,
       outlineByteSize: 4,
+      outlineSourceChecksum: "d".repeat(64),
+      outlineSourceMime: "image/png",
       outlineAlt: "Контур щенка",
+      updatedAt: date,
       original: {
         ...image,
         colors: [
@@ -225,6 +233,22 @@ describe("published coloring variants", () => {
       },
     ],
     [
+      "missing outline",
+      (r: ReturnType<typeof fixture>) => (r.artwork.outlineStorageKey = ""),
+    ],
+    [
+      "broken outline",
+      (r: ReturnType<typeof fixture>) => (r.artwork.outlineChecksum = "broken"),
+    ],
+    [
+      "oversized outline",
+      (r: ReturnType<typeof fixture>) => (r.artwork.width = 4097),
+    ],
+    [
+      "oversized original card",
+      (r: ReturnType<typeof fixture>) => (r.artwork.original.cardWidth = 641),
+    ],
+    [
       "draft original",
       (r: ReturnType<typeof fixture>) => {
         r.artwork.original.status = "DRAFT";
@@ -309,6 +333,34 @@ describe("published coloring variants", () => {
       createService(null).getColoring("dogs", 1),
       NotFoundException,
     );
+  });
+
+  it("accepts the maximum public artwork and card dimensions for detail and assets", async () => {
+    const record = fixture();
+    record.artwork.width = 4096;
+    record.artwork.height = 4096;
+    record.artwork.original.cardWidth = 640;
+    record.artwork.original.cardHeight = 640;
+    const service = createService(record);
+    const result = await service.getColoring("dogs", 1);
+    assert.equal(result.width, 4096);
+    assert.equal(result.original.card.width, 640);
+    const image = await service.getAssetDescriptor(
+      "dogs",
+      1,
+      "original",
+      "colored",
+      checksum,
+    );
+    assert.equal(image.width, 4096);
+    const card = await service.getAssetDescriptor(
+      "dogs",
+      1,
+      "original",
+      "card",
+      cardChecksum,
+    );
+    assert.equal(card.width, 640);
   });
 });
 
@@ -404,6 +456,33 @@ describe("public variant HTTP assets", () => {
       assert.equal(response.headers.get("cache-control"), "no-store");
     } finally {
       unavailable = false;
+    }
+  });
+
+  it("revokes detail and original assets when the shared contour becomes incomplete", async () => {
+    httpRecord.artwork.outlineStorageKey = "";
+    try {
+      const detail = await fetch(`${base}/colorings/dogs/01/variants`);
+      assert.equal(detail.status, 404);
+      for (const [kind, hash] of [
+        ["outline", outlineChecksum],
+        ["colored", checksum],
+        ["card", cardChecksum],
+      ]) {
+        for (const method of ["GET", "HEAD"]) {
+          const asset = await fetch(
+            `${base}/colorings/dogs/01/variants/assets/original/${kind}/${hash}/content`,
+            {
+              method,
+              headers: { "If-None-Match": `"${hash}"` },
+            },
+          );
+          assert.equal(asset.status, 404);
+          assert.equal(asset.headers.get("cache-control"), "no-store");
+        }
+      }
+    } finally {
+      httpRecord = fixture();
     }
   });
 });

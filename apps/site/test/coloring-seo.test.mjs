@@ -56,6 +56,7 @@ const coloring = {
   number: 1,
   title: "Лиса и сова",
   description: "Раскраска с лесными героями",
+  viewerMode: "revision",
   publishedRevisionId: "revision-2",
   publishedAt: "2026-08-29T10:00:00.000Z",
   firstPublishedAt: "2026-08-28T10:00:00.000Z",

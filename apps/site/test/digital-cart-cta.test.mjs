@@ -66,6 +66,7 @@ const coloring = {
   number: 1,
   title: "Кот",
   description: "Описание картины",
+  viewerMode: "revision",
   publishedRevisionId: "revision-1",
   colored: {},
   outline: {},

@@ -14,6 +14,7 @@ function evaluateTypeScript(source, mocks = {}) {
   const output = ts.transpileModule(source, {
     compilerOptions: {
       esModuleInterop: true,
+      jsx: ts.JsxEmit.ReactJSX,
       module: ts.ModuleKind.CommonJS,
       target: ts.ScriptTarget.ES2022,
     },
@@ -147,6 +148,96 @@ test("product CTA emits the safe diagnostic event on every real click", async ()
         collection_slug: "flowers",
       },
     ]);
+  });
+});
+
+test("materials viewer goal preserves exact payload, SSR safety and per-visit deduplication", async () => {
+  const sharedAnalytics = await loadSharedAnalytics();
+  const analytics = await loadAdapter(
+    "src/features/coloring-variants/lib/analytics.ts",
+    sharedAnalytics,
+  );
+  assert.doesNotThrow(() => analytics.opened("forest", 1, "ssr-view"));
+
+  await withWindow((analyticsWindow) => {
+    const goals = [];
+    analyticsWindow.document.getElementById = () => ({ getAttribute: () => "12345" });
+    analyticsWindow.ym = (...args) => goals.push(args);
+    analytics.opened(" forest ", 1, "materials-view-1");
+    analytics.opened("forest", 1, "materials-view-1");
+    analytics.opened("forest", 1, "materials-view-2");
+    for (const number of [0, -1, 1.5, NaN, Infinity]) {
+      analytics.opened("forest", number, `invalid-${number}`);
+    }
+    analytics.opened("", 1, "invalid-slug");
+    analytics.opened("buyer@example.test", 1, "invalid-pii");
+    analytics.opened("forest", 1, "");
+    const params = { collection_slug: "forest", coloring_number: 1 };
+    assert.deepEqual(analyticsWindow.dataLayer, [
+      { event: "digital_coloring_open", ...params },
+      { event: "digital_coloring_open", ...params },
+    ]);
+    assert.deepEqual(goals, [
+      [12345, "reachGoal", "digital_coloring_open", params],
+      [12345, "reachGoal", "digital_coloring_open", params],
+    ]);
+  });
+});
+
+test("materials viewer tracks only ready data and a fresh mount creates a new view", async () => {
+  const sharedAnalytics = await loadSharedAnalytics();
+  const adapter = evaluateTypeScript(
+    await readSource("src/features/coloring-variants/lib/analytics.ts"),
+    {
+      "@/shared/lib/analytics": sharedAnalytics,
+    },
+  );
+  let viewRef;
+  const hook = evaluateTypeScript(
+    await readSource("src/features/coloring-variants/lib/use-track-open.ts"),
+    {
+      "./analytics": adapter,
+      react: {
+        useRef: (value) => {
+          viewRef ??= { current: value };
+          return viewRef;
+        },
+        useEffect: (effect) => effect(),
+      },
+    },
+  );
+  let state;
+  const jsx = (type, props) => ({ type, props });
+  const { ColoringVariants } = evaluateTypeScript(
+    await readSource("src/features/coloring-variants/ui/coloring-variants.tsx"),
+    {
+      "react/jsx-runtime": { jsx, jsxs: jsx },
+      "@/entities/coloring-variants": { useColoringVariantsData: () => state },
+      "@/shared/ui": { Button: "Button", DataState: "DataState" },
+      "../lib/use-track-open": hook,
+      "./palette-viewer": { PaletteViewer: "PaletteViewer" },
+    },
+  );
+  await withWindow(({ dataLayer }) => {
+    const coloring = { collection: { slug: "forest" }, number: 1, token: "materials-2" };
+    const render = () =>
+      ColoringVariants({ collectionSlug: "forest", number: 1, token: coloring.token });
+    for (const unavailable of [
+      { coloring, isPending: true, isError: false },
+      { coloring, isPending: false, isError: true },
+      { coloring: undefined, isPending: false, isError: false },
+    ]) {
+      state = unavailable;
+      render();
+    }
+    assert.deepEqual(dataLayer, []);
+    state = { coloring, isPending: false, isError: false };
+    assert.equal(render().type, "PaletteViewer");
+    render();
+    assert.equal(dataLayer.length, 1);
+    viewRef = undefined;
+    render();
+    assert.equal(dataLayer.length, 2);
   });
 });
 

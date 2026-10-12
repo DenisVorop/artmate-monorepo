@@ -98,12 +98,52 @@ const detailSelect = {
       coloredAlt: true,
     },
   },
+  artwork: {
+    select: {
+      width: true,
+      height: true,
+      derivativeProfile: true,
+      colorSpace: true,
+      outlineStorageKey: true,
+      outlineChecksum: true,
+      outlineByteSize: true,
+      outlineSourceChecksum: true,
+      outlineSourceMime: true,
+      outlineAlt: true,
+      updatedAt: true,
+      original: {
+        select: {
+          imageStorageKey: true,
+          imageChecksum: true,
+          imageByteSize: true,
+          sourceChecksum: true,
+          sourceMime: true,
+          imageAlt: true,
+          cardStorageKey: true,
+          cardChecksum: true,
+          cardByteSize: true,
+          cardWidth: true,
+          cardHeight: true,
+          status: true,
+          publishedAt: true,
+          updatedAt: true,
+          colors: {
+            select: { symbolPosition: true, hex: true },
+            orderBy: { symbolPosition: "asc" },
+          },
+        },
+      },
+    },
+  },
 };
 
 const manifestSelect = {
   number: true,
   description: true,
   updatedAt: true,
+  artwork: {
+    select: { updatedAt: true, original: { select: { updatedAt: true } } },
+  },
   collection: {
     select: {
       slug: true,
@@ -151,6 +191,7 @@ describe("PublicColoringsService", () => {
       },
     ]);
     assert.deepEqual(result, {
+      viewerMode: "revision",
       id: "coloring-1",
       number: 1,
       title: "Лесные друзья",
@@ -239,6 +280,108 @@ describe("PublicColoringsService", () => {
       },
     });
   });
+
+  it("selects the materials reader only for a complete published original", async () => {
+    const fixture = createColoring();
+    fixture.artwork.original = createReadyOriginal();
+    fixture.artwork.width = 900;
+    fixture.artwork.height = 1300;
+    const result = await createService({
+      findFirst: async () => fixture,
+    }).getColoring(fixture.collection.slug, fixture.number);
+
+    assert.equal(result.viewerMode, "materials");
+    assert.equal(result.width, 900);
+    assert.equal(result.height, 1300);
+    assert.deepEqual(result.colored, {
+      url:
+        "http://localhost:3002/colorings/mysterious-forest/01/variants/assets/original/colored/" +
+        "a".repeat(64) +
+        "/content",
+      alt: "Оригинал в цвете",
+    });
+  });
+
+  for (const [name, mutate] of [
+    [
+      "missing outline",
+      (artwork: ReturnType<typeof createColoring>["artwork"]) =>
+        (artwork.outlineStorageKey = ""),
+    ],
+    [
+      "broken outline checksum",
+      (artwork: ReturnType<typeof createColoring>["artwork"]) =>
+        (artwork.outlineChecksum = "broken"),
+    ],
+    [
+      "oversized artwork",
+      (artwork: ReturnType<typeof createColoring>["artwork"]) =>
+        (artwork.width = 4097),
+    ],
+    [
+      "oversized card",
+      (artwork: ReturnType<typeof createColoring>["artwork"]) =>
+        (artwork.original!.cardWidth = 641),
+    ],
+  ] as const) {
+    it(`keeps the revision reader for ${name} despite a published original`, async () => {
+      const fixture = createColoring();
+      fixture.artwork.original = createReadyOriginal();
+      mutate(fixture.artwork);
+      const result = await createService({
+        findFirst: async () => fixture,
+      }).getColoring(fixture.collection.slug, fixture.number);
+      assert.equal(result.viewerMode, "revision");
+      assert.equal(
+        result.colored.url.includes("/assets/revision-current/colored/content"),
+        true,
+      );
+    });
+  }
+
+  it("keeps the revision reader when artwork is absent", async () => {
+    const fixture = { ...createColoring(), artwork: null };
+    const service = new PublicColoringsService(
+      {
+        coloring: { findFirst: async () => fixture },
+      } as unknown as PrismaService,
+      {} as ColoringStorageService,
+    );
+    const result = await service.getColoring(
+      fixture.collection.slug,
+      fixture.number,
+    );
+    assert.equal(result.viewerMode, "revision");
+  });
+
+  for (const [name, mutate] of [
+    [
+      "draft original",
+      (original: ReturnType<typeof createReadyOriginal>) =>
+        Object.assign(original, { status: ColoringStatus.DRAFT }),
+    ],
+    [
+      "incomplete original",
+      (original: ReturnType<typeof createReadyOriginal>) =>
+        (original.cardChecksum = ""),
+    ],
+  ] as const) {
+    it(`keeps the revision reader when the original is ${name}`, async () => {
+      const fixture = createColoring();
+      const original = createReadyOriginal();
+      mutate(original);
+      fixture.artwork.original = original;
+      const result = await createService({
+        findFirst: async () => fixture,
+      }).getColoring(fixture.collection.slug, fixture.number);
+
+      assert.equal(result.viewerMode, "revision");
+      assert.equal(
+        result.colored.url.includes("/assets/revision-current/colored/content"),
+        true,
+      );
+    });
+  }
 
   it("validates native and maximum public dimensions without exposing originals", async () => {
     const fixture = createColoring();
@@ -421,6 +564,22 @@ describe("PublicColoringsService", () => {
     assert.deepEqual(
       validateSync(plainToInstance(PublicColoringManifestItemDTO, result[0])),
       [],
+    );
+  });
+
+  it("updates the sitemap timestamp after contour or original imports", async () => {
+    const fixture = createColoring();
+    const service = createService({ findMany: async () => [fixture] });
+    fixture.artwork.updatedAt = new Date("2026-10-12T10:00:00.000Z");
+    assert.equal(
+      (await service.getManifest())[0]?.lastModified,
+      "2026-10-12T10:00:00.000Z",
+    );
+    fixture.artwork.original = createReadyOriginal();
+    fixture.artwork.original.updatedAt = new Date("2026-10-12T11:00:00.000Z");
+    assert.equal(
+      (await service.getManifest())[0]?.lastModified,
+      "2026-10-12T11:00:00.000Z",
     );
   });
 
@@ -750,6 +909,43 @@ function createColoring() {
           ColoringRevisionReviewDecision.APPROVED as ColoringRevisionReviewDecision,
       },
     },
+    artwork: {
+      width: 1200,
+      height: 800,
+      derivativeProfile: "webp-preview-v3",
+      colorSpace: "srgb",
+      outlineStorageKey: "public/outline.webp",
+      outlineChecksum: "e".repeat(64),
+      outlineByteSize: 1_000,
+      outlineSourceChecksum: "f".repeat(64),
+      outlineSourceMime: "image/png",
+      outlineAlt: "Контур лесных друзей",
+      updatedAt: new Date("2026-08-29T10:00:00.000Z"),
+      original: null as ReturnType<typeof createReadyOriginal> | null,
+    },
+  };
+}
+
+function createReadyOriginal() {
+  return {
+    imageStorageKey: "public/original.webp",
+    imageChecksum: "a".repeat(64),
+    imageByteSize: 1_000,
+    sourceChecksum: "d".repeat(64),
+    sourceMime: "image/png",
+    imageAlt: "Оригинал в цвете",
+    cardStorageKey: "public/original-card.webp",
+    cardChecksum: "c".repeat(64),
+    cardByteSize: 300,
+    cardWidth: 480,
+    cardHeight: 320,
+    status: ColoringStatus.PUBLISHED,
+    publishedAt: new Date("2026-08-29T10:00:00.000Z"),
+    updatedAt: new Date("2026-08-29T10:00:00.000Z"),
+    colors: [
+      { symbolPosition: 1, hex: "#123456" },
+      { symbolPosition: 19, hex: "#abcdef" },
+    ],
   };
 }
 
