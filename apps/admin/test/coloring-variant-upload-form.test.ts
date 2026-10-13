@@ -16,7 +16,6 @@ const emptyState = {
   token: "new",
   width: null,
   height: null,
-  outlineUrl: null,
   original: null,
   variants: [],
 };
@@ -27,6 +26,7 @@ const originalState = {
     status: "draft" as const,
     updatedAt: "2026-09-27T10:00:00.000Z",
     imageUrl: "/colored",
+    outlineUrl: "/original-outline",
     cardUrl: "/card",
     palette: [
       { symbolPosition: 1, hex: "#AABBCC" },
@@ -108,6 +108,7 @@ test("existing adaptations lock the original symbol set", () => {
         title: "Маркеры",
         updatedAt: originalState.token,
         imageUrl: "/adapted",
+        outlineUrl: "/adapted-outline",
         cardUrl: "/card",
         palette: [],
       },
@@ -171,7 +172,10 @@ test("multipart preserves the captured token, both files and only relevant palet
 
 test("conflict messages distinguish stale data from mismatched outlines and symbols", () => {
   assert.match(getUploadError("STALE_UPLOAD", 409), /Обновите страницу/);
-  assert.match(getUploadError("OUTLINE_IN_USE", 409), /прежними контурами/);
+  assert.match(
+    getUploadError("OUTLINE_IN_USE", 409),
+    /размеры изображений и соответствие контуров/,
+  );
   assert.match(getUploadError("SYMBOLS_IN_USE", 409), /прежний список/);
   assert.equal(
     getUploadError("SQL unexpected secret", 500).includes("SQL"),

@@ -37,22 +37,29 @@ type Assignment = {
   materialSetId: string;
   materialColorId: string;
 };
-type Variant = Image & {
-  id: string;
-  coloringId: string;
-  materialSetId: string;
-  status: string;
-  materialSet: { title: string };
-  assignments: Array<
-    Assignment & { materialColor: { code: string; hex: string } }
-  >;
+type Outline = {
+  outlineStorageKey: string;
+  outlineChecksum: string;
+  outlineByteSize: number;
+  outlineSourceChecksum: string;
+  outlineSourceMime: string;
+  outlineAlt: string;
 };
-type Artwork = {
+type Variant = Image &
+  Outline & {
+    id: string;
+    coloringId: string;
+    materialSetId: string;
+    status: string;
+    materialSet: { title: string };
+    assignments: Array<
+      Assignment & { materialColor: { code: string; hex: string } }
+    >;
+  };
+type Artwork = Outline & {
   coloringId: string;
   width: number;
   height: number;
-  outlineStorageKey: string;
-  outlineChecksum: string;
   updatedAt: Date;
   original: Original | null;
   materialVariants: Variant[];
@@ -75,6 +82,10 @@ function artwork(): Artwork {
     height: 1200,
     outlineStorageKey: "old-outline",
     outlineChecksum: "outline-checksum",
+    outlineByteSize: 10,
+    outlineSourceChecksum: "outline-source",
+    outlineSourceMime: "image/png",
+    outlineAlt: "Контур оригинала",
     updatedAt: initialDate,
     original: {
       coloringId: "coloring-1",
@@ -92,6 +103,12 @@ function variant(): Variant {
     materialSetId: "set-1",
     status: "DRAFT",
     ...image(),
+    outlineStorageKey: "old-variant-outline",
+    outlineChecksum: "variant-outline-checksum",
+    outlineByteSize: 12,
+    outlineSourceChecksum: "variant-outline-source",
+    outlineSourceMime: "image/png",
+    outlineAlt: "Контур с палитрой маркеров",
     imageStorageKey: "old-variant-colored",
     cardStorageKey: "old-variant-card",
     materialSet: { title: "Markers" },
@@ -189,25 +206,35 @@ function harness(initial: Artwork | null = artwork()) {
     },
   };
   let transactionFailed = false;
-  const count = async ({
-    where,
-  }: {
-    where: { outlineStorageKey?: string; OR?: Array<Record<string, string>> };
-  }) => {
-    if (state.countFails) throw new Error("reference read unavailable");
-    const key = where.outlineStorageKey ?? Object.values(where.OR![0]!)[0]!;
-    const current = state.artwork;
-    const referenced = [
-      current?.outlineStorageKey,
-      current?.original?.imageStorageKey,
-      current?.original?.cardStorageKey,
-      ...(current?.materialVariants.flatMap((v) => [
-        v.imageStorageKey,
-        v.cardStorageKey,
-      ]) ?? []),
-    ];
-    return referenced.includes(key) ? 1 : 0;
-  };
+  const count =
+    (model: "artwork" | "original" | "variant") =>
+    async ({
+      where,
+    }: {
+      where: { outlineStorageKey?: string; OR?: Array<Record<string, string>> };
+    }) => {
+      if (state.countFails) throw new Error("reference read unavailable");
+      const current = state.artwork;
+      const records =
+        model === "artwork"
+          ? [current]
+          : model === "original"
+            ? [current?.original]
+            : (current?.materialVariants ?? []);
+      const conditions = where.OR ?? [
+        { outlineStorageKey: where.outlineStorageKey! },
+      ];
+      return records.filter(
+        (record) =>
+          record &&
+          conditions.some((condition) =>
+            Object.entries(condition).some(
+              ([field, key]) =>
+                (record as unknown as Record<string, unknown>)[field] === key,
+            ),
+          ),
+      ).length;
+    };
   const db = {
     $queryRaw: async (strings: TemplateStringsArray) => {
       state.locks.push(strings.join("?"));
@@ -248,7 +275,7 @@ function harness(initial: Artwork | null = artwork()) {
           throw new Error("outcome unknown");
         return structuredClone(state.artwork);
       },
-      count,
+      count: count("artwork"),
       upsert: async ({
         create,
         update,
@@ -271,7 +298,7 @@ function harness(initial: Artwork | null = artwork()) {
         state.publicationWrites++;
         Object.assign(state.artwork!.original!, data);
       },
-      count,
+      count: count("original"),
       upsert: async (args: {
         where: { coloringId: string };
         create: Image & {
@@ -313,7 +340,7 @@ function harness(initial: Artwork | null = artwork()) {
           data,
         );
       },
-      count,
+      count: count("variant"),
       upsert: async (args: {
         where: {
           coloringId_materialSetId: {
@@ -321,10 +348,11 @@ function harness(initial: Artwork | null = artwork()) {
             materialSetId: string;
           };
         };
-        create: Image & { assignments: { create: Assignment[] } };
-        update: Image & {
-          assignments: { deleteMany: object; create: Assignment[] };
-        };
+        create: Image & Outline & { assignments: { create: Assignment[] } };
+        update: Image &
+          Outline & {
+            assignments: { deleteMany: object; create: Assignment[] };
+          };
       }) => {
         state.variantWrites.push(args);
         const identity = args.where.coloringId_materialSetId;
@@ -435,7 +463,6 @@ describe("ColoringVariantsService draft uploads", () => {
       token: "new",
       width: null,
       height: null,
-      outlineUrl: null,
       original: null,
       variants: [],
     });
@@ -449,7 +476,7 @@ describe("ColoringVariantsService draft uploads", () => {
     assert.deepEqual(result.variants, []);
     assert.doesNotMatch(JSON.stringify(result), /StorageKey|sourceChecksum/);
     assert.match(
-      result.outlineUrl!,
+      result.original!.outlineUrl,
       /assets\/original\/outline\/content\?token=/,
     );
   });
@@ -494,6 +521,7 @@ describe("ColoringVariantsService draft uploads", () => {
     assert.deepEqual(state.cleaned.sort(), [
       "old-variant-card",
       "old-variant-colored",
+      "old-variant-outline",
     ]);
     assert.match(state.locks[0]!, /FOR UPDATE OF c, cc/);
     assert.match(state.locks[1]!, /material_sets.*FOR UPDATE/);
@@ -532,9 +560,34 @@ describe("ColoringVariantsService draft uploads", () => {
     );
   });
 
+  it("retains a retired material contour when another material record references it", async () => {
+    const initial = artwork();
+    initial.materialVariants = [
+      variant(),
+      {
+        ...variant(),
+        id: "variant-2",
+        materialSetId: "set-2",
+        outlineStorageKey: "old-variant-outline",
+        imageStorageKey: "other-colored",
+        cardStorageKey: "other-card",
+      },
+    ];
+    const { service, state } = harness(initial);
+    state.pair.outline.checksum = "new-material-contour";
+    await service.save("coloring-1", input(undefined, "set-1"), files());
+    assert.ok(!state.cleaned.includes("old-variant-outline"));
+    assert.deepEqual(state.cleaned.sort(), [
+      "old-variant-card",
+      "old-variant-colored",
+    ]);
+  });
+
   it("creates the first adaptation without changing the original or its symbols", async () => {
     const { service, state } = harness();
     const original = structuredClone(state.artwork!.original);
+    const originalOutline = state.artwork!.outlineStorageKey;
+    state.pair.outline.checksum = "material-footer-checksum";
     const result = await service.save(
       "coloring-1",
       input(undefined, "set-1"),
@@ -543,6 +596,16 @@ describe("ColoringVariantsService draft uploads", () => {
     assert.equal(result.variants.length, 1);
     assert.equal(state.artwork?.materialVariants[0]?.status, "DRAFT");
     assert.deepEqual(state.artwork?.original, original);
+    assert.equal(state.artwork!.outlineStorageKey, originalOutline);
+    assert.equal(state.artwork!.outlineChecksum, "outline-checksum");
+    assert.equal(
+      state.artwork!.materialVariants[0]!.outlineChecksum,
+      "material-footer-checksum",
+    );
+    assert.notEqual(
+      result.original!.outlineUrl,
+      result.variants[0]!.outlineUrl,
+    );
     assert.deepEqual(state.cleaned, []);
   });
 
@@ -586,18 +649,56 @@ describe("ColoringVariantsService draft uploads", () => {
       );
       assert.deepEqual(state.stored, []);
     });
-    it(`rejects changed contours for ${target} when adaptations exist`, async () => {
-      const initial = artwork();
-      initial.materialVariants = [variant()];
-      const { service, state } = harness(initial);
-      state.pair.outline.checksum = "different";
-      await assert.rejects(
-        service.save("coloring-1", input(undefined, target), files()),
-        errorCode("OUTLINE_IN_USE", 409),
-      );
-      assert.deepEqual(state.stored, []);
-    });
   }
+
+  it("rejects replacement of the original contour while adaptations exist", async () => {
+    const initial = artwork();
+    initial.materialVariants = [variant()];
+    const { service, state } = harness(initial);
+    state.pair.outline.checksum = "different-original";
+    await assert.rejects(
+      service.save("coloring-1", input(), files()),
+      errorCode("OUTLINE_IN_USE", 409),
+    );
+    assert.deepEqual(state.stored, []);
+  });
+
+  it("replaces a material footer independently without changing the original contour", async () => {
+    const initial = artwork();
+    initial.materialVariants = [variant()];
+    const { service, state } = harness(initial);
+    state.pair.outline.checksum = "different-material-footer";
+    const result = await service.save(
+      "coloring-1",
+      input(undefined, "set-1"),
+      files(),
+    );
+    assert.equal(state.artwork!.outlineStorageKey, "old-outline");
+    assert.equal(state.artwork!.outlineChecksum, "outline-checksum");
+    assert.equal(
+      state.artwork!.materialVariants[0]!.outlineChecksum,
+      "different-material-footer",
+    );
+    assert.match(
+      result.variants[0]!.outlineUrl,
+      /assets\/set-1\/outline\/content/,
+    );
+    assert.deepEqual(state.cleaned.sort(), [
+      "old-variant-card",
+      "old-variant-colored",
+      "old-variant-outline",
+    ]);
+  });
+
+  it("rejects a material pair with geometry different from its original", async () => {
+    const { service, state } = harness();
+    state.pair.width += 1;
+    await assert.rejects(
+      service.save("coloring-1", input(undefined, "set-1"), files()),
+      errorCode("OUTLINE_IN_USE", 409),
+    );
+    assert.deepEqual(state.stored, []);
+  });
 
   for (const field of ["coloringStatus", "collectionStatus"] as const) {
     it(`rejects archived ${field}`, async () => {
@@ -676,6 +777,31 @@ describe("ColoringVariantsService draft uploads", () => {
     assert.ok(state.stored.every((file) => !state.cleaned.includes(file.key)));
   });
 
+  it("reconciles a committed material upload using its own contour after a lost acknowledgement", async () => {
+    const initial = artwork();
+    initial.materialVariants = [variant()];
+    const { service, state } = harness(initial);
+    state.pair.outline.checksum = "updated-material-palette";
+    state.transactionMode = "committed";
+    const result = await service.save(
+      "coloring-1",
+      input(undefined, "set-1"),
+      files(),
+    );
+    assert.equal(result.variants[0]!.palette.length, palette.length);
+    assert.equal(state.artwork!.outlineStorageKey, "old-outline");
+    assert.equal(
+      state.artwork!.materialVariants[0]!.outlineChecksum,
+      "updated-material-palette",
+    );
+    assert.deepEqual(state.cleaned.sort(), [
+      "old-variant-card",
+      "old-variant-colored",
+      "old-variant-outline",
+    ]);
+    assert.ok(state.stored.every((file) => !state.cleaned.includes(file.key)));
+  });
+
   it("preserves all new and old files while commit outcome cannot be read", async () => {
     const { service, state } = harness();
     state.transactionMode = "committed";
@@ -716,7 +842,9 @@ describe("ColoringVariantsService draft uploads", () => {
   });
 
   it("resolves protected assets with expected checksum and dimensions", async () => {
-    const { service } = harness();
+    const initial = artwork();
+    initial.materialVariants = [variant()];
+    const { service } = harness(initial);
     assert.deepEqual(await service.asset("coloring-1", "original", "card"), {
       key: "old-card",
       metadata: { checksum: "card-checksum", width: 400, height: 600 },
@@ -724,6 +852,17 @@ describe("ColoringVariantsService draft uploads", () => {
     assert.deepEqual(await service.asset("coloring-1", "original", "outline"), {
       key: "old-outline",
       metadata: { checksum: "outline-checksum", width: 800, height: 1200 },
+    });
+    assert.deepEqual(await service.asset("coloring-1", "set-1", "outline"), {
+      key: "old-variant-outline",
+      metadata: {
+        checksum: "variant-outline-checksum",
+        width: 800,
+        height: 1200,
+      },
+    });
+    await assert.rejects(service.asset("coloring-1", "missing", "outline"), {
+      status: 404,
     });
     await assert.rejects(service.asset("coloring-1", "missing", "colored"), {
       status: 404,
@@ -751,6 +890,27 @@ describe("Mutable variant publication", () => {
     assert.deepEqual(state.legacy, legacy);
     assert.deepEqual(state.cleanedPublic, []);
   });
+  it("keeps a material contour when only its colored image is replaced", async () => {
+    const initial = artwork();
+    initial.original!.status = "PUBLISHED";
+    initial.materialVariants = [variant()];
+    initial.materialVariants[0]!.status = "PUBLISHED";
+    const { service, state } = harness(initial);
+    state.pair.outline.checksum = "variant-outline-checksum";
+    await service.save("coloring-1", input(undefined, "set-1"), files());
+    assert.equal(state.artwork!.outlineStorageKey, "old-outline");
+    assert.equal(
+      state.artwork!.materialVariants[0]!.outlineStorageKey,
+      "old-variant-outline",
+    );
+    assert.equal(state.publicFiles[0], "old-variant-outline");
+    assert.deepEqual(state.cleaned.sort(), [
+      "old-variant-card",
+      "old-variant-colored",
+    ]);
+    assert.ok(!state.cleanedPublic.includes("old-variant-outline"));
+  });
+
   it("requires publishing the original before its adaptation", async () => {
     const first = artwork();
     first.materialVariants = [variant()];
@@ -778,6 +938,11 @@ describe("Mutable variant publication", () => {
       "admin",
     );
     assert.equal(adapted.variants[0]?.status, "published");
+    assert.deepEqual(state.publicFiles.slice(3), [
+      "old-variant-outline",
+      "old-variant-colored",
+      "old-variant-card",
+    ]);
     assert.equal(state.artwork!.materialVariants[0]!.id, "variant-stable-id");
   });
   it("rejects stale publication without copying files", async () => {
@@ -893,7 +1058,7 @@ describe("Mutable variant publication", () => {
       );
       assert.equal(state.publicFiles.length, 3);
       assert.deepEqual(state.cleanedPublic, state.cleaned);
-      assert.equal(state.cleaned.length, 2);
+      assert.equal(state.cleaned.length, target === "original" ? 2 : 3);
       assert.ok(!state.cleaned.includes("old-outline"));
     });
   }

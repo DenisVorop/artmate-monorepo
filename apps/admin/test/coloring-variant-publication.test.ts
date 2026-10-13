@@ -15,12 +15,12 @@ function state(): ColoringVariants {
     token: "2026-09-28T00:00:00.000Z",
     width: 100,
     height: 100,
-    outlineUrl: "/outline",
     original: {
       status: "draft",
       updatedAt: "2026-09-28T00:00:00.000Z",
       palette: [{ symbolPosition: 1, hex: "#123456" }],
       imageUrl: "/original",
+      outlineUrl: "/original-outline",
       cardUrl: "/card",
     },
     variants: [
@@ -38,6 +38,7 @@ function state(): ColoringVariants {
           },
         ],
         imageUrl: "/variant",
+        outlineUrl: "/variant-outline",
         cardUrl: "/variant-card",
       },
     ],

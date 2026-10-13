@@ -10,12 +10,12 @@ export type ColoringVariantsDTO = {
   token: string;
   width: number | null;
   height: number | null;
-  outlineUrl: string | null;
   original: null | {
     status: ColoringVariantStatusDTO;
     updatedAt: string;
     palette: OriginalPaletteColorDTO[];
     imageUrl: string;
+    outlineUrl: string;
     cardUrl: string;
   };
   variants: Array<{
@@ -25,6 +25,7 @@ export type ColoringVariantsDTO = {
     updatedAt: string;
     palette: VariantPaletteColorDTO[];
     imageUrl: string;
+    outlineUrl: string;
     cardUrl: string;
   }>;
 };

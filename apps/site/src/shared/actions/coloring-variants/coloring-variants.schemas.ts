@@ -62,6 +62,7 @@ const publicColoringOriginalSchema = z
     id: z.literal("original"),
     label: z.literal("Оригинал"),
     image: publicColoringAssetSchema,
+    outline: publicColoringAssetSchema,
     card: publicColoringCardSchema,
     colors: z.array(publicColoringColorSchema).min(1).max(coloringPaletteMaxColors),
   })
@@ -75,6 +76,7 @@ const publicColoringVariantSchema = z
     totalColors: z.number().int().positive(),
     product: publicColoringProductSchema.optional(),
     image: publicColoringAssetSchema,
+    outline: publicColoringAssetSchema,
     card: publicColoringCardSchema,
     colors: z
       .array(publicColoringColorSchema.extend({ code: z.string().min(1) }))
@@ -98,6 +100,5 @@ export const publicColoringVariantsSchema = z
     variants: z.array(publicColoringVariantSchema),
     width: z.number().int().min(1).max(4096),
     height: z.number().int().min(1).max(4096),
-    outline: publicColoringAssetSchema,
   })
   .strict();

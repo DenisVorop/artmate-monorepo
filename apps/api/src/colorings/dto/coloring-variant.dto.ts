@@ -114,6 +114,9 @@ export class VariantPaletteDTO {
 }
 
 export class ColoringVariantDTO {
+  @ApiProperty()
+  @IsString()
+  outlineUrl!: string;
   @ApiProperty({ enum: ["draft", "published", "archived"] })
   @IsIn(["draft", "published", "archived"])
   status!: "draft" | "published" | "archived";
@@ -156,10 +159,6 @@ export class ColoringVariantsDTO {
   @IsOptional()
   @IsInt()
   height!: number | null;
-  @ApiProperty({ type: String, nullable: true })
-  @IsOptional()
-  @IsString()
-  outlineUrl!: string | null;
   @ApiProperty({ type: ColoringVariantDTO, nullable: true })
   @IsOptional()
   @ValidateNested()

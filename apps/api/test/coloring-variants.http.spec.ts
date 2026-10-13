@@ -43,7 +43,6 @@ const response = {
   token: "new",
   width: null,
   height: null,
-  outlineUrl: null,
   original: null,
   variants: [],
 };

@@ -45,6 +45,11 @@ export class PublicMaterialVariantColorDTO extends PublicVariantColorDTO {
 }
 
 export class PublicOriginalVariantDTO {
+  @ApiProperty({ type: PublicColoringAssetDTO })
+  @IsDefined()
+  @ValidateNested()
+  @Type(() => PublicColoringAssetDTO)
+  outline!: PublicColoringAssetDTO;
   @ApiProperty()
   @IsString()
   id!: string;
@@ -126,11 +131,6 @@ export class PublicColoringVariantsDTO {
   @ApiProperty()
   @IsISO8601()
   publishedAt!: string;
-  @ApiProperty({ type: PublicColoringAssetDTO })
-  @IsDefined()
-  @ValidateNested()
-  @Type(() => PublicColoringAssetDTO)
-  outline!: PublicColoringAssetDTO;
   @ApiProperty({ type: PublicOriginalVariantDTO })
   @IsDefined()
   @ValidateNested()

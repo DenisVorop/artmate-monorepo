@@ -46,6 +46,7 @@ const original = {
   id: "original",
   label: "Оригинал",
   image: asset("original"),
+  outline: asset("original-outline"),
   card: { ...asset("original-card"), width: 300, height: 400 },
   colors: [{ symbolPosition: 1, symbol: "1", hex: "#D7E4DD" }],
 };
@@ -55,6 +56,7 @@ const variant = {
   kind: "MARKER",
   totalColors: 168,
   image: asset("artmate"),
+  outline: asset("artmate-outline"),
   card: { ...asset("artmate-card"), width: 300, height: 400 },
   colors: [{ symbolPosition: 1, symbol: "1", hex: "#D6E0DC", code: "001" }],
 };
@@ -69,7 +71,6 @@ const coloring = {
   themes: [],
   width: 1200,
   height: 1600,
-  outline: asset("outline"),
   original,
   variants: [variant],
   collection: {
@@ -149,6 +150,9 @@ test("variants schema accepts published palettes and rejects old or invalid cont
   );
   for (const invalid of [
     { ...coloring, publishedRevisionId: "old" },
+    { ...coloring, outline: asset("old-shared-outline") },
+    { ...coloring, original: { ...original, outline: undefined } },
+    { ...coloring, variants: [{ ...variant, outline: undefined }] },
     { ...coloring, width: 4097 },
     {
       ...coloring,

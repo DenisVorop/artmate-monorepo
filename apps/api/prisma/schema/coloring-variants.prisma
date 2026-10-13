@@ -1,4 +1,4 @@
-// One shared contour, one original, one mutable adaptation per material set.
+// One original contour and a paired contour per material adaptation.
 // No revision sequence or historical image snapshots.
 model ColoringArtwork {
   coloringId            String   @id @map("coloring_id") @db.VarChar(32)
@@ -61,6 +61,12 @@ model ColoringMaterialVariant {
   id              String         @id @default(cuid()) @db.VarChar(32)
   coloringId      String         @map("coloring_id") @db.VarChar(32)
   materialSetId   String         @map("material_set_id") @db.VarChar(32)
+  outlineStorageKey     String @unique @map("outline_storage_key") @db.Text
+  outlineChecksum       String @map("outline_checksum") @db.Char(64)
+  outlineByteSize       Int @map("outline_byte_size")
+  outlineSourceChecksum String @map("outline_source_checksum") @db.Char(64)
+  outlineSourceMime     String @map("outline_source_mime") @db.VarChar(40)
+  outlineAlt            String @map("outline_alt") @db.VarChar(220)
   imageStorageKey String         @unique @map("image_storage_key") @db.Text
   imageChecksum   String         @map("image_checksum") @db.Char(64)
   imageByteSize   Int            @map("image_byte_size")

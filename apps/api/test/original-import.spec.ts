@@ -59,14 +59,24 @@ type ImageRow = Pick<
 >;
 type OriginalColor = { symbolPosition: number; hex: string };
 type OriginalRow = ImageRow & { colors: OriginalColor[] };
-type VariantRow = ImageRow & {
-  id: string;
-  materialSetId: string;
-  assignments: Array<{
-    symbolPosition: number;
-    materialColor: MaterialColorRow;
-  }>;
-};
+type OutlineRow = Pick<
+  ColoringArtwork,
+  | "outlineStorageKey"
+  | "outlineChecksum"
+  | "outlineByteSize"
+  | "outlineSourceChecksum"
+  | "outlineSourceMime"
+  | "outlineAlt"
+>;
+type VariantRow = ImageRow &
+  OutlineRow & {
+    id: string;
+    materialSetId: string;
+    assignments: Array<{
+      symbolPosition: number;
+      materialColor: MaterialColorRow;
+    }>;
+  };
 type ArtworkRow = Pick<
   ColoringArtwork,
   | "width"
@@ -90,6 +100,8 @@ type RevisionRow = Pick<
   | "outlineByteSize"
   | "outlineChecksum"
   | "outlineAlt"
+  | "outlineSourceChecksum"
+  | "outlineSourceMime"
   | "coloredStorageKey"
   | "coloredByteSize"
   | "coloredChecksum"
@@ -137,10 +149,11 @@ type OriginalCreateData = ImageRow & {
   coloringId: string;
   colors: { createMany: { data: OriginalColor[] } };
 };
-type VariantCreateData = ImageRow & {
-  coloringId: string;
-  materialSetId: string;
-};
+type VariantCreateData = ImageRow &
+  OutlineRow & {
+    coloringId: string;
+    materialSetId: string;
+  };
 type AssignmentCreateData = {
   variantId: string;
   materialSetId: string;
@@ -266,6 +279,8 @@ function databaseFixture(
       outlineByteSize: 8,
       outlineChecksum: entry.legacyOutlineChecksum,
       outlineAlt: "Legacy outline",
+      outlineSourceChecksum: checksum(703),
+      outlineSourceMime: "image/png",
       coloredStorageKey: `${entry.coloringId}/legacy-colored.webp`,
       coloredByteSize: 8,
       coloredChecksum: checksum(700),
@@ -759,4 +774,49 @@ test("a completed import preserves published legacy revision and historical snap
     assignments: 1,
     set: 0,
   });
+});
+
+test("imports the paired legacy contour while retaining the distinct original contour", async () => {
+  const plan = importFixture();
+  const state = databaseFixture(plan);
+  const { result } = await runImport(plan, state, true);
+  assert.ok(result?.committed);
+  const artwork = state.rows[0]!.artwork!;
+  const variant = artwork.materialVariants[0]!;
+  const revision = state.rows[0]!.publishedRevision;
+  for (const field of [
+    "outlineStorageKey",
+    "outlineChecksum",
+    "outlineByteSize",
+    "outlineSourceChecksum",
+    "outlineSourceMime",
+    "outlineAlt",
+  ] as const) {
+    assert.equal(variant[field], revision[field]);
+  }
+  assert.notEqual(variant.outlineStorageKey, artwork.outlineStorageKey);
+  assert.notEqual(variant.outlineChecksum, artwork.outlineChecksum);
+});
+
+test("a retry rejects every changed paired contour field before writes", async () => {
+  const mutations = [
+    { outlineStorageKey: "original/outline.webp" },
+    { outlineChecksum: checksum(999) },
+    { outlineByteSize: 99 },
+    { outlineSourceChecksum: checksum(998) },
+    { outlineSourceMime: "image/webp" },
+    { outlineAlt: "Оригинальный контур" },
+  ];
+  for (const mutation of mutations) {
+    const plan = importFixture();
+    const state = databaseFixture(plan);
+    assert.ok((await runImport(plan, state, true)).result?.committed);
+    Object.assign(state.rows[0]!.artwork!.materialVariants[0]!, mutation);
+    const writes = structuredClone(state.writes);
+    const retry = await runImport(plan, state, true);
+    assert.ok(retry.error instanceof Error);
+    assert.match(retry.error.message, /Existing artwork conflicts/);
+    assert.deepEqual(retry.storageEvents, []);
+    assert.deepEqual(state.writes, writes);
+  }
 });

@@ -9,7 +9,11 @@ const readSource = (path) => readFile(new URL(`../${path}`, import.meta.url), "u
 
 function evaluate(source, mocks = {}) {
   const output = ts.transpileModule(source, {
-    compilerOptions: { module: ts.ModuleKind.CommonJS, target: ts.ScriptTarget.ES2022 },
+    compilerOptions: {
+      module: ts.ModuleKind.CommonJS,
+      target: ts.ScriptTarget.ES2022,
+      jsx: ts.JsxEmit.ReactJSX,
+    },
   }).outputText;
   const result = { exports: {} };
   new Function("require", "module", "exports", output)(
@@ -129,4 +133,108 @@ test("preview isolates the data flow, retains community composition and two link
   assert.match(productLinks, /getProductById/);
   assert.match(productLinks, /sizes=/);
   assert.doesNotMatch(productLinks, /unoptimized|loading="eager"|fetch\(/);
+});
+
+test("viewer changes contour and colored sample together and compares only against the original sample", async () => {
+  const values = [];
+  let cursor = 0;
+  const state = evaluate(
+    await readSource("src/features/coloring-variants/lib/use-palette-state.ts"),
+    {
+      react: {
+        useState: (initial) => {
+          const index = cursor++;
+          if (!(index in values)) values[index] = initial;
+          return [
+            values[index],
+            (value) => {
+              values[index] = typeof value === "function" ? value(values[index]) : value;
+            },
+          ];
+        },
+      },
+    },
+  );
+  const jsx = (type, props, key) => ({ type, props, key });
+  const controls = Object.fromEntries(
+    ["Button", "Select", "SelectContent", "SelectItem", "SelectTrigger", "SelectValue"].map(
+      (name) => [name, name],
+    ),
+  );
+  const { PaletteViewer } = evaluate(
+    await readSource("src/features/coloring-variants/ui/palette-viewer.tsx"),
+    {
+      "react/jsx-runtime": { jsx, jsxs: jsx },
+      "lucide-react": { ArrowLeftRight: "ArrowLeftRight" },
+      "@/shared/ui": controls,
+      "../lib/use-palette-state": state,
+      "./comparison-viewer": { ComparisonViewer: "ComparisonViewer" },
+      "./hero": { Hero: "Hero" },
+      "./palette-section": { PaletteSection: "PaletteSection" },
+      "./product-links": { ProductLinks: "ProductLinks" },
+    },
+  );
+  const asset = (url) => ({ url, alt: url });
+  const original = {
+    id: "original",
+    label: "Оригинал",
+    image: asset("original-color"),
+    outline: asset("original-outline"),
+  };
+  const artmate = {
+    id: "artmate",
+    label: "Artmate 168",
+    image: asset("artmate-color"),
+    outline: asset("artmate-outline"),
+  };
+  const coloring = {
+    defaultPaletteId: "original",
+    original,
+    variants: [artmate],
+    collection: {},
+    number: 1,
+    width: 100,
+    height: 200,
+  };
+  const find = (node, type) => {
+    if (!node || typeof node !== "object") return undefined;
+    if (node.type === type) return node;
+    const children = node.props?.children;
+    for (const child of Array.isArray(children) ? children : [children]) {
+      const found = find(child, type);
+      if (found) return found;
+    }
+  };
+  const render = () => {
+    cursor = 0;
+    return PaletteViewer({ coloring });
+  };
+  const check = (tree, left, right) => {
+    const viewer = find(tree, "ComparisonViewer");
+    assert.equal(viewer.props.left, left);
+    assert.equal(viewer.props.right, right);
+    assert.equal(viewer.key, `${left.url}:${right.url}`);
+  };
+  const select = (tree, id) => find(tree, "Select").props.onValueChange(id);
+  const compare = (tree) => find(tree, "Button").props.onClick();
+  let tree = render();
+  check(tree, original.outline, original.image);
+  select(tree, "artmate");
+  tree = render();
+  check(tree, artmate.outline, artmate.image);
+  select(tree, "original");
+  tree = render();
+  check(tree, original.outline, original.image);
+  select(tree, "artmate");
+  tree = render();
+  compare(tree);
+  tree = render();
+  check(tree, original.image, artmate.image);
+  select(tree, "original");
+  tree = render();
+  check(tree, original.image, original.image);
+  select(tree, "artmate");
+  tree = render();
+  compare(tree);
+  check(render(), artmate.outline, artmate.image);
 });

@@ -131,12 +131,10 @@ export function UploadForm({
           Нужны два изображения PNG или WebP одинакового размера, до 20 МБ
           каждое.
         </p>
-        {(state.variants.length > 0 || !original) && (
-          <p className="text-sm text-muted-foreground">
-            Контуры общие для всех вариантов. Загрузите файл с теми же
-            контурами, что у оригинала.
-          </p>
-        )}
+        <p className="text-sm text-muted-foreground">
+          Палитра на обоих изображениях должна соответствовать выбранному
+          варианту. Для адаптации сохраните рисунок и обозначения оригинала.
+        </p>
         <div key={target} className="grid gap-4 sm:grid-cols-2">
           {fileFields.map((item) => (
             <div className="grid content-start gap-3" key={item.name}>
