@@ -58,7 +58,7 @@ export function SessionMenu() {
   const title = getSessionUserDisplayName(user);
 
   return (
-    <DropdownMenu>
+    <DropdownMenu modal={false}>
       <DropdownMenuTrigger asChild>
         <Button
           type="button"

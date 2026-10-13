@@ -42,7 +42,7 @@ export function Menu() {
         );
       })}
       <li>
-        <DropdownMenu>
+        <DropdownMenu modal={false}>
           <DropdownMenuTrigger asChild>
             <Button
               variant="ghost"
