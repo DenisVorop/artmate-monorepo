@@ -1,5 +1,12 @@
 # Changelog
 
+## [0.50.2](https://github.com/DenisVorop/artmate-monorepo/compare/v0.50.1...v0.50.2) (2026-10-13)
+
+
+### Bug Fixes
+
+* **header:** keep navigation menus non-modal ([3f65b39](https://github.com/DenisVorop/artmate-monorepo/commit/3f65b397b2f406d31eeea431d8f856bffca16cb3))
+
 ## [0.50.1](https://github.com/DenisVorop/artmate-monorepo/compare/v0.50.0...v0.50.1) (2026-10-13)
 
 
