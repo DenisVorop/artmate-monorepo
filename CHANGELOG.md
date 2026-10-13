@@ -1,5 +1,12 @@
 # Changelog
 
+## [0.50.1](https://github.com/DenisVorop/artmate-monorepo/compare/v0.50.0...v0.50.1) (2026-10-13)
+
+
+### Bug Fixes
+
+* **colorings:** pair contours with palettes ([3da9b8b](https://github.com/DenisVorop/artmate-monorepo/commit/3da9b8b4bfdaf0101e6dee0ca6554c2d16369d31))
+
 ## [0.50.0](https://github.com/DenisVorop/artmate-monorepo/compare/v0.49.1...v0.50.0) (2026-10-12)
 
 
