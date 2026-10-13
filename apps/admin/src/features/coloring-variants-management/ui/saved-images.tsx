@@ -27,11 +27,6 @@ export function SavedImages({
   return (
     <section className="grid gap-5" aria-label="Сохранённые изображения">
       <h3 className="font-semibold">Сохранённые изображения</h3>
-      {state.outlineUrl && (
-        <div className="max-w-sm">
-          <ProtectedImage url={state.outlineUrl} label="Общие контуры" />
-        </div>
-      )}
       {images.map((item) => (
         <article key={item.id} className="grid gap-3 rounded-lg border p-4">
           <div className="flex flex-wrap items-center gap-2">
@@ -42,7 +37,8 @@ export function SavedImages({
               {variantStatusLabels[item.status]}
             </Badge>
           </div>
-          <div className="grid gap-4 sm:grid-cols-2">
+          <div className="grid gap-4 sm:grid-cols-3">
+            <ProtectedImage url={item.outlineUrl} label="Контуры" />
             <ProtectedImage url={item.imageUrl} label="Цветной образец" />
             <ProtectedImage url={item.cardUrl} label="Миниатюра" />
           </div>
@@ -69,6 +65,7 @@ export function SavedImages({
             target={item.id}
             title={item.title}
             imageUrl={item.imageUrl}
+            outlineUrl={item.outlineUrl}
             disabled={disabled}
           />
         </article>

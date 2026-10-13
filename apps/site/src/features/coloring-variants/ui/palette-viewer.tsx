@@ -20,7 +20,7 @@ export function PaletteViewer({
   communityWorks?: ReactNode;
 }) {
   const state = usePaletteState(coloring);
-  const left = state.isComparing ? coloring.original.image : coloring.outline;
+  const left = state.isComparing ? coloring.original.image : state.palette.outline;
   const right = state.palette.image;
 
   return (

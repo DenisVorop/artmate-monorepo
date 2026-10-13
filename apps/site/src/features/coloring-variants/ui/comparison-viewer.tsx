@@ -23,8 +23,8 @@ import {
 import { ComparisonSlider } from "./comparison-slider";
 
 type ComparisonViewerProps = Pick<Coloring, "height" | "width"> & {
-  left: Coloring["outline"];
-  right: Coloring["outline"];
+  left: Coloring["original"]["image"];
+  right: Coloring["original"]["image"];
   leftLabel: string;
   rightLabel: string;
   split: number;

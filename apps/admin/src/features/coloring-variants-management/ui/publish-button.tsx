@@ -22,12 +22,14 @@ export function PublishButton({
   target,
   title,
   imageUrl,
+  outlineUrl,
   disabled,
 }: {
   readonly state: ColoringVariants;
   readonly target: string;
   readonly title: string;
   readonly imageUrl: string;
+  readonly outlineUrl: string;
   readonly disabled: boolean;
 }) {
   const {
@@ -59,10 +61,13 @@ export function PublishButton({
               опубликован.
             </AlertDialogDescription>
           </AlertDialogHeader>
-          <ProtectedImage
-            url={imageUrl}
-            label={target === "original" ? "Оригинал" : title}
-          />
+          <div className="grid gap-4 sm:grid-cols-2">
+            <ProtectedImage url={outlineUrl} label="Контуры" />
+            <ProtectedImage
+              url={imageUrl}
+              label={target === "original" ? "Оригинал" : title}
+            />
+          </div>
           {error && (
             <p role="alert" className="text-sm text-destructive">
               {error}

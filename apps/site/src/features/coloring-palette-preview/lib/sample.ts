@@ -28,16 +28,18 @@ export type PreviewPalette = {
   label: string;
   title: string;
   image: string;
+  outline: string;
   totalColors?: number;
   colors: { symbol: string; original: string; hex: string; marker?: string }[];
 };
 
-// Adding a palette here connects its image, swatches and selector option together.
+// Adding a palette here connects its image pair, swatches and selector option together.
 export const previewPalettes = {
   original: {
     label: "Оригинал",
     title: "Палитра оригинала",
     image: sampleImages.original,
+    outline: sampleImages.outline,
     colors: sampleColors.map((color) => ({
       symbol: color.symbol,
       original: color.original,
@@ -48,6 +50,7 @@ export const previewPalettes = {
     label: "Artmate · 168 цветов",
     title: "Палитра Artmate",
     image: sampleImages.artmate,
+    outline: sampleImages.outline,
     totalColors: 168,
     colors: sampleColors.map((color) => ({
       symbol: color.symbol,

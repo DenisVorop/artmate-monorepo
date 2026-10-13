@@ -96,7 +96,7 @@ export function ColoringPalettePreview({ communityWorks }: { communityWorks: Rea
 
         <div className="grid items-start gap-6 lg:grid-cols-[minmax(0,1fr)_minmax(360px,0.85fr)] lg:gap-8">
           <Viewer
-            left={state.isComparing ? sampleImages.original : sampleImages.outline}
+            left={state.isComparing ? sampleImages.original : selectedPalette.outline}
             right={selectedPalette.image}
             leftLabel={state.isComparing ? "Оригинал" : "Контур"}
             rightLabel={state.isComparing ? selectedPalette.label : "В цвете"}

@@ -67,6 +67,8 @@ type ColoringRow = {
     outlineByteSize: number;
     outlineChecksum: string;
     outlineAlt: string;
+    outlineSourceChecksum: string;
+    outlineSourceMime: string;
     coloredStorageKey: string;
     coloredByteSize: number;
     coloredChecksum: string;
@@ -114,6 +116,12 @@ type ColoringRow = {
     materialVariants: Array<{
       id: string;
       materialSetId: string;
+      outlineStorageKey: string;
+      outlineChecksum: string;
+      outlineByteSize: number;
+      outlineSourceChecksum: string;
+      outlineSourceMime: string;
+      outlineAlt: string;
       imageStorageKey: string;
       imageChecksum: string;
       imageByteSize: number;
@@ -357,6 +365,8 @@ async function loadSnapshot(tx: Db, plan: OriginalImportPlan) {
           outlineByteSize: true,
           outlineChecksum: true,
           outlineAlt: true,
+          outlineSourceChecksum: true,
+          outlineSourceMime: true,
           coloredStorageKey: true,
           coloredByteSize: true,
           coloredChecksum: true,
@@ -424,6 +434,12 @@ async function loadSnapshot(tx: Db, plan: OriginalImportPlan) {
             select: {
               id: true,
               materialSetId: true,
+              outlineStorageKey: true,
+              outlineChecksum: true,
+              outlineByteSize: true,
+              outlineSourceChecksum: true,
+              outlineSourceMime: true,
+              outlineAlt: true,
               imageStorageKey: true,
               imageChecksum: true,
               imageByteSize: true,
@@ -808,6 +824,12 @@ function checkExistingImport(
   )
     return false;
   if (
+    variant.outlineStorageKey !== revision.outlineStorageKey ||
+    variant.outlineChecksum !== revision.outlineChecksum ||
+    variant.outlineByteSize !== revision.outlineByteSize ||
+    variant.outlineSourceChecksum !== revision.outlineSourceChecksum ||
+    variant.outlineSourceMime !== revision.outlineSourceMime ||
+    variant.outlineAlt !== revision.outlineAlt ||
     variant.status !== ColoringStatus.PUBLISHED ||
     variant.imageStorageKey !== revision.coloredStorageKey ||
     variant.imageChecksum !== revision.coloredChecksum ||
@@ -1071,6 +1093,12 @@ async function writeEntry(
     data: {
       coloringId: entry.coloringId,
       materialSetId,
+      outlineStorageKey: revision.outlineStorageKey,
+      outlineChecksum: revision.outlineChecksum,
+      outlineByteSize: revision.outlineByteSize,
+      outlineSourceChecksum: revision.outlineSourceChecksum,
+      outlineSourceMime: revision.outlineSourceMime,
+      outlineAlt: revision.outlineAlt,
       imageStorageKey: revision.coloredStorageKey,
       imageChecksum: revision.coloredChecksum,
       imageByteSize: revision.coloredByteSize,

@@ -20,6 +20,7 @@ import { publicVariantColoringWhere } from "../src/colorings/public-coloring-var
 const checksum = "a".repeat(64);
 const cardChecksum = "b".repeat(64);
 const outlineChecksum = "c".repeat(64);
+const materialOutlineChecksum = "e".repeat(64);
 const date = new Date("2026-09-27T12:00:00.000Z");
 
 function fixture() {
@@ -94,6 +95,12 @@ function fixture() {
       materialVariants: [
         {
           ...image,
+          outlineStorageKey: "coloring/material-outline.webp",
+          outlineChecksum: materialOutlineChecksum,
+          outlineByteSize: 4,
+          outlineSourceChecksum: "f".repeat(64),
+          outlineSourceMime: "image/png",
+          outlineAlt: "Контур щенка с палитрой Artmate",
           materialSetId: "set",
           materialSet: {
             id: "set",
@@ -154,6 +161,25 @@ describe("published coloring variants", () => {
       ),
       true,
     );
+    assert.equal("outline" in result, false);
+    assert.ok(
+      result.original.outline.url.endsWith(
+        `/original/outline/${outlineChecksum}/content`,
+      ),
+    );
+    assert.ok(
+      result.variants[0]!.outline.url.endsWith(
+        `/set/outline/${materialOutlineChecksum}/content`,
+      ),
+    );
+    assert.notEqual(
+      result.original.outline.url,
+      result.variants[0]!.outline.url,
+    );
+    assert.equal(
+      result.variants[0]!.outline.alt,
+      "Контур щенка с палитрой Artmate",
+    );
     assert.equal("publishedRevisionId" in result, false);
     assert.equal(JSON.stringify(result).includes("StorageKey"), false);
     assert.deepEqual(
@@ -205,6 +231,48 @@ describe("published coloring variants", () => {
       },
     ],
     [
+      "missing material outline",
+      (r: ReturnType<typeof fixture>) => {
+        r.artwork.materialVariants[0]!.outlineStorageKey = "";
+      },
+    ],
+    [
+      "invalid material outline checksum",
+      (r: ReturnType<typeof fixture>) => {
+        r.artwork.materialVariants[0]!.outlineChecksum = "broken";
+      },
+    ],
+    [
+      "invalid material outline size",
+      (r: ReturnType<typeof fixture>) => {
+        r.artwork.materialVariants[0]!.outlineByteSize = 0;
+      },
+    ],
+    [
+      "oversized material outline",
+      (r: ReturnType<typeof fixture>) => {
+        r.artwork.materialVariants[0]!.outlineByteSize = 20 * 1024 * 1024 + 1;
+      },
+    ],
+    [
+      "invalid material outline source checksum",
+      (r: ReturnType<typeof fixture>) => {
+        r.artwork.materialVariants[0]!.outlineSourceChecksum = "broken";
+      },
+    ],
+    [
+      "missing material outline source type",
+      (r: ReturnType<typeof fixture>) => {
+        r.artwork.materialVariants[0]!.outlineSourceMime = "";
+      },
+    ],
+    [
+      "missing material outline alternative",
+      (r: ReturnType<typeof fixture>) => {
+        r.artwork.materialVariants[0]!.outlineAlt = " ";
+      },
+    ],
+    [
       "incomplete image",
       (r: ReturnType<typeof fixture>) => {
         r.artwork.materialVariants[0]!.cardStorageKey = "";
@@ -220,6 +288,16 @@ describe("published coloring variants", () => {
       assert.deepEqual(result.variants, []);
       await assert.rejects(
         service.getAssetDescriptor("dogs", 1, "set", "colored", checksum),
+        NotFoundException,
+      );
+      await assert.rejects(
+        service.getAssetDescriptor(
+          "dogs",
+          1,
+          "set",
+          "outline",
+          materialOutlineChecksum,
+        ),
         NotFoundException,
       );
     });
@@ -317,10 +395,20 @@ describe("published coloring variants", () => {
       outlineChecksum,
     );
     assert.equal(descriptor.key, "coloring/outline.webp");
+    const materialOutline = await service.getAssetDescriptor(
+      "dogs",
+      1,
+      "set",
+      "outline",
+      materialOutlineChecksum,
+    );
+    assert.equal(materialOutline.key, "coloring/material-outline.webp");
+    assert.equal(materialOutline.checksum, materialOutlineChecksum);
     for (const [target, kind, hash] of [
       ["original", "colored", "d".repeat(64)],
       ["missing", "colored", checksum],
       ["set", "outline", outlineChecksum],
+      ["original", "outline", materialOutlineChecksum],
       ["original", "source", checksum],
       ["original", "card", "../private"],
     ]) {
@@ -440,6 +528,41 @@ describe("public variant HTTP assets", () => {
         assert.equal(revoked.status, 404);
         assert.equal(revoked.headers.get("cache-control"), "no-store");
       }
+    } finally {
+      httpRecord = fixture();
+    }
+  });
+
+  it("serves each palette contour and revokes stale or incomplete material contours before conditional responses", async () => {
+    const materialPath = `/colorings/dogs/01/variants/assets/set/outline/${materialOutlineChecksum}/content`;
+    const originalPath = `/colorings/dogs/01/variants/assets/original/outline/${outlineChecksum}/content`;
+    for (const url of [materialPath, originalPath]) {
+      const response = await fetch(base + url);
+      assert.equal(response.status, 200);
+      assert.equal(await response.text(), "webp");
+    }
+    const wrongPalette = await fetch(
+      base + materialPath.replace(materialOutlineChecksum, outlineChecksum),
+    );
+    assert.equal(wrongPalette.status, 404);
+    httpRecord.artwork.materialVariants[0]!.outlineStorageKey = "";
+    try {
+      for (const method of ["GET", "HEAD"]) {
+        const response = await fetch(base + materialPath, {
+          method,
+          headers: { "If-None-Match": `"${materialOutlineChecksum}"` },
+        });
+        assert.equal(response.status, 404);
+        assert.equal(response.headers.get("cache-control"), "no-store");
+      }
+      const detail = await fetch(`${base}/colorings/dogs/01/variants`);
+      const metadata = (await detail.json()) as {
+        defaultPaletteId: string;
+        variants: unknown[];
+      };
+      assert.equal(metadata.defaultPaletteId, "original");
+      assert.deepEqual(metadata.variants, []);
+      assert.equal((await fetch(base + originalPath)).status, 200);
     } finally {
       httpRecord = fixture();
     }

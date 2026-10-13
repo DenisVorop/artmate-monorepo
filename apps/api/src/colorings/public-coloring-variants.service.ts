@@ -8,6 +8,7 @@ import {
 import { PrismaService } from "../prisma/prisma.service";
 import { ColoringStorageService } from "./coloring-storage.service";
 import { formatColoringNumber } from "./coloring-number";
+import { coloringDerivativeMaxBytes } from "./coloring-derivative-profile";
 import { getColoringPaletteSymbol } from "./coloring-palette";
 import {
   isReadyPublishedArtwork,
@@ -79,7 +80,15 @@ export class PublicColoringVariantsService {
     );
     const url = (target: string, kind: string, checksum: string) =>
       `${this.apiUrl()}/colorings/${encodeURIComponent(collectionSlug)}/${formatColoringNumber(number)}/variants/assets/${encodeURIComponent(target)}/${kind}/${checksum}/content`;
-    const images = (target: string, record: Original | Variant) => ({
+    const images = (
+      target: string,
+      record: Original | Variant,
+      contour: Pick<Artwork, "outlineChecksum" | "outlineAlt">,
+    ) => ({
+      outline: {
+        url: url(target, "outline", contour.outlineChecksum),
+        alt: contour.outlineAlt,
+      },
       image: {
         url: url(target, "colored", record.imageChecksum),
         alt: record.imageAlt,
@@ -101,14 +110,10 @@ export class PublicColoringVariantsService {
       defaultPaletteId:
         variants.find((v) => v.materialSet.slug === defaultMaterialSetSlug)
           ?.materialSetId ?? "original",
-      outline: {
-        url: url("original", "outline", artwork.outlineChecksum),
-        alt: artwork.outlineAlt,
-      },
       original: {
         id: "original",
         label: "Оригинал",
-        ...images("original", original),
+        ...images("original", original, artwork),
         colors: original.colors.map(({ symbolPosition, hex }) => ({
           symbolPosition,
           symbol: getColoringPaletteSymbol(symbolPosition),
@@ -123,7 +128,7 @@ export class PublicColoringVariantsService {
         ...(variant.materialSet.product?.status === ProductStatus.PUBLISHED
           ? { product: this.mapProduct(variant.materialSet.product) }
           : {}),
-        ...images(variant.materialSetId, variant),
+        ...images(variant.materialSetId, variant, variant),
         colors: variant.assignments.map(
           ({ symbolPosition, materialColor }) => ({
             symbolPosition,
@@ -171,18 +176,16 @@ export class PublicColoringVariantsService {
       collectionSlug,
       number,
     );
-    const record =
-      target === "original"
-        ? original
-        : variants.find((v) => v.materialSetId === target);
-    if (!record || (kind === "outline" && target !== "original"))
-      throw this.notFound();
+    const variant = variants.find((v) => v.materialSetId === target);
+    const record = target === "original" ? original : variant;
+    const contour = target === "original" ? artwork : variant;
+    if (!record || !contour) throw this.notFound();
     const asset =
       kind === "outline"
         ? {
-            key: artwork.outlineStorageKey,
-            checksum: artwork.outlineChecksum,
-            byteSize: artwork.outlineByteSize,
+            key: contour.outlineStorageKey,
+            checksum: contour.outlineChecksum,
+            byteSize: contour.outlineByteSize,
             width: artwork.width,
             height: artwork.height,
           }
@@ -269,6 +272,14 @@ export class PublicColoringVariantsService {
 
   private completeImage(record: Variant) {
     return (
+      record.outlineAlt?.trim() &&
+      record.outlineStorageKey?.trim() &&
+      Number.isInteger(record.outlineByteSize) &&
+      record.outlineByteSize > 0 &&
+      record.outlineByteSize <= coloringDerivativeMaxBytes &&
+      /^[a-f0-9]{64}$/.test(record.outlineChecksum) &&
+      /^[a-f0-9]{64}$/.test(record.outlineSourceChecksum) &&
+      record.outlineSourceMime?.trim() &&
       record.imageAlt.trim() &&
       record.imageStorageKey &&
       record.cardStorageKey &&

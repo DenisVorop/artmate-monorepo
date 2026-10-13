@@ -105,9 +105,16 @@ export class ColoringVariantsService {
     const uploadId = randomBytes(16).toString("hex");
     const key = (kind: string, checksum: string) =>
       `${coloringId}/${uploadId}/${kind}-${checksum}.webp`;
-    const keepOutline = before?.outlineChecksum === pair.outline.checksum;
+    const previousContour =
+      input.target === "original"
+        ? before
+        : before?.materialVariants.find(
+            (v) => v.materialSetId === input.target,
+          );
+    const keepOutline =
+      previousContour?.outlineChecksum === pair.outline.checksum;
     const outlineKey = keepOutline
-      ? before!.outlineStorageKey
+      ? previousContour!.outlineStorageKey
       : key("outline", pair.outline.checksum);
     const imageKey = key("colored", pair.colored.checksum);
     const cardKey = key("card", pair.card.checksum);
@@ -165,8 +172,14 @@ export class ColoringVariantsService {
               );
         if (previous)
           retired.push(previous.imageStorageKey, previous.cardStorageKey);
-        if (current && current.outlineStorageKey !== outlineKey)
-          retired.push(current.outlineStorageKey);
+        const currentContour =
+          input.target === "original"
+            ? current
+            : current?.materialVariants.find(
+                (v) => v.materialSetId === input.target,
+              );
+        if (currentContour && currentContour.outlineStorageKey !== outlineKey)
+          retired.push(currentContour.outlineStorageKey);
         // Monotonic even when two uploads commit within one millisecond.
         const updatedAt = new Date(
           Math.max(Date.now(), (current?.updatedAt.getTime() ?? 0) + 1),
@@ -184,11 +197,20 @@ export class ColoringVariantsService {
           outlineAlt: input.outlineAlt,
           updatedAt,
         };
-        await tx.coloringArtwork.upsert({
-          where: { coloringId },
-          create: { coloringId, ...artwork },
-          update: artwork,
-        });
+        if (input.target === "original") {
+          await tx.coloringArtwork.upsert({
+            where: { coloringId },
+            create: { coloringId, ...artwork },
+            update: artwork,
+          });
+        } else {
+          // The original contour owns the shared artwork geometry. Material
+          // uploads only replace their own paired contour and bump the token.
+          await tx.coloringArtwork.update({
+            where: { coloringId },
+            data: { updatedAt },
+          });
+        }
         const image = {
           imageStorageKey: imageKey,
           imageChecksum: pair.colored.checksum,
@@ -214,6 +236,14 @@ export class ColoringVariantsService {
             update: { ...image, colors: { deleteMany: {}, create: colors } },
           });
         } else {
+          const contour = {
+            outlineStorageKey: outlineKey,
+            outlineChecksum: pair.outline.checksum,
+            outlineByteSize: pair.outline.byteSize,
+            outlineSourceChecksum: pair.outline.sourceChecksum,
+            outlineSourceMime: pair.outline.sourceMime,
+            outlineAlt: input.outlineAlt,
+          };
           const assignments = input.palette.map((row) => ({
             symbolPosition: row.symbolPosition,
             materialSetId: input.target,
@@ -230,10 +260,12 @@ export class ColoringVariantsService {
               coloringId,
               materialSetId: input.target,
               ...image,
+              ...contour,
               assignments: { create: assignments },
             },
             update: {
               ...image,
+              ...contour,
               assignments: { deleteMany: {}, create: assignments },
             },
           });
@@ -251,9 +283,16 @@ export class ColoringVariantsService {
             : current?.materialVariants.find(
                 (v) => v.materialSetId === input.target,
               );
+        const savedContour =
+          input.target === "original"
+            ? current
+            : current?.materialVariants.find(
+                (v) => v.materialSetId === input.target,
+              );
         if (
           saved?.imageStorageKey === imageKey &&
-          saved.cardStorageKey === cardKey
+          saved.cardStorageKey === cardKey &&
+          savedContour?.outlineStorageKey === outlineKey
         )
           result = current;
         else
@@ -299,10 +338,16 @@ export class ColoringVariantsService {
                   (v) => v.materialSetId === target,
                 );
           if (!image) throw new NotFoundException("Вариант не найден.");
+          const contour =
+            target === "original"
+              ? artwork
+              : artwork.materialVariants.find(
+                  (v) => v.materialSetId === target,
+                )!;
           await this.validate(tx, coloringId, {
             target,
             expectedToken: input.expectedToken,
-            outlineAlt: artwork.outlineAlt,
+            outlineAlt: contour.outlineAlt,
             imageAlt: image.imageAlt,
             palette:
               target === "original"
@@ -345,8 +390,8 @@ export class ColoringVariantsService {
           // All files are decoded/verified before any published row is exposed.
           await this.storage.materializePublicPair([
             {
-              key: artwork.outlineStorageKey,
-              checksum: artwork.outlineChecksum,
+              key: contour.outlineStorageKey,
+              checksum: contour.outlineChecksum,
               width: artwork.width,
               height: artwork.height,
             },
@@ -431,17 +476,21 @@ export class ColoringVariantsService {
       throw new BadRequestException("Unknown asset kind");
     const artwork = await this.load(this.prisma, coloringId);
     if (!artwork) throw new NotFoundException("Изображение не найдено.");
-    if (kind === "outline")
-      return this.storage.readProtected(artwork.outlineStorageKey, {
-        checksum: artwork.outlineChecksum,
-        width: artwork.width,
-        height: artwork.height,
-      });
     const image =
       target === "original"
         ? artwork.original
         : artwork.materialVariants.find((v) => v.materialSetId === target);
     if (!image) throw new NotFoundException("Изображение не найдено.");
+    const contour =
+      target === "original"
+        ? artwork
+        : artwork.materialVariants.find((v) => v.materialSetId === target)!;
+    if (kind === "outline")
+      return this.storage.readProtected(contour.outlineStorageKey, {
+        checksum: contour.outlineChecksum,
+        width: artwork.width,
+        height: artwork.height,
+      });
     return kind === "card"
       ? this.storage.readProtected(image.cardStorageKey, {
           checksum: image.cardChecksum,
@@ -572,14 +621,23 @@ export class ColoringVariantsService {
     if (
       pair &&
       current &&
-      (pair.outline.checksum !== current.outlineChecksum ||
-        pair.width !== current.width ||
-        pair.height !== current.height) &&
-      (input.target !== "original" || current.materialVariants.length > 0)
+      (pair.width !== current.width || pair.height !== current.height)
     ) {
       conflict(
         "OUTLINE_IN_USE",
-        "Контуры отличаются от используемых в других вариантах. Загрузите файл с прежними контурами.",
+        "Размеры изображений должны совпадать с оригиналом.",
+      );
+    }
+    if (
+      pair &&
+      current &&
+      input.target === "original" &&
+      current.materialVariants.length > 0 &&
+      pair.outline.checksum !== current.outlineChecksum
+    ) {
+      conflict(
+        "OUTLINE_IN_USE",
+        "Контуры оригинала используются в других вариантах. Сохраните прежние контуры.",
       );
     }
     return current;
@@ -597,7 +655,6 @@ export class ColoringVariantsService {
       token,
       width: artwork?.width ?? null,
       height: artwork?.height ?? null,
-      outlineUrl: artwork ? url("original", "outline") : null,
       original: artwork?.original
         ? {
             updatedAt: artwork.original.updatedAt.toISOString(),
@@ -605,6 +662,7 @@ export class ColoringVariantsService {
               | "draft"
               | "published"
               | "archived",
+            outlineUrl: url("original", "outline"),
             imageUrl: url("original", "colored"),
             cardUrl: url("original", "card"),
             palette: artwork.original.colors.map(({ symbolPosition, hex }) => ({
@@ -619,6 +677,7 @@ export class ColoringVariantsService {
           title: v.materialSet.title,
           updatedAt: v.updatedAt.toISOString(),
           status: v.status.toLowerCase() as "draft" | "published" | "archived",
+          outlineUrl: url(v.materialSetId, "outline"),
           imageUrl: url(v.materialSetId, "colored"),
           cardUrl: url(v.materialSetId, "card"),
           palette: v.assignments.map((a) => ({
@@ -642,7 +701,13 @@ export class ColoringVariantsService {
             where: { OR: [{ imageStorageKey: key }, { cardStorageKey: key }] },
           }),
           this.prisma.coloringMaterialVariant.count({
-            where: { OR: [{ imageStorageKey: key }, { cardStorageKey: key }] },
+            where: {
+              OR: [
+                { outlineStorageKey: key },
+                { imageStorageKey: key },
+                { cardStorageKey: key },
+              ],
+            },
           }),
           this.prisma.coloringRevision.count({
             where: {
