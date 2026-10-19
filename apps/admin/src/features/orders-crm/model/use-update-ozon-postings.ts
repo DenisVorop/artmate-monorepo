@@ -15,13 +15,16 @@ export function useUpdateOzonPostings() {
     mutationFn: async ({
       orderId,
       postingNumbers,
+      fbsPostingNumbers,
     }: {
       orderId: string;
       postingNumbers: string[];
+      fbsPostingNumbers: string[];
     }) => {
       const result = await updateAdminOrderOzonPostings(
         orderId,
         postingNumbers,
+        fbsPostingNumbers,
       );
       if (!result.ok) {
         if (result.status === 409) {

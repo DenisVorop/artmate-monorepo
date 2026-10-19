@@ -8,6 +8,7 @@ export type TrackingLease = {
   orderId: string;
   revision: string;
   externalNumbers: string[];
+  ozonFbsPostingNumbers: string[];
   leaseToken: string;
 };
 export type PostingState = {
@@ -26,9 +27,10 @@ export class TrackingStorage {
   async claimNext(): Promise<TrackingLease | null> {
     return this.prisma.$transaction(async (tx) => {
       const [request] = await tx.$queryRaw<
-        Array<{ orderId: string; revision: string; externalNumbers: string[] }>
+        Array<Omit<TrackingLease, "leaseToken">>
       >`
-        SELECT r.order_id AS "orderId", r.revision, r.external_numbers AS "externalNumbers"
+        SELECT r.order_id AS "orderId", r.revision, r.external_numbers AS "externalNumbers",
+          r.ozon_fbs_posting_numbers AS "ozonFbsPostingNumbers"
         FROM delivery_tracking_requests r
         LEFT JOIN delivery_tracking_observations o ON o.order_id = r.order_id
         WHERE r.enabled AND r.provider = 'ozon' AND cardinality(r.external_numbers) > 0

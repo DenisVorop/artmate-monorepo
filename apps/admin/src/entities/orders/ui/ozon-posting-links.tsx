@@ -1,7 +1,11 @@
+import { OzonPostingUrl } from "@/shared/lib/ozon-posting-url";
+
 export function OzonPostingLinks({
   postingNumbers,
+  fbsPostingNumbers,
 }: {
   readonly postingNumbers: readonly string[];
+  readonly fbsPostingNumbers: readonly string[];
 }) {
   if (postingNumbers.length === 0) {
     return null;
@@ -13,7 +17,10 @@ export function OzonPostingLinks({
         <li key={number}>
           <a
             className="break-all underline underline-offset-4"
-            href={`https://seller.ozon.ru/app/postings/fbo/${encodeURIComponent(number)}`}
+            href={OzonPostingUrl.build(
+              number,
+              fbsPostingNumbers.includes(number) ? "fbs" : "fbo",
+            )}
             rel="noopener noreferrer"
             target="_blank"
           >

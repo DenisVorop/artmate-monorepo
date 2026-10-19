@@ -2677,6 +2677,7 @@ function createOrderState() {
     yandexYclid: "987654",
     deliveryProvider: OrderDeliveryProvider.OZON,
     ozonPostingNumbers: [] as string[],
+    ozonFbsPostingNumbers: [] as string[],
     pickupPointId: "point-1",
     pickupPointTitle: "Point",
     pickupPointAddress: "Address",

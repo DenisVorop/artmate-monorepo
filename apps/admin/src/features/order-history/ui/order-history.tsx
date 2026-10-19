@@ -242,7 +242,10 @@ function CustomerPanel({ order }: { readonly order: AdminOrder }) {
         <div className="mt-4 space-y-2">
           <h3 className="text-sm font-medium">Отправления Ozon</h3>
           {order.ozonPostingNumbers.length > 0 ? (
-            <OzonPostingLinks postingNumbers={order.ozonPostingNumbers} />
+            <OzonPostingLinks
+              postingNumbers={order.ozonPostingNumbers}
+              fbsPostingNumbers={order.ozonFbsPostingNumbers}
+            />
           ) : (
             <p className="text-sm text-muted-foreground">
               Отправления пока не добавлены.

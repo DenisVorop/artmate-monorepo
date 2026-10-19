@@ -13,6 +13,7 @@ export async function publishTrackingRequest(
     | "crmStatus"
     | "paymentStatus"
     | "ozonPostingNumbers"
+    | "ozonFbsPostingNumbers"
   >,
 ) {
   if (order.deliveryProvider !== "OZON") return;
@@ -20,6 +21,7 @@ export async function publishTrackingRequest(
     revision: randomUUID(),
     provider: order.deliveryProvider,
     externalNumbers: order.ozonPostingNumbers,
+    ozonFbsPostingNumbers: order.ozonFbsPostingNumbers,
     enabled:
       order.crmStatus === "DELIVERING" &&
       order.paymentStatus === "PAID" &&

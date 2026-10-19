@@ -241,11 +241,13 @@ export class OrdersService {
     orderId: string,
     postingNumbers: string[],
     author: AuthUser,
+    fbsPostingNumbers: string[],
   ): Promise<AdminOrderDTO> {
     return this.ordersStorage.updateAdminOrderOzonPostings(
       this.parseOrderId(orderId),
       postingNumbers,
       author.id,
+      fbsPostingNumbers,
     );
   }
 

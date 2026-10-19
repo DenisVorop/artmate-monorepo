@@ -7,7 +7,7 @@ export type OzonPostingState =
   | "cancelled"
   | "unknown";
 
-function isRecord(value: unknown): value is Record<string, unknown> {
+function _isRecord(value: unknown): value is Record<string, unknown> {
   return typeof value === "object" && value !== null && !Array.isArray(value);
 }
 
@@ -19,8 +19,12 @@ export class OzonPostingClient {
     );
   }
 
-  async getState(postingNumber: string): Promise<OzonPostingState> {
+  async getState(
+    postingNumber: string,
+    scheme: "fbo" | "fbs",
+  ): Promise<OzonPostingState> {
     if (
+      (scheme !== "fbo" && scheme !== "fbs") ||
       typeof postingNumber !== "string" ||
       postingNumber.length > 64 ||
       postingNumber.trim() !== postingNumber ||
@@ -38,7 +42,9 @@ export class OzonPostingClient {
 
     try {
       const response = await fetch(
-        "https://api-seller.ozon.ru/v2/posting/fbo/get",
+        scheme === "fbs"
+          ? "https://api-seller.ozon.ru/v3/posting/fbs/get"
+          : "https://api-seller.ozon.ru/v2/posting/fbo/get",
         {
           method: "POST",
           redirect: "error",
@@ -59,8 +65,8 @@ export class OzonPostingClient {
       const body: unknown = await response.json();
 
       if (
-        !isRecord(body) ||
-        !isRecord(body.result) ||
+        !_isRecord(body) ||
+        !_isRecord(body.result) ||
         body.result.posting_number !== postingNumber ||
         typeof body.result.status !== "string"
       ) {

@@ -18,6 +18,7 @@ test("Ozon posting API rejects duplicates, URLs and malformed lists", async () =
   ]) {
     const dto = Object.assign(new UpdateOrderOzonPostingsRequestDTO(), {
       postingNumbers,
+      fbsPostingNumbers: [],
     });
     assert.notEqual((await validate(dto)).length, 0);
   }
@@ -30,6 +31,7 @@ test("Ozon posting API rejects duplicates, URLs and malformed lists", async () =
         await validate(
           Object.assign(new UpdateOrderOzonPostingsRequestDTO(), {
             postingNumbers,
+            fbsPostingNumbers: [],
           }),
         )
       ).length,
@@ -43,14 +45,22 @@ function createStorage(provider = "OZON") {
     id: "order-1",
     deliveryProvider: provider,
     ozonPostingNumbers: ["1-2-3"],
+    ozonFbsPostingNumbers: [] as string[],
     crmStatus: "DELIVERING",
     paymentStatus: "PAID",
   };
   const histories: unknown[] = [];
+  const trackingRequests: Array<{
+    create: Record<string, unknown>;
+    update: Record<string, unknown>;
+  }> = [];
   let updates = 0;
   let locks = 0;
   const tx = {
-    $executeRaw: async () => { locks += 1; return 1; },
+    $executeRaw: async () => {
+      locks += 1;
+      return 1;
+    },
     $queryRaw: async () => {
       locks += 1;
       return [];
@@ -70,7 +80,15 @@ function createStorage(provider = "OZON") {
         histories.push(input);
       },
     },
-    deliveryTrackingRequest: { upsert: async () => ({}) },
+    deliveryTrackingRequest: {
+      upsert: async (input: {
+        create: Record<string, unknown>;
+        update: Record<string, unknown>;
+      }) => {
+        trackingRequests.push(input);
+        return {};
+      },
+    },
   };
   const storage: OrdersStorage = Object.assign(
     Object.create(OrdersStorage.prototype),
@@ -83,7 +101,13 @@ function createStorage(provider = "OZON") {
       mapAdminOrder: (value: unknown) => value,
     },
   );
-  return { storage, order, histories, counts: () => ({ updates, locks }) };
+  return {
+    storage,
+    order,
+    histories,
+    trackingRequests,
+    counts: () => ({ updates, locks }),
+  };
 }
 
 test("replacing postings records one history event without changing payment or CRM status", async () => {
@@ -92,6 +116,7 @@ test("replacing postings records one history event without changing payment or C
     "order-1",
     ["1-2-5", "1-2-4"],
     "admin-1",
+    [],
   );
   assert.deepEqual(state.order.ozonPostingNumbers, ["1-2-4", "1-2-5"]);
   assert.equal(state.order.crmStatus, "DELIVERING");
@@ -104,6 +129,8 @@ test("replacing postings records one history event without changing payment or C
         eventType: "ozon_postings_updated",
         payload: {
           previousPostingNumbers: ["1-2-3"],
+          previousFbsPostingNumbers: [],
+          fbsPostingNumbers: [],
           postingNumbers: ["1-2-4", "1-2-5"],
         },
       },
@@ -113,19 +140,79 @@ test("replacing postings records one history event without changing payment or C
     "order-1",
     ["1-2-5", "1-2-4"],
     "admin-1",
+    [],
   );
   assert.equal(state.histories.length, 1);
   assert.deepEqual(state.counts(), { locks: 4, updates: 1 });
-  await state.storage.updateAdminOrderOzonPostings("order-1", [], "admin-1");
+  await state.storage.updateAdminOrderOzonPostings(
+    "order-1",
+    [],
+    "admin-1",
+    [],
+  );
   assert.deepEqual(state.order.ozonPostingNumbers, []);
 });
 
 test("Ozon postings cannot be attached to a CDEK order", async () => {
   const state = createStorage("CDEK");
   await assert.rejects(
-    state.storage.updateAdminOrderOzonPostings("order-1", ["1-2-4"], "admin-1"),
+    state.storage.updateAdminOrderOzonPostings(
+      "order-1",
+      ["1-2-4"],
+      "admin-1",
+      [],
+    ),
     /provider must be Ozon/,
   );
   assert.equal(state.counts().updates, 0);
   assert.equal(state.histories.length, 0);
+});
+
+test("changing only the scheme persists it and republishes the tracking request", async () => {
+  const state = createStorage();
+  await state.storage.updateAdminOrderOzonPostings(
+    "order-1",
+    ["1-2-3"],
+    "admin-1",
+    ["1-2-3"],
+  );
+  assert.deepEqual(state.order.ozonFbsPostingNumbers, ["1-2-3"]);
+  assert.equal(state.histories.length, 1);
+  await state.storage.updateAdminOrderOzonPostings(
+    "order-1",
+    ["1-2-3"],
+    "admin-1",
+    ["1-2-3"],
+  );
+  assert.equal(state.histories.length, 1);
+  await state.storage.updateAdminOrderOzonPostings(
+    "order-1",
+    ["1-2-3"],
+    "admin-1",
+    [],
+  );
+  assert.deepEqual(state.order.ozonFbsPostingNumbers, []);
+  assert.equal(state.histories.length, 2);
+  assert.deepEqual(state.trackingRequests[0]?.create.ozonFbsPostingNumbers, [
+    "1-2-3",
+  ]);
+  assert.deepEqual(state.trackingRequests[1]?.create.ozonFbsPostingNumbers, []);
+  assert.notEqual(
+    state.trackingRequests[0]?.create.revision,
+    state.trackingRequests[1]?.create.revision,
+  );
+});
+
+test("an FBS number outside the full list is rejected without changing the order", async () => {
+  const state = createStorage();
+  await assert.rejects(
+    state.storage.updateAdminOrderOzonPostings(
+      "order-1",
+      ["1-2-3"],
+      "admin-1",
+      ["1-2-4"],
+    ),
+    /FBS postings must be included/,
+  );
+  assert.equal(state.counts().updates, 0);
 });
