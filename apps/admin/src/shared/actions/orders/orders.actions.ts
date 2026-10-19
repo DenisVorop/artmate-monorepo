@@ -66,10 +66,14 @@ export async function createAdminOrderComment(
 export async function updateAdminOrderOzonPostings(
   orderId: string,
   postingNumbers: string[],
+  fbsPostingNumbers: string[],
 ) {
   return requestAdminMutation(
     `/orders/admin/${encodeURIComponent(orderId)}/ozon-postings`,
-    { method: "PATCH", body: JSON.stringify({ postingNumbers }) },
+    {
+      method: "PATCH",
+      body: JSON.stringify({ postingNumbers, fbsPostingNumbers }),
+    },
   );
 }
 

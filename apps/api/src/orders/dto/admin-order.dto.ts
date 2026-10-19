@@ -11,6 +11,10 @@ export class AdminOrderDTO extends OrderDTO {
   ozonPostingNumbers!: string[];
 
   @IsArray()
+  @IsString({ each: true })
+  ozonFbsPostingNumbers!: string[];
+
+  @IsArray()
   @ValidateNested({ each: true })
   @Type(() => AdminOrderCommentDTO)
   adminComments!: AdminOrderCommentDTO[];

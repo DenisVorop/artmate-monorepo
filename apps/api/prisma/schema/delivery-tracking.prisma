@@ -5,6 +5,7 @@ model DeliveryTrackingRequest {
   revision        String                @unique @db.Uuid
   provider        OrderDeliveryProvider
   externalNumbers String[]              @map("external_numbers")
+  ozonFbsPostingNumbers String[]          @default([]) @map("ozon_fbs_posting_numbers")
   enabled         Boolean
   updatedAt       DateTime              @default(now()) @updatedAt @map("updated_at")
 

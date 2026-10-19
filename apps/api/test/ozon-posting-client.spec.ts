@@ -30,7 +30,7 @@ test("posting request uses the fixed endpoint, credentials, timeout and no redir
   );
 
   assert.equal(
-    await new OzonPostingClient().getState(postingNumber),
+    await new OzonPostingClient().getState(postingNumber, "fbo"),
     "delivered",
   );
   assert.deepEqual(timeout.mock.calls[0]?.arguments, [8_000]);
@@ -73,7 +73,7 @@ test("posting statuses map conservatively, including arrival at a pickup point",
       }),
     );
     assert.equal(
-      await new OzonPostingClient().getState(postingNumber),
+      await new OzonPostingClient().getState(postingNumber, "fbo"),
       expected,
     );
     fetchMock.mock.restore();
@@ -91,7 +91,7 @@ test("missing credentials disable tracking without making a request", async (t) 
     const previous = process.env[key];
     process.env[key] = "   ";
     assert.equal(client.isConfigured(), false);
-    await assert.rejects(client.getState(postingNumber), {
+    await assert.rejects(client.getState(postingNumber, "fbo"), {
       message: "Ozon posting tracking is not configured",
     });
     process.env[key] = previous;
@@ -113,7 +113,7 @@ test("invalid posting numbers never reach the API", async (t) => {
     "https://seller.ozon.ru/app/postings/fbo/1-2-3",
     `${"1".repeat(61)}-2-3`,
   ]) {
-    await assert.rejects(new OzonPostingClient().getState(invalid), {
+    await assert.rejects(new OzonPostingClient().getState(invalid, "fbo"), {
       message: "Invalid Ozon posting number",
     });
   }
@@ -135,9 +135,12 @@ test("malformed and mismatched responses cannot confirm delivery", async (t) => 
     const fetchMock = t.mock.method(globalThis, "fetch", async () =>
       Response.json(body),
     );
-    await assert.rejects(new OzonPostingClient().getState(postingNumber), {
-      message: "Unable to check Ozon posting status",
-    });
+    await assert.rejects(
+      new OzonPostingClient().getState(postingNumber, "fbo"),
+      {
+        message: "Unable to check Ozon posting status",
+      },
+    );
     fetchMock.mock.restore();
   }
 });
@@ -156,7 +159,7 @@ test("HTTP, network and JSON errors expose no upstream data", async (t) => {
   for (const failure of failures) {
     const fetchMock = t.mock.method(globalThis, "fetch", failure);
     await assert.rejects(
-      new OzonPostingClient().getState(postingNumber),
+      new OzonPostingClient().getState(postingNumber, "fbo"),
       (error: unknown) => {
         assert.ok(error instanceof Error);
         assert.equal(error.message, "Unable to check Ozon posting status");
@@ -167,4 +170,35 @@ test("HTTP, network and JSON errors expose no upstream data", async (t) => {
     );
     fetchMock.mock.restore();
   }
+});
+
+test("FBS uses its own endpoint with the same response validation and status mapping", async (t) => {
+  for (const [status, expected] of [
+    ["awaiting_packaging", "pending"],
+    ["delivering", "in_transit"],
+    ["delivered", "delivered"],
+    ["cancelled", "cancelled"],
+    ["unknown_status", "unknown"],
+  ]) {
+    const mock = t.mock.method(globalThis, "fetch", async () =>
+      Response.json({ result: { posting_number: postingNumber, status } }),
+    );
+    assert.equal(
+      await new OzonPostingClient().getState(postingNumber, "fbs"),
+      expected,
+    );
+    assert.equal(
+      mock.mock.calls[0]?.arguments[0],
+      "https://api-seller.ozon.ru/v3/posting/fbs/get",
+    );
+    mock.mock.restore();
+  }
+  const mock = t.mock.method(globalThis, "fetch", async () =>
+    Response.json({ result: { posting_number: "other", status: "delivered" } }),
+  );
+  await assert.rejects(
+    new OzonPostingClient().getState(postingNumber, "fbs"),
+    /Unable to check Ozon posting status/,
+  );
+  assert.equal(mock.mock.callCount(), 1);
 });

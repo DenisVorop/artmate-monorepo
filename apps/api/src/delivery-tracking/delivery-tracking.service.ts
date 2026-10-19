@@ -24,7 +24,12 @@ export class DeliveryTrackingService {
         for (const externalNumber of lease.externalNumbers) {
           states.push({
             externalNumber,
-            state: await this.ozon.getState(externalNumber),
+            state: await this.ozon.getState(
+              externalNumber,
+              lease.ozonFbsPostingNumbers.includes(externalNumber)
+                ? "fbs"
+                : "fbo",
+            ),
           });
         }
       } catch {

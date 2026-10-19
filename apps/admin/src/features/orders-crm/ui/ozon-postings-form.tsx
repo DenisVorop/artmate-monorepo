@@ -8,8 +8,7 @@ import { OzonPostingLinks, type AdminOrder } from "@/entities/orders";
 import { Button, Textarea } from "@/shared/ui";
 
 import {
-  buildOzonPostingNumbers,
-  getOzonPostingFormValues,
+  OzonPostingsFormMapper,
   ozonPostingsFormSchema,
   type OzonPostingsFormValues,
 } from "../lib/ozon-postings-form";
@@ -25,7 +24,10 @@ export function OzonPostingsForm({ order }: { readonly order: AdminOrder }) {
     formState: { errors, isDirty },
   } = useForm<OzonPostingsFormValues>({
     resolver: zodResolver(ozonPostingsFormSchema),
-    values: getOzonPostingFormValues(order.ozonPostingNumbers),
+    values: OzonPostingsFormMapper.getValues(
+      order.ozonPostingNumbers,
+      order.ozonFbsPostingNumbers,
+    ),
     resetOptions: { keepDirtyValues: true },
   });
 
@@ -36,11 +38,16 @@ export function OzonPostingsForm({ order }: { readonly order: AdminOrder }) {
         mutate(
           {
             orderId: order.id,
-            postingNumbers: buildOzonPostingNumbers(values),
+            ...OzonPostingsFormMapper.build(values),
           },
           {
             onSuccess: (updatedOrder) =>
-              reset(getOzonPostingFormValues(updatedOrder.ozonPostingNumbers)),
+              reset(
+                OzonPostingsFormMapper.getValues(
+                  updatedOrder.ozonPostingNumbers,
+                  updatedOrder.ozonFbsPostingNumbers,
+                ),
+              ),
           },
         ),
       )}
@@ -49,7 +56,8 @@ export function OzonPostingsForm({ order }: { readonly order: AdminOrder }) {
         Отправления Ozon
       </label>
       <p className="text-xs text-muted-foreground" id={`${inputId}-hint`}>
-        Добавьте ссылки на все отправления этого заказа, каждую с новой строки.
+        Добавьте ссылки на все отправления ФБО и ФБС этого заказа, каждую с
+        новой строки.
       </p>
       <Textarea
         {...register("links")}
@@ -57,7 +65,7 @@ export function OzonPostingsForm({ order }: { readonly order: AdminOrder }) {
         aria-describedby={`${inputId}-hint${errors.links ? ` ${inputId}-error` : ""}`}
         aria-invalid={Boolean(errors.links)}
         disabled={isPending}
-        placeholder="https://seller.ozon.ru/app/postings/fbo/…"
+        placeholder="https://seller.ozon.ru/app/postings/fbo/details?posting_number=…"
         rows={3}
       />
       {errors.links ? (
@@ -78,7 +86,10 @@ export function OzonPostingsForm({ order }: { readonly order: AdminOrder }) {
       >
         {isPending ? "Сохраняем…" : "Сохранить отправления"}
       </Button>
-      <OzonPostingLinks postingNumbers={order.ozonPostingNumbers} />
+      <OzonPostingLinks
+        postingNumbers={order.ozonPostingNumbers}
+        fbsPostingNumbers={order.ozonFbsPostingNumbers}
+      />
     </form>
   );
 }

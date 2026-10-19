@@ -104,6 +104,7 @@ export type AdminOrderDTO = {
   comment?: string;
   adminComments: AdminOrderCommentDTO[];
   ozonPostingNumbers: string[];
+  ozonFbsPostingNumbers: string[];
   history: AdminOrderHistoryEventDTO[];
   shipments: OrderShipmentDTO[];
   createdAt: string;

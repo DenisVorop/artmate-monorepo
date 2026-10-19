@@ -19,6 +19,7 @@ function lease(orderId: string, externalNumbers = ["1-2-3"]): TrackingLease {
     orderId,
     revision: `revision-${orderId}`,
     externalNumbers,
+    ozonFbsPostingNumbers: [],
     leaseToken: `token-${orderId}`,
   };
 }
@@ -158,4 +159,34 @@ test("one synchronization run claims no more than twenty orders", async () => {
     state.requests,
     leases.slice(0, 20).flatMap((entry) => entry.externalNumbers),
   );
+});
+
+test("a mixed order checks each posting using its saved scheme", async () => {
+  const claimed = lease("mixed", ["1-2-3", "1-2-4"]);
+  claimed.ozonFbsPostingNumbers = ["1-2-4"];
+  const requests: unknown[] = [];
+  const ozon = {
+    isConfigured: () => true,
+    getState: async (...args: unknown[]) => {
+      requests.push(args);
+      return "delivered";
+    },
+  };
+  let next: TrackingLease | null = claimed;
+  const storage = {
+    claimNext: async () => {
+      const result = next;
+      next = null;
+      return result;
+    },
+    settle: async () => true,
+  };
+  await new DeliveryTrackingService(
+    storage as unknown as TrackingStorage,
+    ozon as unknown as OzonPostingClient,
+  ).synchronize();
+  assert.deepEqual(requests, [
+    ["1-2-3", "fbo"],
+    ["1-2-4", "fbs"],
+  ]);
 });

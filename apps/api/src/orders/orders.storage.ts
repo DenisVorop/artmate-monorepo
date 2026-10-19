@@ -1115,6 +1115,7 @@ export class OrdersStorage {
           id: true,
           deliveryProvider: true,
           ozonPostingNumbers: true,
+          ozonFbsPostingNumbers: true,
           crmStatus: true,
           paymentStatus: true,
           completedAt: true,
@@ -1786,6 +1787,7 @@ export class OrdersStorage {
     orderId: string,
     postingNumbers: string[],
     authorId: string,
+    fbsPostingNumbers: string[],
   ): Promise<AdminOrderDTO> {
     const existingAuthorId = await this.getExistingUserId(authorId);
 
@@ -1822,19 +1824,33 @@ export class OrdersStorage {
         }
       }
 
+      if (fbsPostingNumbers.some((number) => !postingNumbers.includes(number))) {
+        throw new BadRequestException(
+          "FBS postings must be included in postingNumbers",
+        );
+      }
+      const nextFbsNumbers = [...fbsPostingNumbers].sort();
+      const previousFbsNumbers = [...order.ozonFbsPostingNumbers].sort();
       const nextNumbers = [...postingNumbers].sort();
       const previousNumbers = [...order.ozonPostingNumbers].sort();
-      if (JSON.stringify(previousNumbers) === JSON.stringify(nextNumbers)) {
+      if (
+        JSON.stringify(previousNumbers) === JSON.stringify(nextNumbers) &&
+        JSON.stringify(previousFbsNumbers) === JSON.stringify(nextFbsNumbers)
+      ) {
         return this.mapAdminOrder(order);
       }
 
       await tx.order.update({
         where: { id: orderId },
-        data: { ozonPostingNumbers: nextNumbers },
+        data: {
+          ozonPostingNumbers: nextNumbers,
+          ozonFbsPostingNumbers: nextFbsNumbers,
+        },
       });
       await publishTrackingRequest(tx, {
         ...order,
         ozonPostingNumbers: nextNumbers,
+        ozonFbsPostingNumbers: nextFbsNumbers,
       });
       await tx.orderHistory.create({
         data: {
@@ -1843,6 +1859,8 @@ export class OrdersStorage {
           eventType: "ozon_postings_updated",
           payload: {
             previousPostingNumbers: previousNumbers,
+            previousFbsPostingNumbers: previousFbsNumbers,
+            fbsPostingNumbers: nextFbsNumbers,
             postingNumbers: nextNumbers,
           },
         },
@@ -2026,6 +2044,7 @@ export class OrdersStorage {
     return {
       ...this.mapOrder(order),
       ozonPostingNumbers: order.ozonPostingNumbers,
+      ozonFbsPostingNumbers: order.ozonFbsPostingNumbers,
       adminComments: order.adminComments.map((comment) =>
         this.mapAdminOrderComment(comment),
       ),

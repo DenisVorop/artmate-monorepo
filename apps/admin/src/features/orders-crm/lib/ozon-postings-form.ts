@@ -1,24 +1,6 @@
 import { z } from "zod";
 
-function getPostingNumber(value: string): string | undefined {
-  try {
-    const url = new URL(value);
-    if (
-      url.protocol !== "https:" ||
-      url.host !== "seller.ozon.ru" ||
-      url.username ||
-      url.password
-    ) {
-      return undefined;
-    }
-    const number = /^\/app\/postings\/fbo\/(\d+-\d+-\d+)\/?$/.exec(
-      url.pathname,
-    )?.[1];
-    return number && number.length <= 64 ? number : undefined;
-  } catch {
-    return undefined;
-  }
-}
+import { OzonPostingUrl } from "../../../shared/lib/ozon-posting-url.ts";
 
 export const ozonPostingsFormSchema = z.object({
   links: z
@@ -36,39 +18,68 @@ export const ozonPostingsFormSchema = z.object({
         });
         return;
       }
-      const invalidIndex = lines.findIndex((line) => !getPostingNumber(line));
-      if (invalidIndex !== -1) {
-        context.addIssue({
-          code: z.ZodIssueCode.custom,
-          message: `Строка ${invalidIndex + 1}: вставьте ссылку на отправление из раздела FBO в Ozon Seller`,
-        });
+      const postings = new Map<string, string>();
+      for (const [index, line] of lines.entries()) {
+        const posting = OzonPostingUrl.parse(line);
+        if (!posting) {
+          context.addIssue({
+            code: z.ZodIssueCode.custom,
+            message: `Строка ${index + 1}: вставьте ссылку на отправление ФБО или ФБС из Ozon Seller`,
+          });
+          return;
+        }
+        if (
+          postings.has(posting.number) &&
+          postings.get(posting.number) !== posting.scheme
+        ) {
+          context.addIssue({
+            code: z.ZodIssueCode.custom,
+            message: `Строка ${index + 1}: одно отправление указано как ФБО и ФБС. Проверьте ссылки.`,
+          });
+          return;
+        }
+        postings.set(posting.number, posting.scheme);
       }
     }),
 });
 
 export type OzonPostingsFormValues = z.infer<typeof ozonPostingsFormSchema>;
 
-export function buildOzonPostingNumbers(
-  values: OzonPostingsFormValues,
-): string[] {
-  const { links } = ozonPostingsFormSchema.parse(values);
-  return [
-    ...new Set(
-      links
-        .split(/\r?\n/)
-        .map((line) => line.trim())
-        .filter(Boolean)
-        .map((line) => getPostingNumber(line)!),
-    ),
-  ].sort();
-}
+export class OzonPostingsFormMapper {
+  public static build(values: OzonPostingsFormValues) {
+    const { links } = ozonPostingsFormSchema.parse(values);
+    const postings = links
+      .split(/\r?\n/)
+      .map((line) => line.trim())
+      .filter(Boolean)
+      .map((line) => OzonPostingUrl.parse(line)!);
+    return {
+      postingNumbers: [
+        ...new Set(postings.map((posting) => posting.number)),
+      ].sort(),
+      fbsPostingNumbers: [
+        ...new Set(
+          postings
+            .filter((posting) => posting.scheme === "fbs")
+            .map((posting) => posting.number),
+        ),
+      ].sort(),
+    };
+  }
 
-export function getOzonPostingFormValues(
-  postingNumbers: readonly string[],
-): OzonPostingsFormValues {
-  return {
-    links: postingNumbers
-      .map((number) => `https://seller.ozon.ru/app/postings/fbo/${number}`)
-      .join("\n"),
-  };
+  public static getValues(
+    postingNumbers: readonly string[],
+    fbsPostingNumbers: readonly string[],
+  ): OzonPostingsFormValues {
+    return {
+      links: postingNumbers
+        .map((number) =>
+          OzonPostingUrl.build(
+            number,
+            fbsPostingNumbers.includes(number) ? "fbs" : "fbo",
+          ),
+        )
+        .join("\n"),
+    };
+  }
 }

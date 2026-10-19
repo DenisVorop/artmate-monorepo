@@ -192,6 +192,7 @@ describe(
         order.id,
         ["01-2-5"],
         "test-admin",
+        [],
       );
       assert.equal(await delivered(oldLease), false);
       const lease = await claim();
@@ -200,6 +201,7 @@ describe(
         order.id,
         ["01-2-6"],
         "test-admin",
+        [],
       );
       assert.equal(
         await orders.applyDeliveryCompletion(lease.revision, notifications),
@@ -313,11 +315,17 @@ describe(
       const first = await seed([]);
       const second = await seed([]);
       const results = await Promise.allSettled([
-        orders.updateAdminOrderOzonPostings(first.id, ["99-1-1"], "test-admin"),
+        orders.updateAdminOrderOzonPostings(
+          first.id,
+          ["99-1-1"],
+          "test-admin",
+          [],
+        ),
         orders.updateAdminOrderOzonPostings(
           second.id,
           ["99-1-1"],
           "test-admin",
+          [],
         ),
       ]);
       assert.equal(

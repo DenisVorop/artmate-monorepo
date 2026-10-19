@@ -193,6 +193,7 @@ export class OrdersController {
       orderId,
       body.postingNumbers,
       request.user,
+      body.fbsPostingNumbers,
     );
   }
 
