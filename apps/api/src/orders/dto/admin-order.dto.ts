@@ -1,18 +1,16 @@
 import { Type } from "class-transformer";
-import { IsArray, IsString, ValidateNested } from "class-validator";
+import { IsArray, ValidateNested } from "class-validator";
 
 import { AdminOrderCommentDTO } from "./admin-order-comment.dto";
 import { AdminOrderHistoryEventDTO } from "./admin-order-history-event.dto";
 import { OrderDTO } from "./order.dto";
+import { OzonPostingDTO } from "./ozon-posting.dto";
 
 export class AdminOrderDTO extends OrderDTO {
   @IsArray()
-  @IsString({ each: true })
-  ozonPostingNumbers!: string[];
-
-  @IsArray()
-  @IsString({ each: true })
-  ozonFbsPostingNumbers!: string[];
+  @ValidateNested({ each: true })
+  @Type(() => OzonPostingDTO)
+  ozonPostings!: OzonPostingDTO[];
 
   @IsArray()
   @ValidateNested({ each: true })

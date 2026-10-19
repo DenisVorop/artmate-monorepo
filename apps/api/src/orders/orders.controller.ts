@@ -191,9 +191,8 @@ export class OrdersController {
 
     return this.ordersService.updateAdminOrderOzonPostings(
       orderId,
-      body.postingNumbers,
+      body.ozonPostings,
       request.user,
-      body.fbsPostingNumbers,
     );
   }
 

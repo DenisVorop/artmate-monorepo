@@ -1,26 +1,18 @@
+import { Type } from "class-transformer";
 import {
   ArrayMaxSize,
   ArrayUnique,
   IsArray,
-  IsString,
-  Matches,
-  MaxLength,
+  ValidateNested,
 } from "class-validator";
+
+import { OzonPostingDTO } from "./ozon-posting.dto";
 
 export class UpdateOrderOzonPostingsRequestDTO {
   @IsArray()
   @ArrayMaxSize(50)
-  @ArrayUnique()
-  @IsString({ each: true })
-  @MaxLength(64, { each: true })
-  @Matches(/^\d+-\d+-\d+$/, { each: true })
-  postingNumbers!: string[];
-
-  @IsArray()
-  @ArrayMaxSize(50)
-  @ArrayUnique()
-  @IsString({ each: true })
-  @MaxLength(64, { each: true })
-  @Matches(/^\d+-\d+-\d+$/, { each: true })
-  fbsPostingNumbers!: string[];
+  @ArrayUnique((posting: OzonPostingDTO) => posting?.number)
+  @ValidateNested({ each: true })
+  @Type(() => OzonPostingDTO)
+  ozonPostings!: OzonPostingDTO[];
 }

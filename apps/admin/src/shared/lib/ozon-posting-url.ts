@@ -1,7 +1,8 @@
 export type OzonPostingScheme = "fbo" | "fbs";
+export type OzonPosting = { number: string; scheme: OzonPostingScheme };
 
 export class OzonPostingUrl {
-  public static parse(value: string) {
+  public static parse(value: string): OzonPosting | undefined {
     try {
       const url = new URL(value);
       if (
@@ -30,7 +31,7 @@ export class OzonPostingUrl {
       }
       return {
         number,
-        scheme: scheme === "fbs" ? ("fbs" as const) : ("fbo" as const),
+        scheme: scheme === "fbs" ? "fbs" : "fbo",
       };
     } catch {
       return undefined;

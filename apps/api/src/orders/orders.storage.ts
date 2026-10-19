@@ -13,6 +13,7 @@ import { AnalyticsOutboxService } from "../analytics/analytics-outbox.service";
 import { parseYandexAttribution } from "../analytics/yandex-attribution";
 import { AffiliateFinancialAccountingService } from "../affiliate/financial-accounting.service";
 import type { CartItemDTO } from "../cart/dto";
+import { OzonPostings, type OzonPosting } from "../delivery-tracking/ozon-postings";
 import type { DeliveryCartItem } from "../delivery/providers/delivery-provider.interface";
 import {
   OrderDeliveryProvider as PrismaOrderDeliveryProvider,
@@ -1114,8 +1115,7 @@ export class OrdersStorage {
         select: {
           id: true,
           deliveryProvider: true,
-          ozonPostingNumbers: true,
-          ozonFbsPostingNumbers: true,
+          ozonPostings: true,
           crmStatus: true,
           paymentStatus: true,
           completedAt: true,
@@ -1785,9 +1785,8 @@ export class OrdersStorage {
 
   async updateAdminOrderOzonPostings(
     orderId: string,
-    postingNumbers: string[],
+    ozonPostings: OzonPosting[],
     authorId: string,
-    fbsPostingNumbers: string[],
   ): Promise<AdminOrderDTO> {
     const existingAuthorId = await this.getExistingUserId(authorId);
 
@@ -1809,11 +1808,14 @@ export class OrdersStorage {
         throw new BadRequestException("Order delivery provider must be Ozon");
       }
 
-      if (postingNumbers.length > 0) {
+      const nextPostings = OzonPostings.parse(ozonPostings);
+      if (nextPostings.length > 0) {
         const conflictingOrder = await tx.order.findFirst({
           where: {
             id: { not: orderId },
-            ozonPostingNumbers: { hasSome: postingNumbers },
+            OR: nextPostings.map(({ number }) => ({
+              ozonPostings: { array_contains: [{ number }] },
+            })),
           },
           select: { id: true },
         });
@@ -1824,44 +1826,24 @@ export class OrdersStorage {
         }
       }
 
-      if (fbsPostingNumbers.some((number) => !postingNumbers.includes(number))) {
-        throw new BadRequestException(
-          "FBS postings must be included in postingNumbers",
-        );
-      }
-      const nextFbsNumbers = [...fbsPostingNumbers].sort();
-      const previousFbsNumbers = [...order.ozonFbsPostingNumbers].sort();
-      const nextNumbers = [...postingNumbers].sort();
-      const previousNumbers = [...order.ozonPostingNumbers].sort();
-      if (
-        JSON.stringify(previousNumbers) === JSON.stringify(nextNumbers) &&
-        JSON.stringify(previousFbsNumbers) === JSON.stringify(nextFbsNumbers)
-      ) {
+      const previousPostings = OzonPostings.parse(order.ozonPostings);
+      if (JSON.stringify(previousPostings) === JSON.stringify(nextPostings)) {
         return this.mapAdminOrder(order);
       }
 
       await tx.order.update({
         where: { id: orderId },
-        data: {
-          ozonPostingNumbers: nextNumbers,
-          ozonFbsPostingNumbers: nextFbsNumbers,
-        },
+        data: { ozonPostings: nextPostings },
       });
-      await publishTrackingRequest(tx, {
-        ...order,
-        ozonPostingNumbers: nextNumbers,
-        ozonFbsPostingNumbers: nextFbsNumbers,
-      });
+      await publishTrackingRequest(tx, { ...order, ozonPostings: nextPostings });
       await tx.orderHistory.create({
         data: {
           orderId,
           authorId: existingAuthorId,
           eventType: "ozon_postings_updated",
           payload: {
-            previousPostingNumbers: previousNumbers,
-            previousFbsPostingNumbers: previousFbsNumbers,
-            fbsPostingNumbers: nextFbsNumbers,
-            postingNumbers: nextNumbers,
+            previousPostings,
+            ozonPostings: nextPostings,
           },
         },
       });
@@ -1912,7 +1894,9 @@ export class OrdersStorage {
       const request = await tx.deliveryTrackingRequest.findUnique({
         where: { orderId: event.orderId },
       });
-      const expectedNumbers = order?.ozonPostingNumbers ?? [];
+      const expectedNumbers = order
+        ? OzonPostings.parse(order.ozonPostings).map((posting) => posting.number)
+        : [];
       const isCurrent = Boolean(
         order &&
         request?.enabled &&
@@ -2043,8 +2027,7 @@ export class OrdersStorage {
   private mapAdminOrder(order: StoredAdminOrder): AdminOrderDTO {
     return {
       ...this.mapOrder(order),
-      ozonPostingNumbers: order.ozonPostingNumbers,
-      ozonFbsPostingNumbers: order.ozonFbsPostingNumbers,
+      ozonPostings: OzonPostings.parse(order.ozonPostings),
       adminComments: order.adminComments.map((comment) =>
         this.mapAdminOrderComment(comment),
       ),

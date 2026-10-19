@@ -14,18 +14,12 @@ export function useUpdateOzonPostings() {
     },
     mutationFn: async ({
       orderId,
-      postingNumbers,
-      fbsPostingNumbers,
+      ozonPostings,
     }: {
       orderId: string;
-      postingNumbers: string[];
-      fbsPostingNumbers: string[];
+      ozonPostings: AdminOrder["ozonPostings"];
     }) => {
-      const result = await updateAdminOrderOzonPostings(
-        orderId,
-        postingNumbers,
-        fbsPostingNumbers,
-      );
+      const result = await updateAdminOrderOzonPostings(orderId, ozonPostings);
       if (!result.ok) {
         if (result.status === 409) {
           throw new Error(

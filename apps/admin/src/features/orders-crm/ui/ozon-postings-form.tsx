@@ -24,10 +24,7 @@ export function OzonPostingsForm({ order }: { readonly order: AdminOrder }) {
     formState: { errors, isDirty },
   } = useForm<OzonPostingsFormValues>({
     resolver: zodResolver(ozonPostingsFormSchema),
-    values: OzonPostingsFormMapper.getValues(
-      order.ozonPostingNumbers,
-      order.ozonFbsPostingNumbers,
-    ),
+    values: OzonPostingsFormMapper.getValues(order.ozonPostings),
     resetOptions: { keepDirtyValues: true },
   });
 
@@ -43,10 +40,7 @@ export function OzonPostingsForm({ order }: { readonly order: AdminOrder }) {
           {
             onSuccess: (updatedOrder) =>
               reset(
-                OzonPostingsFormMapper.getValues(
-                  updatedOrder.ozonPostingNumbers,
-                  updatedOrder.ozonFbsPostingNumbers,
-                ),
+                OzonPostingsFormMapper.getValues(updatedOrder.ozonPostings),
               ),
           },
         ),
@@ -86,10 +80,7 @@ export function OzonPostingsForm({ order }: { readonly order: AdminOrder }) {
       >
         {isPending ? "Сохраняем…" : "Сохранить отправления"}
       </Button>
-      <OzonPostingLinks
-        postingNumbers={order.ozonPostingNumbers}
-        fbsPostingNumbers={order.ozonFbsPostingNumbers}
-      />
+      <OzonPostingLinks ozonPostings={order.ozonPostings} />
     </form>
   );
 }

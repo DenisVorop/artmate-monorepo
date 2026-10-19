@@ -3,12 +3,12 @@ import { Injectable } from "@nestjs/common";
 
 import { PrismaService } from "../prisma/prisma.service";
 import type { Prisma } from "../generated/prisma/client";
+import { OzonPostings, type OzonPosting } from "./ozon-postings";
 
 export type TrackingLease = {
   orderId: string;
   revision: string;
-  externalNumbers: string[];
-  ozonFbsPostingNumbers: string[];
+  ozonPostings: OzonPosting[];
   leaseToken: string;
 };
 export type PostingState = {
@@ -27,13 +27,16 @@ export class TrackingStorage {
   async claimNext(): Promise<TrackingLease | null> {
     return this.prisma.$transaction(async (tx) => {
       const [request] = await tx.$queryRaw<
-        Array<Omit<TrackingLease, "leaseToken">>
+        Array<{
+          orderId: string;
+          revision: string;
+          ozonPostings: Prisma.JsonValue;
+        }>
       >`
-        SELECT r.order_id AS "orderId", r.revision, r.external_numbers AS "externalNumbers",
-          r.ozon_fbs_posting_numbers AS "ozonFbsPostingNumbers"
+        SELECT r.order_id AS "orderId", r.revision, r.ozon_postings AS "ozonPostings"
         FROM delivery_tracking_requests r
         LEFT JOIN delivery_tracking_observations o ON o.order_id = r.order_id
-        WHERE r.enabled AND r.provider = 'ozon' AND cardinality(r.external_numbers) > 0
+        WHERE r.enabled AND r.provider = 'ozon' AND jsonb_array_length(r.ozon_postings) > 0
           AND (o.order_id IS NULL OR o.revision <> r.revision OR
             (NOT o.all_delivered AND o.next_check_at <= clock_timestamp()
               AND (o.locked_until IS NULL OR o.locked_until <= clock_timestamp())))
@@ -42,8 +45,12 @@ export class TrackingStorage {
       `;
       if (!request) return null;
       const leaseToken = randomUUID();
-      const now = await databaseNow(tx);
-      const lease = { ...request, leaseToken };
+      const now = await _databaseNow(tx);
+      const lease = {
+        ...request,
+        ozonPostings: OzonPostings.parse(request.ozonPostings),
+        leaseToken,
+      };
       await tx.deliveryTrackingObservation.upsert({
         where: { orderId: request.orderId },
         create: {
@@ -78,7 +85,7 @@ export class TrackingStorage {
       const observation = await tx.deliveryTrackingObservation.findUnique({
         where: { orderId: lease.orderId },
       });
-      const now = await databaseNow(tx);
+      const now = await _databaseNow(tx);
       if (
         !request?.enabled ||
         request.revision !== lease.revision ||
@@ -88,12 +95,13 @@ export class TrackingStorage {
       )
         return false;
 
+      const postings = OzonPostings.parse(request.ozonPostings);
       const matches =
         states !== null &&
-        states.length === request.externalNumbers.length &&
+        states.length === postings.length &&
         new Set(states.map((state) => state.externalNumber)).size ===
           states.length &&
-        request.externalNumbers.every((number) =>
+        postings.every(({ number }) =>
           states.some((state) => state.externalNumber === number),
         );
       const allDelivered =
@@ -116,7 +124,7 @@ export class TrackingStorage {
           create: {
             id: lease.revision,
             orderId: lease.orderId,
-            externalNumbers: request.externalNumbers,
+            externalNumbers: postings.map((posting) => posting.number),
             observedAt: now,
           },
           update: {},
@@ -127,7 +135,7 @@ export class TrackingStorage {
   }
 }
 
-async function databaseNow(tx: Prisma.TransactionClient): Promise<Date> {
+async function _databaseNow(tx: Prisma.TransactionClient): Promise<Date> {
   const [clock] = await tx.$queryRaw<
     Array<{ now: Date }>
   >`SELECT clock_timestamp() AS now`;

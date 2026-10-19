@@ -21,15 +21,10 @@ export class DeliveryTrackingService {
       if (!lease) return;
       let states: PostingState[] | null = [];
       try {
-        for (const externalNumber of lease.externalNumbers) {
+        for (const posting of lease.ozonPostings) {
           states.push({
-            externalNumber,
-            state: await this.ozon.getState(
-              externalNumber,
-              lease.ozonFbsPostingNumbers.includes(externalNumber)
-                ? "fbs"
-                : "fbo",
-            ),
+            externalNumber: posting.number,
+            state: await this.ozon.getState(posting.number, posting.scheme),
           });
         }
       } catch {

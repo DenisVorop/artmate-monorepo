@@ -18,8 +18,7 @@ function lease(orderId: string, externalNumbers = ["1-2-3"]): TrackingLease {
   return {
     orderId,
     revision: `revision-${orderId}`,
-    externalNumbers,
-    ozonFbsPostingNumbers: [],
+    ozonPostings: externalNumbers.map((number) => ({ number, scheme: "fbo" })),
     leaseToken: `token-${orderId}`,
   };
 }
@@ -104,7 +103,10 @@ test("a complete posting batch is settled with its normalized states", async () 
 
   await state.service.synchronize();
 
-  assert.deepEqual(state.requests, claimed.externalNumbers);
+  assert.deepEqual(
+    state.requests,
+    claimed.ozonPostings.map((posting) => posting.number),
+  );
   assert.deepEqual(state.settlements, [{ lease: claimed, states: expected }]);
   assert.equal(state.claims(), 2);
 });
@@ -157,13 +159,15 @@ test("one synchronization run claims no more than twenty orders", async () => {
   assert.equal(state.settlements.length, 20);
   assert.deepEqual(
     state.requests,
-    leases.slice(0, 20).flatMap((entry) => entry.externalNumbers),
+    leases
+      .slice(0, 20)
+      .flatMap((entry) => entry.ozonPostings.map((posting) => posting.number)),
   );
 });
 
 test("a mixed order checks each posting using its saved scheme", async () => {
   const claimed = lease("mixed", ["1-2-3", "1-2-4"]);
-  claimed.ozonFbsPostingNumbers = ["1-2-4"];
+  claimed.ozonPostings[1]!.scheme = "fbs";
   const requests: unknown[] = [];
   const ozon = {
     isConfigured: () => true,
