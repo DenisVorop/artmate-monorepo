@@ -1,5 +1,12 @@
 # Changelog
 
+## [0.50.3](https://github.com/DenisVorop/artmate-monorepo/compare/v0.50.2...v0.50.3) (2026-10-19)
+
+
+### Bug Fixes
+
+* **orders:** support Ozon FBS tracking ([7f68544](https://github.com/DenisVorop/artmate-monorepo/commit/7f6854439f15a640027aa445db6a7523cf752e47))
+
 ## [0.50.2](https://github.com/DenisVorop/artmate-monorepo/compare/v0.50.1...v0.50.2) (2026-10-13)
 
 
