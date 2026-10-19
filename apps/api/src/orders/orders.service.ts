@@ -13,6 +13,7 @@ import type { AuthUser } from "../auth/auth.types";
 import { parseYandexAttribution } from "../analytics/yandex-attribution";
 import type { CartDTO } from "../cart/dto";
 import { CartService } from "../cart/cart.service";
+import type { OzonPosting } from "../delivery-tracking/ozon-postings";
 import { DeliveryService } from "../delivery/delivery.service";
 import type { DeliverySelection } from "../delivery/providers/delivery-provider.interface";
 import {
@@ -239,15 +240,13 @@ export class OrdersService {
 
   updateAdminOrderOzonPostings(
     orderId: string,
-    postingNumbers: string[],
+    ozonPostings: OzonPosting[],
     author: AuthUser,
-    fbsPostingNumbers: string[],
   ): Promise<AdminOrderDTO> {
     return this.ordersStorage.updateAdminOrderOzonPostings(
       this.parseOrderId(orderId),
-      postingNumbers,
+      ozonPostings,
       author.id,
-      fbsPostingNumbers,
     );
   }
 

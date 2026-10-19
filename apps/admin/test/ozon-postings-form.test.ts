@@ -14,8 +14,10 @@ const fbs =
 
 test("current FBO and FBS links produce a mixed tracking list", () => {
   assert.deepEqual(OzonPostingsFormMapper.build({ links: `${fbo}\n${fbs}` }), {
-    postingNumbers: ["46992314-0403-1", "46992314-0403-2"],
-    fbsPostingNumbers: ["46992314-0403-1"],
+    ozonPostings: [
+      { number: "46992314-0403-1", scheme: "fbs" },
+      { number: "46992314-0403-2", scheme: "fbo" },
+    ],
   });
 });
 
@@ -24,24 +26,20 @@ test("leading zeroes are preserved and duplicate links collapse across query par
   assert.deepEqual(
     OzonPostingsFormMapper.build({ links: ` ${url}\r\n\n${url}&from=orders` }),
     {
-      postingNumbers: ["0121544692-0403-2"],
-      fbsPostingNumbers: [],
+      ozonPostings: [{ number: "0121544692-0403-2", scheme: "fbo" }],
     },
   );
   assert.deepEqual(
     OzonPostingsFormMapper.build({
       links: `${fbs}\n${fbs.replace("tab=delivering&", "tab=all&")}`,
-    }).fbsPostingNumbers,
-    ["46992314-0403-1"],
+    }).ozonPostings,
+    [{ number: "46992314-0403-1", scheme: "fbs" }],
   );
 });
 
 test("saved mixed shipments reopen with their original schemes and current URLs", () => {
   const payload = OzonPostingsFormMapper.build({ links: `${fbo}\n${fbs}` });
-  const values = OzonPostingsFormMapper.getValues(
-    payload.postingNumbers,
-    payload.fbsPostingNumbers,
-  );
+  const values = OzonPostingsFormMapper.getValues(payload.ozonPostings);
   assert.equal(values.links, `${fbs}\n${fbo}`);
   assert.deepEqual(OzonPostingsFormMapper.build(values), payload);
   assert.equal(
@@ -90,8 +88,7 @@ test("the same posting cannot belong to both schemes", () => {
 
 test("an empty list clears both tracking lists and the 50-link limit still applies", () => {
   assert.deepEqual(OzonPostingsFormMapper.build({ links: " \n " }), {
-    postingNumbers: [],
-    fbsPostingNumbers: [],
+    ozonPostings: [],
   });
   assert.equal(
     ozonPostingsFormSchema.safeParse({ links: Array(51).fill(fbs).join("\n") })

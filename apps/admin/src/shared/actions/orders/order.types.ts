@@ -1,3 +1,5 @@
+import type { OzonPosting } from "../../lib/ozon-posting-url";
+
 export type OrderStatusDTO =
   | "new"
   | "in_progress"
@@ -103,8 +105,7 @@ export type AdminOrderDTO = {
   currency: "RUB";
   comment?: string;
   adminComments: AdminOrderCommentDTO[];
-  ozonPostingNumbers: string[];
-  ozonFbsPostingNumbers: string[];
+  ozonPostings: OzonPosting[];
   history: AdminOrderHistoryEventDTO[];
   shipments: OrderShipmentDTO[];
   createdAt: string;

@@ -1,26 +1,24 @@
-import { OzonPostingUrl } from "@/shared/lib/ozon-posting-url";
+import {
+  OzonPostingUrl,
+  type OzonPosting,
+} from "@/shared/lib/ozon-posting-url";
 
 export function OzonPostingLinks({
-  postingNumbers,
-  fbsPostingNumbers,
+  ozonPostings,
 }: {
-  readonly postingNumbers: readonly string[];
-  readonly fbsPostingNumbers: readonly string[];
+  readonly ozonPostings: readonly OzonPosting[];
 }) {
-  if (postingNumbers.length === 0) {
+  if (ozonPostings.length === 0) {
     return null;
   }
 
   return (
     <ul className="space-y-1 text-sm">
-      {postingNumbers.map((number) => (
+      {ozonPostings.map(({ number, scheme }) => (
         <li key={number}>
           <a
             className="break-all underline underline-offset-4"
-            href={OzonPostingUrl.build(
-              number,
-              fbsPostingNumbers.includes(number) ? "fbs" : "fbo",
-            )}
+            href={OzonPostingUrl.build(number, scheme)}
             rel="noopener noreferrer"
             target="_blank"
           >

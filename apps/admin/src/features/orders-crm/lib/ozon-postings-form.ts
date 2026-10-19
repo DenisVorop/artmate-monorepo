@@ -1,6 +1,9 @@
 import { z } from "zod";
 
-import { OzonPostingUrl } from "../../../shared/lib/ozon-posting-url.ts";
+import {
+  OzonPostingUrl,
+  type OzonPosting,
+} from "../../../shared/lib/ozon-posting-url.ts";
 
 export const ozonPostingsFormSchema = z.object({
   links: z
@@ -53,32 +56,22 @@ export class OzonPostingsFormMapper {
       .map((line) => line.trim())
       .filter(Boolean)
       .map((line) => OzonPostingUrl.parse(line)!);
+    const uniquePostings = new Map(
+      postings.map((posting) => [posting.number, posting]),
+    );
     return {
-      postingNumbers: [
-        ...new Set(postings.map((posting) => posting.number)),
-      ].sort(),
-      fbsPostingNumbers: [
-        ...new Set(
-          postings
-            .filter((posting) => posting.scheme === "fbs")
-            .map((posting) => posting.number),
-        ),
-      ].sort(),
+      ozonPostings: [...uniquePostings.values()].sort((left, right) =>
+        left.number.localeCompare(right.number),
+      ),
     };
   }
 
   public static getValues(
-    postingNumbers: readonly string[],
-    fbsPostingNumbers: readonly string[],
+    ozonPostings: readonly OzonPosting[],
   ): OzonPostingsFormValues {
     return {
-      links: postingNumbers
-        .map((number) =>
-          OzonPostingUrl.build(
-            number,
-            fbsPostingNumbers.includes(number) ? "fbs" : "fbo",
-          ),
-        )
+      links: ozonPostings
+        .map((posting) => OzonPostingUrl.build(posting.number, posting.scheme))
         .join("\n"),
     };
   }

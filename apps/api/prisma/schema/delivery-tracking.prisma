@@ -4,8 +4,7 @@ model DeliveryTrackingRequest {
   orderId         String                @id @map("order_id") @db.VarChar(32)
   revision        String                @unique @db.Uuid
   provider        OrderDeliveryProvider
-  externalNumbers String[]              @map("external_numbers")
-  ozonFbsPostingNumbers String[]          @default([]) @map("ozon_fbs_posting_numbers")
+  ozonPostings    Json                  @default("[]") @map("ozon_postings") @db.JsonB
   enabled         Boolean
   updatedAt       DateTime              @default(now()) @updatedAt @map("updated_at")
 

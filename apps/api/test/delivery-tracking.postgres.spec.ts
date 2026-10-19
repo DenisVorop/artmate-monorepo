@@ -86,7 +86,7 @@ describe(
           customerEmail: "test@example.invalid",
           customerPhone: "000",
           deliveryProvider: "OZON",
-          ozonPostingNumbers: numbers,
+          ozonPostings: numbers.map((number) => ({ number, scheme: "fbo" })),
           crmStatus: "DELIVERING",
           status: "PAID",
           paymentStatus: "PAID",
@@ -117,8 +117,8 @@ describe(
     async function delivered(lease: TrackingLease) {
       return tracking.settle(
         lease,
-        lease.externalNumbers.map((externalNumber) => ({
-          externalNumber,
+        lease.ozonPostings.map(({ number }) => ({
+          externalNumber: number,
           state: "delivered",
         })),
       );
@@ -190,18 +190,16 @@ describe(
       const oldLease = await claim();
       await orders.updateAdminOrderOzonPostings(
         order.id,
-        ["01-2-5"],
+        [{ number: "01-2-5", scheme: "fbo" }],
         "test-admin",
-        [],
       );
       assert.equal(await delivered(oldLease), false);
       const lease = await claim();
       await delivered(lease);
       await orders.updateAdminOrderOzonPostings(
         order.id,
-        ["01-2-6"],
+        [{ number: "01-2-6", scheme: "fbs" }],
         "test-admin",
-        [],
       );
       assert.equal(
         await orders.applyDeliveryCompletion(lease.revision, notifications),
@@ -213,6 +211,31 @@ describe(
         "DELIVERING",
       );
       assert.equal(await db.notificationJob.count(), 0);
+    });
+
+    it("changing only the scheme invalidates a lease and a completed observation", async () => {
+      const order = await seed(["01-2-3"]);
+      const oldLease = await claim();
+      await delivered(oldLease);
+      await orders.updateAdminOrderOzonPostings(
+        order.id,
+        [{ number: "01-2-3", scheme: "fbs" }],
+        "test-admin",
+      );
+      assert.equal(await delivered(oldLease), false);
+      assert.equal(
+        await orders.applyDeliveryCompletion(oldLease.revision, notifications),
+        false,
+      );
+      const replacement = await claim();
+      assert.deepEqual(replacement.ozonPostings, [
+        { number: "01-2-3", scheme: "fbs" },
+      ]);
+      await delivered(replacement);
+      assert.equal(
+        await orders.applyDeliveryCompletion(replacement.revision, notifications),
+        true,
+      );
     });
 
     it("completes once under concurrent retries and commits history, effects and notifications together", async () => {
@@ -286,7 +309,7 @@ describe(
         { crmStatus: "CANCELLED" as const },
         { crmStatus: "PAID" as const },
         { paymentStatus: "PENDING" as const },
-        { ozonPostingNumbers: [] },
+        { ozonPostings: [] },
       ]) {
         const order = await seed();
         const lease = await claim();
@@ -317,15 +340,13 @@ describe(
       const results = await Promise.allSettled([
         orders.updateAdminOrderOzonPostings(
           first.id,
-          ["99-1-1"],
+          [{ number: "99-1-1", scheme: "fbo" }],
           "test-admin",
-          [],
         ),
         orders.updateAdminOrderOzonPostings(
           second.id,
-          ["99-1-1"],
+          [{ number: "99-1-1", scheme: "fbs" }],
           "test-admin",
-          [],
         ),
       ]);
       assert.equal(

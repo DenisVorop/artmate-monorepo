@@ -241,10 +241,9 @@ function CustomerPanel({ order }: { readonly order: AdminOrder }) {
       {order.delivery.provider === "ozon" ? (
         <div className="mt-4 space-y-2">
           <h3 className="text-sm font-medium">Отправления Ozon</h3>
-          {order.ozonPostingNumbers.length > 0 ? (
+          {order.ozonPostings.length > 0 ? (
             <OzonPostingLinks
-              postingNumbers={order.ozonPostingNumbers}
-              fbsPostingNumbers={order.ozonFbsPostingNumbers}
+              ozonPostings={order.ozonPostings}
             />
           ) : (
             <p className="text-sm text-muted-foreground">
