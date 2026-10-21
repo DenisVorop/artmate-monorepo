@@ -14,6 +14,7 @@ import { TelegramLinkService } from "../src/auth/telegram-link.service";
 import { ActivationFlowService } from "../src/auth/activation-flow.service";
 import { RegistrationDraftService } from "../src/auth/registration-draft.service";
 import { RecoveryFlowService } from "../src/auth/recovery-flow.service";
+import { FlowLifecycleService } from "../src/auth/flow-lifecycle.service";
 import { UsersService } from "../src/users/users.service";
 
 /** Real Nest route registry, isolated services: no DB, mail or external network. */
@@ -48,6 +49,7 @@ describe("shared auth route cutover HTTP", () => {
         { provide: UsersService, useValue: {} },
         { provide: ActivationFlowService, useValue: {} },
         { provide: RegistrationDraftService, useValue: {} },
+        { provide: FlowLifecycleService, useValue: {} },
         {
           provide: RecoveryFlowService,
           useValue: { request: () => ({ ok: true }) },
