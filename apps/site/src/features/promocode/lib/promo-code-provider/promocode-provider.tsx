@@ -20,7 +20,14 @@ import { PromocodeContext, type PromocodeContextValue } from "./promocode.contex
 type PromocodeProviderProps = {
   cart: Cart;
   children: ReactNode;
-  onLoginRequested?: () => void;
+  onLoginRequested?: () => Promise<string | undefined>;
+};
+
+type AuthenticatedPromoApply = {
+  accountIdentity: string;
+  cartId: string;
+  cartSignature: string;
+  code: string;
 };
 
 type CompletedPromoApply = {
@@ -40,6 +47,15 @@ export function PromocodeProvider({ cart, children, onLoginRequested }: Promocod
   const [selectedCode, setSelectedCode] = useState<string>();
   const [isHydrating, setIsHydrating] = useState(true);
   const [completedApply, setCompletedApply] = useState<CompletedPromoApply>();
+  const [authenticatedApply, setAuthenticatedApply] = useState<AuthenticatedPromoApply>();
+  const loginAttempt = useRef<symbol | undefined>(undefined);
+  const appliedAuthentication = useRef<AuthenticatedPromoApply | undefined>(undefined);
+  useEffect(
+    () => () => {
+      loginAttempt.current = undefined;
+    },
+    [],
+  );
   const cartSignature = getCartPricingSignature(cart);
   const activeApplyAttemptKeyRef = useRef<string | undefined>(undefined);
   const preview = usePromoPreview({
@@ -133,6 +149,49 @@ export function PromocodeProvider({ cart, children, onLoginRequested }: Promocod
     }
   }, [selectedCode, startApplyAttempt]);
 
+  const requestLogin = useCallback(() => {
+    const code = parsePromoCode(selectedCode);
+    if (!onLoginRequested || !code || loginAttempt.current) return;
+    const attempt = Symbol("promo-login");
+    loginAttempt.current = attempt;
+    const snapshot = { cartId: cart.id, cartSignature, code };
+    void (async () => {
+      try {
+        const signedInIdentity = await onLoginRequested();
+        if (loginAttempt.current === attempt && signedInIdentity) {
+          setAuthenticatedApply({ ...snapshot, accountIdentity: signedInIdentity });
+        }
+      } catch {
+        // Auth owns its error UI. No retry or promo conversion follows a failed sign-in.
+      } finally {
+        if (loginAttempt.current === attempt) loginAttempt.current = undefined;
+      }
+    })();
+  }, [cart.id, cartSignature, onLoginRequested, selectedCode]);
+
+  useEffect(() => {
+    if (!authenticatedApply || appliedAuthentication.current === authenticatedApply) return;
+    // Wait for the published session to reach this provider. Never retry the guest query.
+    if (accountIdentity === "guest") return;
+    appliedAuthentication.current = authenticatedApply;
+    if (
+      authenticatedApply.accountIdentity === accountIdentity &&
+      authenticatedApply.cartId === cart.id &&
+      authenticatedApply.cartSignature === cartSignature &&
+      authenticatedApply.code === selectedCode
+    ) {
+      startApplyAttempt(authenticatedApply.code);
+    }
+    setAuthenticatedApply(undefined);
+  }, [
+    accountIdentity,
+    authenticatedApply,
+    cart.id,
+    cartSignature,
+    selectedCode,
+    startApplyAttempt,
+  ]);
+
   useEffect(() => {
     if (!completedApply) {
       return;
@@ -160,7 +219,7 @@ export function PromocodeProvider({ cart, children, onLoginRequested }: Promocod
       isHydrating,
       isPaused: preview.isPaused,
       isPending: preview.isPending,
-      onLoginRequested,
+      onLoginRequested: onLoginRequested ? requestLogin : undefined,
       preview: preview.data,
       retry,
       selectedCode,
@@ -170,6 +229,7 @@ export function PromocodeProvider({ cart, children, onLoginRequested }: Promocod
       clearCode,
       isHydrating,
       onLoginRequested,
+      requestLogin,
       preview.data,
       preview.error,
       preview.isError,

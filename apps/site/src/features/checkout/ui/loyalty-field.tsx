@@ -22,14 +22,20 @@ import { Checkbox } from "@/shared/ui/checkbox";
 import { Link } from "@/shared/ui/link";
 
 import { useCheckout } from "../lib";
+import { useCheckoutAuth } from "../lib/use-checkout-auth";
 import { createLoyaltyFormSchema, type LoyaltyFormValues } from "../lib/loyalty-form";
 
 export function LoyaltyField() {
   const { user, isPending: isSessionPending } = useSession();
+  const { onLoginRequested, isPending: isAuthPending } = useCheckoutAuth();
   const overview = useLoyaltyData(user?.id ?? "guest", !!user);
   const { loyalty, isSubmitting, selectedDelivery, checkoutCalculation } = useCheckout();
   return (
     <BaseLoyaltyField
+      onLoginRequested={() => {
+        void onLoginRequested();
+      }}
+      isAuthPending={isAuthPending}
       isSignedIn={Boolean(user)}
       isSessionPending={isSessionPending}
       overview={overview}
@@ -42,6 +48,8 @@ export function LoyaltyField() {
 }
 
 export function BaseLoyaltyField({
+  onLoginRequested,
+  isAuthPending = false,
   isSignedIn,
   isSessionPending,
   overview,
@@ -50,6 +58,8 @@ export function BaseLoyaltyField({
   hasDelivery,
   checkoutCalculation,
 }: {
+  onLoginRequested?: () => void;
+  isAuthPending?: boolean;
   isSignedIn: boolean;
   isSessionPending: boolean;
   overview: { data?: LoyaltyOverview; isPending: boolean; isError: boolean };
@@ -93,12 +103,14 @@ export function BaseLoyaltyField({
               <p>Проверяем аккаунт…</p>
             ) : !isSignedIn ? (
               <p>
-                <Link
-                  href={`${routes.auth}?next=${encodeURIComponent(routes.checkout)}`}
-                  className="font-medium text-foreground underline underline-offset-4"
+                <button
+                  type="button"
+                  disabled={isAuthPending}
+                  onClick={onLoginRequested}
+                  className="min-h-11 font-medium text-foreground underline underline-offset-4 disabled:opacity-50"
                 >
                   Войдите
-                </Link>{" "}
+                </button>{" "}
                 в аккаунт, чтобы списать баллы.
               </p>
             ) : overview.isPending ? (

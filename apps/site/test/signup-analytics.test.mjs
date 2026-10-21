@@ -46,6 +46,7 @@ async function loadSharedAnalytics() {
       "./product": product,
       "./sanitize-analytics-url": sanitizer,
       "./types": types,
+      "@/shared/lib/cookie-consent": { getCookieConsentSnapshot: () => true },
     },
   );
 
@@ -56,57 +57,6 @@ async function loadAuthAnalytics(sharedAnalytics) {
   return evaluateTypeScript(await readSource("src/features/auth/lib/analytics.ts"), {
     "@/shared/lib/analytics": sharedAnalytics,
   });
-}
-
-async function loadVerificationFlow() {
-  return evaluateTypeScript(await readSource("src/features/auth/lib/verification-flow.ts"));
-}
-
-async function loadConfirmVerificationHook({ confirmEmailVerification, operations }) {
-  let mutationOptions;
-  const queryClient = {
-    cancelQueries: ({ queryKey }) => {
-      operations.push(["cancel", queryKey]);
-      return Promise.resolve();
-    },
-    invalidateQueries: ({ queryKey }) => {
-      operations.push(["invalidate", queryKey]);
-      return Promise.resolve();
-    },
-    removeQueries: ({ queryKey }) => operations.push(["remove", queryKey]),
-    setQueryData: (queryKey) => operations.push(["set", queryKey]),
-  };
-  const evaluatedModule = evaluateTypeScript(
-    await readSource("src/features/auth/model/use-confirm-email-verification.ts"),
-    {
-      "@tanstack/react-query": {
-        useMutation: (options) => {
-          mutationOptions = options;
-          return { isPending: false, mutate() {}, mutateAsync() {} };
-        },
-        useQueryClient: () => queryClient,
-      },
-      "@/entities/session": {
-        sessionQuery: { getSession: () => ({ queryKey: ["session", "data"] }) },
-      },
-      "@/shared/actions/auth": { confirmEmailVerification },
-      "@/shared/lib/api-result": {
-        ApiResult: { fromDTO: (value) => ({ unwrap: () => value }) },
-      },
-      "@/shared/lib/query-keys": {
-        cartPricingQueryKey: ["cart-pricing"],
-        featureBannersQueryKey: ["feature-banners"],
-        welcomeOfferQueryKey: ["welcome-offer"],
-      },
-    },
-  );
-
-  return {
-    render: (options) => {
-      evaluatedModule.useConfirmEmailVerificationMutation(options);
-      return mutationOptions;
-    },
-  };
 }
 
 function createStorage() {
@@ -142,33 +92,6 @@ async function withWindow(value, callback) {
   }
 }
 
-function createVerification(overrides = {}) {
-  return {
-    email: "private@example.com",
-    resendAvailableAt: "2026-09-01T12:00:00.000Z",
-    ...overrides,
-  };
-}
-
-function createSession(overrides = {}) {
-  return {
-    user: {
-      id: "private-user-id",
-      provider: "credentials",
-      providerUserId: "private-provider-id",
-      email: "private@example.com",
-      roles: ["customer"],
-      ...overrides,
-    },
-  };
-}
-
-async function executeMutation(mutationOptions, input) {
-  const response = await mutationOptions.mutationFn(input);
-  await mutationOptions.onSuccess(response);
-  return response;
-}
-
 test("signup adapter emits an empty sign_up goal once per opaque registration attempt", async () => {
   const sharedAnalytics = await loadSharedAnalytics();
   const { createSignupAttempt, useAnalytics } = await loadAuthAnalytics(sharedAnalytics);
@@ -190,107 +113,154 @@ test("signup adapter emits an empty sign_up goal once per opaque registration at
   assert.equal(JSON.stringify(analyticsWindow.dataLayer).includes("123456"), false);
 });
 
-test("verification flow attributes only registration and preserves its opaque attempt on resend", async () => {
-  const sharedAnalytics = await loadSharedAnalytics();
-  const authAnalytics = await loadAuthAnalytics(sharedAnalytics);
-  const {
-    createLoginVerificationFlow,
-    createSignupVerificationFlow,
-    getSignupAttempt,
-    updateEmailVerificationFlow,
-  } = await loadVerificationFlow();
-  const signupAttempt = authAnalytics.createSignupAttempt();
-  const loginFlow = createLoginVerificationFlow(createVerification());
-  const signupFlow = createSignupVerificationFlow(createVerification(), signupAttempt);
-  const resentSignupFlow = updateEmailVerificationFlow(
-    signupFlow,
-    createVerification({ resendAvailableAt: "2026-09-01T12:01:00.000Z" }),
+async function loadCoordinator(ports) {
+  const mapper = evaluateTypeScript(
+    await readSource("src/features/auth/lib/to-consent-decision.ts"),
   );
+  const { AuthFlowCoordinator } = evaluateTypeScript(
+    await readSource("src/features/auth/lib/auth-flow-coordinator.ts"),
+    { "./to-consent-decision": mapper },
+  );
+  return new AuthFlowCoordinator({
+    now: () => 0,
+    wait: async () => {},
+    operationKey: () => "attempt",
+    ...ports,
+  });
+}
+const pending = (nextStep, extra = {}) => ({
+  status: "PENDING",
+  nextStep,
+  flowId: "flow",
+  expiresAt: "2100-01-01T00:00:00.000Z",
+  ...extra,
+});
+const consentState = () =>
+  pending("consents", {
+    operationKey: "operation",
+    expectedStateRevision: 0,
+    expectedAdvertisingVersion: 0,
+    personalData: { revisionId: "pdn" },
+    emailAdvertising: { revisionId: "ads" },
+  });
+const freshUser = {
+  id: "private-user-id",
+  provider: "credentials",
+  providerUserId: "private-user-id",
+  email: "private@example.com",
+  roles: [],
+};
+const completed = { status: "COMPLETED", user: freshUser };
+const flush = async () => {
+  for (let i = 0; i < 20; i++) await Promise.resolve();
+};
 
-  assert.equal(getSignupAttempt(loginFlow), undefined);
-  assert.equal(getSignupAttempt(signupFlow), signupAttempt);
-  assert.equal(getSignupAttempt(resentSignupFlow), signupAttempt);
-  assert.equal(getSignupAttempt(undefined), undefined);
+async function createScenario(overrides = {}) {
+  const shared = await loadSharedAnalytics();
+  const { useAnalytics: getAuthAnalytics, createSignupAttempt } = await loadAuthAnalytics(shared);
+  const analytics = getAuthAnalytics();
+  const operations = [];
+  const coordinator = await loadCoordinator({
+    start: async () => ({ status: "LOGIN_REQUIRED", nextStep: "login" }),
+    cancel: async () => {},
+    requestCode: async () => pending("code", { generation: 1 }),
+    confirmCode: async () => pending("registration"),
+    saveRegistration: async () => consentState(),
+    login: async () => consentState(),
+    yandex: async () => consentState(),
+    exchangeActivation: async () => pending("activation"),
+    saveActivation: async () => consentState(),
+    complete: async () => pending("completion"),
+    resume: async () => completed,
+    publishSession: async () => operations.push("session"),
+    registrationCompleted: () => {
+      operations.push("sign_up");
+      analytics.signupCompleted(createSignupAttempt());
+    },
+    ...overrides,
+  });
+  return { coordinator, operations };
+}
+async function register(coordinator) {
+  await coordinator.showEmail();
+  await coordinator.requestCode({ email: "private@example.com" });
+  await coordinator.confirmCode({ code: "123456" });
+  await coordinator.saveRegistration({
+    name: "Private Name",
+    phone: "+79991234567",
+    password: "secret-password",
+    passwordConfirm: "secret-password",
+  });
+}
+
+test("email signup goal waits for completion and fresh session, then fires once before the caller", async () => {
+  const analyticsWindow = createAnalyticsWindow();
+  await withWindow(analyticsWindow, async () => {
+    const { coordinator, operations } = await createScenario();
+    const result = coordinator.request(
+      Symbol(),
+      {},
+      { onSuccess: () => operations.push("caller") },
+      undefined,
+    );
+    await flush();
+    await register(coordinator);
+    assert.deepEqual(analyticsWindow.dataLayer, []);
+    await coordinator.submitConsents({ personalData: true, advertising: false });
+    assert.equal((await result).status, "success");
+    assert.deepEqual(operations, ["session", "sign_up", "caller"]);
+    await coordinator.retry();
+    await coordinator.submitConsents({ personalData: true, advertising: false });
+    assert.deepEqual(analyticsWindow.dataLayer, [{ event: "sign_up" }]);
+    assert.doesNotMatch(
+      JSON.stringify(analyticsWindow.dataLayer),
+      /private|123456|secret-password/u,
+    );
+  });
 });
 
-test("successful confirm sends sign_up before cache cleanup and redirect only for signup flow", async () => {
-  const sharedAnalytics = await loadSharedAnalytics();
-  const authAnalytics = await loadAuthAnalytics(sharedAnalytics);
-  const analyticsWindow = createAnalyticsWindow();
-  const operations = [];
-  let response = createSession();
-  let error;
-  const hook = await loadConfirmVerificationHook({
-    operations,
-    confirmEmailVerification: async () => {
-      if (error) {
-        throw error;
-      }
-
-      return response;
-    },
-  });
-  const signupAttempt = authAnalytics.createSignupAttempt();
-  const analytics = authAnalytics.useAnalytics();
-  const signupMutation = hook.render({
-    onSignupConfirmed: () => {
-      operations.push(["sign_up"]);
-      analytics.signupCompleted(signupAttempt);
-    },
-    onSuccess: () => operations.push(["redirect"]),
-  });
-
-  await withWindow(analyticsWindow, async () => {
-    await executeMutation(signupMutation, {
-      email: "private@example.com",
-      code: "123456",
+test("rejected and cancelled registration cannot emit a signup goal", async () => {
+  for (const rejected of [true, false]) {
+    const analyticsWindow = createAnalyticsWindow();
+    await withWindow(analyticsWindow, async () => {
+      const { coordinator } = await createScenario({
+        complete: async () => ({ status: "REJECTED", errorCode: "CONSENT_MISSING" }),
+      });
+      const result = coordinator.request(Symbol(), {}, {}, undefined);
+      await flush();
+      await register(coordinator);
+      if (rejected) await coordinator.submitConsents({ personalData: true, advertising: false });
+      else await coordinator.cancel();
+      assert.equal((await result).status, "error");
+      assert.deepEqual(analyticsWindow.dataLayer, []);
     });
-    signupMutation.onSuccess(response);
-  });
+  }
+});
 
-  assert.deepEqual(analyticsWindow.dataLayer, [{ event: "sign_up" }]);
-  assert.equal(operations[0][0], "sign_up");
-  assert.equal(operations.at(-1)[0], "redirect");
-  assert.equal(JSON.stringify(analyticsWindow.dataLayer).includes("private-user-id"), false);
-  assert.equal(JSON.stringify(analyticsWindow.dataLayer).includes("private@example.com"), false);
-  assert.equal(JSON.stringify(analyticsWindow.dataLayer).includes("123456"), false);
-
-  const eventCount = analyticsWindow.dataLayer.length;
-  const loginMutation = hook.render({ onSuccess: () => operations.push(["login-redirect"]) });
-  await withWindow(analyticsWindow, () =>
-    executeMutation(loginMutation, { email: "private@example.com", code: "654321" }),
-  );
-
-  response = { user: null };
-  const guestMutation = hook.render({
-    onSignupConfirmed: () => analytics.signupCompleted(authAnalytics.createSignupAttempt()),
-  });
-  await withWindow(analyticsWindow, () =>
-    executeMutation(guestMutation, { email: "private@example.com", code: "000000" }),
-  );
-
-  response = undefined;
-  const emptyMutation = hook.render({
-    onSignupConfirmed: () => analytics.signupCompleted(authAnalytics.createSignupAttempt()),
-  });
-  await withWindow(analyticsWindow, () =>
-    executeMutation(emptyMutation, { email: "private@example.com", code: "000000" }),
-  );
-
-  error = new Error("verification failed");
-  const failedMutation = hook.render({
-    onSignupConfirmed: () => analytics.signupCompleted(authAnalytics.createSignupAttempt()),
-  });
-  await assert.rejects(
-    () =>
-      withWindow(analyticsWindow, () =>
-        executeMutation(failedMutation, { email: "private@example.com", code: "000000" }),
-      ),
-    /verification failed/u,
-  );
-
-  hook.render({
-    onSignupConfirmed: () => analytics.signupCompleted(authAnalytics.createSignupAttempt()),
-  });
-  assert.equal(analyticsWindow.dataLayer.length, eventCount);
+test("password, Yandex and guest activation completion do not count as new email signup", async () => {
+  for (const method of ["password", "yandex", "activation"]) {
+    const analyticsWindow = createAnalyticsWindow();
+    await withWindow(analyticsWindow, async () => {
+      const { coordinator } = await createScenario();
+      const result = coordinator.request(
+        Symbol(),
+        {},
+        {},
+        undefined,
+        method === "activation" ? { type: "activation", token: "private-token" } : undefined,
+      );
+      await flush();
+      if (method === "password")
+        await coordinator.login({ email: "private@example.com", password: "secret-password" });
+      if (method === "yandex") await coordinator.startYandex();
+      if (method === "activation")
+        await coordinator.saveActivation({
+          password: "secret-password",
+          passwordConfirm: "secret-password",
+        });
+      await coordinator.submitConsents({ personalData: true, advertising: false });
+      assert.equal((await result).status, "success");
+      assert.deepEqual(analyticsWindow.dataLayer, []);
+    });
+  }
 });

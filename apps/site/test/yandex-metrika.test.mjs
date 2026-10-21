@@ -146,16 +146,30 @@ test("Yandex attribution stores timestamped records and enforces the exact 21 da
   const now = Date.now();
   const originalDateNow = Date.now;
   const localStorage = createStorage({
-    "artmate:yandex:client-id": JSON.stringify({ value: "1", capturedAt: now - ttl }),
-    "artmate:yandex:yclid": JSON.stringify({ value: "2", capturedAt: now - ttl - 1 }),
+    "artmate:yandex:client-id": JSON.stringify({
+      value: "1",
+      capturedAt: now - ttl,
+    }),
+    "artmate:yandex:yclid": JSON.stringify({
+      value: "2",
+      capturedAt: now - ttl - 1,
+    }),
   });
 
   Date.now = () => now;
   try {
     withBrowserGlobals(
-      { analyticsWindow: { localStorage, location: { href: "https://artmate.ru" } }, document: {} },
+      {
+        analyticsWindow: {
+          localStorage,
+          location: { href: "https://artmate.ru" },
+        },
+        document: {},
+      },
       () => {
-        assert.deepEqual(attribution.readYandexAttribution(), { clientId: "1" });
+        assert.deepEqual(attribution.readYandexAttribution(), {
+          clientId: "1",
+        });
       },
     );
   } finally {
@@ -184,7 +198,10 @@ test("Yandex attribution removes malformed, future, legacy, and invalid records"
       const localStorage = createStorage({ "artmate:yandex:client-id": value });
       withBrowserGlobals(
         {
-          analyticsWindow: { localStorage, location: { href: "https://artmate.ru" } },
+          analyticsWindow: {
+            localStorage,
+            location: { href: "https://artmate.ru" },
+          },
           document: {},
         },
         () => assert.deepEqual(attribution.readYandexAttribution(), {}),
@@ -232,7 +249,10 @@ test("Yandex attribution is SSR-safe and retains identifiers when browser storag
     },
     () => {
       attribution.captureYandexAttribution(109148727);
-      assert.deepEqual(attribution.readYandexAttribution(), { clientId: "456", yclid: "123" });
+      assert.deepEqual(attribution.readYandexAttribution(), {
+        clientId: "456",
+        yclid: "123",
+      });
     },
   );
 
@@ -331,6 +351,12 @@ test("SPA pageview sends only changed sanitized URLs with a safe referer", async
   const pageView = evaluateTypeScript(
     await readSource("src/shared/lib/analytics/yandex-metrika-page-view.tsx"),
     {
+      "../is-sensitive-path": {
+        isSensitivePath: (path) =>
+          path.startsWith("/auth/oauth/") ||
+          path === "/auth/activate-order" ||
+          path === "/auth/reset-password",
+      },
       "./sanitize-analytics-url": sanitizer,
       "next/navigation": {
         usePathname: () => "/catalog",

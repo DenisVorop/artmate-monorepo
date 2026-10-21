@@ -1,3 +1,4 @@
+import { headers } from "next/headers";
 import type { ReactNode } from "react";
 import { Comfortaa, Nunito } from "next/font/google";
 
@@ -33,19 +34,28 @@ type RootLayoutProps = {
 };
 
 export async function RootLayout({ children }: RootLayoutProps) {
-  const [initialDeviceInfo, initialSession] = await Promise.all([
-    getServerDeviceInfo(),
-    getInitialAuthSession(),
-  ]);
+  const [initialDeviceInfo, initialSession, requestHeaders] = await Promise.all(
+    [getServerDeviceInfo(), getInitialAuthSession(), headers()],
+  );
+  const sensitiveAuth = requestHeaders.get("x-artmate-sensitive-auth") === "1";
   const queryClient = getQueryClient();
-  await queryClient.prefetchQuery(featureBannersQuery.list(getQueryOwner(initialSession.user?.id)));
+  await queryClient.prefetchQuery(
+    featureBannersQuery.list(getQueryOwner(initialSession.user?.id)),
+  );
 
   return (
-    <html lang="ru" className={`${comfortaa.variable} ${nunito.variable} overflow-x-hidden`}>
+    <html
+      lang="ru"
+      className={`${comfortaa.variable} ${nunito.variable} overflow-x-hidden`}
+    >
       <body>
         <RootStructuredData />
-        <GoogleAnalytics />
-        <YandexMetrika />
+        {!sensitiveAuth && (
+          <>
+            <GoogleAnalytics />
+            <YandexMetrika />
+          </>
+        )}
         <AppProviders
           dehydratedState={dehydrateQueryClient(queryClient)}
           initialDeviceInfo={initialDeviceInfo}

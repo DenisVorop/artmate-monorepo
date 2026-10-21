@@ -1,7 +1,7 @@
 "use client";
 
 import { ArrowLeft } from "lucide-react";
-import { useRouter } from "next/navigation";
+import { withAuth } from "@/features/auth";
 
 import type { Cart as CartModel } from "@/entities/cart";
 import { useCartData } from "@/entities/cart";
@@ -12,14 +12,15 @@ import { Link } from "@/shared/ui/link";
 import { PageTitle } from "@/shared/ui/typography";
 
 import { useRemoveCartItemMutation, useUpdateCartItemQuantityMutation } from "../model";
+import { useCartAuth } from "../lib/use-cart-auth";
 import { getItemsWord } from "../lib/cart-format";
 
 import { CartLine } from "./cart-line";
 import { CartSummary } from "./cart-summary";
 import { EmptyCartLine } from "./empty-cart-line";
 
-export function Cart() {
-  const router = useRouter();
+function BaseCart() {
+  const { onLoginRequested } = useCartAuth();
   const cart = useCartData();
 
   if (cart.isPending) {
@@ -50,14 +51,7 @@ export function Cart() {
     );
   }
 
-  return (
-    <LoadedCart
-      cart={cart.data}
-      onPromocodeLoginRequested={() =>
-        router.push(`${routes.auth}?next=${encodeURIComponent(routes.cart)}`)
-      }
-    />
-  );
+  return <LoadedCart cart={cart.data} onPromocodeLoginRequested={onLoginRequested} />;
 }
 
 function BaseLoadedCart({ cart }: { cart: CartModel }) {
@@ -106,3 +100,5 @@ function BaseLoadedCart({ cart }: { cart: CartModel }) {
 }
 
 const LoadedCart = withPromocode(BaseLoadedCart);
+
+export const Cart = withAuth(BaseCart, { source: "cart" });

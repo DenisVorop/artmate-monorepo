@@ -16,9 +16,6 @@ const commentMaxLength = 1200;
 
 export const partnerApplicationFormSchema = z
   .object({
-    acceptedPersonalDataConsent: z
-      .boolean()
-      .refine((value) => value, "Подтвердите согласие на обработку персональных данных"),
     audienceSize: z.enum(partnerAudienceSizes, {
       required_error: "Укажите размер аудитории",
     }),
@@ -27,9 +24,18 @@ export const partnerApplicationFormSchema = z
       .trim()
       .min(1, "Добавьте ссылку на основную площадку")
       .max(channelUrlMaxLength, "Ссылка слишком длинная")
-      .refine(isHttpUrl, "Введите полную ссылку, например https://t.me/your_channel"),
-    comment: z.string().trim().max(commentMaxLength, "Комментарий слишком длинный"),
-    contactHandle: z.string().trim().max(contactHandleMaxLength, "Контакт слишком длинный"),
+      .refine(
+        isHttpUrl,
+        "Введите полную ссылку, например https://t.me/your_channel",
+      ),
+    comment: z
+      .string()
+      .trim()
+      .max(commentMaxLength, "Комментарий слишком длинный"),
+    contactHandle: z
+      .string()
+      .trim()
+      .max(contactHandleMaxLength, "Контакт слишком длинный"),
     email: z
       .string()
       .trim()
@@ -50,7 +56,10 @@ export const partnerApplicationFormSchema = z
     website: z.string().max(0).optional(),
   })
   .superRefine((values, context) => {
-    if (values.preferredContact === "telegram" && !normalizeTelegramContact(values.contactHandle)) {
+    if (
+      values.preferredContact === "telegram" &&
+      !normalizeTelegramContact(values.contactHandle)
+    ) {
       context.addIssue({
         code: z.ZodIssueCode.custom,
         message: "Укажите @username или ссылку t.me/username",
@@ -59,10 +68,11 @@ export const partnerApplicationFormSchema = z
     }
   });
 
-export type PartnerApplicationFormValues = z.infer<typeof partnerApplicationFormSchema>;
+export type PartnerApplicationFormValues = z.infer<
+  typeof partnerApplicationFormSchema
+>;
 
 export const partnerApplicationFormDefaultValues = {
-  acceptedPersonalDataConsent: false,
   audienceSize: "up_to_1000",
   channelUrl: "",
   comment: "",

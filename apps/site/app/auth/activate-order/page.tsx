@@ -1,12 +1,6 @@
-import { OrderActivation } from "@/features/order-activation";
+import { AuthRoute } from "@/features/auth";
 import { routes } from "@/shared/constants";
 import { createPageMetadata, Seo } from "@/shared/lib/seo";
-
-type OrderActivationRouteProps = {
-  searchParams: Promise<{
-    token?: string | string[];
-  }>;
-};
 
 export function generateMetadata() {
   return Seo.getMetadata({
@@ -15,8 +9,17 @@ export function generateMetadata() {
   });
 }
 
-export default async function Page({ searchParams }: OrderActivationRouteProps) {
-  const { token } = await searchParams;
+type ActivationRouteProps = {
+  searchParams: Promise<{ token?: string | string[] }>;
+};
 
-  return <OrderActivation token={Array.isArray(token) ? token[0] : token} />;
+export default async function Page({ searchParams }: ActivationRouteProps) {
+  const { token } = await searchParams;
+  return (
+    <AuthRoute
+      entry="activation"
+      token={Array.isArray(token) ? token[0] : token}
+      next={routes.account}
+    />
+  );
 }

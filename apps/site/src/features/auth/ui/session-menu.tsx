@@ -21,7 +21,7 @@ import { useLogoutMutation } from "../model";
 export function SessionMenu() {
   const router = useRouter();
   const { mutate: logout, isPending: isLogoutPending } = useLogoutMutation({
-    onSuccess: () => router.refresh(),
+    onSuccess: () => router.replace(routes.home),
   });
   const { user, isPending: isSessionPending } = useSession();
 

@@ -3,6 +3,8 @@
 import { useEffect, useRef } from "react";
 import { usePathname, useSearchParams } from "next/navigation";
 
+import { isSensitivePath } from "../is-sensitive-path";
+
 import type { AnalyticsWindow } from "./types";
 import { sanitizeAnalyticsUrl } from "./sanitize-analytics-url";
 
@@ -10,12 +12,15 @@ type YandexMetrikaPageViewProps = {
   readonly counterId: number;
 };
 
-export function YandexMetrikaPageView({ counterId }: YandexMetrikaPageViewProps) {
+export function YandexMetrikaPageView({
+  counterId,
+}: YandexMetrikaPageViewProps) {
   const pathname = usePathname();
   const searchParams = useSearchParams();
   const currentUrlRef = useRef<string | null>(null);
 
   useEffect(() => {
+    if (isSensitivePath(pathname)) return;
     const currentUrl = sanitizeAnalyticsUrl(window.location.href);
 
     if (!currentUrl) {

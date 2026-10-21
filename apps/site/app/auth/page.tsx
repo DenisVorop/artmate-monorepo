@@ -1,11 +1,6 @@
-import { redirect } from "next/navigation";
-
-import { getSafeAuthRedirectPath } from "@/features/auth";
-import { getAuthSession } from "@/shared/actions/auth";
-import { routes } from "@/shared/constants";
-import { ApiResult } from "@/shared/lib/api-result";
-import { createPageMetadata, Seo } from "@/shared/lib/seo";
 import { AuthPage } from "@/pages/auth";
+import { routes } from "@/shared/constants";
+import { createPageMetadata, Seo } from "@/shared/lib/seo";
 
 export function generateMetadata() {
   return Seo.getMetadata({
@@ -17,18 +12,16 @@ export function generateMetadata() {
 type AuthRouteProps = {
   searchParams: Promise<{
     next?: string | string[];
+    resume?: string | string[];
   }>;
 };
 
 export default async function Page({ searchParams }: AuthRouteProps) {
-  const result = ApiResult.fromDTO(await getAuthSession());
-  const session = result.isError ? undefined : result.data;
-
-  if (session?.user) {
-    const { next } = await searchParams;
-
-    redirect(getSafeAuthRedirectPath(Array.isArray(next) ? next[0] : next));
-  }
-
-  return <AuthPage />;
+  const { next, resume } = await searchParams;
+  return (
+    <AuthPage
+      next={Array.isArray(next) ? next[0] : next}
+      resume={resume === "1"}
+    />
+  );
 }

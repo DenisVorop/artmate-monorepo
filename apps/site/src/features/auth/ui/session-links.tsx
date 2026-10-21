@@ -16,7 +16,7 @@ export function SessionLinks({ onNavigate }: { onNavigate: () => void }) {
   const { mutate: logout, isPending: isLogoutPending } = useLogoutMutation({
     onSuccess: () => {
       onNavigate();
-      router.refresh();
+      router.replace(routes.home);
     },
   });
 

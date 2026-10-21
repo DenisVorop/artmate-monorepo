@@ -15,7 +15,6 @@ import { BenefitsPanel } from "./benefits-panel";
 import { flowGridClassName, primaryButtonClassName } from "./flow-layout";
 import { FormError } from "./form-error";
 import { StepHeading } from "./step-heading";
-import { VerifiedStatus } from "./verified-status";
 
 const checkboxClassName =
   "size-5 border-stone-400 bg-white data-checked:border-rose-500 data-checked:bg-rose-500 data-checked:text-white focus-visible:ring-rose-300";
@@ -34,44 +33,15 @@ export function ConsentsStep({
   const advertisingId = `${titleId}-advertising`;
 
   return (
-    <form className={flowGridClassName} onSubmit={form.handleSubmit(props.onConsents)} noValidate>
-      <div className="flex min-w-0 flex-col pt-2 sm:min-h-60">
-        <VerifiedStatus via={props.verifiedVia} />
+    <form
+      className={`${flowGridClassName} sm:grid-rows-[1fr_auto]`}
+      onSubmit={form.handleSubmit(props.onConsents)}
+      noValidate
+    >
+      <div className="min-w-0 pt-2">
         <StepHeading id={titleId}>
           Завершим <span className="sm:block">вход?</span>
         </StepHeading>
-        <div className="mt-9 flex items-start gap-3 sm:mt-auto sm:pt-9">
-          <Controller
-            name="advertising"
-            control={form.control}
-            render={({ field }) => (
-              <Checkbox
-                id={advertisingId}
-                checked={field.value}
-                onCheckedChange={(value) => field.onChange(value === true)}
-                onBlur={field.onBlur}
-                ref={field.ref}
-                disabled={props.isPending}
-                className={`${checkboxClassName} mt-0.5 rounded-[5px]`}
-              />
-            )}
-          />
-          <Label
-            htmlFor={advertisingId}
-            className="block min-w-0 text-sm leading-6 font-normal text-stone-800"
-          >
-            Даю согласие на получение{" "}
-            <Link
-              href={routes.legal.advertisingConsent}
-              target="_blank"
-              rel="noopener noreferrer"
-              className={`${documentLinkClassName} inline-block`}
-            >
-              рекламных писем
-            </Link>{" "}
-            Artmate
-          </Label>
-        </div>
       </div>
       <BenefitsPanel
         className="sm:col-start-2 sm:row-span-2 sm:row-start-1"
@@ -101,7 +71,8 @@ export function ConsentsStep({
               >
                 Даю{" "}
                 <Link
-                  href={routes.legal.personalDataConsent}
+                  href={props.documents?.personalData.url ?? routes.legal.personalDataConsent}
+                  aria-label={props.documents?.personalData.documentTitle}
                   target="_blank"
                   rel="noopener noreferrer"
                   className={documentLinkClassName}
@@ -110,23 +81,61 @@ export function ConsentsStep({
                 </Link>
               </Label>
             </div>
-            <FormError
-              id={`${personalDataId}-error`}
-              message={form.formState.errors.personalData?.message}
-            />
+            <div className="min-h-9 pt-1 pl-[30px]">
+              <FormError
+                id={`${personalDataId}-error`}
+                message={form.formState.errors.personalData?.message}
+                className="text-xs leading-4"
+              />
+            </div>
           </div>
         }
       />
-      <div className="space-y-3 sm:col-start-1 sm:row-start-2 sm:self-end">
-        <FormError message={props.error} />
-        <CtaGradientButton
-          type="submit"
-          className={primaryButtonClassName}
-          disabled={props.isPending}
-        >
-          Продолжить
-          <ArrowRight aria-hidden className="size-4" />
-        </CtaGradientButton>
+      <div className="sm:col-start-1 sm:row-start-2 sm:self-end">
+        <FormError message={props.error} reserveSpace className="min-h-10 pb-2" />
+        <div className="space-y-6">
+          <div className="flex items-start gap-3">
+            <Controller
+              name="advertising"
+              control={form.control}
+              render={({ field }) => (
+                <Checkbox
+                  id={advertisingId}
+                  checked={field.value}
+                  onCheckedChange={(value) => field.onChange(value === true)}
+                  onBlur={field.onBlur}
+                  ref={field.ref}
+                  disabled={props.isPending}
+                  className={`${checkboxClassName} mt-0.5 rounded-[5px]`}
+                />
+              )}
+            />
+            <Label
+              htmlFor={advertisingId}
+              className="block min-w-0 text-sm leading-6 font-normal text-stone-800"
+            >
+              Даю согласие на получение{" "}
+              <Link
+                href={props.documents?.emailAdvertising.url ?? routes.legal.advertisingConsent}
+                aria-label={props.documents?.emailAdvertising.documentTitle}
+                target="_blank"
+                rel="noopener noreferrer"
+                className={`${documentLinkClassName} inline-block`}
+              >
+                рекламных писем
+              </Link>{" "}
+              Artmate
+            </Label>
+          </div>
+          <CtaGradientButton
+            type="submit"
+            className={primaryButtonClassName}
+            disabled={props.isPending}
+          >
+            Продолжить
+            <ArrowRight aria-hidden className="size-4" />
+          </CtaGradientButton>
+        </div>
       </div>
     </form>
   );

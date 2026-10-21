@@ -17,68 +17,8 @@ export type AuthSessionDTO = {
   user: AuthUserDTO | null;
 };
 
-export type AuthEmailVerificationStateDTO = {
-  email: string;
-  emailMasked?: string;
-  expiresAt?: string;
-  resendAvailableAt: string;
-};
-
-export type AuthEmailVerificationResponseDTO = {
-  status: "verification_required";
-  verification: AuthEmailVerificationStateDTO;
-};
-
 export type AuthProvidersDTO = {
   providers: AuthOAuthProvider[];
-};
-
-export type LoginInputDTO = {
-  email: string;
-  password: string;
-};
-
-export type RegisterInputDTO = {
-  acceptedPersonalDataConsent: boolean;
-  password: string;
-  name?: string;
-  email: string;
-};
-
-export type ConfirmEmailVerificationInputDTO = {
-  email: string;
-  code: string;
-};
-
-export type ResendEmailVerificationInputDTO = {
-  email: string;
-};
-
-export type RequestAccountRecoveryInputDTO = {
-  acceptedPersonalDataConsent: boolean;
-  email: string;
-};
-
-export type ValidateOrderActivationInputDTO = {
-  token: string;
-};
-
-export type OrderActivationValidityDTO = {
-  valid: boolean;
-};
-
-export type ConfirmOrderActivationInputDTO = {
-  token: string;
-  password: string;
-};
-
-export type ConfirmPasswordResetInputDTO = {
-  token: string;
-  password: string;
-};
-
-export type PasswordResetDTO = {
-  ok: true;
 };
 
 export type LogoutDTO = {

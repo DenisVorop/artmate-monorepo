@@ -21,13 +21,14 @@ export function buildPartnerApplicationPayload(
   return {
     audienceSize: values.audienceSize,
     channelUrl: values.channelUrl.trim(),
-    consent: true,
     email: values.email.trim(),
     name: values.name.trim(),
     partnerType: values.partnerType,
     preferredContact: values.preferredContact,
     website: values.website?.trim(),
-    ...(values.preferredContact === "telegram" && contactHandle ? { contactHandle } : {}),
+    ...(values.preferredContact === "telegram" && contactHandle
+      ? { contactHandle }
+      : {}),
     ...(comment ? { comment } : {}),
     ...utm,
   };

@@ -11,27 +11,48 @@ async function readSource(path) {
 }
 
 test("guest checkout creates the order immediately without an authentication gate", async () => {
-  const [checkout, flow, form, calculationState, provider, context, hoc, legacyState] =
-    await Promise.all([
-      readSource("src/features/checkout/ui/checkout.tsx"),
-      readSource("src/features/checkout/ui/checkout-flow.tsx"),
-      readSource("src/features/checkout/lib/checkout-form.ts"),
-      readSource("src/features/checkout/lib/calculation-state.ts"),
-      readSource("src/features/checkout/lib/checkout-provider/checkout-provider.tsx"),
-      readSource("src/features/checkout/lib/checkout-provider/checkout.context.tsx"),
-      readSource("src/features/checkout/lib/checkout-provider/with-checkout.tsx"),
-      readSource("src/features/checkout/lib/auth-confirmation-state.ts"),
-    ]);
+  const [
+    checkout,
+    flow,
+    form,
+    calculationState,
+    provider,
+    context,
+    hoc,
+    legacyState,
+  ] = await Promise.all([
+    readSource("src/features/checkout/ui/checkout.tsx"),
+    readSource("src/features/checkout/ui/checkout-flow.tsx"),
+    readSource("src/features/checkout/lib/checkout-form.ts"),
+    readSource("src/features/checkout/lib/calculation-state.ts"),
+    readSource(
+      "src/features/checkout/lib/checkout-provider/checkout-provider.tsx",
+    ),
+    readSource(
+      "src/features/checkout/lib/checkout-provider/checkout.context.tsx",
+    ),
+    readSource("src/features/checkout/lib/checkout-provider/with-checkout.tsx"),
+    readSource("src/features/checkout/lib/auth-confirmation-state.ts"),
+  ]);
 
-  assert.match(checkout, /const handleSubmit[\s\S]*await createOrder\(variables\)/u);
-  assert.doesNotMatch(checkout, /if\s*\(!user\)|onAuthRequired|onManualConfirmation/u);
+  assert.match(
+    checkout,
+    /const handleSubmit[\s\S]*await createOrder\(variables\)/u,
+  );
+  assert.doesNotMatch(
+    checkout,
+    /if\s*\(!user\)|onAuthRequired|onManualConfirmation/u,
+  );
   assert.doesNotMatch(
     `${checkout}\n${flow}\n${form}\n${provider}\n${context}\n${hoc}`,
     /requiresAuth/u,
   );
   assert.equal(legacyState, "");
 
-  assert.match(calculationState, /case "ready":[\s\S]*return "Оформить заказ"/u);
+  assert.match(
+    calculationState,
+    /case "ready":[\s\S]*return "Оформить заказ"/u,
+  );
 });
 
 test("guest success and failure UI are neutral and never import order queries or render identifiers", async () => {
@@ -59,15 +80,21 @@ test("checkout contact and guest success explain that access mail is sent at che
   const [contactFields, guestSuccess, activationForm] = await Promise.all([
     readSource("src/features/checkout/ui/contact-fields.tsx"),
     readSource("src/features/checkout/ui/guest-success.tsx"),
-    readSource("src/features/order-activation/ui/activation-form.tsx"),
+    readSource("src/features/auth/ui/flow/activation-step.tsx"),
   ]);
 
   assert.match(contactFields, /Пришлём чек и информацию о заказе\./u);
   assert.match(contactFields, /checkout-phone-error/u);
-  assert.match(guestSuccess, /письмо для входа или восстановления доступа отправлены на email\./u);
-  assert.doesNotMatch(`${contactFields}\n${guestSuccess}`, /после оплаты|Если аккаунта ещё нет/iu);
+  assert.match(
+    guestSuccess,
+    /письмо для входа или восстановления доступа отправлены на email\./u,
+  );
+  assert.doesNotMatch(
+    `${contactFields}\n${guestSuccess}`,
+    /после оплаты|Если аккаунта ещё нет/iu,
+  );
   assert.doesNotMatch(guestSuccess, /ссылка активации|создать пароль/iu);
-  assert.match(activationForm, /<CardTitle>Завершите регистрацию<\/CardTitle>/u);
+  assert.match(activationForm, /Завершите регистрацию/u);
 });
 
 test("checkout prefills the recipient phone from the authenticated user", async () => {
@@ -77,15 +104,21 @@ test("checkout prefills the recipient phone from the authenticated user", async 
 });
 
 test("checkout result routes select neutral guest UI while authenticated owners retain details and polling", async () => {
-  const [successRoute, failureRoute, successPage, failurePage, ownerSuccess, ownerFailure] =
-    await Promise.all([
-      readSource("app/(site)/checkout/success/page.tsx"),
-      readSource("app/(site)/checkout/failure/page.tsx"),
-      readSource("src/_pages/checkout-success/index.tsx"),
-      readSource("src/_pages/checkout-failure/index.tsx"),
-      readSource("src/features/checkout/ui/success.tsx"),
-      readSource("src/features/checkout/ui/failure.tsx"),
-    ]);
+  const [
+    successRoute,
+    failureRoute,
+    successPage,
+    failurePage,
+    ownerSuccess,
+    ownerFailure,
+  ] = await Promise.all([
+    readSource("app/(site)/checkout/success/page.tsx"),
+    readSource("app/(site)/checkout/failure/page.tsx"),
+    readSource("src/_pages/checkout-success/index.tsx"),
+    readSource("src/_pages/checkout-failure/index.tsx"),
+    readSource("src/features/checkout/ui/success.tsx"),
+    readSource("src/features/checkout/ui/failure.tsx"),
+  ]);
 
   for (const route of [successRoute, failureRoute]) {
     assert.match(route, /getAuthSession/u);
@@ -123,21 +156,31 @@ test("payment route preserves owner redirects and renders cookie-protected neutr
   assert.match(paymentRoute, /GuestCheckoutFailure|CheckoutFailurePage/u);
   assert.doesNotMatch(paymentRoute, /routes\.auth|getSafeAuthRedirectPath/u);
   assert.doesNotMatch(paymentRoute, /recoverOrderPayment/u);
-  assert.match(guestFailure, /onClick=\{\(\) => orderId && recoverPayment\(orderId\)\}/u);
+  assert.match(
+    guestFailure,
+    /onClick=\{\(\) => orderId && recoverPayment\(orderId\)\}/u,
+  );
   assert.match(recoveryAction, /method:\s*"POST"/u);
 });
 
 test("legacy manual-confirmation tests, action, and copy are removed", async () => {
-  const [buyerTest, checkout, flow, form, orderActions, orderActionIndex, orderTypes] =
-    await Promise.all([
-      readSource("test/promocodes-buyer.test.mjs"),
-      readSource("src/features/checkout/ui/checkout.tsx"),
-      readSource("src/features/checkout/ui/checkout-flow.tsx"),
-      readSource("src/features/checkout/lib/checkout-form.ts"),
-      readSource("src/shared/actions/orders/orders.actions.ts"),
-      readSource("src/shared/actions/orders/index.ts"),
-      readSource("src/shared/actions/orders/order.types.ts"),
-    ]);
+  const [
+    buyerTest,
+    checkout,
+    flow,
+    form,
+    orderActions,
+    orderActionIndex,
+    orderTypes,
+  ] = await Promise.all([
+    readSource("test/promocodes-buyer.test.mjs"),
+    readSource("src/features/checkout/ui/checkout.tsx"),
+    readSource("src/features/checkout/ui/checkout-flow.tsx"),
+    readSource("src/features/checkout/lib/checkout-form.ts"),
+    readSource("src/shared/actions/orders/orders.actions.ts"),
+    readSource("src/shared/actions/orders/index.ts"),
+    readSource("src/shared/actions/orders/order.types.ts"),
+  ]);
   const source = `${buyerTest}\n${checkout}\n${flow}\n${form}\n${orderActions}\n${orderActionIndex}\n${orderTypes}`;
 
   assert.doesNotMatch(

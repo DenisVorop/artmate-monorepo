@@ -1,4 +1,4 @@
-import { AccountRecovery } from "@/features/account-recovery";
+import { AuthRoute } from "@/features/auth";
 import { routes } from "@/shared/constants";
 import { createPageMetadata, Seo } from "@/shared/lib/seo";
 
@@ -8,7 +8,6 @@ export function generateMetadata() {
     fallback: createPageMetadata("auth"),
   });
 }
-
 export default function Page() {
-  return <AccountRecovery />;
+  return <AuthRoute entry="recovery" />;
 }

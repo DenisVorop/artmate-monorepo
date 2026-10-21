@@ -1,17 +1,16 @@
 "use client";
 
-import { ArrowRight } from "lucide-react";
 import { zodResolver } from "@hookform/resolvers/zod";
 import { useForm } from "react-hook-form";
 
-import { CtaGradientButton, Input, Label } from "@/shared/ui";
+import { CtaGradientButton } from "@/shared/ui";
 
 import { contactProfileSchema, type ContactProfileValues } from "../../lib/flow-form-values";
 import type { AuthFlowViewProps } from "../../lib/flow-view.types";
-import { fieldInputClassName, primaryButtonClassName, stepFormClassName } from "./flow-layout";
-import { FormError } from "./form-error";
+import { primaryButtonClassName } from "./flow-layout";
+import { ProfileFields } from "./profile-fields";
+import { StepForm } from "./step-form";
 import { StepHeading } from "./step-heading";
-import { VerifiedStatus } from "./verified-status";
 
 export function ProfileStep({
   titleId,
@@ -26,54 +25,32 @@ export function ProfileStep({
   });
 
   return (
-    <form className={stepFormClassName} onSubmit={form.handleSubmit(props.onProfile)} noValidate>
-      <div>
-        <VerifiedStatus via={props.verifiedVia} />
-        <StepHeading id={titleId}>Ваши данные</StepHeading>
-        <p className="mt-3 text-sm leading-6 text-stone-500">Добавьте имя и телефон в аккаунт.</p>
-      </div>
-      <div className="space-y-4">
-        <div className="space-y-2">
-          <Label htmlFor={`${titleId}-name`}>ФИО</Label>
-          <Input
-            {...form.register("name")}
-            id={`${titleId}-name`}
-            autoComplete="name"
-            maxLength={120}
-            placeholder="Фамилия, имя, отчество"
-            className={fieldInputClassName}
+    <StepForm
+      onSubmit={form.handleSubmit(props.onProfile)}
+      isPending={props.isPending}
+      error={props.error}
+      actions={
+        <>
+          <CtaGradientButton
+            type="submit"
+            className={primaryButtonClassName}
             disabled={props.isPending}
-            aria-invalid={!!form.formState.errors.name}
-            aria-describedby={form.formState.errors.name ? `${titleId}-name-error` : undefined}
-          />
-          <FormError id={`${titleId}-name-error`} message={form.formState.errors.name?.message} />
-        </div>
-        <div className="space-y-2">
-          <Label htmlFor={`${titleId}-phone`}>Номер телефона</Label>
-          <Input
-            {...form.register("phone")}
-            id={`${titleId}-phone`}
-            type="tel"
-            autoComplete="tel"
-            maxLength={80}
-            placeholder="+7 (___) ___-__-__"
-            className={fieldInputClassName}
-            disabled={props.isPending}
-            aria-invalid={!!form.formState.errors.phone}
-            aria-describedby={form.formState.errors.phone ? `${titleId}-phone-error` : undefined}
-          />
-          <FormError id={`${titleId}-phone-error`} message={form.formState.errors.phone?.message} />
-        </div>
-      </div>
-      <FormError message={props.error} />
-      <CtaGradientButton
-        type="submit"
-        className={`${primaryButtonClassName} mt-auto`}
+          >
+            Продолжить
+          </CtaGradientButton>
+        </>
+      }
+    >
+      <StepHeading id={titleId}>Ваши данные</StepHeading>
+      <ProfileFields
+        idPrefix={titleId}
+        missingFields={props.missingFields}
+        nameField={form.register("name")}
+        phoneField={form.register("phone")}
+        nameError={form.formState.errors.name?.message}
+        phoneError={form.formState.errors.phone?.message}
         disabled={props.isPending}
-      >
-        Продолжить
-        <ArrowRight aria-hidden className="size-4" />
-      </CtaGradientButton>
-    </form>
+      />
+    </StepForm>
   );
 }

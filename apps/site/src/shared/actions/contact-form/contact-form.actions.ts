@@ -1,12 +1,11 @@
 "use server";
 
-import { ApiResult, type ApiResultDTO } from "@/shared/lib/api-result";
-import { apiCsrfHeader } from "@/shared/lib/api-security";
+import { headers } from "next/headers";
 
-import type {
-  ContactMessageResultDTO,
-  SubmitContactMessageInputDTO,
-} from "./contact-form.types";
+import { ApiResult, type ApiResultDTO } from "@/shared/lib/api-result";
+import { apiCsrfHeader, getForwardedIpHeaders } from "@/shared/lib/api-security";
+
+import type { ContactMessageResultDTO, SubmitContactMessageInputDTO } from "./contact-form.types";
 
 const DEFAULT_API_BASE_URL = "http://localhost:3002";
 
@@ -24,11 +23,13 @@ export async function submitContactMessage(
 }
 
 async function requestContactForm<T>(path: string, init: RequestInit = {}) {
+  const headerStore = await headers();
   const response = await fetch(`${getApiBaseUrl()}${path}`, {
     ...init,
     cache: "no-store",
     headers: {
       "content-type": "application/json",
+      ...getForwardedIpHeaders(headerStore),
       ...init.headers,
       ...apiCsrfHeader,
     },

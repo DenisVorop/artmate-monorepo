@@ -1,11 +1,11 @@
-import { AuthForm } from "@/features/auth";
+import { AuthRoute } from "@/features/auth";
 
-export function AuthPage() {
-  return (
-    <main className="bg-stone-50/60">
-      <section className="container flex min-h-dvh items-center justify-center py-10">
-        <AuthForm />
-      </section>
-    </main>
-  );
+export function AuthPage({
+  next,
+  resume,
+}: {
+  next?: string;
+  resume?: boolean;
+}) {
+  return <AuthRoute next={next} entry={resume ? "resume" : "login"} />;
 }

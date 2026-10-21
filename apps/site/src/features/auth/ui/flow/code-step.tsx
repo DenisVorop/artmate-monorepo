@@ -10,9 +10,10 @@ import { InputOTP, InputOTPGroup, InputOTPSlot } from "@/shared/ui/input-otp";
 
 import { emailCodeConfirmSchema, type EmailCodeConfirmValues } from "../../lib/flow-form-values";
 import type { AuthFlowViewProps } from "../../lib/flow-view.types";
-import { primaryButtonClassName, stepFormClassName } from "./flow-layout";
+import { primaryButtonClassName } from "./flow-layout";
 import { FormError } from "./form-error";
 import { StepHeading } from "./step-heading";
+import { StepForm } from "./step-form";
 
 export function CodeStep({
   titleId,
@@ -24,13 +25,30 @@ export function CodeStep({
   });
   const inputId = `${titleId}-code`;
   const errorId = `${inputId}-error`;
+  const resendTime = `${String(Math.floor(props.resendSeconds / 60)).padStart(2, "0")}:${String(
+    props.resendSeconds % 60,
+  ).padStart(2, "0")}`;
 
   return (
-    <form className={stepFormClassName} onSubmit={form.handleSubmit(props.onCode)} noValidate>
+    <StepForm
+      onSubmit={form.handleSubmit(props.onCode)}
+      isPending={props.isPending}
+      reserveErrorSpace={false}
+      actions={
+        <CtaGradientButton
+          type="submit"
+          className={primaryButtonClassName}
+          disabled={props.isPending}
+        >
+          Подтвердить почту
+          <ArrowRight aria-hidden className="size-4" />
+        </CtaGradientButton>
+      }
+    >
       <Button
         type="button"
-        variant="ghost"
-        className="h-auto min-h-8 self-start px-0 text-xs text-stone-500"
+        variant="link"
+        className="h-auto min-h-11 self-start px-0 text-xs text-stone-500 hover:text-stone-700"
         onClick={props.onBack}
         disabled={props.isPending}
       >
@@ -44,7 +62,7 @@ export function CodeStep({
           <span className="block font-semibold wrap-anywhere text-stone-800">{props.email}</span>
         </p>
       </div>
-      <div className="space-y-2">
+      <div data-auth-field className="space-y-1">
         <Label htmlFor={inputId} className="sr-only">
           Код из письма
         </Label>
@@ -58,6 +76,7 @@ export function CodeStep({
               maxLength={6}
               pattern={REGEXP_ONLY_DIGITS}
               autoComplete="one-time-code"
+              pushPasswordManagerStrategy="none"
               containerClassName="w-full"
               disabled={props.isPending}
               aria-invalid={!!fieldState.error || !!props.error}
@@ -75,27 +94,22 @@ export function CodeStep({
             </InputOTP>
           )}
         />
-        <FormError id={errorId} message={form.formState.errors.code?.message ?? props.error} />
+        <FormError
+          reserveSpace
+          className="min-h-8"
+          id={errorId}
+          message={form.formState.errors.code?.message ?? props.error}
+        />
       </div>
       <Button
         type="button"
-        variant="ghost"
-        className="h-auto min-h-11 self-start px-0 text-xs text-stone-500"
+        variant="link"
+        className="h-auto min-h-11 self-start px-0 text-xs text-stone-500 hover:text-stone-700"
         onClick={props.onResend}
         disabled={props.isPending || props.resendSeconds > 0}
       >
-        {props.resendSeconds > 0
-          ? `Новый код через 00:${String(props.resendSeconds).padStart(2, "0")}`
-          : "Отправить код ещё раз"}
+        {props.resendSeconds > 0 ? `Новый код через ${resendTime}` : "Отправить код ещё раз"}
       </Button>
-      <CtaGradientButton
-        type="submit"
-        className={`${primaryButtonClassName} mt-auto`}
-        disabled={props.isPending}
-      >
-        Подтвердить почту
-        <ArrowRight aria-hidden className="size-4" />
-      </CtaGradientButton>
-    </form>
+    </StepForm>
   );
 }

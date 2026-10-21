@@ -7,27 +7,48 @@ import { X } from "lucide-react";
 import { Button } from "@/shared/ui";
 
 import type { AuthFlowViewProps } from "../../lib/flow-view.types";
+import { ActivationStep } from "./activation-step";
 import { CodeStep } from "./code-step";
 import { ConsentsStep } from "./consents-step";
 import { EmailStep } from "./email-step";
 import { FlowLayout } from "./flow-layout";
+import { LoginStep } from "./login-step";
 import { OutcomeStep } from "./outcome-step";
 import { ProfileStep } from "./profile-step";
+import { RecoveryResult } from "./recovery-result";
+import { RecoveryStep } from "./recovery-step";
+import { RegistrationStep } from "./registration-step";
 
 export function AuthFlowView(props: AuthFlowViewProps) {
   const titleId = useId();
   const surfaceRef = useRef<HTMLElement>(null);
-  const previousStep = useRef(props.step);
 
   useEffect(() => {
-    if (previousStep.current !== props.step) {
-      surfaceRef.current?.querySelector<HTMLElement>("h2")?.focus();
-      previousStep.current = props.step;
-    }
+    surfaceRef.current?.querySelector<HTMLElement>("h2")?.focus();
   }, [props.step]);
 
   let content;
   switch (props.step) {
+    case "login":
+      content = <LoginStep {...props} titleId={titleId} />;
+      break;
+    case "registration":
+      content = <RegistrationStep {...props} titleId={titleId} />;
+      break;
+    case "activation":
+      content = <ActivationStep {...props} titleId={titleId} />;
+      break;
+    case "recovery":
+      content = <RecoveryStep {...props} titleId={titleId} />;
+      break;
+    case "recovery-sent":
+    case "activation-invalid":
+      content = (
+        <FlowLayout>
+          <RecoveryResult {...props} titleId={titleId} />
+        </FlowLayout>
+      );
+      break;
     case "email":
       content = <EmailStep {...props} titleId={titleId} />;
       break;
@@ -38,10 +59,17 @@ export function AuthFlowView(props: AuthFlowViewProps) {
       content = <ProfileStep {...props} titleId={titleId} />;
       break;
     case "consents":
-      content = null;
+      content = <ConsentsStep {...props} titleId={titleId} />;
+      break;
+    case "success":
+      content = <OutcomeStep {...props} titleId={titleId} />;
       break;
     default:
-      content = <OutcomeStep {...props} titleId={titleId} />;
+      content = (
+        <FlowLayout>
+          <OutcomeStep {...props} titleId={titleId} />
+        </FlowLayout>
+      );
   }
 
   return (
@@ -58,7 +86,7 @@ export function AuthFlowView(props: AuthFlowViewProps) {
           height={50}
           className="h-auto w-26"
         />
-        {props.step !== "success" && props.step !== "cancelled" && (
+        {props.onCancel && props.step !== "success" && props.step !== "cancelled" && (
           <Button
             type="button"
             variant="ghost"
@@ -71,11 +99,7 @@ export function AuthFlowView(props: AuthFlowViewProps) {
           </Button>
         )}
       </header>
-      {props.step === "consents" ? (
-        <ConsentsStep {...props} titleId={titleId} />
-      ) : (
-        <FlowLayout>{content}</FlowLayout>
-      )}
+      {content}
     </section>
   );
 }

@@ -4,7 +4,11 @@ import { Check } from "lucide-react";
 
 import { cn } from "@/shared/lib/utils";
 
-const benefits = ["Заказы и покупки", "Работы в мастерской", "Всё под одной почтой"];
+const benefits = [
+  "Следите за своими заказами",
+  "Сохраняйте работы в мастерской",
+  "Копите баллы за покупки",
+];
 
 export function BenefitsPanel({
   personalDataChoice,
@@ -17,16 +21,25 @@ export function BenefitsPanel({
     <aside
       aria-label="Аккаунт Artmate"
       className={cn(
-        "min-w-0 rounded-2xl bg-linear-to-br from-rose-50 via-rose-50 to-orange-50 p-6",
+        "relative isolate min-w-0 overflow-hidden rounded-2xl bg-linear-to-br from-rose-50 via-rose-50 to-orange-50 p-6",
         className,
       )}
     >
+      <Image
+        src="/images/auth/coloring-relief-3d.png"
+        alt=""
+        aria-hidden="true"
+        width={1280}
+        height={1280}
+        sizes="320px"
+        className="pointer-events-none absolute -right-6 -bottom-8 -z-10 h-auto w-80 max-w-none opacity-20 select-none sm:opacity-30"
+      />
       <Image
         src="/images/auth/palette-3d.png"
         alt=""
         width={64}
         height={64}
-        className="mb-5 hidden sm:block"
+        className="mb-4 size-12 sm:mb-5 sm:size-16"
       />
       <h3 className="mb-5 font-heading text-xl leading-normal font-semibold tracking-[-0.6px] text-stone-900 sm:text-[23px]">
         Ваш аккаунт <span className="sm:block">Artmate</span>

@@ -6,18 +6,10 @@ import { useEffect, useState } from "react";
 import type { Cart, CartResult } from "@/entities/cart";
 import { useCartData } from "@/entities/cart";
 import { useUser } from "@/entities/session";
-import { AuthForm } from "@/features/auth";
+import { withAuth } from "@/features/auth";
 import { usePromocode, withPromocode } from "@/features/promocode";
 import { routes } from "@/shared/constants";
-import {
-  Button,
-  DataState,
-  Dialog,
-  DialogContent,
-  DialogDescription,
-  DialogHeader,
-  DialogTitle,
-} from "@/shared/ui";
+import { Button, DataState } from "@/shared/ui";
 import { Link } from "@/shared/ui/link";
 import { PageTitle } from "@/shared/ui/typography";
 
@@ -28,6 +20,7 @@ import type {
   CheckoutProviderSubmitVariables,
 } from "../lib";
 import { useTrackCheckoutStart } from "../lib/use-track-checkout-start";
+import { useCheckoutAuth } from "../lib/use-checkout-auth";
 
 import { CheckoutFlow } from "./checkout-flow";
 
@@ -86,51 +79,16 @@ export function Checkout() {
   return <LoadedCheckout cart={verifiedCart} />;
 }
 
-function LoadedCheckout({ cart }: { cart: Cart }) {
+function BaseLoadedCheckout({ cart }: { cart: Cart }) {
   useTrackCheckoutStart(cart);
-  const [isAuthDialogOpen, setIsAuthDialogOpen] = useState(false);
-
-  return (
-    <PromocodeCheckout
-      cart={cart}
-      isAuthDialogOpen={isAuthDialogOpen}
-      onAuthDialogOpenChange={setIsAuthDialogOpen}
-      onAuthenticated={() => setIsAuthDialogOpen(false)}
-      onPromocodeLoginRequested={() => setIsAuthDialogOpen(true)}
-    />
-  );
+  const { onLoginRequested } = useCheckoutAuth();
+  return <PromocodeCheckout cart={cart} onPromocodeLoginRequested={onLoginRequested} />;
 }
 
-type PromocodeCheckoutProps = {
-  cart: Cart;
-  isAuthDialogOpen: boolean;
-  onAuthDialogOpenChange: (_isOpen: boolean) => void;
-  onAuthenticated: () => void;
-};
+const LoadedCheckout = withAuth(BaseLoadedCheckout, { source: "checkout" });
 
-function BasePromocodeCheckout({
-  cart,
-  isAuthDialogOpen,
-  onAuthDialogOpenChange,
-  onAuthenticated,
-}: PromocodeCheckoutProps) {
-  return (
-    <>
-      <CheckoutScenario cart={cart} />
-
-      <Dialog open={isAuthDialogOpen} onOpenChange={onAuthDialogOpenChange}>
-        <DialogContent className="sm:max-w-md">
-          <DialogHeader>
-            <DialogTitle>Вход в аккаунт</DialogTitle>
-            <DialogDescription>
-              После входа мы заново проверим промокод и итоговую сумму.
-            </DialogDescription>
-          </DialogHeader>
-          <AuthForm embedded showNameOptionalHint={false} onAuthenticated={onAuthenticated} />
-        </DialogContent>
-      </Dialog>
-    </>
-  );
+function BasePromocodeCheckout({ cart }: { cart: Cart }) {
+  return <CheckoutScenario cart={cart} />;
 }
 
 const PromocodeCheckout = withPromocode(BasePromocodeCheckout);
