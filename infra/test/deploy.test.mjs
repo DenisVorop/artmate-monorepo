@@ -21,6 +21,11 @@ function runDeployment(failAt = "") {
         return 42
       fi
     }
+    bash() {
+      printf 'backup %s\\n' "$*"
+      if [ "$DEPLOY_TEST_FAIL_AT" = backup ]; then return 42; fi
+      test "$1" = infra/backup-database.sh
+    }
     ${deployScript}
   `], { encoding: "utf8", env: { ...process.env, DEPLOY_TEST_FAIL_AT: failAt } });
 }
@@ -32,15 +37,17 @@ test("production stops API writers before migrating and only then starts the rel
   assert.match(commands[0], / pull$/);
   assert.match(commands[1], / up -d postgres$/);
   assert.match(commands[2], / stop --timeout 120 api$/);
-  assert.match(commands[3], / --profile migrate run --rm api-migrate$/);
-  assert.match(commands[4], / up -d --remove-orphans --wait --wait-timeout 120$/);
-  assert.match(commands[5], / exec -T caddy /);
+  assert.match(commands[3], /^backup infra\/backup-database\.sh --env-file \.env --env-file \.image\.env --output \/opt\/artmate-backups\/pre-migrate-.+\.dump$/);
+  assert.match(commands[4], / --profile migrate run --rm api-migrate$/);
+  assert.match(commands[5], / up -d --remove-orphans --wait --wait-timeout 120$/);
+  assert.match(commands[6], / exec -T caddy /);
   assert.equal(commands.filter((command) => command.includes(" stop ")).length, 1);
 });
 
 for (const [failure, forbidden] of [
   [" pull", " stop "],
-  [" stop --timeout 120 api", " run --rm api-migrate"],
+  [" stop --timeout 120 api", "backup infra/backup-database.sh"],
+  ["backup", " run --rm api-migrate"],
   [" run --rm api-migrate", " up -d --remove-orphans"],
   [" up -d --remove-orphans", " exec -T caddy"],
 ]) {

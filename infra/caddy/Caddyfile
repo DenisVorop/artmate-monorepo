@@ -1,5 +1,18 @@
 {
 	email {$ACME_EMAIL}
+	log default {
+		format filter {
+			wrap json
+			fields {
+				request>uri query {
+					replace token REDACTED
+					replace code REDACTED
+					replace state REDACTED
+				}
+				request>headers>Referer delete
+			}
+		}
+	}
 }
 
 (security_headers) {
@@ -40,6 +53,14 @@
 	}
 }
 
+(auth_link_headers) {
+	header {args[0]} {
+		Referrer-Policy "no-referrer"
+		Cache-Control "no-store, max-age=0"
+		defer
+	}
+}
+
 (proxy_headers) {
 	header_up X-Forwarded-For {remote_host}
 	header_up X-Real-IP {remote_host}
@@ -49,11 +70,23 @@
 
 art-mate.ru, www.art-mate.ru, www.artmate.ru {
 	import site_security_headers
+	@sensitive_auth path /auth/activate-order /auth/reset-password /auth/oauth/* /unsubscribe /consents/email-advertising/unsubscribe /consents/email-advertising/unsubscribe/*
+	import auth_link_headers @sensitive_auth
+	handle_errors {
+		import auth_link_headers @sensitive_auth
+		respond "" {err.status_code}
+	}
 	redir https://artmate.ru{uri} permanent
 }
 
 artmate.ru {
 	import site_security_headers
+	@sensitive_auth path /auth/activate-order /auth/reset-password /auth/oauth/* /unsubscribe /consents/email-advertising/unsubscribe /consents/email-advertising/unsubscribe/*
+	import auth_link_headers @sensitive_auth
+	handle_errors {
+		import auth_link_headers @sensitive_auth
+		respond "" {err.status_code}
+	}
 	encode zstd gzip
 	reverse_proxy site:3000 {
 		import proxy_headers
@@ -84,6 +117,12 @@ affiliate.artmate.ru {
 
 api.art-mate.ru, api.artmate.ru {
 	import security_headers
+	@sensitive_auth path /auth/activate-order /auth/reset-password /auth/oauth/* /unsubscribe /consents/email-advertising/unsubscribe /consents/email-advertising/unsubscribe/*
+	import auth_link_headers @sensitive_auth
+	handle_errors {
+		import auth_link_headers @sensitive_auth
+		respond "" {err.status_code}
+	}
 	encode zstd gzip
 	reverse_proxy api:3002 {
 		import proxy_headers

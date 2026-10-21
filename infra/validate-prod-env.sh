@@ -9,7 +9,7 @@ usage() {
   cat >&2 <<'USAGE'
 Usage: bash infra/validate-prod-env.sh --env-file <path> [--env-file <path> ...]
 
-Validates that every required production env variable has a non-empty value.
+Validates required values and the independent auth/consent infrastructure keys.
 USAGE
 }
 
@@ -144,6 +144,31 @@ END {
     exit 1
   }
 
-  printf "Production env validation passed: %d required values present.\n", required_count
+  # These two stable infrastructure keys are independent from JWT and each other.
+  # Check only names/shape here; never include secret values in diagnostics.
+  for (i = 1; i <= 2; i++) {
+    name = i == 1 ? "AUTH_FLOW_PROXY_SECRET" : "ADVERTISING_RECIPIENT_HMAC_SECRET"
+    value = values[name]
+    if (length(value) < 32 || value ~ /[[:space:]]/ || tolower(value) ~ /^(change[-_]me|replace[-_]|example[-_]|dummy[-_])/) {
+      printf "Invalid production key: %s (use an independent random value of at least 32 characters).\n", name > "/dev/stderr"
+      invalid_count++
+    }
+    if (value != "" && value == values["AUTH_JWT_SECRET"]) {
+      printf "Production key must differ from AUTH_JWT_SECRET: %s\n", name > "/dev/stderr"
+      invalid_count++
+    }
+  }
+  if (values["AUTH_FLOW_PROXY_SECRET"] == values["ADVERTISING_RECIPIENT_HMAC_SECRET"]) {
+    print "AUTH_FLOW_PROXY_SECRET and ADVERTISING_RECIPIENT_HMAC_SECRET must differ." > "/dev/stderr"
+    invalid_count++
+  }
+  version = values["ADVERTISING_RECIPIENT_KEY_VERSION"]
+  if (length(version) < 1 || length(version) > 32 || version !~ /^[A-Za-z0-9][A-Za-z0-9._-]*$/) {
+    print "Invalid ADVERTISING_RECIPIENT_KEY_VERSION (1..32 letters/digits/dot/underscore/hyphen)." > "/dev/stderr"
+    invalid_count++
+  }
+  if (invalid_count > 0) exit 1
+
+  printf "Production env validation passed: %d required values present; auth/consent keys checked.\n", required_count
 }
 ' "$required_file" "${env_files[@]}"
