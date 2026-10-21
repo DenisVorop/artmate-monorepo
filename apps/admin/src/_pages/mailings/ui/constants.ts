@@ -140,7 +140,7 @@ export const mailingRegistryGroups: readonly MailingRegistryGroup[] = [
       {
         id: "email-verification-code",
         trigger:
-          "Регистрация, вход с неподтвержденным email или повторная отправка кода",
+          "Регистрация по электронной почте или повторная отправка кода",
         recipients: "Пользователь",
         channels: ["email"],
         destination: "user.email",
@@ -150,7 +150,7 @@ export const mailingRegistryGroups: readonly MailingRegistryGroup[] = [
           "Учитываются cooldown и лимиты отправок по email и IP.",
           "Активные старые коды потребляются при успешном подтверждении.",
         ],
-        source: "email-verification.service.ts",
+        source: "registration-email.adapter.ts",
       },
       {
         id: "password-reset",

@@ -73,15 +73,23 @@ model AuthSession {
 }
 
 model OAuthState {
-  id          String       @id @default(cuid())
-  provider    AuthProvider
-  stateHash   String       @unique @map("state_hash") @db.VarChar(128)
-  redirectUri String?      @map("redirect_uri") @db.Text
-  expiresAt   DateTime     @map("expires_at")
-  consumedAt  DateTime?    @map("consumed_at")
-  createdAt   DateTime     @default(now()) @map("created_at")
+  id                   String       @id @default(cuid())
+  provider             AuthProvider
+  stateHash            String       @unique @map("state_hash") @db.VarChar(128)
+  redirectUri          String?      @map("redirect_uri") @db.Text
+  capabilityHash       String?      @map("capability_hash") @db.Char(64)
+  browserBindingHash   String?      @map("browser_binding_hash") @db.Char(64)
+  pkceChallenge        String?      @map("pkce_challenge") @db.VarChar(43)
+  exchangeCodeHash     String?      @map("exchange_code_hash") @db.Char(64)
+  resultFlowIdSnapshot String?      @map("result_flow_id_snapshot")
+  resultCode           String?      @map("result_code") @db.VarChar(64)
+  cancelledAt          DateTime?    @map("cancelled_at")
+  expiresAt            DateTime     @map("expires_at")
+  consumedAt           DateTime?    @map("consumed_at")
+  createdAt            DateTime     @default(now()) @map("created_at")
 
   @@index([provider, expiresAt])
+  @@index([capabilityHash, browserBindingHash], map: "oauth_states_pending_binding")
   @@map("oauth_states")
 }
 

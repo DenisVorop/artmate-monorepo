@@ -1,5 +1,5 @@
 import {
-  Equals,
+  IsBoolean,
   IsEmail,
   IsISO8601,
   IsIn,
@@ -48,8 +48,18 @@ export class PartnerApplicationDTO {
   @IsString()
   comment?: string;
 
-  @Equals(true)
-  consent!: true;
+  /** Historical checkbox only; new applications reference actual acceptance. */
+  @IsOptional()
+  @IsBoolean()
+  consent!: boolean | null;
+
+  @IsOptional()
+  @IsString()
+  authenticatedUserId?: string;
+
+  @IsOptional()
+  @IsString()
+  consentAcceptanceId?: string;
 
   @IsOptional()
   @IsString()

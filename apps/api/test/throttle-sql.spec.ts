@@ -12,7 +12,7 @@ import { OrderActivationService } from "../src/auth/order-activation.service";
 import {
   AuthRecoveryThrottleScope,
   OrderCheckoutThrottleScope,
-  type Prisma,
+  Prisma,
 } from "../src/generated/prisma/client";
 import { CheckoutThrottleService } from "../src/orders/checkout-throttle.service";
 
@@ -66,9 +66,9 @@ const recoveryConfig: ThrottleConfig = {
   },
   increment: (
     OrderActivationService.prototype as unknown as {
-      incrementRecoveryThrottle: IncrementThrottle;
+      _incrementRecoveryThrottle: IncrementThrottle;
     }
-  ).incrementRecoveryThrottle,
+  )._incrementRecoveryThrottle,
   modelName: "authRecoveryThrottle",
   table: "auth_recovery_throttles",
 };
@@ -257,6 +257,18 @@ function createThrottleFixture(
         };
         const tx = {
           [config.modelName]: model,
+          $executeRaw: async (
+            strings: TemplateStringsArray,
+            ...values: unknown[]
+          ) => {
+            const statement = Prisma.sql(strings, ...values);
+            assert.match(statement.text, /pg_advisory_xact_lock/);
+            const result = await connection.query(
+              statement.text,
+              statement.values,
+            );
+            return result.affectedRows ?? 0;
+          },
           $queryRaw: async (statement: Prisma.Sql) => {
             // Execute the service's unmodified SQL and bound parameters.
             const result = await connection.query<{ id: string }>(

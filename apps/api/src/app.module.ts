@@ -5,6 +5,7 @@ import { AppService } from "./app.service";
 import { AchievementsModule } from "./achievements/achievements.module";
 import { AnalyticsModule } from "./analytics/analytics.module";
 import { AffiliateModule } from "./affiliate/affiliate.module";
+import { ConsentsModule } from "./consents/consents.module";
 import { AuthModule } from "./auth/auth.module";
 import { BlogModule } from "./blog/blog.module";
 import { CartModule } from "./cart/cart.module";
@@ -38,6 +39,7 @@ import { MaterialsModule } from "./materials/materials.module";
     AnalyticsModule,
     UsersModule,
     AuthModule,
+    ConsentsModule,
     CartModule,
     OrdersModule,
     LoyaltyHttpModule,

@@ -1,5 +1,7 @@
 import { Injectable, Logger, NotFoundException } from "@nestjs/common";
 
+import type { SiteActionAccessV1 } from "../auth/contracts/site-action-access.contract";
+
 import { ContactsService } from "../contacts/contacts.service";
 import {
   PartnerApplicationAudienceSize as PrismaPartnerApplicationAudienceSize,
@@ -57,7 +59,10 @@ export class PartnerApplicationsService {
     private readonly prisma: PrismaService,
   ) {}
 
-  async createApplication(input: CreatePartnerApplicationRequestDTO) {
+  async createApplication(
+    input: CreatePartnerApplicationRequestDTO,
+    access: SiteActionAccessV1,
+  ) {
     if (input.website?.trim()) {
       return { accepted: true as const };
     }
@@ -66,13 +71,16 @@ export class PartnerApplicationsService {
       data: {
         name: input.name,
         email: input.email.toLowerCase(),
-        preferredContact: this.toPrismaPreferredContact(input.preferredContact),
+        preferredContact: this._toPrismaPreferredContact(
+          input.preferredContact,
+        ),
         contactHandle: input.contactHandle,
         channelUrl: input.channelUrl,
-        partnerType: this.toPrismaPartnerType(input.partnerType),
-        audienceSize: this.toPrismaAudienceSize(input.audienceSize),
+        partnerType: this._toPrismaPartnerType(input.partnerType),
+        audienceSize: this._toPrismaAudienceSize(input.audienceSize),
         comment: input.comment,
-        consent: input.consent,
+        authenticatedUserId: access.actor.userId,
+        consentAcceptanceId: access.requiredConsent.acceptanceId,
         utmSource: input.utmSource,
         utmMedium: input.utmMedium,
         utmCampaign: input.utmCampaign,
@@ -81,14 +89,14 @@ export class PartnerApplicationsService {
       },
     });
 
-    await this.notifyAboutApplication(application);
+    await this._notifyAboutApplication(application);
 
     return { accepted: true as const };
   }
 
   async listApplications(query: ListPartnerApplicationsQueryDTO) {
     const where: Prisma.PartnerApplicationWhereInput = query.status
-      ? { status: this.toPrismaStatus(query.status) }
+      ? { status: this._toPrismaStatus(query.status) }
       : {};
     const skip = (query.page - 1) * query.pageSize;
     const [applications, total] = await this.prisma.$transaction([
@@ -103,7 +111,7 @@ export class PartnerApplicationsService {
 
     return {
       items: applications.map((application) =>
-        this.mapApplication(application),
+        this._mapApplication(application),
       ),
       page: query.page,
       pageSize: query.pageSize,
@@ -119,10 +127,10 @@ export class PartnerApplicationsService {
     try {
       const application = await this.prisma.partnerApplication.update({
         where: { id: applicationId },
-        data: { status: this.toPrismaStatus(input.status) },
+        data: { status: this._toPrismaStatus(input.status) },
       });
 
-      return this.mapApplication(application);
+      return this._mapApplication(application);
     } catch (error) {
       if (
         error instanceof Prisma.PrismaClientKnownRequestError &&
@@ -135,10 +143,10 @@ export class PartnerApplicationsService {
     }
   }
 
-  private async notifyAboutApplication(application: StoredPartnerApplication) {
+  private async _notifyAboutApplication(application: StoredPartnerApplication) {
     try {
       await this.contactsService.enqueueTelegramNotification(
-        this.formatTelegramMessage(application),
+        this._formatTelegramMessage(application),
       );
     } catch (error) {
       this.logger.warn(
@@ -149,8 +157,8 @@ export class PartnerApplicationsService {
     }
   }
 
-  private formatTelegramMessage(application: StoredPartnerApplication) {
-    const preferredContact = this.mapPreferredContact(
+  private _formatTelegramMessage(application: StoredPartnerApplication) {
+    const preferredContact = this._mapPreferredContact(
       application.preferredContact,
     );
     const utm = [
@@ -165,54 +173,60 @@ export class PartnerApplicationsService {
     const lines = [
       "<b>Новая заявка в партнёрскую программу Artmate</b>",
       "",
-      `<b>Имя:</b> ${this.formatTelegramText(application.name, 240)}`,
-      `<b>Email:</b> <code>${this.formatTelegramText(application.email, 400)}</code>`,
+      `<b>Имя:</b> ${this._formatTelegramText(application.name, 240)}`,
+      `<b>Email:</b> <code>${this._formatTelegramText(application.email, 400)}</code>`,
       `<b>Связаться через:</b> ${preferredContactLabels[preferredContact]}`,
       application.contactHandle
-        ? `<b>Контакт:</b> <code>${this.formatTelegramText(application.contactHandle, 240)}</code>`
+        ? `<b>Контакт:</b> <code>${this._formatTelegramText(application.contactHandle, 240)}</code>`
         : undefined,
-      `<b>Площадка:</b> ${this.formatTelegramText(application.channelUrl, 800)}`,
-      `<b>Тип партнёра:</b> ${partnerTypeLabels[this.mapPartnerType(application.partnerType)]}`,
-      `<b>Аудитория:</b> ${audienceSizeLabels[this.mapAudienceSize(application.audienceSize)]}`,
-      "<b>Согласие на обработку ПДн:</b> получено",
+      `<b>Площадка:</b> ${this._formatTelegramText(application.channelUrl, 800)}`,
+      `<b>Тип партнёра:</b> ${partnerTypeLabels[this._mapPartnerType(application.partnerType)]}`,
+      `<b>Аудитория:</b> ${audienceSizeLabels[this._mapAudienceSize(application.audienceSize)]}`,
+      ...(application.consentAcceptanceId
+        ? [
+            `<b>Согласие на обработку ПДн:</b> <code>${this._formatTelegramText(application.consentAcceptanceId, 128)}</code>`,
+          ]
+        : []),
       application.comment ? "" : undefined,
       application.comment ? "<b>Комментарий:</b>" : undefined,
       application.comment
-        ? this.formatTelegramText(application.comment, 1_200)
+        ? this._formatTelegramText(application.comment, 1_200)
         : undefined,
       utm ? "" : undefined,
-      utm ? `<b>UTM:</b> ${this.formatTelegramText(utm, 600)}` : undefined,
+      utm ? `<b>UTM:</b> ${this._formatTelegramText(utm, 600)}` : undefined,
       "",
-      `<b>ID заявки:</b> <code>${this.formatTelegramText(application.id, 64)}</code>`,
+      `<b>ID заявки:</b> <code>${this._formatTelegramText(application.id, 64)}</code>`,
     ].filter((line): line is string => typeof line === "string");
 
     return lines.join("\n");
   }
 
-  private mapApplication(application: StoredPartnerApplication) {
+  private _mapApplication(application: StoredPartnerApplication) {
     return {
       id: application.id,
       name: application.name,
       email: application.email,
-      preferredContact: this.mapPreferredContact(application.preferredContact),
+      preferredContact: this._mapPreferredContact(application.preferredContact),
       contactHandle: application.contactHandle ?? undefined,
       channelUrl: application.channelUrl,
-      partnerType: this.mapPartnerType(application.partnerType),
-      audienceSize: this.mapAudienceSize(application.audienceSize),
+      partnerType: this._mapPartnerType(application.partnerType),
+      audienceSize: this._mapAudienceSize(application.audienceSize),
       comment: application.comment ?? undefined,
       consent: application.consent,
+      authenticatedUserId: application.authenticatedUserId ?? undefined,
+      consentAcceptanceId: application.consentAcceptanceId ?? undefined,
       utmSource: application.utmSource ?? undefined,
       utmMedium: application.utmMedium ?? undefined,
       utmCampaign: application.utmCampaign ?? undefined,
       utmContent: application.utmContent ?? undefined,
       utmTerm: application.utmTerm ?? undefined,
-      status: this.mapStatus(application.status),
+      status: this._mapStatus(application.status),
       createdAt: application.createdAt.toISOString(),
       updatedAt: application.updatedAt.toISOString(),
     };
   }
 
-  private toPrismaPreferredContact(value: PartnerApplicationPreferredContact) {
+  private _toPrismaPreferredContact(value: PartnerApplicationPreferredContact) {
     switch (value) {
       case "email":
         return PrismaPartnerApplicationPreferredContact.EMAIL;
@@ -221,7 +235,7 @@ export class PartnerApplicationsService {
     }
   }
 
-  private mapPreferredContact(
+  private _mapPreferredContact(
     value: PrismaPartnerApplicationPreferredContact,
   ): PartnerApplicationPreferredContact {
     switch (value) {
@@ -232,7 +246,7 @@ export class PartnerApplicationsService {
     }
   }
 
-  private toPrismaPartnerType(value: PartnerApplicationType) {
+  private _toPrismaPartnerType(value: PartnerApplicationType) {
     switch (value) {
       case "creator":
         return PrismaPartnerApplicationType.CREATOR;
@@ -249,7 +263,7 @@ export class PartnerApplicationsService {
     }
   }
 
-  private mapPartnerType(
+  private _mapPartnerType(
     value: PrismaPartnerApplicationType,
   ): PartnerApplicationType {
     switch (value) {
@@ -268,7 +282,7 @@ export class PartnerApplicationsService {
     }
   }
 
-  private toPrismaAudienceSize(value: PartnerApplicationAudienceSize) {
+  private _toPrismaAudienceSize(value: PartnerApplicationAudienceSize) {
     switch (value) {
       case "up_to_1000":
         return PrismaPartnerApplicationAudienceSize.UP_TO_1000;
@@ -281,7 +295,7 @@ export class PartnerApplicationsService {
     }
   }
 
-  private mapAudienceSize(
+  private _mapAudienceSize(
     value: PrismaPartnerApplicationAudienceSize,
   ): PartnerApplicationAudienceSize {
     switch (value) {
@@ -296,7 +310,7 @@ export class PartnerApplicationsService {
     }
   }
 
-  private toPrismaStatus(value: PartnerApplicationStatus) {
+  private _toPrismaStatus(value: PartnerApplicationStatus) {
     switch (value) {
       case "new":
         return PrismaPartnerApplicationStatus.NEW;
@@ -309,7 +323,7 @@ export class PartnerApplicationsService {
     }
   }
 
-  private mapStatus(
+  private _mapStatus(
     value: PrismaPartnerApplicationStatus,
   ): PartnerApplicationStatus {
     switch (value) {
@@ -324,7 +338,7 @@ export class PartnerApplicationsService {
     }
   }
 
-  private normalizeTelegramText(value: string) {
+  private _normalizeTelegramText(value: string) {
     const withoutControlCharacters = Array.from(value.trim())
       .map((character) => {
         const codePoint = character.codePointAt(0) ?? 0;
@@ -341,8 +355,8 @@ export class PartnerApplicationsService {
     return withoutControlCharacters.replace(/\s+/gu, " ");
   }
 
-  private formatTelegramText(value: string, maxLength: number) {
-    const normalized = this.normalizeTelegramText(value);
+  private _formatTelegramText(value: string, maxLength: number) {
+    const normalized = this._normalizeTelegramText(value);
     const codePoints = Array.from(normalized);
     let escaped = "";
 

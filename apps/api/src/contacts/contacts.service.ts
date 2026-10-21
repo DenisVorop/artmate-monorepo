@@ -25,14 +25,14 @@ export class ContactsService {
   ) {}
 
   async createMessage(request: CreateContactMessageRequestDTO) {
-    await this.sendTelegramNotification(this.formatTelegramMessage(request));
+    await this.sendTelegramNotification(this._formatTelegramMessage(request));
 
     return { sent: true };
   }
 
   async sendTelegramNotification(text: string) {
-    const response = await this.requestTelegram(text);
-    const responseBody = (await this.parseTelegramResponseBody(
+    const response = await this._requestTelegram(text);
+    const responseBody = (await this._parseTelegramResponseBody(
       response,
     )) as TelegramSendMessageResponse;
 
@@ -49,22 +49,22 @@ export class ContactsService {
   async enqueueTelegramNotification(text: string) {
     await this.notificationQueueService.enqueueTelegram({
       bot: "orders",
-      chatId: this.getTelegramContactsChatId(),
+      chatId: this._getTelegramContactsChatId(),
       disableWebPagePreview: true,
       parseMode: "HTML",
       text,
     });
   }
 
-  private async requestTelegram(text: string) {
+  private async _requestTelegram(text: string) {
     try {
-      const botToken = this.getTelegramBotToken();
+      const botToken = this._getTelegramBotToken();
 
       return await fetch(getTelegramBotMethodUrl(botToken, "sendMessage"), {
         method: "POST",
         headers: getTelegramRequestHeaders(botToken),
         body: JSON.stringify({
-          chat_id: this.getTelegramContactsChatId(),
+          chat_id: this._getTelegramContactsChatId(),
           disable_web_page_preview: true,
           parse_mode: "HTML",
           text,
@@ -79,43 +79,43 @@ export class ContactsService {
     }
   }
 
-  private formatTelegramMessage(request: CreateContactMessageRequestDTO) {
+  private _formatTelegramMessage(request: CreateContactMessageRequestDTO) {
     const lines = [
       "<b>Новое сообщение с сайта Artmate</b>",
       "",
-      `<b>Имя:</b> ${this.formatText(request.name)}`,
-      `<b>Email:</b> <code>${this.formatText(request.email)}</code>`,
+      `<b>Имя:</b> ${this._formatText(request.name)}`,
+      `<b>Email:</b> <code>${this._formatText(request.email)}</code>`,
       request.topic
-        ? `<b>Тема:</b> ${this.formatText(request.topic)}`
+        ? `<b>Тема:</b> ${this._formatText(request.topic)}`
         : undefined,
       request.order
-        ? `<b>Номер заказа:</b> <code>${this.formatText(request.order)}</code>`
+        ? `<b>Номер заказа:</b> <code>${this._formatText(request.order)}</code>`
         : undefined,
       "<b>Согласие на обработку ПДн:</b> получено",
       "",
       "<b>Сообщение:</b>",
-      this.formatMessage(request.message),
+      this._formatMessage(request.message),
     ].filter((line): line is string => typeof line === "string");
 
     return lines.join("\n");
   }
 
-  private formatText(value: string) {
-    return this.escapeHtml(value.trim().replaceAll(/\s+/g, " "));
+  private _formatText(value: string) {
+    return this._escapeHtml(value.trim().replaceAll(/\s+/g, " "));
   }
 
-  private formatMessage(value: string) {
-    return this.escapeHtml(value.trim());
+  private _formatMessage(value: string) {
+    return this._escapeHtml(value.trim());
   }
 
-  private escapeHtml(value: string) {
+  private _escapeHtml(value: string) {
     return value
       .replaceAll("&", "&amp;")
       .replaceAll("<", "&lt;")
       .replaceAll(">", "&gt;");
   }
 
-  private getTelegramBotToken() {
+  private _getTelegramBotToken() {
     const token = process.env.TELEGRAM_BOT_TOKEN?.trim();
 
     if (!token) {
@@ -127,7 +127,7 @@ export class ContactsService {
     return token;
   }
 
-  private getTelegramContactsChatId() {
+  private _getTelegramContactsChatId() {
     const chatId = process.env.TELEGRAM_CONTACTS_CHAT_ID?.trim();
 
     if (!chatId) {
@@ -139,7 +139,7 @@ export class ContactsService {
     return chatId;
   }
 
-  private async parseTelegramResponseBody(response: Response) {
+  private async _parseTelegramResponseBody(response: Response) {
     const contentType = response.headers.get("content-type") ?? "";
 
     if (contentType.includes("application/json")) {

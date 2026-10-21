@@ -1,7 +1,5 @@
 import { Transform } from "class-transformer";
 import {
-  Equals,
-  IsBoolean,
   IsEmail,
   IsIn,
   IsOptional,
@@ -98,10 +96,6 @@ export class CreatePartnerApplicationRequestDTO {
   @IsString()
   @MaxLength(partnerApplicationCommentMaxLength)
   comment?: string;
-
-  @IsBoolean()
-  @Equals(true)
-  consent!: true;
 
   @OptionalTrim()
   @IsOptional()

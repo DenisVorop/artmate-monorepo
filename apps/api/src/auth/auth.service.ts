@@ -71,18 +71,49 @@ export class AuthService {
 
   async verifyAccessToken(token: string): Promise<AuthUser> {
     try {
-      const payload = await this.jwtService.verifyAsync<AuthTokenPayload>(
-        token,
-        {
-          secret: this.getJwtSecret(),
-        },
-      );
-      const authVersion = this.getPayloadAuthVersion(payload);
-
-      return await this.getUserFromPayload(payload, authVersion);
+      const { user } = await this._verifyToken(token);
+      return user;
     } catch {
       throw new UnauthorizedException("Invalid access token");
     }
+  }
+
+  public async verifyFlowSession(token: string): Promise<{
+    principal: AuthPrincipal;
+    expiresAt: Date;
+  }> {
+    try {
+      const { user, payload, authVersion } = await this._verifyToken(token);
+      const expiresAt = (payload as AuthTokenPayload & { exp?: unknown }).exp;
+      if (
+        typeof expiresAt !== "number" ||
+        !Number.isSafeInteger(expiresAt) ||
+        expiresAt * 1000 <= Date.now()
+      )
+        throw new UnauthorizedException("Invalid access token");
+      return {
+        principal: {
+          ...user,
+          authVersion,
+          envCredentialBinding:
+            typeof payload.envCredentialBinding === "string"
+              ? payload.envCredentialBinding
+              : undefined,
+        },
+        expiresAt: new Date(expiresAt * 1000),
+      };
+    } catch {
+      throw new UnauthorizedException("Invalid access token");
+    }
+  }
+
+  private async _verifyToken(token: string) {
+    const payload = await this.jwtService.verifyAsync<AuthTokenPayload>(token, {
+      secret: this.getJwtSecret(),
+    });
+    const authVersion = this.getPayloadAuthVersion(payload);
+    const user = await this.getUserFromPayload(payload, authVersion);
+    return { user, payload, authVersion };
   }
 
   getTokenFromRequest(authorizationHeader?: string, cookieHeader?: string) {
@@ -288,10 +319,9 @@ export class AuthService {
       return;
     }
 
-    const currentBinding =
-      this.credentialsAuthService.getEnvCredentialBinding(
-        user.providerUserId,
-      );
+    const currentBinding = this.credentialsAuthService.getEnvCredentialBinding(
+      user.providerUserId,
+    );
 
     if (
       typeof tokenBinding !== "string" ||

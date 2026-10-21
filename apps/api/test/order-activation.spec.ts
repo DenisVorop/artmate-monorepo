@@ -2,24 +2,16 @@ import assert from "node:assert/strict";
 import crypto from "node:crypto";
 import { describe, it } from "node:test";
 
-import {
-  BadRequestException,
-  HttpException,
-  Logger,
-  RequestMethod,
-} from "@nestjs/common";
-import { METHOD_METADATA, PATH_METADATA } from "@nestjs/common/constants";
+import { HttpException, Logger } from "@nestjs/common";
+import { PATH_METADATA } from "@nestjs/common/constants";
 
-import { AUTH_ACCESS_TOKEN_COOKIE_NAME } from "../src/auth/auth.constants";
 import { AuthController } from "../src/auth/auth.controller";
-import type { AuthService } from "../src/auth/auth.service";
 import { OrderActivationService } from "../src/auth/order-activation.service";
 import {
   createOrderActivationToken,
   createOrderActivationTokenHash,
   verifyOrderActivationToken,
 } from "../src/auth/order-activation-token";
-import type { CredentialsAuthService } from "../src/auth/credentials-auth.service";
 import {
   AuthProvider as PrismaAuthProvider,
   NotificationJobChannel,
@@ -79,15 +71,24 @@ describe("guest order attachment", () => {
     assert.equal(fixture.activeActivationTokens(), 1);
     assert.equal(fixture.activationTokens[0]?.consumedAt, null);
     assert.equal(
-      fixture.notificationPayloads.filter((payload) => payload.kind === "order_activation").length,
+      fixture.notificationPayloads.filter(
+        (payload) => payload.kind === "order_activation",
+      ).length,
       1,
     );
-    assert.equal(fixture.emails.length, 0, "ordinary login email must not be queued");
+    assert.equal(
+      fixture.emails.length,
+      0,
+      "ordinary login email must not be queued",
+    );
   });
 
   it("keeps the ordinary login and recovery email for active credentials and OAuth users", async () => {
     for (const account of [
-      { provider: PrismaAuthProvider.CREDENTIALS, credential: { id: "credential-1" } },
+      {
+        provider: PrismaAuthProvider.CREDENTIALS,
+        credential: { id: "credential-1" },
+      },
       { provider: PrismaAuthProvider.YANDEX, credential: undefined },
     ]) {
       const fixture = createFixture({
@@ -95,7 +96,10 @@ describe("guest order attachment", () => {
         credential: account.credential,
       });
 
-      await fixture.service.attachGuestOrderInTransaction(fixture.tx, createGuestOrder());
+      await fixture.service.attachGuestOrderInTransaction(
+        fixture.tx,
+        createGuestOrder(),
+      );
 
       assert.equal(fixture.emails.length, 1);
       assert.match(fixture.emails[0]!.text, /войдите|войти/i);
@@ -218,7 +222,8 @@ describe("guest order attachment", () => {
   it("does not attach a user that becomes inactive after the missing-user upsert", async () => {
     for (const status of [UserStatus.BLOCKED, UserStatus.DELETED]) {
       const fixture = createFixture({
-        postUpsertEligibility: status === UserStatus.BLOCKED ? "blocked" : "deleted",
+        postUpsertEligibility:
+          status === UserStatus.BLOCKED ? "blocked" : "deleted",
         userStatus: "missing",
       });
 
@@ -272,150 +277,6 @@ describe("order activation and recovery", () => {
     );
 
     assert.equal(routes.includes("password-reset/request"), false);
-  });
-
-  it("validates activation tokens before showing the form without disclosing PII", async () => {
-    const validToken = createTestActivationToken("preflight-valid-token");
-    const unknownToken = createTestActivationToken("preflight-unknown-token");
-    const cases = [
-      { expected: true, fixture: createFixture({ activationToken: validToken }), token: validToken },
-      { expected: false, fixture: createFixture(), token: "malformed" },
-      { expected: false, fixture: createFixture(), token: unknownToken },
-      {
-        expected: false,
-        fixture: createFixture({ activationToken: createTestActivationToken("preflight-expired"), tokenState: "expired" }),
-        token: createTestActivationToken("preflight-expired"),
-      },
-      {
-        expected: false,
-        fixture: createFixture({ activationToken: createTestActivationToken("preflight-consumed"), tokenState: "consumed" }),
-        token: createTestActivationToken("preflight-consumed"),
-      },
-    ];
-
-    for (const testCase of cases) {
-      const validateActivation = (
-        testCase.fixture.service as unknown as {
-          validateActivation?: (_token: string) => Promise<unknown>;
-        }
-      ).validateActivation;
-      assert.equal(typeof validateActivation, "function", "activation preflight service is missing");
-      const validateActivationFunction = validateActivation as (
-        _token: string,
-      ) => Promise<unknown>;
-
-      const result = await validateActivationFunction.call(
-        testCase.fixture.service,
-        testCase.token,
-      );
-      assert.deepEqual(result, { valid: testCase.expected });
-      assert.deepEqual(Object.keys(result as object), ["valid"]);
-      assert.doesNotMatch(JSON.stringify(result), /buyer@|new-user|order-/i);
-    }
-  });
-
-  it("exposes activation preflight as a PII-free POST controller contract", async () => {
-    const controller = Object.assign(Object.create(AuthController.prototype), {
-      orderActivationService: {
-        validateActivation: async () => ({ valid: false }),
-      },
-    }) as AuthController;
-    const handler = (
-      controller as unknown as {
-        validateOrderActivation?: (_request: { token: string }) => Promise<unknown>;
-      }
-    ).validateOrderActivation;
-
-    assert.equal(typeof handler, "function", "activation preflight controller endpoint is missing");
-    const handlerFunction = handler as (_request: { token: string }) => Promise<unknown>;
-    assert.equal(Reflect.getMetadata(PATH_METADATA, handlerFunction), "order-activation/validate");
-    assert.equal(Reflect.getMetadata(METHOD_METADATA, handlerFunction), RequestMethod.POST);
-    assert.deepEqual(await handlerFunction.call(controller, { token: "opaque-token" }), {
-      valid: false,
-    });
-  });
-
-  it("atomically sets the password, verifies email, consumes tokens and returns the user", async () => {
-    const token = createTestActivationToken("valid-token");
-    const fixture = createFixture({ activationToken: token });
-
-    const user = await fixture.service.confirmActivation({
-      password: "new-password",
-      token,
-    });
-
-    assert.equal(user.id, "new-user");
-    assert.equal(
-      (user as unknown as { authVersion: number }).authVersion,
-      1,
-    );
-    assert.equal(fixture.authVersion(), 1);
-    assert.equal(fixture.passwordHash(), "hashed:new-password");
-    assert.ok(fixture.emailVerifiedAt());
-    assert.equal(fixture.activeActivationTokens(), 0);
-    assert.equal(fixture.activeResetTokens(), 0);
-  });
-
-  it("locks the user before the activation token during confirmation", async () => {
-    const token = createTestActivationToken("lock-order-token");
-    const fixture = createFixture({ activationToken: token });
-
-    await fixture.service.confirmActivation({
-      password: "new-password",
-      token,
-    });
-
-    assert.deepEqual(fixture.lockEvents(), ["user", "activation-token"]);
-  });
-
-  it("rejects expired and consumed activation links without granting access", async () => {
-    for (const state of ["expired", "consumed"] as const) {
-      const token = createTestActivationToken(`invalid-token-${state}`);
-      const fixture = createFixture({ activationToken: token, tokenState: state });
-      await assert.rejects(
-        fixture.service.confirmActivation({
-          password: "new-password",
-          token,
-        }),
-        BadRequestException,
-      );
-      assert.equal(fixture.passwordHash(), undefined);
-    }
-  });
-
-  it("never overwrites a password that was set after activation was issued", async () => {
-    const token = createTestActivationToken("stale-valid-token");
-    const fixture = createFixture({
-      activationToken: token,
-      credential: { id: "credential-1" },
-    });
-
-    await assert.rejects(
-      fixture.service.confirmActivation({
-        password: "attacker-password",
-        token,
-      }),
-      BadRequestException,
-    );
-    assert.equal(fixture.passwordHash(), "existing-hash");
-  });
-
-  it("rejects confirmation when OAuth appears after a successful preflight", async () => {
-    const token = createTestActivationToken("oauth-after-preflight-token");
-    const fixture = createFixture({ activationToken: token, oauthAfterUserLock: true });
-
-    assert.deepEqual(await fixture.service.validateActivation(token), { valid: true });
-    await assert.rejects(
-      fixture.service.confirmActivation({
-        password: "new-password",
-        token,
-      }),
-      (error) =>
-        error instanceof BadRequestException &&
-        error.message === "Order activation link is invalid or expired",
-    );
-    assert.equal(fixture.credentialCreateCount(), 0);
-    assert.equal(fixture.sessionUserLookupCount(), 0);
   });
 
   it("uses activation for passwordless users and reset for password users with one generic response", async () => {
@@ -510,7 +371,10 @@ describe("order activation and recovery", () => {
     const fixture = createFixture({
       credential: { id: "credential-1" },
       resetError: new HttpException(
-        { message: "Password reset email hourly limit exceeded", retryAfterSeconds: 42 },
+        {
+          message: "Password reset email hourly limit exceeded",
+          retryAfterSeconds: 42,
+        },
         429,
       ),
     });
@@ -548,12 +412,18 @@ describe("order activation and recovery", () => {
   for (const failure of ["issuance", "queue"] as const) {
     it(`masks passwordless activation ${failure} failures and logs them without email PII`, async (t) => {
       const logs: unknown[][] = [];
-      t.mock.method(Logger.prototype, "warn", (...args: unknown[]) => logs.push(args));
-      t.mock.method(Logger.prototype, "error", (...args: unknown[]) => logs.push(args));
+      t.mock.method(Logger.prototype, "warn", (...args: unknown[]) =>
+        logs.push(args),
+      );
+      t.mock.method(Logger.prototype, "error", (...args: unknown[]) =>
+        logs.push(args),
+      );
       const activationError = new Error(`activation ${failure} unavailable`);
       const known = createFixture({
-        activationCreateError: failure === "issuance" ? activationError : undefined,
-        activationEnqueueError: failure === "queue" ? activationError : undefined,
+        activationCreateError:
+          failure === "issuance" ? activationError : undefined,
+        activationEnqueueError:
+          failure === "queue" ? activationError : undefined,
       });
       const unknown = createFixture({ userStatus: "missing" });
       const input = { email: "buyer@example.com", ipAddress: "203.0.113.1" };
@@ -569,7 +439,10 @@ describe("order activation and recovery", () => {
       assert.equal(await getRecoveryStatus(known.service, input), 429);
 
       assert.equal(logs.length, 1);
-      assert.doesNotMatch(JSON.stringify(logs), /buyer@example\.com|203\.0\.113\.1/i);
+      assert.doesNotMatch(
+        JSON.stringify(logs),
+        /buyer@example\.com|203\.0\.113\.1/i,
+      );
     });
   }
 
@@ -579,7 +452,9 @@ describe("order activation and recovery", () => {
     const input = { email: "buyer@example.com", ipAddress: "203.0.113.1" };
 
     assert.deepEqual(await known.service.requestRecovery(input), { ok: true });
-    assert.deepEqual(await unknown.service.requestRecovery(input), { ok: true });
+    assert.deepEqual(await unknown.service.requestRecovery(input), {
+      ok: true,
+    });
 
     const knownStatus = await getRecoveryStatus(known.service, input);
     const unknownStatus = await getRecoveryStatus(unknown.service, input);
@@ -644,8 +519,13 @@ describe("order activation and recovery", () => {
 
   for (const source of ["recovery", "repeat purchase"] as const) {
     it(`replaces an active activation with a hash from another JWT secret during ${source}`, async () => {
-      const currentToken = createTestActivationToken(`rotated-secret-${source}`);
-      const tokenId = verifyOrderActivationToken(currentToken, "test-jwt-secret");
+      const currentToken = createTestActivationToken(
+        `rotated-secret-${source}`,
+      );
+      const tokenId = verifyOrderActivationToken(
+        currentToken,
+        "test-jwt-secret",
+      );
       assert.ok(tokenId);
       const previousToken = createOrderActivationToken(
         tokenId,
@@ -709,7 +589,9 @@ describe("order activation and recovery", () => {
       createGuestOrder({ id: "concurrent-paid-order" }),
     );
     await firstEnqueued;
-    const recovery = fixture.service.requestRecovery({ email: "buyer@example.com" });
+    const recovery = fixture.service.requestRecovery({
+      email: "buyer@example.com",
+    });
     await Promise.all([purchase, recovery]);
 
     const activationPayloads = fixture.notificationPayloads.filter(
@@ -728,47 +610,6 @@ describe("order activation and recovery", () => {
       ),
       "every enqueued activation must reference the reusable active token",
     );
-  });
-
-  it("returns the standard session and access-token cookie after activation", async () => {
-    const user = {
-      id: "new-user",
-      provider: "credentials" as const,
-      providerUserId: "buyer@example.com",
-      email: "buyer@example.com",
-      roles: ["customer" as const],
-      authVersion: 3,
-    };
-    const signedVersions: number[] = [];
-    const cookies: Array<{ name: string; value: string; options: Record<string, unknown> }> = [];
-    const controller = Object.assign(Object.create(AuthController.prototype), {
-      authService: {
-        createAccessToken: async (principal: { authVersion: number }) => {
-          signedVersions.push(principal.authVersion);
-          return "standard-jwt";
-        },
-      } as unknown as AuthService,
-      orderActivationService: {
-        confirmActivation: async () => user,
-      },
-    }) as AuthController;
-
-    const session = await controller.confirmOrderActivation(
-      { password: "new-password", token: "x".repeat(32) },
-      {
-        cookie: (name, value, options) => cookies.push({ name, value, options }),
-        clearCookie: () => undefined,
-      },
-    );
-
-    const publicUser = { ...user };
-    delete (publicUser as Partial<typeof user>).authVersion;
-    assert.deepEqual(session, { user: publicUser });
-    assert.deepEqual(signedVersions, [3]);
-    assert.equal(cookies[0]?.name, AUTH_ACCESS_TOKEN_COOKIE_NAME);
-    assert.equal(cookies[0]?.value, "standard-jwt");
-    assert.equal(cookies[0]?.options.httpOnly, true);
-    assert.equal(cookies[0]?.options.path, "/");
   });
 
   it("persists only a nonsecret activation reference and reconstructs a confirmable link in the worker", async () => {
@@ -795,12 +636,12 @@ describe("order activation and recovery", () => {
     const workerTx = {
       $queryRaw: async () => [],
       authOrderActivationToken: {
-         findUnique: async () => ({
-           consumedAt: null,
-           expiresAt: new Date(Date.now() + 60_000),
-           tokenHash: fixture.activationTokens[0]?.tokenHash,
-           userId: "new-user",
-         }),
+        findUnique: async () => ({
+          consumedAt: null,
+          expiresAt: new Date(Date.now() + 60_000),
+          tokenHash: fixture.activationTokens[0]?.tokenHash,
+          userId: "new-user",
+        }),
       },
       authAccount: {
         findFirst: async ({ where }: { where: { provider: unknown } }) =>
@@ -810,15 +651,12 @@ describe("order activation and recovery", () => {
         findUnique: async () => ({ status: UserStatus.ACTIVE }),
       },
     };
-    const worker = new NotificationQueueService(
-      mailer,
-      {
-        ...workerTx,
-        $transaction: async <T>(
-          callback: (transaction: typeof workerTx) => Promise<T>,
-        ) => callback(workerTx),
-      } as unknown as PrismaService,
-    ) as unknown as {
+    const worker = new NotificationQueueService(mailer, {
+      ...workerTx,
+      $transaction: async <T>(
+        callback: (transaction: typeof workerTx) => Promise<T>,
+      ) => callback(workerTx),
+    } as unknown as PrismaService) as unknown as {
       dispatchJob(job: unknown): Promise<void>;
     };
     await worker.dispatchJob({
@@ -834,11 +672,14 @@ describe("order activation and recovery", () => {
     const token = new URL(activationUrl).searchParams.get("token");
     assert.ok(token);
 
-    const user = await fixture.service.confirmActivation({
-      password: "new-password",
-      token,
-    });
-    assert.equal(user.id, "new-user");
+    assert.equal(
+      verifyOrderActivationToken(token, "test-jwt-secret"),
+      payload.activationTokenId,
+    );
+    assert.equal(
+      createOrderActivationTokenHash(token, "test-jwt-secret"),
+      fixture.activationTokens[0]?.tokenHash,
+    );
   });
 
   it("does not send consumed or expired activation notification jobs", async () => {
@@ -995,7 +836,9 @@ describe("order activation and recovery", () => {
               ? testCase.oauth
                 ? { id: "oauth-account" }
                 : null
-              : { credential: testCase.credential ? { id: "credential" } : null },
+              : {
+                  credential: testCase.credential ? { id: "credential" } : null,
+                },
         },
         user: {
           findUnique: async () => ({ status: testCase.status }),
@@ -1111,7 +954,9 @@ describe("order activation and recovery", () => {
       },
     };
     const prisma = {
-      $transaction: async <T>(callback: (transaction: typeof tx) => Promise<T>) => {
+      $transaction: async <T>(
+        callback: (transaction: typeof tx) => Promise<T>,
+      ) => {
         transactionCalls += 1;
         transactionDepth += 1;
         try {
@@ -1147,9 +992,17 @@ describe("order activation and recovery", () => {
       },
     });
 
-    assert.equal(transactionCalls, 1, "eligibility recheck must use one short transaction");
+    assert.equal(
+      transactionCalls,
+      1,
+      "eligibility recheck must use one short transaction",
+    );
     assert.deepEqual(lockEvents, ["user", "activation-token"]);
-    assert.equal(smtpInsideTransaction, false, "SMTP must run after the transaction commits");
+    assert.equal(
+      smtpInsideTransaction,
+      false,
+      "SMTP must run after the transaction commits",
+    );
   });
 
   it("uses the exact activation email subject, prepayment copy and CTA", () => {
@@ -1216,7 +1069,7 @@ function createFixture(options: FixtureOptions = {}) {
   let storedUser =
     options.userStatus === "missing"
       ? undefined
-      : options.user ?? {
+      : (options.user ?? {
           id: "new-user",
           email: "buyer@example.com",
           emailVerifiedAt: null,
@@ -1225,7 +1078,7 @@ function createFixture(options: FixtureOptions = {}) {
           roles: ["CUSTOMER"],
           status: UserStatus.ACTIVE,
           authVersion: 0,
-        };
+        });
   let credential = options.credential;
   let passwordHash = options.credential ? "existing-hash" : undefined;
   let orderUserId: string | undefined;
@@ -1240,7 +1093,6 @@ function createFixture(options: FixtureOptions = {}) {
   let transactionDepth = 0;
   let userWasUpserted = false;
   let oauthAccountExists = false;
-  let sessionUserLookups = 0;
   let activationEnqueues = 0;
   const recoveryBuckets = new Map<
     string,
@@ -1283,6 +1135,7 @@ function createFixture(options: FixtureOptions = {}) {
   }
 
   const tx = {
+    $executeRaw: async () => 1,
     $queryRaw: async (query: unknown) => {
       const sql = Array.isArray(query) ? String(query[0]) : "";
       if (sql.includes("FROM users")) lockEvents.push("user");
@@ -1321,7 +1174,11 @@ function createFixture(options: FixtureOptions = {}) {
       return [];
     },
     authAccount: {
-      findFirst: async ({ where }: { where?: { provider?: PrismaAuthProvider | { not: PrismaAuthProvider } } } = {}) =>
+      findFirst: async ({
+        where,
+      }: {
+        where?: { provider?: PrismaAuthProvider | { not: PrismaAuthProvider } };
+      } = {}) =>
         storedUser &&
         (typeof where?.provider === "object"
           ? oauthAccountExists
@@ -1335,11 +1192,13 @@ function createFixture(options: FixtureOptions = {}) {
                   ? "oauth-account"
                   : "account-1",
               credential:
-                typeof where?.provider === "object" ? null : credential ?? null,
+                typeof where?.provider === "object"
+                  ? null
+                  : (credential ?? null),
               provider:
                 typeof where?.provider === "object"
                   ? PrismaAuthProvider.YANDEX
-                  : options.accountProvider ?? PrismaAuthProvider.CREDENTIALS,
+                  : (options.accountProvider ?? PrismaAuthProvider.CREDENTIALS),
               user: storedUser,
               userId: storedUser.id,
             }
@@ -1365,7 +1224,13 @@ function createFixture(options: FixtureOptions = {}) {
         credential = { id: "credential-created" };
         passwordHash = data.passwordHash;
       },
-      upsert: async ({ create, update }: { create: { passwordHash: string }; update: { passwordHash: string } }) => {
+      upsert: async ({
+        create,
+        update,
+      }: {
+        create: { passwordHash: string };
+        update: { passwordHash: string };
+      }) => {
         if (!credential) credentialCreates += 1;
         credential = { id: "credential-created" };
         passwordHash = create.passwordHash ?? update.passwordHash;
@@ -1379,7 +1244,15 @@ function createFixture(options: FixtureOptions = {}) {
         activationTokens.push(token);
         return token;
       },
-      findFirst: async ({ where }: { where?: { consumedAt?: null; expiresAt?: { gt: Date }; userId?: string } } = {}) =>
+      findFirst: async ({
+        where,
+      }: {
+        where?: {
+          consumedAt?: null;
+          expiresAt?: { gt: Date };
+          userId?: string;
+        };
+      } = {}) =>
         [...activationTokens]
           .reverse()
           .find(
@@ -1404,7 +1277,11 @@ function createFixture(options: FixtureOptions = {}) {
       updateMany: async () => ({ count: 1 }),
     },
     authRecoveryThrottle: {
-      findUnique: async ({ where }: { where: { scope_subjectHash: { scope: string; subjectHash: string } } }) =>
+      findUnique: async ({
+        where,
+      }: {
+        where: { scope_subjectHash: { scope: string; subjectHash: string } };
+      }) =>
         recoveryBuckets.get(
           `${where.scope_subjectHash.scope}:${where.scope_subjectHash.subjectHash}`,
         ) ?? null,
@@ -1455,11 +1332,16 @@ function createFixture(options: FixtureOptions = {}) {
     },
     user: {
       findUnique: async () => storedUser ?? null,
-      update: async ({ data }: { data: { authVersion?: { increment: number }; emailVerifiedAt: Date } }) => {
+      update: async ({
+        data,
+      }: {
+        data: { authVersion?: { increment: number }; emailVerifiedAt: Date };
+      }) => {
         userUpdates += 1;
         if (storedUser) storedUser.emailVerifiedAt = data.emailVerifiedAt;
         if (storedUser && data.authVersion) {
-          storedUser.authVersion = Number(storedUser.authVersion ?? 0) + data.authVersion.increment;
+          storedUser.authVersion =
+            Number(storedUser.authVersion ?? 0) + data.authVersion.increment;
         }
         return storedUser;
       },
@@ -1494,20 +1376,6 @@ function createFixture(options: FixtureOptions = {}) {
     authOrderActivationToken: tx.authOrderActivationToken,
     user: tx.user,
   } as unknown as PrismaService;
-  const credentials = {
-    createPasswordHash: async (password: string) => `hashed:${password}`,
-    getCredentialsUserById: async () => {
-      sessionUserLookups += 1;
-      return {
-        id: "new-user",
-        provider: "credentials" as const,
-        providerUserId: "buyer@example.com",
-        email: "buyer@example.com",
-        roles: ["customer" as const],
-        authVersion: Number(storedUser?.authVersion ?? 0),
-      };
-    },
-  } as unknown as CredentialsAuthService;
   const mailer = {
     createOrderActivationEmail: (_email: string, url: string) => ({
       to: "buyer@example.com",
@@ -1545,7 +1413,6 @@ function createFixture(options: FixtureOptions = {}) {
   } as unknown as UsersService;
   process.env.AUTH_JWT_SECRET = "test-jwt-secret";
   const service = new OrderActivationService(
-    credentials,
     mailer,
     notifications,
     passwordReset,
@@ -1563,7 +1430,8 @@ function createFixture(options: FixtureOptions = {}) {
       }
     },
     activationTokens,
-    activeActivationTokens: () => activationTokens.filter((token) => !token.consumedAt).length,
+    activeActivationTokens: () =>
+      activationTokens.filter((token) => !token.consumedAt).length,
     activeResetTokens: () => (passwordHash ? 0 : 1),
     credentialCreateCount: () => credentialCreates,
     emailVerifiedAt: () => storedUser?.emailVerifiedAt,
@@ -1577,7 +1445,6 @@ function createFixture(options: FixtureOptions = {}) {
     resetRequests,
     recoveryBucketCount: () => recoveryBuckets.size,
     service,
-    sessionUserLookupCount: () => sessionUserLookups,
     transaction: <T>(
       callback: (transaction: Prisma.TransactionClient) => Promise<T>,
     ) => prisma.$transaction(callback),

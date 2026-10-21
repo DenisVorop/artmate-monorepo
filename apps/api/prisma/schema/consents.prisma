@@ -1,0 +1,186 @@
+enum ConsentKind {
+  PERSONAL_DATA     @map("personal_data")
+  EMAIL_ADVERTISING @map("email_advertising")
+
+  @@map("consent_kind")
+}
+
+enum ConsentCommandStatus {
+  PENDING   @map("pending")
+  COMPLETED @map("completed")
+  REJECTED  @map("rejected")
+
+  @@map("consent_command_status")
+}
+
+enum EmailAdvertisingState {
+  REVOKED @map("revoked")
+  ACTIVE  @map("active")
+
+  @@map("email_advertising_state")
+}
+
+enum EmailAdvertisingAction {
+  GRANTED @map("granted")
+  REVOKED @map("revoked")
+
+  @@map("email_advertising_action")
+}
+
+// Consents owns versioned evidence. Hashes are verified against retained bytes
+// in SQL. A new document/form requires a new row; nothing is published by default.
+model ConsentRevision {
+  id                String                         @id @default(cuid())
+  kind              ConsentKind
+  purpose           String                         @db.VarChar(80)
+  version           String                         @db.VarChar(64)
+  documentTitle     String                         @map("document_title") @db.VarChar(255)
+  documentBytes     Bytes                          @map("document_bytes")
+  documentSha256    String                         @map("document_sha256") @db.Char(64)
+  formSnapshotBytes Bytes                          @map("form_snapshot_bytes")
+  formSha256        String                         @map("form_sha256") @db.Char(64)
+  publishedAt       DateTime?                      @map("published_at")
+  retiredAt         DateTime?                      @map("retired_at")
+  createdAt         DateTime                       @default(now()) @map("created_at")
+  acceptances       RequiredConsentAcceptance[]
+  advertisingEvents EmailAdvertisingConsentEvent[]
+
+  @@unique([kind, purpose, version])
+  @@index([kind, purpose, publishedAt])
+  @@map("consent_revisions")
+}
+
+// Consents publishes required-consent readiness for an exact verified email.
+// requiredAcceptances is the versioned list, never a blanket accepted=true flag.
+// Advertising permission is read from the authoritative subscription below.
+model UserConsentState {
+  email               String   @id @db.VarChar(320)
+  contractVersion     Int      @default(1) @map("contract_version")
+  revision            Int
+  requiredAcceptances Json     @default("[]") @map("required_acceptances")
+  updatedAt           DateTime @default(now()) @updatedAt @map("updated_at")
+
+  @@map("user_consent_states")
+}
+
+// Auth enqueues the typed decision; Consents checks current revisions/identity
+// and atomically commits facts, projections and result. No session on enqueue.
+model ApplyConsentDecisionCommand {
+  id                         String                  @id @default(cuid())
+  contractVersion            Int                     @default(1) @map("contract_version")
+  operationId                String                  @unique @map("operation_id")
+  identityFactId             String                  @map("identity_fact_id")
+  expectedStateRevision      Int                     @map("expected_state_revision")
+  expectedAdvertisingVersion Int                     @map("expected_advertising_version")
+  decisions                  Json
+  payloadHash                String                  @map("payload_hash") @db.Char(64)
+  source                     String?                 @db.VarChar(255)
+  requestId                  String                  @map("request_id") @db.VarChar(128)
+  requestContext             Json                    @map("request_context")
+  status                     ConsentCommandStatus    @default(PENDING)
+  attempts                   Int                     @default(0)
+  leaseToken                 String?                 @map("lease_token") @db.Uuid
+  lockedUntil                DateTime?               @map("locked_until")
+  availableAt                DateTime                @default(now()) @map("available_at")
+  resultStateRevision        Int?                    @map("result_state_revision")
+  errorCode                  String?                 @map("error_code") @db.VarChar(80)
+  processedAt                DateTime?               @map("processed_at")
+  createdAt                  DateTime                @default(now()) @map("created_at")
+  operation                  AuthCompletionOperation @relation(fields: [operationId, identityFactId], references: [id, identityFactId], onDelete: Restrict)
+
+  @@unique([operationId, identityFactId])
+  @@index([status, availableAt])
+  @@map("apply_consent_decision_commands")
+}
+
+// Append-only acceptance of a specific document/form revision.
+// User ID is a snapshot, not a cascading FK to a mutable/deletable account.
+model RequiredConsentAcceptance {
+  id                  String                  @id @default(cuid())
+  operationId         String                  @map("operation_id")
+  identityFactId      String                  @map("identity_fact_id")
+  actorUserIdSnapshot String?                 @map("actor_user_id_snapshot")
+  email               String                  @db.VarChar(320)
+  revisionId          String                  @map("revision_id")
+  purpose             String                  @db.VarChar(80)
+  source              String?                 @db.VarChar(255)
+  requestId           String                  @map("request_id") @db.VarChar(128)
+  requestContext      Json                    @map("request_context")
+  acceptedAt          DateTime                @default(now()) @map("accepted_at")
+  operation           AuthCompletionOperation @relation(fields: [operationId, identityFactId], references: [id, identityFactId], onDelete: Restrict)
+  revision            ConsentRevision         @relation(fields: [revisionId], references: [id], onDelete: Restrict)
+
+  @@unique([operationId, revisionId])
+  @@index([email, purpose, acceptedAt])
+  @@map("required_consent_acceptances")
+  partnerApplications PartnerApplication[]
+
+}
+
+// Consents-owned authoritative permission contract. Starts revoked; only a
+// matching immutable grant can activate it. HMAC key is versioned, not a token.
+model EmailAdvertisingSubscription {
+  id            String                         @id @default(cuid())
+  email         String?                        @unique @db.VarChar(320)
+  recipientKey  String                         @map("recipient_key") @db.Char(64)
+  keyVersion    String                         @map("key_version") @db.VarChar(32)
+  state         EmailAdvertisingState          @default(REVOKED)
+  version       Int                            @default(0)
+  activeGrantId String?                        @unique @map("active_grant_id")
+  createdAt     DateTime                       @default(now()) @map("created_at")
+  updatedAt     DateTime                       @default(now()) @updatedAt @map("updated_at")
+  unsubscribeTokens EmailAdvertisingUnsubscribeToken[]
+  accessEvents  EmailAdvertisingAccessEvent[]
+  events        EmailAdvertisingConsentEvent[] @relation("AdvertisingHistory")
+  activeGrant   EmailAdvertisingConsentEvent?  @relation("AdvertisingActiveGrant", fields: [activeGrantId], references: [id], onDelete: Restrict)
+
+  @@unique([id, activeGrantId])
+  @@unique([recipientKey, keyVersion])
+  @@map("email_advertising_subscriptions")
+}
+
+// Consents owns append-only grant/revoke history. Grants retain either Auth
+// provenance or the live verified-email snapshot from authenticated settings.
+// Revoke-only links need neither proof nor a fabricated Auth operation.
+model EmailAdvertisingConsentEvent {
+  id                  String                            @id @default(cuid())
+  subscriptionId      String                            @map("subscription_id")
+  version             Int
+  operationKey        String                            @map("operation_key") @db.VarChar(64)
+  payloadHash         String                            @map("payload_hash") @db.Char(64)
+  action              EmailAdvertisingAction
+  authOperationId     String?                           @map("auth_operation_id")
+  identityFactId      String?                           @map("identity_fact_id")
+  emailVerifiedAtSnapshot DateTime? @map("email_verified_at_snapshot")
+  actorUserIdSnapshot String?                           @map("actor_user_id_snapshot")
+  email               String                            @db.VarChar(320)
+  revisionId          String?                           @map("revision_id")
+  source              String?                           @db.VarChar(255)
+  requestId           String                            @map("request_id") @db.VarChar(128)
+  requestContext      Json                              @map("request_context")
+  occurredAt          DateTime                          @default(now()) @map("occurred_at")
+  deliveryAttempts    EmailAdvertisingDeliveryAttempt[]
+  subscription        EmailAdvertisingSubscription      @relation("AdvertisingHistory", fields: [subscriptionId], references: [id], onDelete: Restrict)
+  activeFor           EmailAdvertisingSubscription?     @relation("AdvertisingActiveGrant")
+  operation           AuthCompletionOperation?          @relation(fields: [authOperationId, identityFactId], references: [id, identityFactId], onDelete: Restrict)
+  revision            ConsentRevision?                  @relation(fields: [revisionId], references: [id], onDelete: Restrict)
+
+  @@unique([subscriptionId, id])
+  @@unique([authOperationId, revisionId])
+  @@unique([subscriptionId, version])
+  @@unique([subscriptionId, operationKey])
+  @@index([email, occurredAt])
+  @@map("email_advertising_consent_events")
+}
+
+// Consents-owned, persistent revoke-only capability; no raw token, expiry or
+// consumed marker. Multiple links per subscription remain usable after regrant.
+model EmailAdvertisingUnsubscribeToken {
+  id String @id @default(cuid())
+  subscriptionId String @map("subscription_id")
+  tokenHash String @unique @map("token_hash") @db.Char(64)
+  createdAt DateTime @default(now()) @map("created_at")
+  subscription EmailAdvertisingSubscription @relation(fields: [subscriptionId], references: [id], onDelete: Restrict, map: "unsubscribe_token_subscription_fk")
+  @@index([subscriptionId])
+  @@map("email_advertising_unsubscribe_tokens")
+}

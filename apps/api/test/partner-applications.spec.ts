@@ -10,6 +10,8 @@ import {
   PATH_METADATA,
 } from "@nestjs/common/constants";
 
+import { SiteActionGuard } from "../src/auth/site-action.guard";
+import type { SiteActionAccessV1 } from "../src/auth/contracts/site-action-access.contract";
 import { AuthGuard } from "../src/auth/auth.guard";
 import type { ContactsService } from "../src/contacts/contacts.service";
 import {
@@ -103,6 +105,8 @@ describe("partner applications HTTP contract", () => {
     for (const input of [
       validInput({ channelUrl: "javascript:alert(1)" }),
       validInput({ consent: false }),
+      validInput({ consent: true }),
+      validInput({ actorUserId: "forged" }),
       validInput({ partnerType: "influencer" }),
       validInput({ audienceSize: "huge" }),
       { ...validInput(), unexpected: true },
@@ -135,7 +139,7 @@ describe("partner applications HTTP contract", () => {
     );
   });
 
-  it("keeps POST public and protects admin routes", () => {
+  it("protects business POST and admin routes independently", () => {
     const publicHandler =
       PublicPartnerApplicationsController.prototype.createApplication;
     const adminClassGuards = (Reflect.getMetadata(
@@ -149,6 +153,11 @@ describe("partner applications HTTP contract", () => {
       HttpStatus.ACCEPTED,
     );
     assert.equal(adminClassGuards.includes(AuthGuard), true);
+    assert.ok(
+      Reflect.getMetadata(GUARDS_METADATA, publicHandler).includes(
+        SiteActionGuard,
+      ),
+    );
   });
 });
 
@@ -173,7 +182,7 @@ describe("PartnerApplicationsService", () => {
     const service = new PartnerApplicationsService(contacts, prisma);
 
     await assert.doesNotReject(async () => {
-      assert.deepEqual(await service.createApplication(validInput()), {
+      assert.deepEqual(await service.createApplication(validInput(), access), {
         accepted: true,
       });
     });
@@ -198,7 +207,10 @@ describe("PartnerApplicationsService", () => {
     const service = new PartnerApplicationsService(contacts, prisma);
 
     assert.deepEqual(
-      await service.createApplication(validInput({ website: "bot value" })),
+      await service.createApplication(
+        validInput({ website: "bot value" }),
+        access,
+      ),
       { accepted: true },
     );
     assert.equal(calls, 0);
@@ -222,7 +234,7 @@ describe("PartnerApplicationsService", () => {
     } as unknown as ContactsService;
     const service = new PartnerApplicationsService(contacts, prisma);
 
-    await service.createApplication(validInput());
+    await service.createApplication(validInput(), access);
 
     const nameLine = notification
       .split("\n")
@@ -329,7 +341,6 @@ function validInput(
     channelUrl: "https://t.me/artmate_creator",
     partnerType: "creator",
     audienceSize: "1000_10000",
-    consent: true,
     ...overrides,
   } as CreatePartnerApplicationRequestDTO;
 }
@@ -345,7 +356,9 @@ function storedApplication(overrides: Record<string, unknown> = {}) {
     partnerType: PartnerApplicationType.CREATOR,
     audienceSize: PartnerApplicationAudienceSize.FROM_1000,
     comment: null,
-    consent: true,
+    consent: null,
+    authenticatedUserId: "actor-1",
+    consentAcceptanceId: "acceptance-1",
     utmSource: null,
     utmMedium: null,
     utmCampaign: null,
@@ -364,3 +377,11 @@ function transform<T extends object>(type: new () => T, value: unknown) {
     type: "body",
   } as ArgumentMetadata) as Promise<T>;
 }
+
+const access: SiteActionAccessV1 = {
+  contractVersion: 1,
+  action: "partner_application",
+  purpose: "site_auth",
+  actor: { userId: "actor-1", email: "verified@example.test" },
+  requiredConsent: { acceptanceId: "acceptance-1", revisionId: "revision-1" },
+};

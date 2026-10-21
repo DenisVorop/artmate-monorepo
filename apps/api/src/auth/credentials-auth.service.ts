@@ -1,5 +1,4 @@
 import {
-  ConflictException,
   Injectable,
   InternalServerErrorException,
   UnauthorizedException,
@@ -18,25 +17,12 @@ import { PrismaService } from "../prisma/prisma.service";
 import { UsersService } from "../users/users.service";
 
 import type { AuthPrincipal } from "./auth.types";
-
-const SCRYPT_HASH_PREFIX = "scrypt";
-const SCRYPT_KEY_LENGTH = 64;
-
-type ScryptPasswordHash = {
-  salt: string;
-  hash: string;
-};
+import { PasswordHasher } from "./password-hasher";
 
 type EnvCredentialConfig = {
   binding: string;
   passwordHash?: string;
   plainPassword?: string;
-};
-
-type RegisterCredentialsUserInput = {
-  password: string;
-  email: string;
-  name?: string;
 };
 
 const credentialsAccountInclude = {
@@ -53,49 +39,6 @@ export class CredentialsAuthService {
     private readonly prisma: PrismaService,
     private readonly usersService: UsersService,
   ) {}
-
-  async registerUser(input: RegisterCredentialsUserInput): Promise<AuthPrincipal> {
-    const email = this.normalizeEmail(input.email);
-    const existingUser = await this.prisma.user.findUnique({
-      where: { email },
-    });
-
-    if (existingUser) {
-      throw new ConflictException("User already exists");
-    }
-
-    try {
-      const account = await this.prisma.authAccount.create({
-        data: {
-          provider: PrismaAuthProvider.CREDENTIALS,
-          providerUserId: email,
-          providerEmail: email,
-          user: {
-            create: {
-              email,
-              emailVerifiedAt: null,
-              name: this.getOptionalString(input.name),
-              roles: this.usersService.getDefaultPrismaRoles(),
-            },
-          },
-          credential: {
-            create: {
-              passwordHash: await this.createPasswordHash(input.password),
-            },
-          },
-        },
-        include: credentialsAccountInclude,
-      });
-
-      return this.mapStoredAccount(account);
-    } catch (error) {
-      if (this.isUniqueConstraintError(error)) {
-        throw new ConflictException("User already exists");
-      }
-
-      throw error;
-    }
-  }
 
   async validateUser(email: string, password: string): Promise<AuthPrincipal> {
     const normalizedEmail = this.normalizeEmail(email);
@@ -117,7 +60,7 @@ export class CredentialsAuthService {
         throw new UnauthorizedException("Invalid email or password");
       }
 
-      const isPasswordValid = await this.verifyScryptPassword(
+      const isPasswordValid = await PasswordHasher.verify(
         password,
         account.credential.passwordHash,
       );
@@ -136,31 +79,25 @@ export class CredentialsAuthService {
     return this.validateEnvUser(normalizedEmail, password);
   }
 
-  async getCredentialsUserById(userId: string): Promise<AuthPrincipal> {
-    const account = await this.prisma.authAccount.findFirst({
-      where: {
-        userId,
-        provider: PrismaAuthProvider.CREDENTIALS,
-      },
-      include: credentialsAccountInclude,
-    });
-
-    if (!account || account.user.status !== UserStatus.ACTIVE) {
-      throw new UnauthorizedException("Invalid email or password");
-    }
-
-    return this.mapStoredAccount(account);
-  }
-
   getEnvCredentialBinding(email: string) {
     return this.getEnvCredentialConfig(email)?.binding;
   }
 
-  async createPasswordHash(password: string) {
-    const salt = crypto.randomBytes(16).toString("hex");
-    const hash = await this.scrypt(password, salt);
+  /** Verify existing environment credentials without provisioning or mutating a User. */
+  public async validateFlowEnvPassword(
+    email: string,
+    password: string,
+  ): Promise<string | null> {
+    const config = this.getEnvCredentialConfig(this.normalizeEmail(email));
+    if (!config) return null;
+    const valid = config.passwordHash
+      ? await PasswordHasher.verify(password, config.passwordHash)
+      : PasswordHasher.equal(password, config.plainPassword ?? "");
+    return valid ? config.binding : null;
+  }
 
-    return `${SCRYPT_HASH_PREFIX}:${salt}:${hash}`;
+  async createPasswordHash(password: string) {
+    return PasswordHasher.create(password);
   }
 
   private async validateEnvUser(
@@ -174,8 +111,8 @@ export class CredentialsAuthService {
     }
 
     const isPasswordValid = config.passwordHash
-      ? await this.verifyScryptPassword(password, config.passwordHash)
-      : this.safeCompare(password, config.plainPassword ?? "");
+      ? await PasswordHasher.verify(password, config.passwordHash)
+      : PasswordHasher.equal(password, config.plainPassword ?? "");
 
     if (!isPasswordValid) {
       throw new UnauthorizedException("Invalid email or password");
@@ -187,7 +124,9 @@ export class CredentialsAuthService {
     };
   }
 
-  private async upsertEnvCredentialsUser(email: string): Promise<AuthPrincipal> {
+  private async upsertEnvCredentialsUser(
+    email: string,
+  ): Promise<AuthPrincipal> {
     const account = await this.prisma.$transaction(async (tx) => {
       const existingAccount = await tx.authAccount.findUnique({
         where: {
@@ -287,7 +226,9 @@ export class CredentialsAuthService {
     return this.mapStoredAccount(account);
   }
 
-  private getEnvCredentialConfig(email: string): EnvCredentialConfig | undefined {
+  private getEnvCredentialConfig(
+    email: string,
+  ): EnvCredentialConfig | undefined {
     const envEmail = this.getOptionalEnv("AUTH_PASSWORD_EMAIL");
 
     if (!envEmail) {
@@ -307,7 +248,7 @@ export class CredentialsAuthService {
     const passwordHash = this.getOptionalEnv("AUTH_PASSWORD_HASH");
 
     if (passwordHash) {
-      this.parseScryptHash(passwordHash);
+      PasswordHasher.assertValid(passwordHash);
       return {
         binding: this.createEnvCredentialBinding(
           "hash",
@@ -346,55 +287,6 @@ export class CredentialsAuthService {
       .digest("hex");
   }
 
-  private async verifyScryptPassword(password: string, passwordHash: string) {
-    const parsedHash = this.parseScryptHash(passwordHash);
-    const derivedHash = await this.scrypt(password, parsedHash.salt);
-
-    return this.safeCompare(derivedHash, parsedHash.hash);
-  }
-
-  private parseScryptHash(passwordHash: string): ScryptPasswordHash {
-    const parts = passwordHash.split(":");
-    const [algorithm, salt, hash] = parts;
-
-    if (
-      parts.length !== 3 ||
-      algorithm !== SCRYPT_HASH_PREFIX ||
-      !salt ||
-      !hash
-    ) {
-      throw new InternalServerErrorException(
-        "AUTH_PASSWORD_HASH must use format scrypt:<salt>:<hash>",
-      );
-    }
-
-    return { salt, hash };
-  }
-
-  private scrypt(password: string, salt: string) {
-    return new Promise<string>((resolve, reject) => {
-      crypto.scrypt(password, salt, SCRYPT_KEY_LENGTH, (error, key) => {
-        if (error) {
-          reject(error);
-          return;
-        }
-
-        resolve(key.toString("hex"));
-      });
-    });
-  }
-
-  private safeCompare(actual: string, expected: string) {
-    const actualBuffer = Buffer.from(actual);
-    const expectedBuffer = Buffer.from(expected);
-
-    if (actualBuffer.length !== expectedBuffer.length) {
-      return false;
-    }
-
-    return crypto.timingSafeEqual(actualBuffer, expectedBuffer);
-  }
-
   private mapStoredAccount(account: StoredCredentialsAccount): AuthPrincipal {
     return {
       id: account.user.id,
@@ -409,7 +301,9 @@ export class CredentialsAuthService {
     };
   }
 
-  private getEnvUserCreateData(email: string): Prisma.UserCreateWithoutAuthAccountsInput {
+  private getEnvUserCreateData(
+    email: string,
+  ): Prisma.UserCreateWithoutAuthAccountsInput {
     return {
       email,
       emailVerifiedAt: new Date(),
@@ -479,21 +373,8 @@ export class CredentialsAuthService {
     });
   }
 
-  private isUniqueConstraintError(error: unknown) {
-    return (
-      error instanceof Prisma.PrismaClientKnownRequestError &&
-      error.code === "P2002"
-    );
-  }
-
   private normalizeEmail(email: string) {
     return email.trim().toLowerCase();
-  }
-
-  private getOptionalString(value?: string) {
-    const normalizedValue = value?.trim();
-
-    return normalizedValue ? normalizedValue : undefined;
   }
 
   private getRoles() {

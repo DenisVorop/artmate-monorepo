@@ -31,10 +31,13 @@ export async function login(
   input: LoginInputDTO,
 ): Promise<ActionResult<AuthSessionDTO>> {
   try {
-    const { data, response } = await requestApi<AuthSessionDTO>("/auth/login", {
-      body: JSON.stringify(input),
-      method: "POST",
-    });
+    const { data, response } = await requestApi<AuthSessionDTO>(
+      "/auth/affiliate/login",
+      {
+        body: JSON.stringify(input),
+        method: "POST",
+      },
+    );
     const cookieStore = await cookies();
     const cookie = parseAuthCookie(response.headers.get("set-cookie"));
 

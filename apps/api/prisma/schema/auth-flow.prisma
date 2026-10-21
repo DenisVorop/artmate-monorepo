@@ -1,0 +1,174 @@
+enum AuthEmailVerificationMethod {
+  EMAIL_CODE                  @map("email_code")
+  YANDEX_VERIFIED_EMAIL       @map("yandex_verified_email")
+  ORDER_ACTIVATION_LINK       @map("order_activation_link")
+  RECORDED_EMAIL_VERIFICATION @map("recorded_email_verification")
+
+  @@map("auth_email_verification_method")
+}
+
+enum AuthAuthenticationMethod {
+  PASSWORD           @map("password")
+  EMAIL_REGISTRATION @map("email_registration")
+  ORDER_ACTIVATION   @map("order_activation")
+  YANDEX             @map("yandex")
+  SESSION            @map("session")
+  ENV_PASSWORD       @map("env_password")
+
+  @@map("auth_authentication_method")
+}
+
+enum AuthPendingFlowStatus {
+  OPEN       @map("open")
+  COMPLETING @map("completing")
+  COMPLETED  @map("completed")
+  CANCELLED  @map("cancelled")
+  EXPIRED    @map("expired")
+
+  @@map("auth_pending_flow_status")
+}
+
+enum AuthCompletionStatus {
+  PENDING   @map("pending")
+  COMPLETED @map("completed")
+  REJECTED  @map("rejected")
+
+  @@map("auth_completion_status")
+}
+
+// Auth owns short-lived challenges. Neither the raw code nor a User FK is stored.
+model AuthEmailChallenge {
+  id                 String    @id @default(cuid())
+  email              String    @db.VarChar(320)
+  codeHash           String    @map("code_hash") @db.Char(64)
+  hashKeyVersion     String    @map("hash_key_version") @db.VarChar(32)
+  nonce              String    @db.VarChar(64)
+  browserBindingHash String    @map("browser_binding_hash") @db.Char(64)
+  failedAttempts     Int       @default(0) @map("failed_attempts")
+  maxAttempts        Int       @map("max_attempts")
+  generation         Int       @default(1)
+  resendCount        Int       @default(0) @map("resend_count")
+  expiresAt          DateTime  @map("expires_at")
+  resendAvailableAt  DateTime  @map("resend_available_at")
+  consumedAt         DateTime? @map("consumed_at")
+  ipHash             String?   @map("ip_hash") @db.Char(64)
+  sentAt             DateTime  @default(now()) @map("sent_at")
+  createdAt          DateTime  @default(now()) @map("created_at")
+  updatedAt          DateTime  @default(now()) @updatedAt @map("updated_at")
+
+  @@index([email, sentAt])
+  @@index([ipHash, sentAt])
+  @@index([expiresAt])
+  @@map("auth_email_challenges")
+}
+
+// Auth publishes immutable exact-email facts. Source IDs are snapshots, not FKs
+// to expiring challenges/provider tokens; user deletion cannot erase this fact.
+model VerifiedIdentityFact {
+  id              String                      @id @default(cuid())
+  contractVersion Int                         @default(1) @map("contract_version")
+  email           String                      @db.VarChar(320)
+  requestContext  Json                        @map("request_context")
+  method          AuthEmailVerificationMethod
+  userIdSnapshot  String?                     @map("user_id_snapshot")
+  sourceId        String                      @map("source_id") @db.VarChar(128)
+  verifiedAt      DateTime                    @map("verified_at")
+  createdAt       DateTime                    @default(now()) @map("created_at")
+  pendingFlows    AuthPendingFlow[]
+  operations      AuthCompletionOperation[]
+  authentications AuthAuthenticationFact[]
+
+  @@unique([method, sourceId])
+  @@index([email, verifiedAt])
+  @@map("verified_identity_facts")
+}
+
+// A fresh authentication is distinct from the historical proof of the email.
+// Snapshots survive account deletion; no credential hashes or bearer tokens.
+model AuthAuthenticationFact {
+  id                           String                    @id @default(cuid())
+  contractVersion              Int                       @default(1) @map("contract_version")
+  identityFactId               String                    @map("identity_fact_id")
+  method                       AuthAuthenticationMethod
+  sourceId                     String                    @map("source_id") @db.VarChar(128)
+  userIdSnapshot               String?                   @map("user_id_snapshot")
+  accountIdSnapshot            String?                   @map("account_id_snapshot")
+  authVersion                  Int?                      @map("auth_version")
+  envCredentialBindingSnapshot String?                   @map("env_credential_binding_snapshot") @db.Char(64)
+  credentialUpdatedAt          DateTime?                 @map("credential_updated_at")
+  providerUserIdSnapshot String? @map("provider_user_id_snapshot") @db.VarChar(320)
+  sessionAccountBindingSnapshot String?                  @map("session_account_binding_snapshot") @db.Char(64)
+  authenticatedAt              DateTime                  @map("authenticated_at")
+  requestContext               Json                      @map("request_context")
+  createdAt                    DateTime                  @default(now()) @map("created_at")
+  identity                     VerifiedIdentityFact      @relation(fields: [identityFactId], references: [id], onDelete: Restrict)
+  pendingFlow                  AuthPendingFlow?
+  operations                   AuthCompletionOperation[]
+
+  @@unique([method, sourceId])
+  @@unique([id, identityFactId])
+  @@index([userIdSnapshot, authenticatedAt])
+  @@map("auth_authentication_facts")
+}
+
+// Auth owns a browser-bound capability, never an ordinary authenticated session.
+model AuthPendingFlow {
+  id                        String                   @id @default(cuid())
+  capabilityHash            String                   @unique @map("capability_hash") @db.Char(64)
+  browserBindingHash        String                   @map("browser_binding_hash") @db.Char(64)
+  identityFactId            String                   @map("identity_fact_id")
+  authenticationFactId      String                   @unique @map("authentication_fact_id")
+  purpose                   String                   @db.VarChar(80)
+  userIdSnapshot            String?                  @map("user_id_snapshot")
+  profileRevision           Int?                     @map("profile_revision")
+  draftName                 String?                  @map("draft_name") @db.VarChar(120)
+  draftPhone                String?                  @map("draft_phone") @db.VarChar(80)
+  credentialPasswordHash    String?                  @map("credential_password_hash") @db.Text
+  credentialExpiresAt       DateTime?                @map("credential_expires_at")
+  credentialOperationKey    String?                  @map("credential_operation_key") @db.VarChar(64)
+  activationTokenIdSnapshot String?                  @unique @map("activation_token_id_snapshot") @db.VarChar(32)
+  activationTokenExpiresAt  DateTime?                @map("activation_token_expires_at")
+  status                    AuthPendingFlowStatus    @default(OPEN)
+  currentOperationId        String?                  @unique @map("current_operation_id")
+  expiresAt                 DateTime                 @map("expires_at")
+  finishedAt                DateTime?                @map("finished_at")
+  createdAt                 DateTime                 @default(now()) @map("created_at")
+  updatedAt                 DateTime                 @default(now()) @updatedAt @map("updated_at")
+  identity                  VerifiedIdentityFact     @relation(fields: [identityFactId], references: [id], onDelete: Restrict)
+  authentication            AuthAuthenticationFact   @relation(fields: [authenticationFactId, identityFactId], references: [id, identityFactId], onDelete: Restrict)
+  currentOperation          AuthCompletionOperation? @relation(fields: [currentOperationId], references: [id], onDelete: Restrict)
+
+  @@unique([authenticationFactId, identityFactId])
+  @@index([expiresAt])
+  @@map("auth_pending_flows")
+}
+
+// Auth coordinates durable results; flowId is a snapshot so pending TTL cleanup
+// cannot delete an operation or its domain receipts. No cross-domain writes.
+model AuthCompletionOperation {
+  id                   String                         @id @default(cuid())
+  flowId               String                         @map("flow_id")
+  operationKey         String                         @map("operation_key") @db.VarChar(64)
+  payloadHash          String                         @map("payload_hash") @db.Char(64)
+  identityFactId       String                         @map("identity_fact_id")
+  authenticationFactId String                         @map("authentication_fact_id")
+  purpose              String                         @db.VarChar(80)
+  status               AuthCompletionStatus           @default(PENDING)
+  resultUserId         String?                        @map("result_user_id")
+  errorCode            String?                        @map("error_code") @db.VarChar(80)
+  finishedAt           DateTime?                      @map("finished_at")
+  createdAt            DateTime                       @default(now()) @map("created_at")
+  updatedAt            DateTime                       @default(now()) @updatedAt @map("updated_at")
+  identity             VerifiedIdentityFact           @relation(fields: [identityFactId], references: [id], onDelete: Restrict)
+  authentication       AuthAuthenticationFact         @relation(fields: [authenticationFactId, identityFactId], references: [id, identityFactId], onDelete: Restrict)
+  pendingFlow          AuthPendingFlow?
+  profileCommand       EnsureCustomerProfileCommand?
+  consentCommand       ApplyConsentDecisionCommand?
+  acceptances          RequiredConsentAcceptance[]
+  advertisingEvents    EmailAdvertisingConsentEvent[]
+
+  @@unique([flowId, operationKey])
+  @@unique([id, identityFactId])
+  @@index([status, createdAt])
+  @@map("auth_completion_operations")
+}

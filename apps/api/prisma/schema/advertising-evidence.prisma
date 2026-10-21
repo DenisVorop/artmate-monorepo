@@ -1,0 +1,62 @@
+enum EmailAdvertisingAttemptOutcome {
+  PENDING   @map("pending")
+  ACCEPTED  @map("accepted")
+  REJECTED  @map("rejected")
+  NOT_SENT  @map("not_sent")
+  UNCERTAIN @map("uncertain")
+
+  @@map("email_advertising_attempt_outcome")
+}
+
+enum EmailAdvertisingAccessAction {
+  EVIDENCE_EXPORT @map("evidence_export")
+  ADMIN_REVOKE    @map("admin_revoke")
+
+  @@map("email_advertising_access_action")
+}
+
+// Notifications owns attempts. Exact outgoing MIME bytes include Message-ID;
+// accepted means SMTP acceptance, never delivery/read confirmation. This is a
+// storage contract only; the send gate and worker fencing are later work.
+model EmailAdvertisingDeliveryAttempt {
+  id                String                         @id @default(cuid())
+  logicalSendId     String                         @map("logical_send_id") @db.VarChar(128)
+  attemptNumber     Int                            @map("attempt_number")
+  leaseToken        String                         @map("lease_token") @db.Uuid
+  grantEventId      String                         @map("grant_event_id")
+  email             String                         @db.VarChar(320)
+  sender            String                         @db.VarChar(320)
+  messageId         String                         @map("message_id") @db.VarChar(255)
+  messageBytes      Bytes                          @map("message_bytes")
+  messageSha256     String                         @map("message_sha256") @db.Char(64)
+  outcome           EmailAdvertisingAttemptOutcome @default(PENDING)
+  providerReceiptId String?                        @map("provider_receipt_id") @db.VarChar(255)
+  outcomeCode       String?                        @map("outcome_code") @db.VarChar(80)
+  startedAt         DateTime                       @default(now()) @map("started_at")
+  finishedAt        DateTime?                      @map("finished_at")
+  grant             EmailAdvertisingConsentEvent   @relation(fields: [grantEventId], references: [id], onDelete: Restrict)
+
+  @@unique([logicalSendId, attemptNumber])
+  @@index([grantEventId, startedAt])
+  @@index([outcome, startedAt])
+  @@map("email_advertising_delivery_attempts")
+}
+
+// Consents owns immutable evidence-access audit. Actor IDs are snapshots, so
+// removing an admin account does not erase who exported/revoked by request.
+model EmailAdvertisingAccessEvent {
+  id                  String                       @id @default(cuid())
+  subscriptionId      String                       @map("subscription_id")
+  actorUserIdSnapshot String                       @map("actor_user_id_snapshot")
+  action              EmailAdvertisingAccessAction
+  operationKey        String                       @map("operation_key") @db.VarChar(64)
+  reason              String                       @db.VarChar(512)
+  requestId           String                       @map("request_id") @db.VarChar(128)
+  requestContext      Json                         @map("request_context")
+  occurredAt          DateTime                     @default(now()) @map("occurred_at")
+  subscription        EmailAdvertisingSubscription @relation(fields: [subscriptionId], references: [id], onDelete: Restrict)
+
+  @@unique([subscriptionId, operationKey])
+  @@index([subscriptionId, occurredAt])
+  @@map("email_advertising_access_events")
+}

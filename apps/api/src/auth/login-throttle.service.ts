@@ -63,6 +63,9 @@ export class LoginThrottleService {
 
     await this.prisma.$transaction(async (transaction) => {
       for (const subject of subjects) {
+        // Serialize read/increment and initial creation across API instances.
+        const lockKey = `${subject.scope}:${subject.subjectHash}`;
+        await transaction.$executeRaw`SELECT pg_advisory_xact_lock(hashtextextended(${lockKey}, 0))`;
         const existingRecord = await transaction.authLoginThrottle.findUnique({
           where: {
             scope_subjectHash: {
