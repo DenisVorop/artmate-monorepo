@@ -1,0 +1,34 @@
+{
+  "assets/palette-3d-384.png": {
+    "sha256": "233c665e826fc3c34be6aa892ed381feb07d1bec4b8177109b013e8b7c279aad",
+    "bytes": 135057
+  },
+  "assets/palette-3d.png": {
+    "sha256": "2f0f5547266deec6664f91cb61475ef13819063f8f5c022b891fdcb80822f472",
+    "bytes": 1119218
+  },
+  "assets/success-check-3d-384.png": {
+    "sha256": "6e971f52c29e16496e4190a20a954d17e33950388275cdbf9685520a596aca5f",
+    "bytes": 89536
+  },
+  "assets/success-check-3d.png": {
+    "sha256": "318e741eb366f275c1b444dbdb812f28e11d2050b37293a74e730a1a87c0b611",
+    "bytes": 716015
+  },
+  "assets/yandex-id-icon.svg": {
+    "sha256": "e741969af2f377def331f80320b8e87783a1ee532cd5229815b2c1e1b4d56da3",
+    "bytes": 523
+  },
+  "auth-flow.html": {
+    "sha256": "123acea3e44950cc143857d18f98f6bc3fa5c838510a55a33df035be03c20d64",
+    "bytes": 361400
+  },
+  "auth-success.html": {
+    "sha256": "948a6f56480893a7b02415924b5a0315f26fe59101964b1d6d3fefb0e80001d3",
+    "bytes": 363099
+  },
+  "auth-password-flow.html": {
+    "sha256": "e8bbf4bd11b0d9580fdc049b441a0fdae706d9480594e78bd390354cbacfd50d",
+    "bytes": 379773
+  }
+}

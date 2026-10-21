@@ -1,0 +1,71 @@
+{
+  "date": "2026-10-20",
+  "branch": "codex/email-advertising-consent",
+  "uiCommit": "c3e21a2f",
+  "stage": 2,
+  "schemaTablesAdded": 14,
+  "checks": {
+    "prismaValidate": "passed",
+    "apiCheckTypes": "passed",
+    "apiCheckTypesTest": "passed",
+    "apiLint": "passed",
+    "apiBuild": "passed"
+  },
+  "isolatedMigrations": {
+    "engine": "PGlite",
+    "history": "all real migrations",
+    "passed": 15,
+    "failed": 0,
+    "skipped": 0
+  },
+  "apiSuite": {
+    "firstBatch": {
+      "tests": 1622,
+      "passed": 1621,
+      "failed": 1,
+      "skipped": 0
+    },
+    "postgresBatch": "not started: runner stopped after first batch failure",
+    "note": "Historical full run before requestContext/source refinements; focused migration tests rerun after latest changes."
+  },
+  "baselineFailure": {
+    "commit": "c3e21a2f",
+    "isolatedArchive": true,
+    "generatedClient": "baseline schema",
+    "test": "welcome-promocodes.spec.ts",
+    "passed": 10,
+    "failed": 1,
+    "error": "Prisma mock lacks product.findMany"
+  },
+  "workingOrProductionDatabaseMigrated": false,
+  "documentPublication": false,
+  "handlersConnected": false,
+  "limitations": [
+    "No independent-connection concurrency/SMTP test yet",
+    "Runtime/maintenance DB role separation is later work",
+    "J1/J2/J3/Q2 remain open before dependent collection/provider behavior"
+  ],
+  "requestEvidence": {
+    "schemaVersion": 1,
+    "storage": "required JSON snapshot",
+    "liveCaptureConnected": false,
+    "metadata": [
+      "timestamp",
+      "HTTP method/URL/version",
+      "sanitized headers/query preserving repeated values",
+      "socket addresses/ports/TLS",
+      "client IP and forwarded chain/trust provenance"
+    ],
+    "credentialsArchived": false,
+    "checkboxValues": "Removed initial/final checkbox and submit action fields. Persist acceptance/grant/revoke facts linked to the document/form revision.",
+    "optionalSource": {
+      "type": "VARCHAR(255)",
+      "nullable": true,
+      "examples": [
+        "auth_form",
+        "account_notifications"
+      ],
+      "role": "collection point metadata only"
+    }
+  }
+}

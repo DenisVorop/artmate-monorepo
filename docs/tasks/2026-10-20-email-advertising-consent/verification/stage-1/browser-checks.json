@@ -1,0 +1,194 @@
+{
+  "scenarios": [
+    {
+      "scenario": "Почта · новый аккаунт",
+      "result": "success"
+    },
+    {
+      "scenario": "Почта · нет согласия на рекламу",
+      "result": "success"
+    },
+    {
+      "scenario": "Почта · данные и согласия уже есть",
+      "result": "success"
+    },
+    {
+      "scenario": "Почта · не заполнены ФИО или телефон",
+      "result": "success"
+    },
+    {
+      "scenario": "Яндекс ID · не заполнены данные",
+      "result": "success"
+    },
+    {
+      "scenario": "Яндекс ID · нет согласия на рекламу",
+      "result": "success"
+    },
+    {
+      "scenario": "Яндекс ID · данные и согласия уже есть",
+      "result": "success"
+    }
+  ],
+  "responsive": [
+    {
+      "heading": "Войти в Artmate",
+      "overflow": [],
+      "pdBeforeSubmit": null,
+      "scroll": 320,
+      "step": "email",
+      "width": 320
+    },
+    {
+      "heading": "Код из письма",
+      "overflow": [],
+      "pdBeforeSubmit": null,
+      "scroll": 320,
+      "step": "code",
+      "width": 320
+    },
+    {
+      "heading": "Ваши данные",
+      "overflow": [],
+      "pdBeforeSubmit": null,
+      "scroll": 320,
+      "step": "profile",
+      "width": 320
+    },
+    {
+      "heading": "Завершим вход?",
+      "overflow": [],
+      "pdBeforeSubmit": true,
+      "scroll": 320,
+      "step": "consents",
+      "width": 320
+    },
+    {
+      "heading": "Вы вошли в Artmate",
+      "overflow": [],
+      "pdBeforeSubmit": null,
+      "scroll": 320,
+      "step": "success",
+      "width": 320
+    },
+    {
+      "heading": "Войти в Artmate",
+      "overflow": [],
+      "pdBeforeSubmit": null,
+      "scroll": 360,
+      "step": "email",
+      "width": 360
+    },
+    {
+      "heading": "Код из письма",
+      "overflow": [],
+      "pdBeforeSubmit": null,
+      "scroll": 360,
+      "step": "code",
+      "width": 360
+    },
+    {
+      "heading": "Ваши данные",
+      "overflow": [],
+      "pdBeforeSubmit": null,
+      "scroll": 360,
+      "step": "profile",
+      "width": 360
+    },
+    {
+      "heading": "Завершим вход?",
+      "overflow": [],
+      "pdBeforeSubmit": true,
+      "scroll": 360,
+      "step": "consents",
+      "width": 360
+    },
+    {
+      "heading": "Вы вошли в Artmate",
+      "overflow": [],
+      "pdBeforeSubmit": null,
+      "scroll": 360,
+      "step": "success",
+      "width": 360
+    },
+    {
+      "heading": "Войти в Artmate",
+      "overflow": [],
+      "pdBeforeSubmit": null,
+      "scroll": 390,
+      "step": "email",
+      "width": 390
+    },
+    {
+      "heading": "Код из письма",
+      "overflow": [],
+      "pdBeforeSubmit": null,
+      "scroll": 390,
+      "step": "code",
+      "width": 390
+    },
+    {
+      "heading": "Ваши данные",
+      "overflow": [],
+      "pdBeforeSubmit": null,
+      "scroll": 390,
+      "step": "profile",
+      "width": 390
+    },
+    {
+      "heading": "Завершим вход?",
+      "overflow": [],
+      "pdBeforeSubmit": true,
+      "scroll": 390,
+      "step": "consents",
+      "width": 390
+    },
+    {
+      "heading": "Вы вошли в Artmate",
+      "overflow": [],
+      "pdBeforeSubmit": null,
+      "scroll": 390,
+      "step": "success",
+      "width": 390
+    },
+    {
+      "heading": "Войти в Artmate",
+      "overflow": [],
+      "pdBeforeSubmit": null,
+      "scroll": 430,
+      "step": "email",
+      "width": 430
+    },
+    {
+      "heading": "Код из письма",
+      "overflow": [],
+      "pdBeforeSubmit": null,
+      "scroll": 430,
+      "step": "code",
+      "width": 430
+    },
+    {
+      "heading": "Ваши данные",
+      "overflow": [],
+      "pdBeforeSubmit": null,
+      "scroll": 430,
+      "step": "profile",
+      "width": 430
+    },
+    {
+      "heading": "Завершим вход?",
+      "overflow": [],
+      "pdBeforeSubmit": true,
+      "scroll": 430,
+      "step": "consents",
+      "width": 430
+    },
+    {
+      "heading": "Вы вошли в Artmate",
+      "overflow": [],
+      "pdBeforeSubmit": null,
+      "scroll": 430,
+      "step": "success",
+      "width": 430
+    }
+  ]
+}

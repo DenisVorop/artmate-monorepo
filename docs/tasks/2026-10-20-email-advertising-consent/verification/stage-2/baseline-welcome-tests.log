@@ -1,0 +1,87 @@
+TAP version 13
+# Subtest: welcome promocode
+    # Subtest: returns the read contract in RUB for a linked eligible account
+    ok 1 - returns the read contract in RUB for a linked eligible account
+      ---
+      duration_ms: 1.423
+      ...
+    # Subtest: returns fixed and capped monetary values in RUB with nullable counterparts
+    ok 2 - returns fixed and capped monetary values in RUB with nullable counterparts
+      ---
+      duration_ms: 0.22825
+      ...
+    # Subtest: hides the promo for unlinked, USED and RESERVED accounts but allows RELEASED
+    ok 3 - hides the promo for unlinked, USED and RESERVED accounts but allows RELEASED
+      ---
+      duration_ms: 0.288375
+      ...
+    # Subtest: hides inactive, future, expired and globally exhausted campaigns
+    ok 4 - hides inactive, future, expired and globally exhausted campaigns
+      ---
+      duration_ms: 0.429042
+      ...
+    # Subtest: blocks guest and unlinked direct calculate attempts while preserving standard codes
+    ok 5 - blocks guest and unlinked direct calculate attempts while preserving standard codes
+      ---
+      duration_ms: 0.929958
+      ...
+    # Subtest: previews and calculates the welcome discount for a linked account
+    not ok 6 - previews and calculates the welcome discount for a linked account
+      ---
+      duration_ms: 0.365042
+      location: '/private/tmp/artmate-stage2-baseline/apps/api/test/welcome-promocodes.spec.ts:127:24'
+      failureType: 'testCodeFailure'
+      error: "Cannot read properties of undefined (reading 'findMany')"
+      code: 'ERR_TEST_FAILURE'
+      name: 'TypeError'
+      stack: |-
+        readProductPrices (/private/tmp/artmate-stage2-baseline/apps/api/src/products/product-pricing.ts:17:30)
+        PromocodesService.preview (/private/tmp/artmate-stage2-baseline/apps/api/src/promocodes/promocodes.service.ts:271:50)
+        async TestContext.<anonymous> (/private/tmp/artmate-stage2-baseline/apps/api/test/welcome-promocodes.spec.ts:191:7)
+        async Test.run (node:internal/test_runner/test:932:9)
+        async Suite.processPendingSubtests (node:internal/test_runner/test:629:7)
+      ...
+    # Subtest: rechecks Telegram and USED/RESERVED inside transactional reservation
+    ok 7 - rechecks Telegram and USED/RESERVED inside transactional reservation
+      ---
+      duration_ms: 0.3915
+      ...
+    # Subtest: uses transactional Telegram state and persists welcome snapshots on reservation
+    ok 8 - uses transactional Telegram state and persists welcome snapshots on reservation
+      ---
+      duration_ms: 0.626834
+      ...
+    # Subtest: rejects changing welcome maxUsesPerUser and exposes kind in snapshots
+    ok 9 - rejects changing welcome maxUsesPerUser and exposes kind in snapshots
+      ---
+      duration_ms: 2.14275
+      ...
+    # Subtest: counts only USED and RESERVED, so RELEASED does not consume the account limit
+    ok 10 - counts only USED and RESERVED, so RELEASED does not consume the account limit
+      ---
+      duration_ms: 0.418042
+      ...
+    # Subtest: does not reset USED or RESERVED eligibility after unlinking and relinking the same user
+    ok 11 - does not reset USED or RESERVED eligibility after unlinking and relinking the same user
+      ---
+      duration_ms: 0.250041
+      ...
+    1..11
+not ok 1 - welcome promocode
+  ---
+  duration_ms: 8.23875
+  type: 'suite'
+  location: '/private/tmp/artmate-stage2-baseline/apps/api/test/welcome-promocodes.spec.ts:39:26'
+  failureType: 'subtestsFailed'
+  error: '1 subtest failed'
+  code: 'ERR_TEST_FAILURE'
+  ...
+1..1
+# tests 11
+# suites 1
+# pass 10
+# fail 1
+# cancelled 0
+# skipped 0
+# todo 0
+# duration_ms 1179.112416
