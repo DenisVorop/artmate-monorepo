@@ -63,6 +63,7 @@ jobs:
           ssh "$PRODUCTION_USER@$PRODUCTION_HOST" 'sudo mkdir -p /opt/artmate/infra/caddy && sudo chown -R "$USER:$USER" /opt/artmate'
           scp docker-compose.prod.yml "$PRODUCTION_USER@$PRODUCTION_HOST:/opt/artmate/docker-compose.prod.yml"
           scp infra/caddy/Caddyfile "$PRODUCTION_USER@$PRODUCTION_HOST:/opt/artmate/infra/caddy/Caddyfile"
+          scp infra/backup-database.sh "$PRODUCTION_USER@$PRODUCTION_HOST:/opt/artmate/infra/backup-database.sh"
           ssh "$PRODUCTION_USER@$PRODUCTION_HOST" 'mkdir -p /opt/artmate/infra/telegram-relay'
           scp infra/telegram-relay/Caddyfile "$PRODUCTION_USER@$PRODUCTION_HOST:/opt/artmate/infra/telegram-relay/Caddyfile"
           scp infra/telegram-relay/docker-compose.yml "$PRODUCTION_USER@$PRODUCTION_HOST:/opt/artmate/infra/telegram-relay/docker-compose.yml"
@@ -144,6 +145,9 @@ jobs:
           TELEGRAM_API_BASE_URL: ${{ secrets.TELEGRAM_API_BASE_URL || vars.TELEGRAM_API_BASE_URL }}
           TELEGRAM_API_RELAY_TOKEN: ${{ secrets.TELEGRAM_API_RELAY_TOKEN || secrets.OPENAI_RELAY_TOKEN || secrets.EDGE_PROXY_TOKEN || secrets.AI_RELAY_TOKEN }}
           AUTH_JWT_SECRET: ${{ secrets.AUTH_JWT_SECRET }}
+          AUTH_FLOW_PROXY_SECRET: ${{ secrets.AUTH_FLOW_PROXY_SECRET }}
+          ADVERTISING_RECIPIENT_HMAC_SECRET: ${{ secrets.ADVERTISING_RECIPIENT_HMAC_SECRET }}
+          ADVERTISING_RECIPIENT_KEY_VERSION: ${{ vars.ADVERTISING_RECIPIENT_KEY_VERSION }}
           AUTH_PASSWORD_EMAIL: ${{ secrets.AUTH_PASSWORD_EMAIL || vars.AUTH_PASSWORD_EMAIL }}
           AUTH_PASSWORD_NAME: ${{ secrets.AUTH_PASSWORD_NAME || vars.AUTH_PASSWORD_NAME }}
           AUTH_PASSWORD_HASH: ${{ secrets.AUTH_PASSWORD_HASH }}
@@ -288,6 +292,9 @@ jobs:
           append_secret TELEGRAM_API_BASE_URL "$TELEGRAM_API_BASE_URL"
           append_secret TELEGRAM_API_RELAY_TOKEN "$TELEGRAM_API_RELAY_TOKEN"
           append_secret AUTH_JWT_SECRET "$AUTH_JWT_SECRET"
+          append_secret AUTH_FLOW_PROXY_SECRET "$AUTH_FLOW_PROXY_SECRET"
+          append_secret ADVERTISING_RECIPIENT_HMAC_SECRET "$ADVERTISING_RECIPIENT_HMAC_SECRET"
+          append_secret ADVERTISING_RECIPIENT_KEY_VERSION "$ADVERTISING_RECIPIENT_KEY_VERSION"
           append_secret AUTH_PASSWORD_EMAIL "$AUTH_PASSWORD_EMAIL"
           append_secret AUTH_PASSWORD_NAME "$AUTH_PASSWORD_NAME"
           append_secret AUTH_PASSWORD_HASH "$AUTH_PASSWORD_HASH"
@@ -395,6 +402,10 @@ jobs:
             # Stop all application DB writers before incompatible schema changes.
             # On migration failure set -e leaves the old API stopped; never restart it automatically.
             docker compose --env-file .env --env-file .image.env -f docker-compose.prod.yml stop --timeout 120 api
+            # Keep a verified private snapshot outside the application directory.
+            # A failed backup leaves writers stopped and prevents migration.
+            backup_file="/opt/artmate-backups/pre-migrate-$(date -u +%Y%m%dT%H%M%SZ)-$$.dump"
+            bash infra/backup-database.sh --env-file .env --env-file .image.env --output "$backup_file"
             docker compose --env-file .env --env-file .image.env -f docker-compose.prod.yml --profile migrate run --rm api-migrate
             docker compose --env-file .env --env-file .image.env -f docker-compose.prod.yml up -d --remove-orphans --wait --wait-timeout 120
             docker compose --env-file .env --env-file .image.env -f docker-compose.prod.yml exec -T caddy caddy reload --config /etc/caddy/Caddyfile
