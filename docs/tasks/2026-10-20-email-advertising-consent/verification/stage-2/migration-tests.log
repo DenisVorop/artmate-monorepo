@@ -1,0 +1,92 @@
+TAP version 13
+# Subtest: auth and consent persistence
+    # Subtest: migrates the full history without enrolling existing users or publishing documents
+    ok 1 - migrates the full history without enrolling existing users or publishing documents
+      ---
+      duration_ms: 6.6135
+      ...
+    # Subtest: retains full structured request metadata and requires a versioned context
+    ok 2 - retains full structured request metadata and requires a versioned context
+      ---
+      duration_ms: 8.80775
+      ...
+    # Subtest: rejects raw codes, invalid attempt counters and impossible expiry
+    ok 3 - rejects raw codes, invalid attempt counters and impossible expiry
+      ---
+      duration_ms: 5.419792
+      ...
+    # Subtest: deduplicates identity and completion and prevents rewriting the verified email
+    ok 4 - deduplicates identity and completion and prevents rewriting the verified email
+      ---
+      duration_ms: 5.3885
+      ...
+    # Subtest: binds pending capabilities to their own operation and identity
+    ok 5 - binds pending capabilities to their own operation and identity
+      ---
+      duration_ms: 3.584625
+      ...
+    # Subtest: keeps exact immutable document/form bytes and verifies both hashes
+    ok 6 - keeps exact immutable document/form bytes and verifies both hashes
+      ---
+      duration_ms: 3.956
+      ...
+    # Subtest: records the accepted revision and optional source while keeping facts immutable
+    ok 7 - records the accepted revision and optional source while keeping facts immutable
+      ---
+      duration_ms: 10.736125
+      ...
+    # Subtest: rejects unpublished, retired and wrong-kind acceptance revisions
+    ok 8 - rejects unpublished, retired and wrong-kind acceptance revisions
+      ---
+      duration_ms: 4.494416
+      ...
+    # Subtest: allows advertising only for a matching verified email and advertising revision
+    ok 9 - allows advertising only for a matching verified email and advertising revision
+      ---
+      duration_ms: 7.315291
+      ...
+    # Subtest: requires grant and authoritative permission to commit atomically
+    ok 10 - requires grant and authoritative permission to commit atomically
+      ---
+      duration_ms: 4.89
+      ...
+    # Subtest: requires revocation and permission to commit together and prevents restoring an old grant
+    ok 11 - requires revocation and permission to commit together and prevents restoring an old grant
+      ---
+      duration_ms: 5.649333
+      ...
+    # Subtest: persists deduplicated domain intents and checks results and identity binding
+    ok 12 - persists deduplicated domain intents and checks results and identity binding
+      ---
+      duration_ms: 14.377375
+      ...
+    # Subtest: retains evidence after changing/deleting a user and cleaning temporary flow data
+    ok 13 - retains evidence after changing/deleting a user and cleaning temporary flow data
+      ---
+      duration_ms: 13.782959
+      ...
+    # Subtest: binds delivery evidence to its exact grant recipient and preserves uncertain outcomes
+    ok 14 - binds delivery evidence to its exact grant recipient and preserves uncertain outcomes
+      ---
+      duration_ms: 7.373125
+      ...
+    # Subtest: retains deduplicated evidence-access audit independently of the admin account
+    ok 15 - retains deduplicated evidence-access audit independently of the admin account
+      ---
+      duration_ms: 5.21325
+      ...
+    1..15
+ok 1 - auth and consent persistence
+  ---
+  duration_ms: 1784.544459
+  type: 'suite'
+  ...
+1..1
+# tests 15
+# suites 1
+# pass 15
+# fail 0
+# cancelled 0
+# skipped 0
+# todo 0
+# duration_ms 2090.079125
