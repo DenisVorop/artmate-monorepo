@@ -3,23 +3,34 @@
 import { useEffect, useRef } from "react";
 import { usePathname, useSearchParams } from "next/navigation";
 
+import { isSensitivePath } from "../is-sensitive-path";
+import { sanitizeAnalyticsUrl } from "./sanitize-analytics-url";
+
 type GoogleAnalyticsPageViewProps = {
   readonly measurementId: string;
 };
 
-type GtagArguments = [command: string, targetId: string, config?: Record<string, string>];
+type GtagArguments = [
+  command: string,
+  targetId: string,
+  config?: Record<string, string>,
+];
 
 type GoogleAnalyticsWindow = Window & {
   gtag?: (..._args: GtagArguments) => void;
 };
 
-export function GoogleAnalyticsPageView({ measurementId }: GoogleAnalyticsPageViewProps) {
+export function GoogleAnalyticsPageView({
+  measurementId,
+}: GoogleAnalyticsPageViewProps) {
   const pathname = usePathname();
   const searchParams = useSearchParams();
   const currentUrlRef = useRef<string | null>(null);
 
   useEffect(() => {
-    const currentUrl = window.location.href;
+    if (isSensitivePath(pathname)) return;
+    const currentUrl = sanitizeAnalyticsUrl(window.location.href);
+    if (!currentUrl) return;
 
     if (currentUrlRef.current === null) {
       currentUrlRef.current = currentUrl;
@@ -31,11 +42,11 @@ export function GoogleAnalyticsPageView({ measurementId }: GoogleAnalyticsPageVi
     }
 
     currentUrlRef.current = currentUrl;
-    const search = searchParams.toString();
+    const safeUrl = new URL(currentUrl);
 
     (window as GoogleAnalyticsWindow).gtag?.("config", measurementId, {
       page_location: currentUrl,
-      page_path: `${pathname}${search ? `?${search}` : ""}`,
+      page_path: `${safeUrl.pathname}${safeUrl.search}`,
     });
   }, [measurementId, pathname, searchParams]);
 

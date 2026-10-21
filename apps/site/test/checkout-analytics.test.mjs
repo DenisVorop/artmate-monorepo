@@ -42,6 +42,7 @@ async function loadSharedAnalytics() {
   const factory = evaluateTypeScript(
     await readSource("src/shared/lib/analytics/create-analytics.ts"),
     {
+      "@/shared/lib/cookie-consent": { getCookieConsentSnapshot: () => true },
       "./dedupe": dedupe,
       "./product": product,
       "./sanitize-analytics-url": sanitizer,
@@ -475,7 +476,13 @@ test("checkout surfaces first fresh failure and latches a verified cart across b
         useOrdersData: () => ({ data: [], isError: false }),
       },
       "@/entities/session": { useUser: () => undefined },
-      "@/features/auth": { AuthForm: component("AuthForm") },
+      "../lib/use-checkout-auth": {
+        useCheckoutAuth: () => ({ onLoginRequested: async () => undefined, isPending: false }),
+      },
+      "@/features/auth": {
+        withAuth: (Component) => Component,
+        useAuth: () => ({ onAuth() {}, isPending: false }),
+      },
       "@/features/promocode": {
         usePromocode: () => ({ clearCode() {} }),
         withPromocode: (Component) => Component,
@@ -646,7 +653,9 @@ async function createOrderMutationHarness({
   let mutationOptions;
   const queryClient = {
     invalidateQueries(options) {
-      effects?.push([options.queryKey[0] === "loyalty" ? "loyalty-cleanup" : "cart-pricing-cleanup"]);
+      effects?.push([
+        options.queryKey[0] === "loyalty" ? "loyalty-cleanup" : "cart-pricing-cleanup",
+      ]);
       invalidations.push(options);
       return Promise.resolve();
     },
@@ -756,7 +765,10 @@ test("order creation passes resolved attribution and cleans up before redirect w
   ]);
   assert.deepEqual(callbackValues, [response]);
   assert.deepEqual(success.cacheWrites, [[["cart"], null]]);
-  assert.deepEqual(success.invalidations, [{ queryKey: ["loyalty"] }, { queryKey: ["cart-pricing"] }]);
+  assert.deepEqual(success.invalidations, [
+    { queryKey: ["loyalty"] },
+    { queryKey: ["cart-pricing"] },
+  ]);
 
   const failed = await createOrderMutationHarness({
     actionResult: { error: "order creation rejected" },

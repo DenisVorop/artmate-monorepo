@@ -25,7 +25,6 @@ export type SubmitPartnerApplicationInputDTO = {
   channelUrl: string;
   comment?: string;
   contactHandle?: string;
-  consent: true;
   email: string;
   name: string;
   partnerType: PartnerType;

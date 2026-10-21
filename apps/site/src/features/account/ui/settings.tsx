@@ -12,6 +12,7 @@ import {
   type LucideIcon,
 } from "lucide-react";
 import { useForm } from "react-hook-form";
+import { Skeleton } from "@/shared/ui/skeleton";
 import { useSession, useTelegramLinkStatus } from "@/entities/session";
 import { getPreferredCustomerEmail, useOrdersData } from "@/entities/orders";
 import {
@@ -155,112 +156,124 @@ function TelegramLinkCard({ telegramLink }: TelegramLinkCardProps) {
           </p>
         </div>
 
-        {telegramLink.isPending ? (
-          <div className="space-y-3" aria-hidden="true">
-            <div className="h-10 rounded bg-muted motion-safe:animate-pulse" />
-            <div className="h-10 rounded bg-muted motion-safe:animate-pulse" />
-          </div>
-        ) : telegramLink.isError ? (
-          <p className="text-sm text-destructive">Не удалось загрузить статус Telegram.</p>
-        ) : isLinked && account ? (
-          <div className="space-y-3">
-            <Badge variant="secondary" className="w-fit">
-              Привязан
-            </Badge>
-            <ContactLine icon={Phone} label="Телефон Telegram" value={account.phone} />
-            <ContactLine
-              icon={UserRound}
-              label="Аккаунт Telegram"
-              value={formatTelegramAccountName(account)}
-            />
-            {formError ? <p className="text-sm text-destructive">{formError}</p> : null}
-            {successMessage ? <p className="text-sm text-emerald-600">{successMessage}</p> : null}
-            <Dialog open={isUnlinkDialogOpen} onOpenChange={setIsUnlinkDialogOpen}>
-              <DialogTrigger asChild>
-                <Button
-                  type="button"
-                  variant="destructive"
-                  className="w-full"
-                  disabled={unlinkTelegram.isPending}
-                >
-                  <Unlink data-icon="inline-start" />
-                  Отключить Telegram
-                </Button>
-              </DialogTrigger>
-              <DialogContent>
-                <DialogHeader>
-                  <DialogTitle>Отключить Telegram?</DialogTitle>
-                  <DialogDescription>
-                    Аккаунт Telegram перестанет получать уведомления Artmate. Подключить его заново
-                    можно будет в этом же разделе.
-                  </DialogDescription>
-                </DialogHeader>
-                <DialogFooter>
-                  <DialogClose asChild>
-                    <Button type="button" variant="outline" disabled={unlinkTelegram.isPending}>
-                      Отмена
-                    </Button>
-                  </DialogClose>
+        <div className="min-h-44" aria-busy={telegramLink.isPending}>
+          {telegramLink.isPending ? (
+            <div role="status" aria-label="Загружаем настройки Telegram">
+              <div className="space-y-4" aria-hidden="true">
+                <Skeleton className="h-8 w-full" />
+                <div className="space-y-3">
+                  <div className="space-y-2">
+                    <Skeleton className="h-3.5 w-28" />
+                    <Skeleton className="h-8 w-full" />
+                  </div>
+                  <Skeleton className="h-8 w-full" />
+                </div>
+              </div>
+            </div>
+          ) : telegramLink.isError ? (
+            <p className="text-sm text-destructive">Не удалось загрузить статус Telegram.</p>
+          ) : isLinked && account ? (
+            <div className="space-y-3">
+              <Badge variant="secondary" className="w-fit">
+                Привязан
+              </Badge>
+              <ContactLine icon={Phone} label="Телефон Telegram" value={account.phone} />
+              <ContactLine
+                icon={UserRound}
+                label="Аккаунт Telegram"
+                value={formatTelegramAccountName(account)}
+              />
+              {formError ? <p className="text-sm text-destructive">{formError}</p> : null}
+              {successMessage ? <p className="text-sm text-emerald-600">{successMessage}</p> : null}
+              <Dialog open={isUnlinkDialogOpen} onOpenChange={setIsUnlinkDialogOpen}>
+                <DialogTrigger asChild>
                   <Button
                     type="button"
                     variant="destructive"
+                    className="w-full"
                     disabled={unlinkTelegram.isPending}
-                    onClick={() => {
-                      void handleUnlink();
-                    }}
                   >
-                    Отключить
+                    <Unlink data-icon="inline-start" />
+                    Отключить Telegram
                   </Button>
-                </DialogFooter>
-              </DialogContent>
-            </Dialog>
-          </div>
-        ) : (
-          <div className="space-y-4">
-            {telegramLink.data?.botUrl ? (
-              <Button asChild className="w-full">
-                <a href={telegramLink.data.botUrl} target="_blank" rel="noreferrer">
-                  <ExternalLink data-icon="inline-start" />
-                  Открыть бота
-                </a>
-              </Button>
-            ) : (
-              <Button className="w-full" disabled>
-                Бот не настроен
-              </Button>
-            )}
+                </DialogTrigger>
+                <DialogContent>
+                  <DialogHeader>
+                    <DialogTitle>Отключить Telegram?</DialogTitle>
+                    <DialogDescription>
+                      Аккаунт Telegram перестанет получать уведомления Artmate. Подключить его
+                      заново можно будет в этом же разделе.
+                    </DialogDescription>
+                  </DialogHeader>
+                  <DialogFooter>
+                    <DialogClose asChild>
+                      <Button type="button" variant="outline" disabled={unlinkTelegram.isPending}>
+                        Отмена
+                      </Button>
+                    </DialogClose>
+                    <Button
+                      type="button"
+                      variant="destructive"
+                      disabled={unlinkTelegram.isPending}
+                      onClick={() => {
+                        void handleUnlink();
+                      }}
+                    >
+                      Отключить
+                    </Button>
+                  </DialogFooter>
+                </DialogContent>
+              </Dialog>
+            </div>
+          ) : (
+            <div className="space-y-4">
+              {telegramLink.data?.botUrl ? (
+                <Button asChild className="w-full">
+                  <a href={telegramLink.data.botUrl} target="_blank" rel="noreferrer">
+                    <ExternalLink data-icon="inline-start" />
+                    Открыть бота
+                  </a>
+                </Button>
+              ) : (
+                <Button className="w-full" disabled>
+                  Бот не настроен
+                </Button>
+              )}
 
-            <form
-              className="space-y-3"
-              onSubmit={(event) => {
-                void handleSubmit(onSubmit)(event);
-              }}
-            >
-              <div className="space-y-2">
-                <Label htmlFor="telegram-link-code">Код из Telegram</Label>
-                <Input
-                  id="telegram-link-code"
-                  inputMode="numeric"
-                  maxLength={6}
-                  placeholder="123456"
-                  autoComplete="one-time-code"
-                  aria-invalid={Boolean(errors.code)}
-                  {...register("code")}
-                />
-                {errors.code?.message ? (
-                  <p className="text-sm text-destructive">{errors.code.message}</p>
+              <form
+                className="space-y-3"
+                onSubmit={(event) => {
+                  void handleSubmit(onSubmit)(event);
+                }}
+              >
+                <div className="space-y-2">
+                  <Label htmlFor="telegram-link-code">Код из Telegram</Label>
+                  <Input
+                    id="telegram-link-code"
+                    inputMode="numeric"
+                    maxLength={6}
+                    placeholder="123456"
+                    autoComplete="one-time-code"
+                    aria-invalid={Boolean(errors.code)}
+                    {...register("code")}
+                  />
+                  {errors.code?.message ? (
+                    <p className="text-sm text-destructive">{errors.code.message}</p>
+                  ) : null}
+                </div>
+
+                {formError ? <p className="text-sm text-destructive">{formError}</p> : null}
+                {successMessage ? (
+                  <p className="text-sm text-emerald-600">{successMessage}</p>
                 ) : null}
-              </div>
 
-              {formError ? <p className="text-sm text-destructive">{formError}</p> : null}
-              {successMessage ? <p className="text-sm text-emerald-600">{successMessage}</p> : null}
-
-              <Button type="submit" className="w-full" disabled={confirmTelegramLink.isPending}>
-                Подтвердить код
-              </Button>
-            </form>
-          </div>
-        )}
+                <Button type="submit" className="w-full" disabled={confirmTelegramLink.isPending}>
+                  Подтвердить код
+                </Button>
+              </form>
+            </div>
+          )}
+        </div>
       </CardContent>
     </Card>
   );

@@ -7,9 +7,7 @@ const orderMaxLength = 80;
 const messageMaxLength = 2000;
 
 export const contactFormSchema = z.object({
-  acceptedPersonalDataConsent: z
-    .boolean()
-    .refine((value) => value, "Подтвердите согласие на обработку персональных данных"),
+  acceptedPersonalDataConsent: z.boolean().refine((value) => value, "Для отправки нужно согласие."),
   email: z
     .string()
     .trim()
@@ -21,11 +19,7 @@ export const contactFormSchema = z.object({
     .trim()
     .min(1, "Напишите сообщение")
     .max(messageMaxLength, "Сообщение слишком длинное"),
-  name: z
-    .string()
-    .trim()
-    .min(1, "Укажите имя")
-    .max(nameMaxLength, "Имя слишком длинное"),
+  name: z.string().trim().min(1, "Укажите имя").max(nameMaxLength, "Имя слишком длинное"),
   order: z.string().trim().max(orderMaxLength, "Номер заказа слишком длинный"),
   topic: z.string().trim().max(topicMaxLength, "Тема слишком длинная"),
 });

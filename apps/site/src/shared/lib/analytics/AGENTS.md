@@ -25,7 +25,7 @@ analytics.checkoutStarted(cart, attemptKey);
 
 - Прямые обращения к `window.dataLayer`, `window.ym`, counter ID и `reachGoal` вне shared transport запрещены.
 
-Известное legacy-исключение — `features/partner-application/lib/analytics.ts`. Не используйте его как образец и не добавляйте новые прямые вызовы. При следующем содержательном изменении партнёрской аналитики перенесите её transport в shared-слой, сохранив действующие event IDs и consent-поведение.
+Партнёрские `partner_*` события проходят через feature-local adapter и общий typed transport. Они сохраняют отдельное cookie-consent условие и существующие Google/Яндекс event IDs; отмена авторизации не считается ошибкой бизнес-заявки.
 
 ## Источник события
 
@@ -56,10 +56,10 @@ analytics.checkoutStarted(cart, attemptKey);
 - welcome `promoView` — только после committed состояния `presented` с активным offer;
   `promoClick` и `welcome_promo_click` — только на основном CTA, а close и «Не сейчас»
   событий не создают;
-- регистрация — только в configured `onSuccess` успешного `confirmEmailVerification`,
-  если ответ содержит `session.user` и flow начат успешным `register`; login→resend,
-  password reset и OAuth не создают `sign_up`; registration origin сохраняется при resend
-  и сбрасывается при выходе назад из verification flow;
+- регистрация — только после `COMPLETED` нового email registration flow и публикации
+  свежей session в общем Auth coordinator; подтверждение кода, password draft и согласия
+  до завершения не создают `sign_up`. Обычный вход, password reset, guest activation и
+  OAuth не создают эту email registration goal; повторные completion/polling не дублируют её;
 - цифровой каталог, тематика и картина — только после успешной client-загрузки реальной
   сущности и прохождения loading/error/404 guards; переход со страницы товара считается
   отдельным diagnostic click и отправляется только с CTA цифровой версии;
@@ -79,6 +79,7 @@ analytics.checkoutStarted(cart, attemptKey);
   - `promo_apply_success`;
   - `welcome_promo_click`;
   - `sign_up`;
+  - `partner_cta_click`, `partner_form_start`, `partner_form_success`, `partner_form_error` (только при cookie consent);
   - `digital_versions_opened`;
   - `digital_coloring_open`.
 - `order_created` и `order_paid` не входят в browser goal registry: canonical события

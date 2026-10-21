@@ -128,22 +128,13 @@ test("welcome hook hides cached data while disabled, refetching, or failed", asy
   const cached = { promo: { code: "OLD-CODE" } };
 
   queryResult = { data: cached, isError: false, isFetching: false, isPending: false };
-  assert.equal(
-    useWelcomePromo({ enabled: false, userId: "user-1" }).data,
-    undefined,
-  );
+  assert.equal(useWelcomePromo({ enabled: false, userId: "user-1" }).data, undefined);
 
   queryResult = { data: cached, isError: false, isFetching: true, isPending: false };
-  assert.equal(
-    useWelcomePromo({ enabled: true, userId: "user-2" }).data,
-    undefined,
-  );
+  assert.equal(useWelcomePromo({ enabled: true, userId: "user-2" }).data, undefined);
 
   queryResult = { data: cached, isError: true, isFetching: false, isPending: false };
-  assert.equal(
-    useWelcomePromo({ enabled: true, userId: "user-2" }).data,
-    undefined,
-  );
+  assert.equal(useWelcomePromo({ enabled: true, userId: "user-2" }).data, undefined);
 
   queryResult = {
     data: cached,
@@ -153,10 +144,7 @@ test("welcome hook hides cached data while disabled, refetching, or failed", asy
     isPaused: true,
     isPending: false,
   };
-  assert.equal(
-    useWelcomePromo({ enabled: true, userId: "user-2" }).data,
-    undefined,
-  );
+  assert.equal(useWelcomePromo({ enabled: true, userId: "user-2" }).data, undefined);
   assert.equal(queryCalls[0].enabled, false);
   assert.equal(queryCalls[1].enabled, true);
 });
@@ -257,15 +245,14 @@ test("account welcome card preserves kopecks, uses Moscow expiry, and exposes co
 });
 
 test("welcome action is private no-store and all eligibility transitions invalidate it", async () => {
-  const [action, confirmTelegram, unlinkTelegram, createOrder, login, logout, verification] =
+  const [action, confirmTelegram, unlinkTelegram, createOrder, sessionPublication, logout] =
     await Promise.all([
       readSource("src/shared/actions/promocodes/promocodes.actions.ts"),
       readSource("src/features/account/model/use-confirm-telegram-link.ts"),
       readSource("src/features/account/model/use-unlink-telegram.ts"),
       readSource("src/features/checkout/model/use-create-order.ts"),
-      readSource("src/features/auth/model/use-login.ts"),
+      readSource("src/features/auth/lib/publish-auth-session.ts"),
       readSource("src/features/auth/model/use-logout.ts"),
-      readSource("src/features/auth/model/use-confirm-email-verification.ts"),
     ]);
 
   assert.match(action, /getWelcomePromoCode/u);
@@ -274,14 +261,7 @@ test("welcome action is private no-store and all eligibility transitions invalid
   assert.match(action, /authAccessTokenCookieName/u);
   assert.doesNotMatch(action, /ARTMSTART/u);
 
-  for (const source of [
-    confirmTelegram,
-    unlinkTelegram,
-    createOrder,
-    login,
-    logout,
-    verification,
-  ]) {
+  for (const source of [confirmTelegram, unlinkTelegram, createOrder, sessionPublication, logout]) {
     assert.match(source, /invalidateQueries\(\{ queryKey: cartPricingQueryKey \}\)/u);
   }
 });

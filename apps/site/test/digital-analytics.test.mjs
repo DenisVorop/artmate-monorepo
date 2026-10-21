@@ -42,6 +42,7 @@ async function loadSharedAnalytics() {
   const factory = evaluateTypeScript(
     await readSource("src/shared/lib/analytics/create-analytics.ts"),
     {
+      "@/shared/lib/cookie-consent": { getCookieConsentSnapshot: () => true },
       "./dedupe": dedupe,
       "./product": product,
       "./sanitize-analytics-url": sanitizer,

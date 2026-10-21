@@ -2,6 +2,7 @@
 
 import { useMutation, useQueryClient } from "@tanstack/react-query";
 
+import { emailSubscriptionQuery } from "@/entities/email-subscription";
 import { achievementQuery } from "@/entities/achievement";
 import { sessionQuery } from "@/entities/session";
 import { loyaltyQuery } from "@/entities/loyalty";
@@ -24,6 +25,10 @@ export function useLogoutMutation(options: UseLogoutMutationOptions = {}) {
   const { mutate, mutateAsync, isPending } = useMutation({
     mutationFn: async () => ApiResult.fromDTO(await logout()).unwrap(),
     onSuccess: () => {
+      void queryClient.cancelQueries({
+        queryKey: emailSubscriptionQuery.baseKey,
+      });
+      queryClient.removeQueries({ queryKey: emailSubscriptionQuery.baseKey });
       void queryClient.cancelQueries({ queryKey: achievementQuery.baseKey });
       queryClient.removeQueries({ queryKey: achievementQuery.baseKey });
       void queryClient.cancelQueries({ queryKey: workshopQuery.baseKey });
@@ -36,7 +41,9 @@ export function useLogoutMutation(options: UseLogoutMutationOptions = {}) {
       void queryClient.cancelQueries({ queryKey: welcomeOfferQueryKey });
       queryClient.removeQueries({ queryKey: featureBannersQueryKey });
       queryClient.removeQueries({ queryKey: welcomeOfferQueryKey });
-      queryClient.setQueryData(sessionQuery.getSession().queryKey, { user: null });
+      queryClient.setQueryData(sessionQuery.getSession().queryKey, {
+        user: null,
+      });
       void queryClient.invalidateQueries({ queryKey: cartPricingQueryKey });
       options.onSuccess?.();
     },

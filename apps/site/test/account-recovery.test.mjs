@@ -5,483 +5,523 @@ import { test } from "node:test";
 
 const require = createRequire(import.meta.url);
 const ts = require("typescript");
-
-async function readSource(path) {
-  try {
-    return await readFile(new URL(`../${path}`, import.meta.url), "utf8");
-  } catch {
-    return "";
-  }
-}
-
-function evaluateTypeScript(source, mocks = {}) {
+const routes = {
+  home: "/",
+  auth: "/auth",
+  unsubscribe: "/unsubscribe",
+  authOrderActivation: "/auth/activate-order",
+  authResetPassword: "/auth/reset-password",
+  authRecovery: "/auth/recovery",
+};
+const read = (path) => readFile(new URL(`../${path}`, import.meta.url), "utf8");
+function evaluate(source, mocks = {}) {
   const output = ts.transpileModule(source, {
     compilerOptions: {
-      esModuleInterop: true,
       module: ts.ModuleKind.CommonJS,
       target: ts.ScriptTarget.ES2022,
+      jsx: ts.JsxEmit.ReactJSX,
     },
   }).outputText;
-  const loadedModule = { exports: {} };
-  const localRequire = (specifier) =>
-    Object.hasOwn(mocks, specifier) ? mocks[specifier] : require(specifier);
-
+  const loaded = { exports: {} };
   new Function("require", "module", "exports", output)(
-    localRequire,
-    loadedModule,
-    loadedModule.exports,
+    (id) => (id in mocks ? mocks[id] : require(id)),
+    loaded,
+    loaded.exports,
   );
-
-  return loadedModule.exports;
+  return loaded.exports;
 }
-
-async function loadSharedAnalytics() {
-  const types = evaluateTypeScript(await readSource("src/shared/lib/analytics/types.ts"));
-  const product = evaluateTypeScript(await readSource("src/shared/lib/analytics/product.ts"));
-  const dedupe = evaluateTypeScript(await readSource("src/shared/lib/analytics/dedupe.ts"));
-  const sanitizer = evaluateTypeScript(
-    await readSource("src/shared/lib/analytics/sanitize-analytics-url.ts"),
-  );
-  const factory = evaluateTypeScript(await readSource("src/shared/lib/analytics/create-analytics.ts"), {
-    "./dedupe": dedupe,
-    "./product": product,
-    "./sanitize-analytics-url": sanitizer,
-    "./types": types,
-  });
-
-  return { ...types, ...factory };
+const redirect = evaluate(await read("src/features/auth/lib/redirect.ts"), {
+  "@/shared/constants": { routes },
+});
+for (const path of [
+  undefined,
+  null,
+  "",
+  "https://evil.test",
+  "//evil.test",
+  "/\\evil.test/path",
+  "/auth",
+  "/auth?next=/account",
+  "/auth/recovery",
+  "/./auth",
+  "/catalog/../auth",
+  "/\nauth",
+  "/%61uth/recovery",
+  "/auth%2frecovery",
+  "/%2f%2fevil.test",
+  "/%5cevil.test",
+  "/%2561uth",
+  "/%zz",
+]) {
+  test(`safe auth destination rejects ${JSON.stringify(path)}`, () =>
+    assert.equal(redirect.getSafeAuthRedirectPath(path), "/"));
 }
-
-test("recovery and activation public APIs expose only their route components", async () => {
-  const [recoveryIndex, activationIndex] = await Promise.all([
-    readSource("src/features/account-recovery/index.ts"),
-    readSource("src/features/order-activation/index.ts"),
-  ]);
-
-  assert.equal(
-    recoveryIndex.trim(),
-    'export { AccountRecovery } from "./ui/recovery-form";',
-  );
-  assert.equal(
-    activationIndex.trim(),
-    'export { OrderActivation } from "./ui/activation-form";',
-  );
+for (const [input, expected] of [
+  ["/account", "/account"],
+  ["/catalog?category=markers#colors", "/catalog?category=markers#colors"],
+  ["/catalog/../account", "/account"],
+  ["/author", "/author"],
+]) {
+  test(`safe auth destination keeps ${input}`, () =>
+    assert.equal(redirect.getSafeAuthRedirectPath(input), expected));
+}
+const sensitive = evaluate(await read("src/shared/lib/is-sensitive-path.ts"), {
+  "@/shared/constants": { routes },
 });
-
-test("recovery and activation schemas validate inputs and map only API fields", async () => {
-  const [recoverySource, activationSource] = await Promise.all([
-    readSource("src/features/account-recovery/lib/form.ts"),
-    readSource("src/features/order-activation/lib/form.ts"),
-  ]);
-  assert.notEqual(recoverySource, "");
-  assert.notEqual(activationSource, "");
-
-  const recovery = evaluateTypeScript(recoverySource);
-  const activation = evaluateTypeScript(activationSource);
-
-  assert.equal(
-    recovery.recoveryFormSchema.safeParse({
-      email: "guest@example.com",
-      acceptedPersonalDataConsent: false,
-    }).success,
-    false,
-  );
-  assert.deepEqual(
-    recovery.toRecoveryInput({
-      email: " guest@example.com ",
-      acceptedPersonalDataConsent: true,
-    }),
-    { email: "guest@example.com", acceptedPersonalDataConsent: true },
-  );
-  assert.equal(
-    activation.orderActivationFormSchema.safeParse({
-      password: "password-1",
-      passwordConfirm: "different",
-    }).success,
-    false,
-  );
-  assert.deepEqual(
-    activation.toOrderActivationInput(
-      { password: "password-1", passwordConfirm: "password-1" },
-      "activation-token",
-    ),
-    { password: "password-1", token: "activation-token" },
-  );
+test("token surfaces are identified while ordinary storefront and auth are allowed", () => {
+  for (const path of [
+    "/unsubscribe",
+    "/auth/activate-order",
+    "/auth/reset-password",
+    "/auth/oauth/yandex/callback",
+  ])
+    assert.equal(sensitive.isSensitivePath(path), true);
+  for (const path of ["/", "/auth", "/auth/recovery", "/account"])
+    assert.equal(sensitive.isSensitivePath(path), false);
 });
-
-test("recovery and activation forms use RHF with Zod and keep routes thin", async () => {
-  const [recoveryForm, activationForm, recoveryRoute, activationRoute, routes] = await Promise.all([
-    readSource("src/features/account-recovery/ui/recovery-form.tsx"),
-    readSource("src/features/order-activation/ui/activation-form.tsx"),
-    readSource("app/auth/recovery/page.tsx"),
-    readSource("app/auth/activate-order/page.tsx"),
-    readSource("src/shared/constants/routes.ts"),
-  ]);
-
-  for (const form of [recoveryForm, activationForm]) {
-    assert.match(form, /useForm/u);
-    assert.match(form, /zodResolver/u);
-  }
-  assert.match(recoveryForm, /acceptedPersonalDataConsent/u);
-  assert.match(recoveryRoute, /AccountRecovery/u);
-  assert.doesNotMatch(recoveryRoute, /useForm|useMutation|fetch\(/u);
-  assert.match(activationRoute, /OrderActivation/u);
-  assert.doesNotMatch(activationRoute, /useForm|useMutation|fetch\(/u);
-  assert.match(routes, /authRecovery:\s*["']\/auth\/recovery["']/u);
-  assert.match(routes, /authOrderActivation:\s*["']\/auth\/activate-order["']/u);
-});
-
-test("recovery request is generic and activation errors share one recovery path", async () => {
-  const [recoveryForm, activationForm] = await Promise.all([
-    readSource("src/features/account-recovery/ui/recovery-form.tsx"),
-    readSource("src/features/order-activation/ui/activation-form.tsx"),
-  ]);
-
-  assert.match(recoveryForm, /Если аккаунт связан с этим email/u);
-  assert.doesNotMatch(recoveryForm, /аккаунт (?:найден|не найден)|пользователь (?:найден|не найден)/ui);
-  assert.match(activationForm, /Ссылка недействительна или истекла/u);
-  assert.match(activationForm, /routes\.authRecovery/u);
-  assert.doesNotMatch(activationForm, /["'](?:expired|consumed|invalid|unknown)["']/ui);
-});
-
-test("activation preflight state classification distinguishes invalid links from temporary failures", async () => {
-  const stateSource = await readSource("src/features/order-activation/lib/activation-state.ts");
-  assert.notEqual(stateSource, "", "pure activation state helper is missing");
-  const { classifyActivationFailure, getActivationViewState } = evaluateTypeScript(stateSource);
-
-  assert.equal(classifyActivationFailure({ status: 400 }), "invalid");
-  assert.equal(classifyActivationFailure({ status: 404 }), "invalid");
-  assert.equal(classifyActivationFailure({ status: 410 }), "invalid");
-  assert.equal(classifyActivationFailure({ status: 500 }), "temporary");
-  assert.equal(classifyActivationFailure({}), "temporary");
-
-  assert.equal(getActivationViewState({ hasToken: true, preflight: "pending" }), "loading");
-  assert.equal(getActivationViewState({ hasToken: true, preflight: "valid" }), "form");
-  assert.equal(getActivationViewState({ hasToken: true, preflight: "invalid" }), "invalid");
-  assert.equal(getActivationViewState({ hasToken: false, preflight: "idle" }), "invalid");
-  assert.equal(getActivationViewState({ hasToken: true, preflight: "temporary" }), "temporary");
-  assert.equal(
-    getActivationViewState({
-      confirmFailure: "invalid",
-      hasToken: true,
-      preflight: "valid",
-    }),
-    "invalid",
-  );
-  assert.equal(
-    getActivationViewState({
-      confirmFailure: "temporary",
-      hasToken: true,
-      preflight: "valid",
-    }),
-    "form",
-  );
-});
-
-test("activation validation rechecks stale links and hides the form during refetch", async () => {
-  const [activationForm, activationModel] = await Promise.all([
-    readSource("src/features/order-activation/ui/activation-form.tsx"),
-    readSource("src/features/order-activation/model/use-validate-activation.ts"),
-  ]);
-
-  assert.match(activationModel, /staleTime:\s*0/u);
-  assert.doesNotMatch(activationModel, /staleTime:\s*Infinity/u);
-  assert.match(activationModel, /isFetching/u);
-  assert.match(activationForm, /validation\.isFetching/u);
-});
-
-test("activation confirmation state and success effects are scoped to the current token", async () => {
-  const [stateSource, activationForm, activationMutation] = await Promise.all([
-    readSource("src/features/order-activation/lib/activation-state.ts"),
-    readSource("src/features/order-activation/ui/activation-form.tsx"),
-    readSource("src/features/order-activation/model/use-confirm-activation.ts"),
-  ]);
-  const { isCurrentActivationToken } = evaluateTypeScript(stateSource);
-
-  assert.equal(isCurrentActivationToken("token-a", "token-a"), true);
-  assert.equal(isCurrentActivationToken("token-a", "token-b"), false);
-  assert.equal(isCurrentActivationToken(undefined, "token-b"), false);
-  assert.match(activationForm, /useConfirmActivation\(normalizedToken\)/u);
-  assert.match(activationMutation, /currentTokenRef/u);
-  assert.match(
-    activationMutation,
-    /isCurrentActivationToken\(input\.token,\s*currentTokenRef\.current\)/u,
-  );
-  assert.match(activationMutation, /isPending:\s*isCurrentMutation\s*&&\s*isPending/u);
-  assert.match(activationMutation, /error:\s*isCurrentMutation\s*\?\s*error\s*:\s*undefined/u);
-
-  const successBody = activationMutation.match(
-    /onSuccess:\s*async\s*\(session,\s*input\)\s*=>\s*\{(?<body>[\s\S]*?)\n\s*\},/u,
-  )?.groups?.body;
-  assert.ok(successBody, "activation success callback is missing token scope");
-  assert.ok(
-    successBody.indexOf("isCurrentActivationToken") < successBody.indexOf("setQueryData"),
-    "token scope must be checked before session, analytics and redirect effects",
-  );
-});
-
-async function loadIdentityCacheHook(kind) {
-  const operations = [];
-  const ordersKey = ["orders"];
-  const sessionKey = ["session", "data"];
-  const currentTokenRef = { current: "token-a" };
-  let mutationOptions;
-  let finishCancellation;
-  const cancellation = new Promise((resolve) => { finishCancellation = resolve; });
-  const queryClient = {
-    cancelQueries: ({ queryKey }) => {
-      operations.push(["cancel", queryKey]);
-      return queryKey === ordersKey ? cancellation : Promise.resolve();
-    },
-    removeQueries: ({ queryKey }) => operations.push(["remove", queryKey]),
-    setQueryData: (queryKey, value) => operations.push(["session", queryKey, value]),
-    invalidateQueries: ({ queryKey }) => {
-      operations.push(["invalidate", queryKey]);
-      return Promise.resolve();
-    },
-  };
-  const path = kind === "activation"
-    ? "src/features/order-activation/model/use-confirm-activation.ts"
-    : "src/features/auth/model/use-login.ts";
-  const state = evaluateTypeScript(
-    await readSource("src/features/order-activation/lib/activation-state.ts"),
-  );
-  const hook = evaluateTypeScript(await readSource(path), {
-    "@tanstack/react-query": {
-      useQueryClient: () => queryClient,
-      useMutation: (options) => {
-        mutationOptions = options;
-        return { isPending: false, mutate() {}, mutateAsync() {} };
+test("proxy overwrites untrusted analytics marker and protects token response headers", async () => {
+  let forwarded;
+  const proxy = evaluate(await read("proxy.ts"), {
+    "@/shared/lib/is-sensitive-path": sensitive,
+    "next/server": {
+      NextResponse: {
+        next: (options) => {
+          forwarded = options.request.headers;
+          return { headers: new Headers() };
+        },
       },
     },
-    "next/navigation": { useRouter: () => ({ replace: (path) => operations.push(["navigate", path]) }) },
-    react: { useRef: () => currentTokenRef },
-    "@/entities/achievement": { achievementQuery: { baseKey: ["achievements"] } },
-    "@/entities/orders": { ordersQuery: { baseKey: ordersKey } },
-    "@/entities/workshop": { workshopQuery: { baseKey: ["workshop"] } },
-    "@/entities/session": { sessionQuery: { getSession: () => ({ queryKey: sessionKey }) } },
-    "@/shared/actions/auth": {},
-    "@/shared/constants": { routes: { account: "/account" } },
-    "@/shared/lib/api-result": {},
-    "@/shared/lib/query-keys": {
-      cartPricingQueryKey: ["cart-pricing"],
-      featureBannersQueryKey: ["feature-banners"],
-      welcomeOfferQueryKey: ["welcome-offer"],
-    },
-    "../lib/activation-state": state,
-    "../lib/analytics": { useAnalytics: () => ({ activationCompleted: () => operations.push(["analytics"]) }) },
   });
+  const result = proxy.proxy({
+    nextUrl: { pathname: "/auth/activate-order" },
+    headers: new Headers({ "x-artmate-sensitive-auth": "0" }),
+  });
+  assert.equal(forwarded.get("x-artmate-sensitive-auth"), "1");
+  assert.equal(result.headers.get("Cache-Control"), "no-store, max-age=0");
+  assert.equal(result.headers.get("Referrer-Policy"), "no-referrer");
+  proxy.proxy({
+    nextUrl: { pathname: "/catalog" },
+    headers: new Headers({ "x-artmate-sensitive-auth": "1" }),
+  });
+  assert.equal(forwarded.get("x-artmate-sensitive-auth"), "0");
+});
+test("sensitive links are document navigation, never Next prefetch or SPA transitions", async () => {
+  const link = evaluate(await read("src/shared/ui/link.tsx"), {
+    "../lib/is-sensitive-path": sensitive,
+    "../lib": { cn: (...items) => items.filter(Boolean).join(" ") },
+    "next/link": { __esModule: true, default: "NextLink" },
+  });
+  const privateLink = link.Link({
+    href: "/auth/reset-password?token=private",
+    children: "Сменить пароль",
+    prefetch: true,
+    replace: true,
+  });
+  assert.equal(privateLink.type, "a");
+  assert.equal(privateLink.props.href, "/auth/reset-password?token=private");
+  assert.equal("prefetch" in privateLink.props, false);
+  const normalLink = link.Link({ href: "/catalog", children: "Каталог" });
+  assert.equal(normalLink.type, "NextLink");
+});
+test("route adapters share flow view, keep activation identity transient and preserve safe next", async () => {
+  let request;
+  const route = evaluate(await read("src/features/auth/ui/route-entry.tsx"), {
+    react: { useMemo: (build) => build() },
+    "@/shared/constants": { routes },
+    "@/shared/ui": { Button: "button" },
+    "../lib/auth-provider": { withAuth: (component) => component },
+    "./auth-page-shell": { AuthPageShell: "shell" },
+    "./current-flow-view": { CurrentFlowView: "flow" },
+    "../lib/use-route-auth": {
+      useRouteAuth: (options) => {
+        request = options;
+        return { failure: null, isPending: true, initialStep: "completion", retry() {} };
+      },
+    },
+  });
+  route.AuthRoute({ entry: "activation", token: "private", next: "/account" });
+  assert.deepEqual(request, {
+    entry: { type: "activation", token: "private" },
+    next: "/account",
+  });
+  const resumedActivation = route.AuthRoute({ entry: "activation", next: "/account" });
+  assert.deepEqual(request.entry, { type: "resume" });
+  assert.equal(
+    resumedActivation.props.children.props.children.props.initialStep,
+    "activation-loading",
+    "reloading an activation checks the link instead of claiming login completion",
+  );
+  route.AuthRoute({ entry: "recovery" });
+  assert.deepEqual(request.entry, { type: "recovery" });
+  route.AuthRoute({});
+  assert.equal(request.entry, undefined);
+});
+test("standalone route no longer skips consents by redirecting an existing session", async () => {
+  const route = await read("app/auth/page.tsx");
+  assert.doesNotMatch(route, /getAuthSession|redirect\(/u);
+  assert.match(route, /resume/u);
+  for (const name of [
+    "src/features/order-activation/index.ts",
+    "src/features/account-recovery/index.ts",
+    "src/features/auth/model/use-confirm-password-reset.ts",
+  ])
+    await assert.rejects(read(name), { code: "ENOENT" });
+});
+test("password reset uses matching password schema and never creates an authenticated session", async () => {
+  const source = await read("src/features/auth/lib/use-password-reset-route.ts");
+  const ui = await read("src/features/auth/ui/password-reset-route.tsx");
+  assert.match(source, /useForm<PasswordCreationValues>/u);
+  assert.match(source, /zodResolver\(passwordCreationSchema\)/u);
+  assert.match(source, /useConfirmRecoveryPassword/u);
+  assert.doesNotMatch(source, /useAuth|setQueryData|completeAuthFlow|advertising/u);
+  assert.match(ui, /href=\{routes\.auth\}/u);
+});
 
+async function routeHookFixture(entry, snapshot = { step: "loading" }) {
+  const effects = [];
+  const layoutEffects = [];
+  let transitionPending = false;
+  const timers = new Map();
+  const operations = [];
+  let timerSequence = 0;
+  let options;
+  let expectedEntry = entry;
+  let stateCursor = 0;
+  const states = [];
+  const coordinator = { subscribe() {}, getSnapshot: () => snapshot };
+  const location = {
+    href: "https://artmate.ru/auth/activate-order?token=private&next=%2Faccount",
+    pathname: "/auth/activate-order",
+    replace: (path) => operations.push(["document", path]),
+  };
+  let canonicalUrl = location.href;
+  const browser = {
+    location,
+    setTimeout: (effect) => {
+      const id = ++timerSequence;
+      timers.set(id, effect);
+      return id;
+    },
+    clearTimeout: (id) => timers.delete(id),
+    history: {
+      state: { __NA: true, __PRIVATE_NEXTJS_INTERNALS_TREE: ["fixture"] },
+      replaceState: (state, _, path) => {
+        // Next's public History wrapper updates canonical URL only for calls
+        // without its internal flags. A cookie RSC refresh uses canonical URL.
+        assert.equal(state, null);
+        location.href = new URL(path, location.href).href;
+        if (!state?.__NA && !state?._N) canonicalUrl = location.href;
+        operations.push(["clean", path]);
+      },
+    },
+  };
+  const hook = evaluate(await read("src/features/auth/lib/use-route-auth.ts"), {
+    react: {
+      useContext: () => coordinator,
+      useEffect: (effect) => effects.push(effect),
+      useLayoutEffect: (effect) => layoutEffects.push(effect),
+      useTransition: () => [
+        transitionPending,
+        (action) => {
+          transitionPending = true;
+          action();
+        },
+      ],
+      useRef: (value) => ({ current: value }),
+      useState: (value) => {
+        const index = stateCursor++;
+        if (!(index in states)) states[index] = typeof value === "function" ? value() : value;
+        return [
+          states[index],
+          (next) => {
+            states[index] = next;
+            if (index === 1) operations.push(["failure", next]);
+          },
+        ];
+      },
+      useSyncExternalStore: (_, readSnapshot) => readSnapshot(),
+    },
+    "next/navigation": {
+      useRouter: () => ({
+        replace: (path) => operations.push(["navigate", path]),
+        refresh: () => operations.push(["refresh"]),
+      }),
+    },
+    "./auth-provider/auth.context": {},
+    "./auth-provider/use-auth-request": {
+      useAuthRequest: (value, actualEntry) => {
+        options = value;
+        assert.deepEqual(actualEntry, expectedEntry);
+        return {
+          isPending: false,
+          onAuth: () => {
+            operations.push(["start", actualEntry, location.href]);
+            return Promise.resolve();
+          },
+        };
+      },
+    },
+    "./redirect": redirect,
+    "@/shared/constants": { routes },
+  });
+  const previous = globalThis.window;
+  globalThis.window = browser;
   return {
+    result: hook.useRouteAuth({ entry, next: "/account" }),
+    rerender: (nextEntry) => {
+      stateCursor = 0;
+      expectedEntry = entry;
+      return hook.useRouteAuth({ entry: nextEntry, next: "/account" });
+    },
+    prepare: (complete = true) => {
+      for (const effect of layoutEffects.splice(0)) effect();
+      if (complete) transitionPending = false;
+      stateCursor = 0;
+      effects.length = 0;
+      return hook.useRouteAuth({ entry, next: "/account" });
+    },
+    finishNavigation: () => {
+      transitionPending = false;
+      stateCursor = 0;
+      effects.length = 0;
+      return hook.useRouteAuth({ entry, next: "/account" });
+    },
+    effects,
+    timers,
     operations,
-    ordersKey,
-    sessionKey,
-    finishCancellation,
-    render: (token = "token-a") => {
-      if (kind === "activation") hook.useConfirmActivation(token);
-      else hook.useLoginMutation({ onSuccess: () => operations.push(["navigate", "/account"]) });
-      return mutationOptions;
+    options,
+    location,
+    refreshFromServer: () => {
+      location.href = canonicalUrl;
+    },
+    restore: () => {
+      if (previous === undefined) delete globalThis.window;
+      else globalThis.window = previous;
     },
   };
 }
 
-for (const kind of ["login", "activation"]) {
-  test(`${kind} awaits orders cancellation before removing cache, publishing session and navigating`, async () => {
-    const fixture = await loadIdentityCacheHook(kind);
-    const session = { user: { id: "new-owner" } };
-    const mutation = fixture.render();
-    const success = mutation.onSuccess(session, { token: "token-a" });
-
-    await Promise.resolve();
-    assert.ok(fixture.operations.some(([operation, key]) => operation === "cancel" && key === fixture.ordersKey));
-    assert.ok(fixture.operations.every(([operation]) => operation === "cancel"));
-
-    fixture.finishCancellation();
-    await success;
-    const relevant = fixture.operations.filter(([operation, key]) =>
-      (operation === "cancel" || operation === "remove") ? key === fixture.ordersKey :
-        operation === "session" || operation === "navigate" || operation === "analytics",
-    );
-    assert.deepEqual(relevant, [
-      ["cancel", fixture.ordersKey],
-      ["remove", fixture.ordersKey],
-      ["session", fixture.sessionKey, session],
-      ...(kind === "activation" ? [["analytics"]] : []),
-      ["navigate", "/account"],
-    ]);
-  });
-}
-
-test("activation ignores a previous token before starting cache cleanup", async () => {
-  const fixture = await loadIdentityCacheHook("activation");
-  const oldMutation = fixture.render("token-a");
-  fixture.render("token-b");
-
-  await oldMutation.onSuccess({ user: { id: "old-owner" } }, { token: "token-a" });
-
-  assert.deepEqual(fixture.operations, []);
-});
-
-test("activation rechecks its token after awaiting orders cancellation before success effects", async () => {
-  const fixture = await loadIdentityCacheHook("activation");
-  const oldMutation = fixture.render("token-a");
-  const success = oldMutation.onSuccess({ user: { id: "old-owner" } }, { token: "token-a" });
-  assert.deepEqual(fixture.operations, [["cancel", fixture.ordersKey]]);
-
-  fixture.render("token-b");
-  fixture.finishCancellation();
-  await success;
-
-  assert.deepEqual(fixture.operations, [["cancel", fixture.ordersKey]]);
-});
-
-test("activation validates before the form and renders distinct loading, invalid and temporary states", async () => {
-  const [activationForm, activationMutation, activationModel, actions, actionIndex, authTypes] =
-    await Promise.all([
-      readSource("src/features/order-activation/ui/activation-form.tsx"),
-      readSource("src/features/order-activation/model/use-confirm-activation.ts"),
-      readSource("src/features/order-activation/model/use-validate-activation.ts"),
-      readSource("src/shared/actions/auth/auth.actions.ts"),
-      readSource("src/shared/actions/auth/index.ts"),
-      readSource("src/shared/actions/auth/auth.types.ts"),
-    ]);
-
-  assert.notEqual(activationModel, "", "activation preflight query hook is missing");
-  assert.match(actions, /\/auth\/order-activation\/validate/u);
-  assert.match(actionIndex, /validateOrderActivation/u);
-  const validityBody = authTypes.match(
-    /export type OrderActivationValidityDTO\s*=\s*\{(?<body>[\s\S]*?)\};/u,
-  )?.groups?.body;
-  assert.ok(validityBody, "activation validity response type is missing");
-  assert.match(validityBody, /valid:\s*boolean/u);
-  assert.doesNotMatch(validityBody, /email|account|order|token|user/ui);
-  assert.match(activationForm, /useValidateActivation/u);
-  assert.match(activationForm, /Завершите регистрацию/u);
-  assert.match(activationForm, /Завершить регистрацию/u);
-  assert.doesNotMatch(activationForm, /Активировать аккаунт/u);
-  assert.match(activationForm, /Повторить/u);
-  assert.match(activationForm, /загруз|провер/ui);
-  assert.match(activationForm, /Ссылка недействительна или истекла/u);
-
-  const temporaryState = activationForm.match(/Повторить[\s\S]{0,600}/u)?.[0] ?? "";
-  assert.doesNotMatch(temporaryState, /истек|недействительн/ui);
-  assert.doesNotMatch(actions, /order-activation\/validate\?(?:token|\$\{)/u);
-  assert.doesNotMatch(`${activationForm}\n${activationMutation}\n${activationModel}`, /email/ui);
-});
-
-test("forgot-password navigates to canonical recovery and legacy request-only frontend code is absent", async () => {
-  const [authForm, authModelIndex, authLibIndex, actions, actionIndex, authTypes, requestHook] =
-    await Promise.all([
-      readSource("src/features/auth/ui/auth-form.tsx"),
-      readSource("src/features/auth/model/index.ts"),
-      readSource("src/features/auth/lib/index.ts"),
-      readSource("src/shared/actions/auth/auth.actions.ts"),
-      readSource("src/shared/actions/auth/index.ts"),
-      readSource("src/shared/actions/auth/auth.types.ts"),
-      readSource("src/features/auth/model/use-request-password-reset.ts"),
-    ]);
-
-  assert.match(authForm, /href=\{routes\.authRecovery\}[\s\S]{0,200}Забыли пароль\?/u);
-  assert.doesNotMatch(authForm, /PasswordResetRequestForm|isPasswordResetRequested/u);
-  assert.equal(requestHook, "");
-  assert.doesNotMatch(authModelIndex, /useRequestPasswordResetMutation/u);
-  assert.doesNotMatch(authLibIndex, /passwordResetRequestFormSchema|toPasswordResetRequestInput|PasswordResetRequestFormValues/u);
-  assert.doesNotMatch(actions, /function requestPasswordReset|\/auth\/password-reset\/request/u);
-  assert.doesNotMatch(actionIndex, /requestPasswordReset/u);
-  assert.doesNotMatch(authTypes, /RequestPasswordResetInputDTO/u);
-  assert.match(actions, /function confirmPasswordReset|\/auth\/password-reset\/confirm/u);
-  assert.match(actionIndex, /confirmPasswordReset/u);
-  assert.match(authTypes, /ConfirmPasswordResetInputDTO/u);
-});
-
-test("password reset invalid-link CTA opens recovery while success CTA opens auth", async () => {
-  const authForm = await readSource("src/features/auth/ui/auth-form.tsx");
-  const passwordResetForm = authForm.slice(
-    authForm.indexOf("export function PasswordResetForm"),
-    authForm.indexOf("function RegisterForm"),
-  );
-
-  assert.match(
-    passwordResetForm,
-    /href=\{routes\.authRecovery\}[\s\S]{0,160}Запросить новую ссылку/u,
-  );
-  assert.match(passwordResetForm, /href=\{routes\.auth\}[\s\S]{0,160}Войти/u);
-});
-
-test("recovery success can reset to another email or return to login while keeping generic copy", async () => {
-  const recoveryForm = await readSource("src/features/account-recovery/ui/recovery-form.tsx");
-
-  assert.match(recoveryForm, /Если аккаунт связан с этим email/u);
-  assert.doesNotMatch(recoveryForm, /аккаунт (?:найден|не найден)|пользователь (?:найден|не найден)/ui);
-  assert.match(recoveryForm, /Указать другой email/u);
-  assert.match(recoveryForm, /setIsSubmitted\(false\)/u);
-  assert.match(recoveryForm, /Вернуться ко входу/u);
-  assert.match(recoveryForm, /href=\{routes\.auth\}/u);
-});
-
-test("auth transport syncs activation cookie and mutation synchronizes session before account redirect", async () => {
-  const [actions, actionIndex, activationMutation] = await Promise.all([
-    readSource("src/shared/actions/auth/auth.actions.ts"),
-    readSource("src/shared/actions/auth/index.ts"),
-    readSource("src/features/order-activation/model/use-confirm-activation.ts"),
-  ]);
-
-  assert.match(actions, /\/auth\/recovery\/request/u);
-  assert.match(actions, /\/auth\/order-activation\/confirm/u);
-  assert.match(actions, /order-activation\/confirm[\s\S]*syncAccessTokenCookie:\s*true/u);
-  assert.match(actionIndex, /requestAccountRecovery/u);
-  assert.match(actionIndex, /confirmOrderActivation/u);
-  assert.match(activationMutation, /sessionQuery\.getSession\(\)\.queryKey/u);
-  assert.match(activationMutation, /setQueryData/u);
-  assert.match(activationMutation, /routes\.account/u);
-  assert.ok(
-    activationMutation.indexOf("setQueryData") < activationMutation.indexOf("routes.account"),
-    "session cache must be synchronized before redirect",
-  );
-});
-
-test("recovery and activation analytics are typed, success-only, and contain no PII fields", async () => {
-  const [types, factory, recoveryAnalytics, activationAnalytics, recoveryMutation, activationMutation] =
-    await Promise.all([
-      readSource("src/shared/lib/analytics/types.ts"),
-      readSource("src/shared/lib/analytics/create-analytics.ts"),
-      readSource("src/features/account-recovery/lib/analytics.ts"),
-      readSource("src/features/order-activation/lib/analytics.ts"),
-      readSource("src/features/account-recovery/model/use-request-recovery.ts"),
-      readSource("src/features/order-activation/model/use-confirm-activation.ts"),
-    ]);
-  const analyticsSource = `${recoveryAnalytics}\n${activationAnalytics}`;
-
-  assert.match(types, /account_recovery_requested/u);
-  assert.match(types, /order_activation_completed/u);
-  assert.match(factory, /account_recovery_requested/u);
-  assert.match(factory, /order_activation_completed/u);
-  assert.match(recoveryAnalytics, /createAnalytics/u);
-  assert.match(activationAnalytics, /createAnalytics/u);
-  assert.doesNotMatch(analyticsSource, /email|password|token|user_id|order_id|phone/ui);
-  assert.match(recoveryMutation, /onSuccess[\s\S]*analytics\.recoveryRequested\(\)/u);
-  assert.match(activationMutation, /onSuccess[\s\S]*analytics\.activationCompleted\(\)/u);
-  assert.doesNotMatch(`${recoveryMutation}\n${activationMutation}`, /window\.(?:dataLayer|ym)/u);
-
-  const sharedAnalytics = await loadSharedAnalytics();
-  const recoveryAdapter = evaluateTypeScript(recoveryAnalytics, {
-    "@/shared/lib/analytics": sharedAnalytics,
-  });
-  const activationAdapter = evaluateTypeScript(activationAnalytics, {
-    "@/shared/lib/analytics": sharedAnalytics,
-  });
-  const previousWindow = globalThis.window;
-  globalThis.window = { dataLayer: [] };
-
+test("standalone StrictMode mount discards its first timer and starts one owner", async () => {
+  const fixture = await routeHookFixture();
   try {
-    recoveryAdapter.useAnalytics().recoveryRequested();
-    activationAdapter.useAnalytics().activationCompleted();
-    assert.deepEqual(globalThis.window.dataLayer, [
-      { event: "account_recovery_requested" },
-      { event: "order_activation_completed" },
-    ]);
+    fixture.prepare();
+    const cleanup = fixture.effects[0]();
+    assert.equal(fixture.timers.size, 1);
+    cleanup();
+    fixture.effects[0]();
+    assert.equal(fixture.timers.size, 1);
+    for (const run of fixture.timers.values()) run();
+    assert.deepEqual(
+      fixture.operations.map(([kind]) => kind),
+      ["start"],
+    );
+    fixture.options.onError({ code: "cancelled" });
+    assert.equal(fixture.operations.filter(([kind]) => kind === "start").length, 1);
   } finally {
-    if (previousWindow === undefined) delete globalThis.window;
-    else globalThis.window = previousWindow;
+    fixture.restore();
+  }
+});
+
+test("activation token leaves URL after exchange; cancelled operation continues with ordinary login", async () => {
+  const fixture = await routeHookFixture(
+    { type: "activation", token: "private" },
+    { step: "activation", flow: { status: "PENDING" } },
+  );
+  try {
+    assert.ok(fixture.location.href.includes("token="));
+    fixture.effects[1]();
+    assert.equal(new URL(fixture.location.href).searchParams.has("token"), false);
+    assert.equal(new URL(fixture.location.href).searchParams.get("next"), "/account");
+    fixture.result.retry();
+    assert.deepEqual(fixture.operations.at(-1), ["document", "/auth"]);
+    assert.equal(
+      fixture.operations.some(([kind]) => kind === "start"),
+      false,
+    );
+  } finally {
+    fixture.restore();
+  }
+});
+
+test("route success cleans token before navigating and refreshing the safe destination", async () => {
+  const fixture = await routeHookFixture({
+    type: "activation",
+    token: "private",
+  });
+  try {
+    fixture.options.onSuccess();
+    assert.deepEqual(
+      fixture.operations.map(([kind]) => kind),
+      ["clean", "navigate", "refresh"],
+    );
+    assert.deepEqual(fixture.operations[1], ["navigate", "/account"]);
+  } finally {
+    fixture.restore();
+  }
+});
+
+test("activation removes token before bootstrap action so cookie RSC refresh uses the clean URL", async () => {
+  const entry = { type: "activation", token: "private" };
+  const fixture = await routeHookFixture(entry);
+  try {
+    fixture.prepare();
+    fixture.effects[0]();
+    for (const run of fixture.timers.values()) run();
+    assert.deepEqual(
+      fixture.operations.map(([kind]) => kind),
+      ["clean", "navigate", "start"],
+    );
+    const [, actualEntry, requestUrl] = fixture.operations[2];
+    assert.deepEqual(actualEntry, entry);
+    assert.equal(new URL(requestUrl).searchParams.has("token"), false);
+    assert.equal(new URL(requestUrl).searchParams.get("next"), "/account");
+    assert.equal(fixture.operations.filter(([kind]) => kind === "navigate").length, 1);
+  } finally {
+    fixture.restore();
+  }
+});
+
+test("cookie-triggered RSC rerender without query preserves the mounted transient activation entry", async () => {
+  const fixture = await routeHookFixture({
+    type: "activation",
+    token: "private",
+  });
+  try {
+    fixture.prepare();
+    fixture.effects[0]();
+    for (const run of fixture.timers.values()) run();
+    // /auth/activate-order without query renders a resume prop. This mounted
+    // operation must still own its original exchange, never start a second one.
+    const rerendered = fixture.rerender({ type: "resume" });
+    assert.equal(fixture.operations.filter(([kind]) => kind === "start").length, 1);
+    rerendered.retry();
+    assert.deepEqual(fixture.operations.at(-1), ["document", "/auth"]);
+  } finally {
+    fixture.restore();
+  }
+});
+
+test("a new document on the cleaned activation URL resumes server capability without a token", async () => {
+  const fixture = await routeHookFixture({ type: "resume" });
+  try {
+    fixture.location.href = "https://artmate.ru/auth/activate-order";
+    fixture.prepare();
+    fixture.effects[0]();
+    for (const run of fixture.timers.values()) run();
+    assert.deepEqual(fixture.operations[0], [
+      "start",
+      { type: "resume" },
+      "https://artmate.ru/auth/activate-order",
+    ]);
+    assert.equal(
+      fixture.operations.some(([kind]) => kind === "navigate"),
+      false,
+    );
+  } finally {
+    fixture.restore();
+  }
+});
+
+test("activation cleanup updates canonical URL even when current Next history state has internal flags", async () => {
+  const fixture = await routeHookFixture({
+    type: "activation",
+    token: "private",
+  });
+  try {
+    fixture.prepare();
+    fixture.effects[0]();
+    for (const run of fixture.timers.values()) run();
+    fixture.refreshFromServer();
+    assert.equal(new URL(fixture.location.href).searchParams.has("token"), false);
+    assert.equal(new URL(fixture.location.href).searchParams.get("next"), "/account");
+    assert.equal(fixture.operations.filter(([kind]) => kind === "start").length, 1);
+  } finally {
+    fixture.restore();
+  }
+});
+
+test("password reset cleans the public URL and asks the router to discard token-bearing history", async () => {
+  const previous = globalThis.window;
+  let canonicalUrl = "https://artmate.ru/auth/reset-password?token=private";
+  const location = { href: canonicalUrl };
+  let mutationInput;
+  const values = { password: "Example2026", passwordConfirm: "Example2026" };
+  globalThis.window = {
+    location,
+    history: {
+      state: { __NA: true, __PRIVATE_NEXTJS_INTERNALS_TREE: ["fixture"] },
+      replaceState: (data, _, url) => {
+        assert.equal(data, null);
+        location.href = new URL(url, location.href).href;
+        if (!data?.__NA && !data?._N) canonicalUrl = location.href;
+      },
+    },
+  };
+  const hook = evaluate(await read("src/features/auth/lib/use-password-reset-route.ts"), {
+    react: {
+      useState: (value) => [value, () => {}],
+      useRef: (value) => ({ current: value }),
+      useEffect: (effect) => effect(),
+      useLayoutEffect: (effect) => effect(),
+    },
+    "next/navigation": {
+      useRouter: () => ({
+        replace: (url) => {
+          canonicalUrl = new URL(url, location.href).href;
+        },
+      }),
+    },
+    "react-hook-form": {
+      useForm: () => ({
+        reset() {},
+        register() {},
+        formState: { errors: {} },
+        handleSubmit: (callback) => callback,
+      }),
+    },
+    "@hookform/resolvers/zod": { zodResolver: () => undefined },
+    "@/shared/constants": { routes },
+    "../model/use-confirm-recovery-password": {
+      useConfirmRecoveryPassword: () => ({
+        isPending: false,
+        mutateAsync: async (input) => {
+          mutationInput = input;
+          return { ok: true };
+        },
+      }),
+    },
+    "./flow-form-values": {},
+  });
+  try {
+    await hook.usePasswordResetRoute("private").submit(values);
+    assert.deepEqual(mutationInput, { token: "private", ...values });
+    location.href = canonicalUrl;
+    assert.equal(new URL(location.href).searchParams.has("token"), false);
+    assert.equal(new URL(location.href).pathname, "/auth/reset-password");
+  } finally {
+    if (previous === undefined) delete globalThis.window;
+    else globalThis.window = previous;
+  }
+});
+
+test("activation waits for clean router navigation before starting its automatic exchange", async () => {
+  const fixture = await routeHookFixture({
+    type: "activation",
+    token: "private",
+  });
+  try {
+    fixture.prepare(false);
+    fixture.effects[0]();
+    assert.equal(fixture.timers.size, 0);
+    assert.equal(
+      fixture.operations.some(([kind]) => kind === "start"),
+      false,
+    );
+    fixture.finishNavigation();
+    fixture.effects[0]();
+    for (const run of fixture.timers.values()) run();
+    assert.equal(fixture.operations.filter(([kind]) => kind === "start").length, 1);
+  } finally {
+    fixture.restore();
   }
 });

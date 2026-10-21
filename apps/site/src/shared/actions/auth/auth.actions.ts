@@ -6,39 +6,22 @@ import { ApiResult, type ApiResultDTO } from "@/shared/lib/api-result";
 import { apiCsrfHeader, getForwardedIpHeaders } from "@/shared/lib/api-security";
 
 import type {
-  AuthEmailVerificationResponseDTO,
-  OrderActivationValidityDTO,
   AuthProvidersDTO,
   AuthSessionDTO,
   AuthTelegramLinkResponseDTO,
   AuthTelegramLinkStatusDTO,
-  ConfirmEmailVerificationInputDTO,
-  ConfirmOrderActivationInputDTO,
-  ConfirmPasswordResetInputDTO,
   ConfirmTelegramLinkInputDTO,
-  LoginInputDTO,
   LogoutDTO,
-  PasswordResetDTO,
-  RegisterInputDTO,
-  RequestAccountRecoveryInputDTO,
-  ResendEmailVerificationInputDTO,
-  ValidateOrderActivationInputDTO,
 } from "./auth.types";
 
-const AUTH_ACCESS_TOKEN_COOKIE_NAME = "artmate_access_token";
-const AUTH_ACCESS_TOKEN_MAX_AGE_SECONDS = 60 * 60 * 24 * 7;
-const DEFAULT_API_BASE_URL = "http://localhost:3002";
+const authAccessTokenCookieName = "artmate_access_token";
+const defaultApiBaseUrl = "http://localhost:3002";
 
 type CookieStore = Awaited<ReturnType<typeof cookies>>;
 
-type RequestAuthOptions = {
-  sanitizeHttpError?: boolean;
-  syncAccessTokenCookie?: boolean;
-};
-
 export async function getAuthProviders(): Promise<ApiResultDTO<AuthProvidersDTO>> {
   const result = await ApiResult.prepareApi(async () =>
-    requestAuth<AuthProvidersDTO>("/auth/providers"),
+    _requestAuth<AuthProvidersDTO>("/auth/providers"),
   )();
 
   return result.toDTO() as ApiResultDTO<AuthProvidersDTO>;
@@ -46,138 +29,20 @@ export async function getAuthProviders(): Promise<ApiResultDTO<AuthProvidersDTO>
 
 export async function getAuthSession(): Promise<ApiResultDTO<AuthSessionDTO>> {
   const result = await ApiResult.prepareApi(async () =>
-    requestAuth<AuthSessionDTO>("/auth/session"),
+    _requestAuth<AuthSessionDTO>("/auth/session"),
   )();
 
   return result.toDTO() as ApiResultDTO<AuthSessionDTO>;
-}
-
-export async function login(input: LoginInputDTO): Promise<ApiResultDTO<AuthSessionDTO>> {
-  const result = await ApiResult.prepareApi(async () =>
-    requestAuth<AuthSessionDTO>(
-      "/auth/login",
-      {
-        method: "POST",
-        body: JSON.stringify(input),
-      },
-      { syncAccessTokenCookie: true },
-    ),
-  )();
-
-  return result.toDTO() as ApiResultDTO<AuthSessionDTO>;
-}
-
-export async function register(
-  input: RegisterInputDTO,
-): Promise<ApiResultDTO<AuthEmailVerificationResponseDTO>> {
-  const result = await ApiResult.prepareApi(async () =>
-    requestAuth<AuthEmailVerificationResponseDTO>("/auth/register", {
-      method: "POST",
-      body: JSON.stringify(input),
-    }),
-  )();
-
-  return result.toDTO() as ApiResultDTO<AuthEmailVerificationResponseDTO>;
-}
-
-export async function confirmEmailVerification(
-  input: ConfirmEmailVerificationInputDTO,
-): Promise<ApiResultDTO<AuthSessionDTO>> {
-  const result = await ApiResult.prepareApi(async () =>
-    requestAuth<AuthSessionDTO>(
-      "/auth/email-verification/confirm",
-      {
-        method: "POST",
-        body: JSON.stringify(input),
-      },
-      { syncAccessTokenCookie: true },
-    ),
-  )();
-
-  return result.toDTO() as ApiResultDTO<AuthSessionDTO>;
-}
-
-export async function resendEmailVerification(
-  input: ResendEmailVerificationInputDTO,
-): Promise<ApiResultDTO<AuthEmailVerificationResponseDTO>> {
-  const result = await ApiResult.prepareApi(async () =>
-    requestAuth<AuthEmailVerificationResponseDTO>("/auth/email-verification/resend", {
-      method: "POST",
-      body: JSON.stringify(input),
-    }),
-  )();
-
-  return result.toDTO() as ApiResultDTO<AuthEmailVerificationResponseDTO>;
-}
-
-export async function requestAccountRecovery(
-  input: RequestAccountRecoveryInputDTO,
-): Promise<ApiResultDTO<PasswordResetDTO>> {
-  const result = await ApiResult.prepareApi(async () =>
-    requestAuth<PasswordResetDTO>("/auth/recovery/request", {
-      method: "POST",
-      body: JSON.stringify(input),
-    }),
-  )();
-
-  return result.toDTO() as ApiResultDTO<PasswordResetDTO>;
-}
-
-export async function validateOrderActivation(
-  input: ValidateOrderActivationInputDTO,
-): Promise<ApiResultDTO<OrderActivationValidityDTO>> {
-  const result = await ApiResult.prepareApi(async () =>
-    requestAuth<OrderActivationValidityDTO>(
-      "/auth/order-activation/validate",
-      {
-        method: "POST",
-        body: JSON.stringify(input),
-      },
-      { sanitizeHttpError: true },
-    ),
-  )();
-
-  return result.toDTO() as ApiResultDTO<OrderActivationValidityDTO>;
-}
-
-export async function confirmOrderActivation(
-  input: ConfirmOrderActivationInputDTO,
-): Promise<ApiResultDTO<AuthSessionDTO>> {
-  const result = await ApiResult.prepareApi(async () =>
-    requestAuth<AuthSessionDTO>(
-      "/auth/order-activation/confirm",
-      {
-        method: "POST",
-        body: JSON.stringify(input),
-      },
-      { sanitizeHttpError: true, syncAccessTokenCookie: true },
-    ),
-  )();
-
-  return result.toDTO() as ApiResultDTO<AuthSessionDTO>;
-}
-
-export async function confirmPasswordReset(
-  input: ConfirmPasswordResetInputDTO,
-): Promise<ApiResultDTO<PasswordResetDTO>> {
-  const result = await ApiResult.prepareApi(async () =>
-    requestAuth<PasswordResetDTO>("/auth/password-reset/confirm", {
-      method: "POST",
-      body: JSON.stringify(input),
-    }),
-  )();
-
-  return result.toDTO() as ApiResultDTO<PasswordResetDTO>;
 }
 
 export async function logout(): Promise<ApiResultDTO<LogoutDTO>> {
   const result = await ApiResult.prepareApi(async () => {
-    const response = await requestAuth<LogoutDTO>("/auth/logout", {
+    const response = await _requestAuth<LogoutDTO>("/auth/logout", {
       method: "POST",
     });
     const cookieStore = await cookies();
 
-    clearAccessTokenCookie(cookieStore);
+    _clearAccessTokenCookie(cookieStore);
 
     return response;
   })();
@@ -187,7 +52,7 @@ export async function logout(): Promise<ApiResultDTO<LogoutDTO>> {
 
 export async function getTelegramLinkStatus(): Promise<ApiResultDTO<AuthTelegramLinkStatusDTO>> {
   const result = await ApiResult.prepareApi(async () =>
-    requestAuth<AuthTelegramLinkStatusDTO>("/auth/telegram/link/status"),
+    _requestAuth<AuthTelegramLinkStatusDTO>("/auth/telegram/link/status"),
   )();
 
   return result.toDTO() as ApiResultDTO<AuthTelegramLinkStatusDTO>;
@@ -197,7 +62,7 @@ export async function confirmTelegramLink(
   input: ConfirmTelegramLinkInputDTO,
 ): Promise<ApiResultDTO<AuthTelegramLinkResponseDTO>> {
   const result = await ApiResult.prepareApi(async () =>
-    requestAuth<AuthTelegramLinkResponseDTO>("/auth/telegram/link/confirm", {
+    _requestAuth<AuthTelegramLinkResponseDTO>("/auth/telegram/link/confirm", {
       method: "POST",
       body: JSON.stringify(input),
     }),
@@ -208,7 +73,7 @@ export async function confirmTelegramLink(
 
 export async function unlinkTelegram(): Promise<ApiResultDTO<AuthTelegramLinkStatusDTO>> {
   const result = await ApiResult.prepareApi(async () =>
-    requestAuth<AuthTelegramLinkStatusDTO>("/auth/telegram/link", {
+    _requestAuth<AuthTelegramLinkStatusDTO>("/auth/telegram/link", {
       method: "DELETE",
     }),
   )();
@@ -216,22 +81,18 @@ export async function unlinkTelegram(): Promise<ApiResultDTO<AuthTelegramLinkSta
   return result.toDTO() as ApiResultDTO<AuthTelegramLinkStatusDTO>;
 }
 
-async function requestAuth<T>(
-  path: string,
-  init: RequestInit = {},
-  options: RequestAuthOptions = {},
-) {
+async function _requestAuth<T>(path: string, init: RequestInit = {}) {
   const cookieStore = await cookies();
   const headerStore = await headers();
-  const accessToken = cookieStore.get(AUTH_ACCESS_TOKEN_COOKIE_NAME)?.value;
-  const response = await fetch(`${getApiBaseUrl()}${path}`, {
+  const accessToken = cookieStore.get(authAccessTokenCookieName)?.value;
+  const response = await fetch(`${_getApiBaseUrl()}${path}`, {
     ...init,
     cache: "no-store",
     headers: {
       "content-type": "application/json",
       ...(accessToken
         ? {
-            cookie: `${AUTH_ACCESS_TOKEN_COOKIE_NAME}=${encodeURIComponent(accessToken)}`,
+            cookie: `${authAccessTokenCookieName}=${encodeURIComponent(accessToken)}`,
           }
         : {}),
       ...getForwardedIpHeaders(headerStore),
@@ -241,59 +102,16 @@ async function requestAuth<T>(
   });
 
   if (!response.ok) {
-    if (options.sanitizeHttpError) {
-      throw new AuthTransportError(response.status);
-    }
-
-    throw new Error(await getErrorMessage(response));
-  }
-
-  if (options.syncAccessTokenCookie) {
-    syncAccessTokenCookie(cookieStore, response);
+    throw new Error(await _getErrorMessage(response));
   }
 
   return (await response.json()) as T;
 }
 
-class AuthTransportError extends Error {
-  readonly status: number;
+function _clearAccessTokenCookie(cookieStore: CookieStore) {
+  const domain = _getCookieDomain();
 
-  constructor(status: number) {
-    super(`Auth API request failed with status ${status}`);
-    this.name = "AuthTransportError";
-    this.status = status;
-  }
-}
-
-function syncAccessTokenCookie(cookieStore: CookieStore, response: Response) {
-  const setCookieHeader = response.headers.get("set-cookie");
-  const cookie = parseSetCookie(setCookieHeader, AUTH_ACCESS_TOKEN_COOKIE_NAME);
-
-  if (!cookie) {
-    return;
-  }
-
-  if (!cookie.value || cookie.maxAge === 0) {
-    clearAccessTokenCookie(cookieStore);
-    return;
-  }
-
-  const domain = cookie.domain ?? getCookieDomain();
-
-  cookieStore.set(AUTH_ACCESS_TOKEN_COOKIE_NAME, cookie.value, {
-    ...(domain ? { domain } : {}),
-    httpOnly: true,
-    maxAge: cookie.maxAge ?? AUTH_ACCESS_TOKEN_MAX_AGE_SECONDS,
-    path: "/",
-    sameSite: "lax",
-    secure: process.env.NODE_ENV === "production",
-  });
-}
-
-function clearAccessTokenCookie(cookieStore: CookieStore) {
-  const domain = getCookieDomain();
-
-  cookieStore.set(AUTH_ACCESS_TOKEN_COOKIE_NAME, "", {
+  cookieStore.set(authAccessTokenCookieName, "", {
     ...(domain ? { domain } : {}),
     httpOnly: true,
     maxAge: 0,
@@ -303,55 +121,17 @@ function clearAccessTokenCookie(cookieStore: CookieStore) {
   });
 }
 
-function parseSetCookie(header: string | null, name: string) {
-  if (!header) {
-    return undefined;
-  }
-
-  const cookieHeader = header
-    .split(/,(?=\s*[A-Za-z0-9_-]+=)/)
-    .map((item) => item.trim())
-    .find((item) => item.startsWith(`${name}=`));
-
-  if (!cookieHeader) {
-    return undefined;
-  }
-
-  const [nameValue = "", ...attributes] = cookieHeader.split(";").map((part) => part.trim());
-  const separatorIndex = nameValue.indexOf("=");
-
-  if (separatorIndex < 0) {
-    return undefined;
-  }
-
-  const value = nameValue.slice(separatorIndex + 1);
-  const maxAgeAttribute = attributes.find((attribute) =>
-    attribute.toLowerCase().startsWith("max-age="),
-  );
-  const maxAge = maxAgeAttribute ? Number(maxAgeAttribute.slice("max-age=".length)) : undefined;
-  const domainAttribute = attributes.find((attribute) =>
-    attribute.toLowerCase().startsWith("domain="),
-  );
-  const domain = domainAttribute?.slice("domain=".length).trim();
-
-  return {
-    domain: domain || undefined,
-    value,
-    maxAge: typeof maxAge === "number" && Number.isFinite(maxAge) ? maxAge : undefined,
-  };
-}
-
-function getCookieDomain() {
+function _getCookieDomain() {
   const domain = process.env.AUTH_COOKIE_DOMAIN?.trim();
 
   return domain || undefined;
 }
 
-function getApiBaseUrl() {
-  return process.env.API_BASE_URL ?? DEFAULT_API_BASE_URL;
+function _getApiBaseUrl() {
+  return process.env.API_BASE_URL ?? defaultApiBaseUrl;
 }
 
-async function getErrorMessage(response: Response) {
+async function _getErrorMessage(response: Response) {
   const fallback = `Auth API request failed with status ${response.status}`;
 
   try {
@@ -359,14 +139,14 @@ async function getErrorMessage(response: Response) {
       message?: unknown;
       retryAfterSeconds?: unknown;
     };
-    const retryAfterSeconds = getRetryAfterSeconds(body.retryAfterSeconds);
+    const retryAfterSeconds = _getRetryAfterSeconds(body.retryAfterSeconds);
 
     if (typeof body.message === "string") {
-      return formatErrorMessage(body.message, retryAfterSeconds);
+      return _formatErrorMessage(body.message, retryAfterSeconds);
     }
 
     if (Array.isArray(body.message)) {
-      return formatErrorMessage(body.message.join(", "), retryAfterSeconds);
+      return _formatErrorMessage(body.message.join(", "), retryAfterSeconds);
     }
   } catch {
     return fallback;
@@ -375,13 +155,13 @@ async function getErrorMessage(response: Response) {
   return fallback;
 }
 
-function getRetryAfterSeconds(value: unknown) {
+function _getRetryAfterSeconds(value: unknown) {
   return typeof value === "number" && Number.isFinite(value)
     ? Math.max(1, Math.ceil(value))
     : undefined;
 }
 
-function formatErrorMessage(message: string, retryAfterSeconds?: number) {
+function _formatErrorMessage(message: string, retryAfterSeconds?: number) {
   if (!retryAfterSeconds) {
     return message;
   }

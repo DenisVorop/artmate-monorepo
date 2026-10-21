@@ -1,9 +1,7 @@
 "use client";
 
 import { CheckCircle2, Send } from "lucide-react";
-import { zodResolver } from "@hookform/resolvers/zod";
-import { useId, useState } from "react";
-import { useForm } from "react-hook-form";
+import { useId } from "react";
 
 import { cn } from "@/shared/lib";
 import {
@@ -19,12 +17,7 @@ import {
   Textarea,
 } from "@/shared/ui";
 
-import {
-  contactFormDefaultValues,
-  contactFormSchema,
-  type ContactFormValues,
-} from "../lib";
-import { useSubmitContactMessageMutation } from "../model";
+import { useContactFormState } from "../lib/use-contact-form-state";
 
 const topics = [
   "Вопрос о\u00a0заказе",
@@ -35,41 +28,16 @@ const topics = [
 ];
 
 export function ContactForm() {
-  const [sent, setSent] = useState(false);
-  const {
-    submitContactMessage,
-    isPending,
-    error: submitError,
-    reset: resetSubmitState,
-  } = useSubmitContactMessageMutation();
+  const { form, sent, submitForm, handleSendAnother, isPending, submitError } =
+    useContactFormState();
   const {
     formState: { errors },
-    handleSubmit,
     register,
-    reset,
     setValue,
     watch,
-  } = useForm<ContactFormValues>({
-    defaultValues: contactFormDefaultValues,
-    resolver: zodResolver(contactFormSchema),
-  });
+  } = form;
   const formId = useId();
   const selectedTopic = watch("topic");
-
-  const submitForm = handleSubmit(async (values) => {
-    try {
-      await submitContactMessage(values);
-      reset();
-      setSent(true);
-    } catch {
-      // The mutation error is rendered below the form controls.
-    }
-  });
-  const handleSendAnother = () => {
-    reset();
-    resetSubmitState();
-    setSent(false);
-  };
 
   if (sent) {
     return (
@@ -200,9 +168,23 @@ export function ContactForm() {
             <PersonalDataConsentCheckbox
               id={`${formId}-personal-data-consent`}
               hasError={Boolean(errors.acceptedPersonalDataConsent)}
+              aria-describedby={
+                errors.acceptedPersonalDataConsent
+                  ? `${formId}-personal-data-consent-error`
+                  : undefined
+              }
+              disabled={isPending}
               {...register("acceptedPersonalDataConsent")}
             />
-            <FieldError message={errors.acceptedPersonalDataConsent?.message} />
+            {errors.acceptedPersonalDataConsent && (
+              <p
+                id={`${formId}-personal-data-consent-error`}
+                role="alert"
+                className="text-xs leading-4 text-destructive"
+              >
+                {errors.acceptedPersonalDataConsent.message}
+              </p>
+            )}
           </div>
 
           <Button
@@ -214,7 +196,7 @@ export function ContactForm() {
             {isPending ? "Отправляем" : "Отправить"}
             <Send data-icon="inline-end" />
           </Button>
-          <FormError message={submitError?.message} />
+          <FormError message={submitError} />
         </form>
       </CardContent>
     </Card>

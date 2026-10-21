@@ -1,18 +1,10 @@
 export {
-  confirmOrderActivation,
   confirmTelegramLink,
-  confirmPasswordReset,
-  confirmEmailVerification,
   getAuthProviders,
   getAuthSession,
   getTelegramLinkStatus,
-  login,
   logout,
-  register,
-  requestAccountRecovery,
-  resendEmailVerification,
   unlinkTelegram,
-  validateOrderActivation,
 } from "./auth.actions";
 export type {
   AuthOAuthProvider,
@@ -21,20 +13,56 @@ export type {
   AuthTelegramAccountDTO,
   AuthTelegramLinkResponseDTO,
   AuthTelegramLinkStatusDTO,
-  AuthEmailVerificationResponseDTO,
-  AuthEmailVerificationStateDTO,
   AuthSessionDTO,
   AuthUserDTO,
-  ConfirmEmailVerificationInputDTO,
-  ConfirmOrderActivationInputDTO,
-  ConfirmPasswordResetInputDTO,
   ConfirmTelegramLinkInputDTO,
-  LoginInputDTO,
   LogoutDTO,
-  OrderActivationValidityDTO,
-  PasswordResetDTO,
-  RegisterInputDTO,
-  RequestAccountRecoveryInputDTO,
-  ResendEmailVerificationInputDTO,
-  ValidateOrderActivationInputDTO,
 } from "./auth.types";
+
+export {
+  startPasswordFlow,
+  requestRegistrationCode,
+  confirmRegistrationCode,
+  resendRegistrationCode,
+  saveRegistrationDraft,
+  getAuthFlow,
+  cancelAuthFlow,
+} from "./flow.actions";
+export type {
+  AuthFlowStateDTO,
+  PasswordFlowInputDTO,
+  RequestRegistrationCodeInputDTO,
+  ConfirmRegistrationCodeInputDTO,
+  RegistrationDraftInputDTO,
+} from "./flow.types";
+
+export {
+  prepareAuthContinuation,
+  exchangeOrderActivation,
+  saveActivationPassword,
+  requestFlowRecovery,
+  confirmRecoveryPassword,
+} from "./link-flow.actions";
+export type {
+  ActivationPasswordDraftInputDTO,
+  ConfirmRecoveryPasswordInputDTO,
+  ExchangeOrderActivationInputDTO,
+  RecoveryFlowInputDTO,
+  RecoveryFlowResultDTO,
+} from "./flow.types";
+
+export { saveAuthProfileDraft } from "./flow.actions";
+export type { ProfileDraftInputDTO } from "./flow.types";
+
+export { completeAuthFlow, resumeAuthFlow } from "./completion.actions";
+export type {
+  AuthConsentStateDTO,
+  AuthCompletionStateDTO,
+  AuthReadinessDTO,
+  CompleteAuthFlowInputDTO,
+} from "./flow.types";
+
+export { startAuthFlow } from "./start-flow.actions";
+
+export { startYandexFlow, finishYandexFlow, readYandexFlow } from "./yandex.actions";
+export type { YandexStartDTO, YandexCallbackInputDTO, YandexResultDTO } from "./yandex.types";

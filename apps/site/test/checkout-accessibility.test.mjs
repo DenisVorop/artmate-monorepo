@@ -189,7 +189,13 @@ test("checkout return navigation keeps a 44px target", async () => {
       react,
       "@/entities/cart": { useCartData: () => ({}) },
       "@/entities/session": { useUser: () => undefined },
-      "@/features/auth": { AuthForm: component("AuthForm") },
+      "../lib/use-checkout-auth": {
+        useCheckoutAuth: () => ({ onLoginRequested: async () => undefined, isPending: false }),
+      },
+      "@/features/auth": {
+        withAuth: (Component) => Component,
+        useAuth: () => ({ onAuth() {}, isPending: false }),
+      },
       "@/features/promocode": {
         usePromocode: () => ({ clearCode: () => undefined }),
         withPromocode: (Component) => Component,
@@ -403,6 +409,9 @@ test("loyalty shows the balance and applies only the confirmed spending limit", 
   const { BaseLoyaltyField } = evaluateComponent(
     await readSource("src/features/checkout/ui/loyalty-field.tsx"),
     {
+      "../lib/use-checkout-auth": {
+        useCheckoutAuth: () => ({ onLoginRequested: async () => undefined, isPending: false }),
+      },
       "@hookform/resolvers/zod": { zodResolver: (schema) => schema },
       "lucide-react": { Coins: component("Coins"), LoaderCircle: component("LoaderCircle") },
       react: {

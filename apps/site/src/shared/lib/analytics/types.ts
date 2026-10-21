@@ -5,6 +5,10 @@ export const yandexGoalEventIds = [
   "promo_apply_success",
   "welcome_promo_click",
   "sign_up",
+  "partner_cta_click",
+  "partner_form_start",
+  "partner_form_success",
+  "partner_form_error",
   "digital_versions_opened",
   "digital_coloring_open",
 ] as const;
@@ -40,6 +44,10 @@ export type YandexGoalParams = {
   };
   welcome_promo_click: EmptyAnalyticsParams;
   sign_up: EmptyAnalyticsParams;
+  partner_cta_click: EmptyAnalyticsParams;
+  partner_form_start: EmptyAnalyticsParams;
+  partner_form_success: EmptyAnalyticsParams;
+  partner_form_error: EmptyAnalyticsParams;
   digital_versions_opened: {
     collection_slug?: string;
   };
@@ -151,15 +159,16 @@ export type GoalCommand<EventId extends YandexGoalEventId = YandexGoalEventId> =
       }
     : never;
 
-export type DiagnosticCommand<EventName extends DiagnosticEventName = DiagnosticEventName> =
-  EventName extends DiagnosticEventName
-    ? {
-        kind: "diagnostic";
-        event: EventName;
-        params: DiagnosticEventParams[EventName];
-        dedupe?: AnalyticsDedupe;
-      }
-    : never;
+export type DiagnosticCommand<
+  EventName extends DiagnosticEventName = DiagnosticEventName,
+> = EventName extends DiagnosticEventName
+  ? {
+      kind: "diagnostic";
+      event: EventName;
+      params: DiagnosticEventParams[EventName];
+      dedupe?: AnalyticsDedupe;
+    }
+  : never;
 
 export type EcommerceCommand<Action extends EcommerceAction = EcommerceAction> =
   Action extends EcommerceAction
@@ -171,9 +180,14 @@ export type EcommerceCommand<Action extends EcommerceAction = EcommerceAction> =
       }
     : never;
 
-export type AnalyticsCommand = GoalCommand | DiagnosticCommand | EcommerceCommand;
+export type AnalyticsCommand =
+  | GoalCommand
+  | DiagnosticCommand
+  | EcommerceCommand;
 
-export type AnalyticsBuilderResult = AnalyticsCommand | readonly AnalyticsCommand[];
+export type AnalyticsBuilderResult =
+  | AnalyticsCommand
+  | readonly AnalyticsCommand[];
 
 export type YandexMetrikaFunction = {
   (..._args: unknown[]): void;

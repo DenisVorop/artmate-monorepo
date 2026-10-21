@@ -37,9 +37,7 @@ function evaluateTypeScript(source, mocks = {}) {
 }
 
 async function loadTelegramLinkForm() {
-  return evaluateTypeScript(
-    await readSource("src/features/account/lib/telegram-link-form.ts"),
-  );
+  return evaluateTypeScript(await readSource("src/features/account/lib/telegram-link-form.ts"));
 }
 
 function findNode(node, predicate) {
@@ -81,6 +79,7 @@ function renderedText(node) {
 async function createAccountHarness({
   confirmPending = false,
   sessionPending = false,
+  telegramPending = false,
   user = { email: "user@example.com", id: "user-1", roles: [] },
 } = {}) {
   const telegramLinkForm = await loadTelegramLinkForm();
@@ -107,9 +106,9 @@ async function createAccountHarness({
       getSessionUserDisplayName: () => "Test User",
       useSession: () => ({ isPending: sessionPending, user }),
       useTelegramLinkStatus: () => ({
-        data: { botUrl: "https://t.me/artmate_bot", linked: false },
+        data: telegramPending ? undefined : { botUrl: "https://t.me/artmate_bot", linked: false },
         isError: false,
-        isPending: false,
+        isPending: telegramPending,
       }),
     },
     "@/shared/constants": { routes: { auth: "/auth", catalog: "/catalog" } },
@@ -136,6 +135,7 @@ async function createAccountHarness({
       ].map((name) => [name, component(name)]),
     ),
     "@/shared/ui/link": { Link: component("Link") },
+    "@/shared/ui/skeleton": { Skeleton: component("Skeleton") },
     "@/shared/ui/typography": {
       PageTitle: component("PageTitle"),
       SectionTitle: component("SectionTitle"),
@@ -217,14 +217,20 @@ test("account keeps the guest login gate and pending guards", async () => {
     findNode(guest.tree, (node) => node.type === "DataState").props.title,
     "Войдите в аккаунт",
   );
-  assert.equal(findNode(guest.tree, (node) => node.type === "form"), undefined);
+  assert.equal(
+    findNode(guest.tree, (node) => node.type === "form"),
+    undefined,
+  );
 
   const sessionPending = await createAccountHarness({ sessionPending: true });
   assert.equal(
     findNode(sessionPending.tree, (node) => node.type === "DataState").props.title,
     "Загружаем аккаунт",
   );
-  assert.equal(findNode(sessionPending.tree, (node) => node.type === "form"), undefined);
+  assert.equal(
+    findNode(sessionPending.tree, (node) => node.type === "form"),
+    undefined,
+  );
 
   const confirmationPending = await createAccountHarness({ confirmPending: true });
   const submitButton = findNode(
@@ -238,5 +244,27 @@ test("settings keeps profile and Telegram in a responsive grid", async () => {
   const { tree } = await createAccountHarness();
   assert.equal(tree.props.className, "grid items-start gap-6 md:grid-cols-2");
   assert.equal(tree.props.children.length, 2);
-  assert.equal(findNode(tree, (node) => node.type === "aside"), undefined);
+  assert.equal(
+    findNode(tree, (node) => node.type === "aside"),
+    undefined,
+  );
+});
+
+test("Telegram status loading shows an accessible placeholder without active linking controls", async () => {
+  const { tree, calls } = await createAccountHarness({ telegramPending: true });
+  const status = findNode(tree, (node) => node.props?.role === "status");
+
+  assert.ok(status);
+  assert.equal(status.props["aria-label"], "Загружаем настройки Telegram");
+  assert.ok(findNode(tree, (node) => node.props?.["aria-busy"] === true));
+  assert.ok(findNode(status, (node) => node.type === "Skeleton"));
+  assert.equal(
+    findNode(tree, (node) => node.type === "form"),
+    undefined,
+  );
+  assert.equal(
+    findNode(tree, (node) => node.type === "Button"),
+    undefined,
+  );
+  assert.deepEqual(calls.confirm, []);
 });

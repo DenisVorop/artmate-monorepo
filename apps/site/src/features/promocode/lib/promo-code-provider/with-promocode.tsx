@@ -8,7 +8,7 @@ import { PromocodeProvider } from "./promocode-provider";
 
 export type WithPromocodeProps = {
   cart: Cart;
-  onPromocodeLoginRequested?: () => void;
+  onPromocodeLoginRequested?: () => Promise<string | undefined>;
 };
 
 export function withPromocode<P extends { cart: Cart }>(Component: ComponentType<P>) {

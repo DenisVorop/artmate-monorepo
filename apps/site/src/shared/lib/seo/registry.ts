@@ -94,6 +94,12 @@ export const seoPages = {
     description: "Личный кабинет покупателя Artmate с профилем и заказами.",
     noindex: true,
   },
+  emailUnsubscribe: {
+    title: "Отписка от рекламных писем",
+    description: "Отключение рекламных писем Artmate.",
+    canonical: routes.unsubscribe,
+    noindex: true,
+  },
   auth: {
     title: "Вход и регистрация - Artmate",
     description: "Вход и регистрация в аккаунт Artmate.",

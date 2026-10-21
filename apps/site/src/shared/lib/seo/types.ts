@@ -21,6 +21,7 @@ export type SeoPageConfig = {
 export type SeoPageKey =
   | "account"
   | "auth"
+  | "emailUnsubscribe"
   | "blog"
   | "cart"
   | "catalog"

@@ -1,3 +1,5 @@
+import { getCookieConsentSnapshot } from "@/shared/lib/cookie-consent";
+
 import { markAnalyticsCommandSent, wasAnalyticsCommandSent } from "./dedupe";
 import { mapAnalyticsProduct } from "./product";
 import {
@@ -27,7 +29,11 @@ import {
 } from "./types";
 
 export { mapAnalyticsProduct } from "./product";
-export { diagnosticEventNames, ecommerceActions, yandexGoalEventIds } from "./types";
+export {
+  diagnosticEventNames,
+  ecommerceActions,
+  yandexGoalEventIds,
+} from "./types";
 export type {
   AnalyticsBuilderResult,
   AnalyticsCommand,
@@ -64,6 +70,10 @@ const goalParamKeys = {
   promo_apply_success: ["discount", "currency"],
   welcome_promo_click: [],
   sign_up: [],
+  partner_cta_click: [],
+  partner_form_start: [],
+  partner_form_success: [],
+  partner_form_error: [],
   digital_versions_opened: ["collection_slug"],
   digital_coloring_open: ["collection_slug", "coloring_number"],
 } satisfies {
@@ -78,7 +88,9 @@ const diagnosticParamKeys = {
   [EventName in DiagnosticEventName]: readonly (keyof DiagnosticEventParams[EventName])[];
 };
 
-export function createAnalytics<const Builders extends AnalyticsEventBuilders>(builders: Builders) {
+export function createAnalytics<const Builders extends AnalyticsEventBuilders>(
+  builders: Builders,
+) {
   return {
     send<Alias extends keyof Builders>(
       eventAlias: Alias,
@@ -99,7 +111,9 @@ export function createAnalytics<const Builders extends AnalyticsEventBuilders>(b
         return;
       }
 
-      const commands = (Array.isArray(result) ? result : [result]) as readonly AnalyticsCommand[];
+      const commands = (
+        Array.isArray(result) ? result : [result]
+      ) as readonly AnalyticsCommand[];
 
       for (const command of commands) {
         try {
@@ -153,7 +167,10 @@ export function createEcommerceCommand<Action extends EcommerceAction>(
   } as EcommerceCommand<Action>;
 }
 
-function sanitizeAnalyticsParams(params: unknown, allowedKeys: readonly string[]): SafeParams {
+function sanitizeAnalyticsParams(
+  params: unknown,
+  allowedKeys: readonly string[],
+): SafeParams {
   if (!isRecord(params)) {
     return {};
   }
@@ -162,7 +179,11 @@ function sanitizeAnalyticsParams(params: unknown, allowedKeys: readonly string[]
   const allowedParamKeys = new Set(allowedKeys);
 
   for (const [key, value] of Object.entries(params)) {
-    if (!allowedParamKeys.has(key) || !isSafeParamKey(key) || !isSafeParamValue(value)) {
+    if (
+      !allowedParamKeys.has(key) ||
+      !isSafeParamKey(key) ||
+      !isSafeParamValue(value)
+    ) {
       continue;
     }
 
@@ -202,13 +223,33 @@ function sendCommand(command: AnalyticsCommand) {
 }
 
 function sendGoal(command: GoalCommand) {
+  const isPartnerEvent = command.eventId.startsWith("partner_");
+  if (isPartnerEvent && !getCookieConsentSnapshot()) return false;
   const params = normalizeGoalParams(command);
 
   if (!params) {
     return false;
   }
 
-  const pushedToDataLayer = pushToDataLayer({ event: command.eventId, ...params });
+  let googleSent = false;
+  if (isPartnerEvent) {
+    try {
+      const googleAnalytics = (
+        window as Window & { gtag?: (..._args: unknown[]) => void }
+      ).gtag;
+      if (googleAnalytics) {
+        googleAnalytics("event", command.eventId, {
+          event_category: "partner_program",
+        });
+        googleSent = true;
+      }
+    } catch {
+      // Third-party analytics cannot interrupt a business action.
+    }
+  }
+  const pushedToDataLayer = isPartnerEvent
+    ? googleSent
+    : pushToDataLayer({ event: command.eventId, ...params });
 
   const counterId = getCounterId();
   const yandexMetrika = (window as AnalyticsWindow).ym;
@@ -218,7 +259,8 @@ function sendGoal(command: GoalCommand) {
   }
 
   try {
-    yandexMetrika(counterId, "reachGoal", command.eventId, params);
+    if (isPartnerEvent) yandexMetrika(counterId, "reachGoal", command.eventId);
+    else yandexMetrika(counterId, "reachGoal", command.eventId, params);
     return true;
   } catch {
     // The queued or third-party ym implementation is outside application control.
@@ -240,13 +282,17 @@ function sendDiagnostic(command: DiagnosticCommand) {
 }
 
 function normalizeGoalParams(command: GoalCommand): SafeParams | null {
-  const params = sanitizeAnalyticsParams(command.params, goalParamKeys[command.eventId]);
+  const params = sanitizeAnalyticsParams(
+    command.params,
+    goalParamKeys[command.eventId],
+  );
 
   switch (command.eventId) {
     case "product_view":
       return hasRequiredProductViewParams(params) ? params : null;
     case "add_to_cart":
-      return hasRequiredProductViewParams(params) && isPositiveIntegerParam(params, "quantity")
+      return hasRequiredProductViewParams(params) &&
+        isPositiveIntegerParam(params, "quantity")
         ? params
         : null;
     case "begin_checkout":
@@ -257,12 +303,20 @@ function normalizeGoalParams(command: GoalCommand): SafeParams | null {
         ? params
         : null;
     case "promo_apply_success":
-      return isPositiveNumberParam(params, "discount") && hasRubCurrency(params) ? params : null;
+      return isPositiveNumberParam(params, "discount") && hasRubCurrency(params)
+        ? params
+        : null;
     case "welcome_promo_click":
     case "sign_up":
+    case "partner_cta_click":
+    case "partner_form_start":
+    case "partner_form_success":
+    case "partner_form_error":
       return params;
     case "digital_versions_opened":
-      return isOptionalNonEmptyStringParam(params, "collection_slug") ? params : null;
+      return isOptionalNonEmptyStringParam(params, "collection_slug")
+        ? params
+        : null;
     case "digital_coloring_open":
       return isNonEmptyStringParam(params, "collection_slug") &&
         isPositiveIntegerParam(params, "coloring_number")
@@ -271,8 +325,13 @@ function normalizeGoalParams(command: GoalCommand): SafeParams | null {
   }
 }
 
-function normalizeDiagnosticParams(command: DiagnosticCommand): SafeParams | null {
-  const params = sanitizeAnalyticsParams(command.params, diagnosticParamKeys[command.event]);
+function normalizeDiagnosticParams(
+  command: DiagnosticCommand,
+): SafeParams | null {
+  const params = sanitizeAnalyticsParams(
+    command.params,
+    diagnosticParamKeys[command.event],
+  );
 
   switch (command.event) {
     case "welcome_promo_dismiss":
@@ -315,11 +374,19 @@ function isOptionalNonEmptyStringParam(params: SafeParams, key: string) {
 }
 
 function isNonNegativeNumberParam(params: SafeParams, key: string) {
-  return typeof params[key] === "number" && Number.isFinite(params[key]) && params[key] >= 0;
+  return (
+    typeof params[key] === "number" &&
+    Number.isFinite(params[key]) &&
+    params[key] >= 0
+  );
 }
 
 function isPositiveNumberParam(params: SafeParams, key: string) {
-  return typeof params[key] === "number" && Number.isFinite(params[key]) && params[key] > 0;
+  return (
+    typeof params[key] === "number" &&
+    Number.isFinite(params[key]) &&
+    params[key] > 0
+  );
 }
 
 function isPositiveIntegerParam(params: SafeParams, key: string) {
@@ -338,7 +405,9 @@ function pushToDataLayer(payload: unknown) {
   }
 }
 
-function createEcommercePayload(command: EcommerceCommand): Record<string, unknown> | null {
+function createEcommercePayload(
+  command: EcommerceCommand,
+): Record<string, unknown> | null {
   switch (command.action) {
     case "click":
     case "detail":
@@ -370,7 +439,9 @@ function createEcommercePayload(command: EcommerceCommand): Record<string, unkno
     }
     case "purchase": {
       const products = normalizeProducts(command.payload.products);
-      const actionField = normalizePurchaseActionField(command.payload.actionField);
+      const actionField = normalizePurchaseActionField(
+        command.payload.actionField,
+      );
 
       if (products.length === 0 || !actionField) {
         return null;
@@ -433,7 +504,12 @@ function normalizePurchaseActionField(value: unknown) {
   const id = normalizeText(value.id);
   const revenue = value.revenue;
 
-  if (!id || typeof revenue !== "number" || !Number.isFinite(revenue) || revenue < 0) {
+  if (
+    !id ||
+    typeof revenue !== "number" ||
+    !Number.isFinite(revenue) ||
+    revenue < 0
+  ) {
     return null;
   }
 
@@ -476,11 +552,15 @@ function isKnownCommand(command: unknown): command is AnalyticsCommand {
   }
 
   if (command.kind === "goal") {
-    return typeof command.eventId === "string" && goalEventIds.has(command.eventId);
+    return (
+      typeof command.eventId === "string" && goalEventIds.has(command.eventId)
+    );
   }
 
   if (command.kind === "diagnostic") {
-    return typeof command.event === "string" && diagnosticEvents.has(command.event);
+    return (
+      typeof command.event === "string" && diagnosticEvents.has(command.event)
+    );
   }
 
   return (
@@ -493,7 +573,11 @@ function isKnownCommand(command: unknown): command is AnalyticsCommand {
 function isSafeParamKey(key: string) {
   const normalized = normalizeParamKey(key);
 
-  if (!normalized || reservedParamKeys.has(normalized) || isSensitiveAnalyticsParamName(key)) {
+  if (
+    !normalized ||
+    reservedParamKeys.has(normalized) ||
+    isSensitiveAnalyticsParamName(key)
+  ) {
     return false;
   }
 
@@ -506,7 +590,11 @@ function isSafeParamValue(value: unknown): value is SafeParamValue {
   }
 
   if (typeof value === "string") {
-    return value.trim().length > 0 && value.length <= 512 && !isSensitiveAnalyticsParamValue(value);
+    return (
+      value.trim().length > 0 &&
+      value.length <= 512 &&
+      !isSensitiveAnalyticsParamValue(value)
+    );
   }
 
   return typeof value === "boolean";

@@ -302,9 +302,8 @@ test("all cart and authentication transitions invalidate pricing", async () => {
     "src/features/cart/model/use-remove-cart-item.ts",
     "src/features/cart/model/use-update-cart-item-quantity.ts",
     "src/features/cart/model/use-clear-cart.ts",
-    "src/features/auth/model/use-login.ts",
+    "src/features/auth/lib/publish-auth-session.ts",
     "src/features/auth/model/use-logout.ts",
-    "src/features/auth/model/use-confirm-email-verification.ts",
     "src/features/checkout/model/use-create-order.ts",
   ];
   const sources = await Promise.all(paths.map(readSource));

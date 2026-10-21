@@ -101,11 +101,15 @@ test("foreground timer accumulates only resumed time without sleeping", async ()
 
 test("welcome lifecycle pauses before presentation and permanently ends an interrupted presentation", async () => {
   const { createWelcomeBonusLifecycle } = evaluateTypeScript(
-    await readSource("src/features/welcome-bonus/lib/welcome-bonus-lifecycle.ts"),
+    await readSource(
+      "src/features/welcome-bonus/lib/welcome-bonus-lifecycle.ts",
+    ),
     {
       "./foreground-timer": {
         createForegroundTimer: evaluateTypeScript(
-          await readSource("src/features/welcome-bonus/lib/foreground-timer.ts"),
+          await readSource(
+            "src/features/welcome-bonus/lib/foreground-timer.ts",
+          ),
         ).createForegroundTimer,
       },
     },
@@ -131,25 +135,55 @@ test("welcome lifecycle pauses before presentation and permanently ends an inter
     onStateChange: (state) => states.push(state),
   });
 
-  lifecycle.update({ canStart: true, isEligible: true, isForeground: true, owner: "guest" });
+  lifecycle.update({
+    canStart: true,
+    isEligible: true,
+    isForeground: true,
+    owner: "guest",
+  });
   now = 7_000;
-  lifecycle.update({ canStart: true, isEligible: false, isForeground: true, owner: "guest" });
+  lifecycle.update({
+    canStart: true,
+    isEligible: false,
+    isForeground: true,
+    owner: "guest",
+  });
   assert.equal(scheduled, undefined);
   assert.equal(seenCalls, 0);
   assert.equal(lifecycle.getState(), "idle");
 
   now = 40_000;
-  lifecycle.update({ canStart: true, isEligible: true, isForeground: true, owner: "guest" });
+  lifecycle.update({
+    canStart: true,
+    isEligible: true,
+    isForeground: true,
+    owner: "guest",
+  });
   assert.equal(scheduled.delay, 13_000);
   scheduled.callback();
   assert.equal(lifecycle.getState(), "presented");
   assert.equal(seenCalls, 1);
 
-  lifecycle.update({ canStart: false, isEligible: true, isForeground: true, owner: "guest" });
+  lifecycle.update({
+    canStart: false,
+    isEligible: true,
+    isForeground: true,
+    owner: "guest",
+  });
   assert.equal(lifecycle.getState(), "presented");
-  lifecycle.update({ canStart: false, isEligible: false, isForeground: true, owner: "guest" });
+  lifecycle.update({
+    canStart: false,
+    isEligible: false,
+    isForeground: true,
+    owner: "guest",
+  });
   assert.equal(lifecycle.getState(), "ended");
-  lifecycle.update({ canStart: true, isEligible: true, isForeground: true, owner: "guest" });
+  lifecycle.update({
+    canStart: true,
+    isEligible: true,
+    isForeground: true,
+    owner: "guest",
+  });
   assert.equal(lifecycle.getState(), "ended");
   assert.deepEqual(states, ["presented", "ended"]);
 });
@@ -159,7 +193,9 @@ test("welcome lifecycle ends a visible presentation on owner change and records 
     await readSource("src/features/welcome-bonus/lib/foreground-timer.ts"),
   );
   const { createWelcomeBonusLifecycle } = evaluateTypeScript(
-    await readSource("src/features/welcome-bonus/lib/welcome-bonus-lifecycle.ts"),
+    await readSource(
+      "src/features/welcome-bonus/lib/welcome-bonus-lifecycle.ts",
+    ),
     { "./foreground-timer": { createForegroundTimer } },
   );
   let callback;
@@ -179,9 +215,19 @@ test("welcome lifecycle ends a visible presentation on owner change and records 
     onStateChange: () => undefined,
   });
 
-  lifecycle.update({ canStart: true, isEligible: true, isForeground: true, owner: "guest" });
+  lifecycle.update({
+    canStart: true,
+    isEligible: true,
+    isForeground: true,
+    owner: "guest",
+  });
   callback();
-  lifecycle.update({ canStart: false, isEligible: true, isForeground: true, owner: "user-1" });
+  lifecycle.update({
+    canStart: false,
+    isEligible: true,
+    isForeground: true,
+    owner: "user-1",
+  });
   assert.equal(lifecycle.getState(), "ended");
 
   const dismissed = createWelcomeBonusLifecycle({
@@ -198,7 +244,12 @@ test("welcome lifecycle ends a visible presentation on owner change and records 
     },
     onStateChange: () => undefined,
   });
-  dismissed.update({ canStart: true, isEligible: true, isForeground: true, owner: "guest" });
+  dismissed.update({
+    canStart: true,
+    isEligible: true,
+    isForeground: true,
+    owner: "guest",
+  });
   callback();
   dismissed.dismiss();
   assert.equal(dismissed.getState(), "ended");
@@ -207,28 +258,54 @@ test("welcome lifecycle ends a visible presentation on owner change and records 
 
 test("welcome offer requests stop for excluded, suppressed, or ended visits but continue while presented", async () => {
   const { shouldRequestWelcomeOffer } = evaluateTypeScript(
-    await readSource("src/features/welcome-bonus/lib/welcome-bonus-lifecycle.ts"),
-    { "./foreground-timer": { createForegroundTimer: () => ({ pause() {}, resume() {} }) } },
+    await readSource(
+      "src/features/welcome-bonus/lib/welcome-bonus-lifecycle.ts",
+    ),
+    {
+      "./foreground-timer": {
+        createForegroundTimer: () => ({ pause() {}, resume() {} }),
+      },
+    },
   );
 
   assert.equal(
-    shouldRequestWelcomeOffer({ canStart: true, isBaseEligible: true, state: "idle" }),
+    shouldRequestWelcomeOffer({
+      canStart: true,
+      isBaseEligible: true,
+      state: "idle",
+    }),
     true,
   );
   assert.equal(
-    shouldRequestWelcomeOffer({ canStart: false, isBaseEligible: true, state: "idle" }),
+    shouldRequestWelcomeOffer({
+      canStart: false,
+      isBaseEligible: true,
+      state: "idle",
+    }),
     false,
   );
   assert.equal(
-    shouldRequestWelcomeOffer({ canStart: true, isBaseEligible: false, state: "idle" }),
+    shouldRequestWelcomeOffer({
+      canStart: true,
+      isBaseEligible: false,
+      state: "idle",
+    }),
     false,
   );
   assert.equal(
-    shouldRequestWelcomeOffer({ canStart: false, isBaseEligible: true, state: "presented" }),
+    shouldRequestWelcomeOffer({
+      canStart: false,
+      isBaseEligible: true,
+      state: "presented",
+    }),
     true,
   );
   assert.equal(
-    shouldRequestWelcomeOffer({ canStart: true, isBaseEligible: true, state: "ended" }),
+    shouldRequestWelcomeOffer({
+      canStart: true,
+      isBaseEligible: true,
+      state: "ended",
+    }),
     false,
   );
 });
@@ -238,7 +315,9 @@ test("welcome lifecycle rechecks authoritative offer expiry before the delayed r
     await readSource("src/features/welcome-bonus/lib/foreground-timer.ts"),
   );
   const { createWelcomeBonusLifecycle } = evaluateTypeScript(
-    await readSource("src/features/welcome-bonus/lib/welcome-bonus-lifecycle.ts"),
+    await readSource(
+      "src/features/welcome-bonus/lib/welcome-bonus-lifecycle.ts",
+    ),
     { "./foreground-timer": { createForegroundTimer } },
   );
   let callback;
@@ -260,7 +339,12 @@ test("welcome lifecycle rechecks authoritative offer expiry before the delayed r
     onStateChange: () => undefined,
   });
 
-  lifecycle.update({ canStart: true, isEligible: true, isForeground: true, owner: "guest" });
+  lifecycle.update({
+    canStart: true,
+    isEligible: true,
+    isForeground: true,
+    owner: "guest",
+  });
   isOfferActive = false;
   callback();
 
@@ -270,8 +354,14 @@ test("welcome lifecycle rechecks authoritative offer expiry before the delayed r
 
 test("welcome reveal guard rejects a shown impression or dismissal set during the countdown", async () => {
   const { canPresentWelcomeBonusNow } = evaluateTypeScript(
-    await readSource("src/features/welcome-bonus/lib/welcome-bonus-lifecycle.ts"),
-    { "./foreground-timer": { createForegroundTimer: () => ({ pause() {}, resume() {} }) } },
+    await readSource(
+      "src/features/welcome-bonus/lib/welcome-bonus-lifecycle.ts",
+    ),
+    {
+      "./foreground-timer": {
+        createForegroundTimer: () => ({ pause() {}, resume() {} }),
+      },
+    },
   );
 
   assert.equal(
@@ -376,10 +466,16 @@ test("daily welcome persistence suppresses only the matching Moscow date", async
   persistence.markWelcomeBonusShownToday(today, storage);
   assert.equal(persistence.wasWelcomeBonusShownToday(today, storage), true);
   assert.equal(persistence.wasWelcomeBonusShownToday(tomorrow, storage), false);
-  assert.equal(persistence.wasWelcomeBonusDismissedToday(today, storage), false);
+  assert.equal(
+    persistence.wasWelcomeBonusDismissedToday(today, storage),
+    false,
+  );
   persistence.markWelcomeBonusDismissedToday(today, storage);
   assert.equal(persistence.wasWelcomeBonusDismissedToday(today, storage), true);
-  assert.equal(persistence.wasWelcomeBonusDismissedToday(tomorrow, storage), false);
+  assert.equal(
+    persistence.wasWelcomeBonusDismissedToday(tomorrow, storage),
+    false,
+  );
 
   const fallbackPersistence = evaluateTypeScript(
     await readSource("src/features/welcome-bonus/lib/persistence.ts"),
@@ -392,13 +488,31 @@ test("daily welcome persistence suppresses only the matching Moscow date", async
       throw new DOMException("blocked", "SecurityError");
     },
   };
-  assert.equal(fallbackPersistence.wasWelcomeBonusShownToday(today, throwingStorage), false);
+  assert.equal(
+    fallbackPersistence.wasWelcomeBonusShownToday(today, throwingStorage),
+    false,
+  );
   fallbackPersistence.markWelcomeBonusShownToday(today, throwingStorage);
-  assert.equal(fallbackPersistence.wasWelcomeBonusShownToday(today, throwingStorage), true);
-  assert.equal(fallbackPersistence.wasWelcomeBonusShownToday(tomorrow, throwingStorage), false);
+  assert.equal(
+    fallbackPersistence.wasWelcomeBonusShownToday(today, throwingStorage),
+    true,
+  );
+  assert.equal(
+    fallbackPersistence.wasWelcomeBonusShownToday(tomorrow, throwingStorage),
+    false,
+  );
   fallbackPersistence.markWelcomeBonusDismissedToday(today, throwingStorage);
-  assert.equal(fallbackPersistence.wasWelcomeBonusDismissedToday(today, throwingStorage), true);
-  assert.equal(fallbackPersistence.wasWelcomeBonusDismissedToday(tomorrow, throwingStorage), false);
+  assert.equal(
+    fallbackPersistence.wasWelcomeBonusDismissedToday(today, throwingStorage),
+    true,
+  );
+  assert.equal(
+    fallbackPersistence.wasWelcomeBonusDismissedToday(
+      tomorrow,
+      throwingStorage,
+    ),
+    false,
+  );
 });
 
 test("welcome persistence shadows readable storage after quota write failures", async () => {
@@ -416,8 +530,14 @@ test("welcome persistence shadows readable storage after quota write failures", 
   persistence.markWelcomeBonusShownToday(today, readOnlyStorage);
   persistence.markWelcomeBonusDismissedToday(today, readOnlyStorage);
 
-  assert.equal(persistence.wasWelcomeBonusShownToday(today, readOnlyStorage), true);
-  assert.equal(persistence.wasWelcomeBonusDismissedToday(today, readOnlyStorage), true);
+  assert.equal(
+    persistence.wasWelcomeBonusShownToday(today, readOnlyStorage),
+    true,
+  );
+  assert.equal(
+    persistence.wasWelcomeBonusDismissedToday(today, readOnlyStorage),
+    true,
+  );
 });
 
 test("welcome persistence handles throwing browser storage getters", async () => {
@@ -469,8 +589,14 @@ test("daily persistence ignores old v1 markers", async () => {
     setItem: (key, value) => values.set(key, value),
   };
 
-  assert.equal(persistence.wasWelcomeBonusShownToday("2026-08-31", storage), false);
-  assert.equal(persistence.wasWelcomeBonusDismissedToday("2026-08-31", storage), false);
+  assert.equal(
+    persistence.wasWelcomeBonusShownToday("2026-08-31", storage),
+    false,
+  );
+  assert.equal(
+    persistence.wasWelcomeBonusDismissedToday("2026-08-31", storage),
+    false,
+  );
 });
 
 test("cookie consent notifies subscribers and survives unavailable storage", async () => {
@@ -548,7 +674,9 @@ test("personalized banners and welcome offer use exact owner keys and fail close
   const { featureBannersQuery } = evaluateTypeScript(
     await readSource("src/entities/feature-banners/model/query.ts"),
     {
-      "@/shared/actions/feature-banners": { getFeatureBanners: async () => ({ data: [] }) },
+      "@/shared/actions/feature-banners": {
+        getFeatureBanners: async () => ({ data: [] }),
+      },
       "@/shared/lib/api-result": {
         ApiResult: { fromDTO: (result) => ({ unwrap: () => result.data }) },
       },
@@ -595,7 +723,10 @@ test("personalized banners and welcome offer use exact owner keys and fail close
     promoCodeQuery.welcomeOffer("user-1").queryKey,
   );
   assert.equal(promoCodeQuery.welcomeOffer("guest").refetchInterval, 30_000);
-  assert.equal(promoCodeQuery.welcomeOffer("guest").refetchIntervalInBackground, false);
+  assert.equal(
+    promoCodeQuery.welcomeOffer("guest").refetchIntervalInBackground,
+    false,
+  );
 });
 
 test("feature banners retain same-owner polling data but hide disabled, paused, or failed data", async () => {
@@ -604,10 +735,14 @@ test("feature banners retain same-owner polling data but hide disabled, paused, 
     await readSource("src/shared/lib/query-freshness.ts"),
   );
   const { useFeatureBanners } = evaluateTypeScript(
-    await readSource("src/entities/feature-banners/model/use-feature-banners.ts"),
+    await readSource(
+      "src/entities/feature-banners/model/use-feature-banners.ts",
+    ),
     {
       "./query": {
-        featureBannersQuery: { list: (owner) => ({ queryKey: ["banners", owner] }) },
+        featureBannersQuery: {
+          list: (owner) => ({ queryKey: ["banners", owner] }),
+        },
       },
       "@/shared/lib/query-freshness": { getFreshQueryData },
       "@tanstack/react-query": { useQuery: () => queryResult },
@@ -620,17 +755,32 @@ test("feature banners retain same-owner polling data but hide disabled, paused, 
     {
       enabled: false,
       expected: [],
-      result: { data: cached, isError: false, isFetching: false, isPending: false },
+      result: {
+        data: cached,
+        isError: false,
+        isFetching: false,
+        isPending: false,
+      },
     },
     {
       enabled: true,
       expected: cached,
-      result: { data: cached, isError: false, isFetching: true, isPending: false },
+      result: {
+        data: cached,
+        isError: false,
+        isFetching: true,
+        isPending: false,
+      },
     },
     {
       enabled: true,
       expected: [],
-      result: { data: cached, isError: true, isFetching: false, isPending: false },
+      result: {
+        data: cached,
+        isError: true,
+        isFetching: false,
+        isPending: false,
+      },
     },
     {
       enabled: true,
@@ -646,11 +796,22 @@ test("feature banners retain same-owner polling data but hide disabled, paused, 
     },
   ]) {
     queryResult = result;
-    assert.deepEqual(callFeatureBanners({ enabled, owner: "guest" }).banners, expected);
+    assert.deepEqual(
+      callFeatureBanners({ enabled, owner: "guest" }).banners,
+      expected,
+    );
   }
 
-  queryResult = { data: cached, isError: false, isFetching: false, isPending: false };
-  assert.deepEqual(callFeatureBanners({ enabled: true, owner: "guest" }).banners, cached);
+  queryResult = {
+    data: cached,
+    isError: false,
+    isFetching: false,
+    isPending: false,
+  };
+  assert.deepEqual(
+    callFeatureBanners({ enabled: true, owner: "guest" }).banners,
+    cached,
+  );
 });
 
 test("welcome offer hook retains valid polling data but hides disabled, null, expired, paused, or failed data", async () => {
@@ -662,7 +823,9 @@ test("welcome offer hook retains valid polling data but hides disabled, null, ex
     await readSource("src/entities/promocode/model/use-welcome-offer.ts"),
     {
       "./query": {
-        promoCodeQuery: { welcomeOffer: (owner) => ({ queryKey: ["offer", owner] }) },
+        promoCodeQuery: {
+          welcomeOffer: (owner) => ({ queryKey: ["offer", owner] }),
+        },
       },
       "../lib/welcome-offer-selectors": { isWelcomeOfferActive },
       "@tanstack/react-query": { useQuery: () => queryResult },
@@ -683,17 +846,32 @@ test("welcome offer hook retains valid polling data but hides disabled, null, ex
     {
       enabled: false,
       expected: undefined,
-      result: { data: cached, isError: false, isFetching: false, isPending: false },
+      result: {
+        data: cached,
+        isError: false,
+        isFetching: false,
+        isPending: false,
+      },
     },
     {
       enabled: true,
       expected: offer,
-      result: { data: cached, isError: false, isFetching: true, isPending: false },
+      result: {
+        data: cached,
+        isError: false,
+        isFetching: true,
+        isPending: false,
+      },
     },
     {
       enabled: true,
       expected: undefined,
-      result: { data: cached, isError: true, isFetching: false, isPending: false },
+      result: {
+        data: cached,
+        isError: true,
+        isFetching: false,
+        isPending: false,
+      },
     },
     {
       enabled: true,
@@ -709,15 +887,37 @@ test("welcome offer hook retains valid polling data but hides disabled, null, ex
     },
   ]) {
     queryResult = result;
-    assert.equal(callWelcomeOffer({ enabled: enabled, owner: "guest" }).data, expected);
+    assert.equal(
+      callWelcomeOffer({ enabled: enabled, owner: "guest" }).data,
+      expected,
+    );
   }
 
-  queryResult = { data: cached, isError: false, isFetching: false, isPending: false };
-  assert.deepEqual(callWelcomeOffer({ enabled: true, owner: "guest" }).data, offer);
-  assert.equal(callWelcomeOffer({ enabled: false, owner: "guest" }).data, undefined);
+  queryResult = {
+    data: cached,
+    isError: false,
+    isFetching: false,
+    isPending: false,
+  };
+  assert.deepEqual(
+    callWelcomeOffer({ enabled: true, owner: "guest" }).data,
+    offer,
+  );
+  assert.equal(
+    callWelcomeOffer({ enabled: false, owner: "guest" }).data,
+    undefined,
+  );
 
-  queryResult = { data: { offer: null }, isError: false, isFetching: false, isPending: false };
-  assert.equal(callWelcomeOffer({ enabled: true, owner: "guest" }).data, undefined);
+  queryResult = {
+    data: { offer: null },
+    isError: false,
+    isFetching: false,
+    isPending: false,
+  };
+  assert.equal(
+    callWelcomeOffer({ enabled: true, owner: "guest" }).data,
+    undefined,
+  );
 
   queryResult = {
     data: { offer: { ...offer, endsAt: "2000-01-01T00:00:00.000Z" } },
@@ -725,7 +925,10 @@ test("welcome offer hook retains valid polling data but hides disabled, null, ex
     isFetching: false,
     isPending: false,
   };
-  assert.equal(callWelcomeOffer({ enabled: true, owner: "guest" }).data, undefined);
+  assert.equal(
+    callWelcomeOffer({ enabled: true, owner: "guest" }).data,
+    undefined,
+  );
 });
 
 test("welcome offer expiry uses the exact instant boundary", async () => {
@@ -741,7 +944,10 @@ test("welcome offer expiry uses the exact instant boundary", async () => {
     minSubtotal: 0,
   };
 
-  assert.equal(isWelcomeOfferActive(offer, Date.parse("2026-08-31T11:59:59.999Z")), true);
+  assert.equal(
+    isWelcomeOfferActive(offer, Date.parse("2026-08-31T11:59:59.999Z")),
+    true,
+  );
   assert.equal(isWelcomeOfferActive(offer, Date.parse(offer.endsAt)), false);
 });
 
@@ -750,7 +956,11 @@ test("welcome offer copy derives percent or fixed RUB conditions and action with
     await readSource("src/features/welcome-bonus/lib/presentation.ts"),
     {
       "@/shared/constants": {
-        routes: { account: "/account", accountSettings: "/account/settings", auth: "/auth" },
+        routes: {
+          account: "/account",
+          accountSettings: "/account/settings",
+          auth: "/auth",
+        },
       },
     },
   );
@@ -784,7 +994,10 @@ test("welcome offer copy derives percent or fixed RUB conditions and action with
     fixedCopy.description,
     "Привяжите Telegram — бонус появится в личном кабинете.",
   );
-  assert.doesNotMatch(`${percentCopy.conditions}${fixedCopy.conditions}`, /code|код/u);
+  assert.doesNotMatch(
+    `${percentCopy.conditions}${fixedCopy.conditions}`,
+    /code|код/u,
+  );
   assert.deepEqual(getWelcomeOfferAction("authorize"), {
     href: "/auth?next=%2Faccount%2Fsettings",
     label: "Получить бонус",
@@ -820,8 +1033,7 @@ test("site wiring keeps welcome bonus out of service banners and uses the new no
     action,
     types,
     bannerTypes,
-  ] =
-    await Promise.all([
+  ] = await Promise.all([
     readSource("src/_app/layouts/site-layout.tsx"),
     readSource("src/features/welcome-bonus/ui/welcome-bonus.tsx"),
     readSource("src/features/welcome-bonus/lib/use-welcome-bonus.ts"),
@@ -832,7 +1044,7 @@ test("site wiring keeps welcome bonus out of service banners and uses the new no
     readSource("src/shared/actions/promocodes/promocodes.actions.ts"),
     readSource("src/shared/actions/promocodes/promocode.types.ts"),
     readSource("src/shared/actions/feature-banners/feature-banners.types.ts"),
-    ]);
+  ]);
 
   assert.match(layout, /WelcomeBonus/u);
   assert.match(widget, /useWelcomeBonus/u);
@@ -842,8 +1054,14 @@ test("site wiring keeps welcome bonus out of service banners and uses the new no
   assert.match(widget, /min-\[360px\]:flex-1/u);
   assert.match(welcomeHook, /createMoscowDayRollover/u);
   assert.match(welcomeHook, /visibilitychange/u);
-  assert.doesNotMatch(`${welcomeHook}${lifecycle}${persistence}`, /cooldown|7\s*\*\s*24/iu);
-  assert.match(rootLayout, /featureBannersQuery\.list\(getQueryOwner\(initialSession\.user/u);
+  assert.doesNotMatch(
+    `${welcomeHook}${lifecycle}${persistence}`,
+    /cooldown|7\s*\*\s*24/iu,
+  );
+  assert.match(
+    rootLayout,
+    /featureBannersQuery\.list\(getQueryOwner\(initialSession\.user/u,
+  );
   assert.match(serviceBanners, /featureBannerSlugs\.welcomeBonus/u);
   assert.match(action, /\/promocodes\/welcome-offer/u);
   assert.match(action, /cache: "no-store"/u);
@@ -862,16 +1080,9 @@ test("identity transitions cancel and clear personalized data before publishing 
   const sessionKey = ["session", "data"];
   const cases = [
     [
-      "src/features/auth/model/use-login.ts",
-      "useLoginMutation",
-      { user: { id: "user-1" } },
-      "remove",
-    ],
-    ["src/features/auth/model/use-logout.ts", "useLogoutMutation", undefined, "remove"],
-    [
-      "src/features/auth/model/use-confirm-email-verification.ts",
-      "useConfirmEmailVerificationMutation",
-      { user: { id: "user-1" } },
+      "src/features/auth/model/use-logout.ts",
+      "useLogoutMutation",
+      undefined,
       "remove",
     ],
     [
@@ -916,17 +1127,23 @@ test("identity transitions cancel and clear personalized data before publishing 
         useQueryClient: () => queryClient,
       },
       "@/entities/session": {
-        sessionQuery: { baseKey: ["session"], getSession: () => ({ queryKey: sessionKey }) },
+        sessionQuery: {
+          baseKey: ["session"],
+          getSession: () => ({ queryKey: sessionKey }),
+        },
         telegramLinkStatusQueryKey: ["telegram-link"],
       },
       "@/entities/orders": { ordersQuery: { baseKey: ordersQueryKey } },
       "@/entities/workshop": { workshopQuery: { baseKey: workshopQueryKey } },
       "@/entities/loyalty": { loyaltyQuery: { baseKey: loyaltyQueryKey } },
-      "@/entities/achievement": { achievementQuery: { baseKey: ["achievements"] } },
+      "@/entities/achievement": {
+        achievementQuery: { baseKey: ["achievements"] },
+      },
+      "@/entities/email-subscription": {
+        emailSubscriptionQuery: { baseKey: ["email-subscription"] },
+      },
       "@/shared/actions/auth": {
-        confirmEmailVerification: async () => undefined,
         confirmTelegramLink: async () => undefined,
-        login: async () => undefined,
         logout: async () => undefined,
         unlinkTelegram: async () => undefined,
       },
@@ -943,10 +1160,14 @@ test("identity transitions cancel and clear personalized data before publishing 
     evaluatedModule[exportName]();
     await mutationOptions.onSuccess(response);
 
-    const includesOrders = exportName === "useLoginMutation";
     const expectedCleanup = [
-      ...(["useLogoutMutation", "useLoginMutation"].includes(exportName)
-        ? [["cancel", ["achievements"]]] : []),
+      ...(exportName === "useLogoutMutation"
+        ? [
+            ["cancel", ["email-subscription"]],
+            ["remove", ["email-subscription"]],
+            ["cancel", ["achievements"]],
+          ]
+        : []),
       ...(exportName === "useLogoutMutation"
         ? [
             ["remove", ["achievements"]],
@@ -958,11 +1179,8 @@ test("identity transitions cancel and clear personalized data before publishing 
             ["remove", loyaltyQueryKey],
           ]
         : []),
-      ...(includesOrders ? [["cancel", workshopQueryKey], ["cancel", ordersQueryKey]] : []),
       ["cancel", featureBannersQueryKey],
       ["cancel", welcomeOfferQueryKey],
-      ...(includesOrders ? [["remove", ["achievements"]]] : []),
-      ...(includesOrders ? [["remove", ordersQueryKey], ["remove", workshopQueryKey]] : []),
       [clearMethod, featureBannersQueryKey],
       [clearMethod, welcomeOfferQueryKey],
     ];
@@ -971,7 +1189,11 @@ test("identity transitions cancel and clear personalized data before publishing 
     const pricingInvalidationIndex = calls.findIndex(
       ([kind, key]) => kind === "invalidate" && key === cartPricingQueryKey,
     );
-    assert.ok(identityPublishIndex === -1 || identityPublishIndex >= expectedCleanup.length, path);
+    assert.ok(
+      identityPublishIndex === -1 ||
+        identityPublishIndex >= expectedCleanup.length,
+      path,
+    );
     assert.ok(pricingInvalidationIndex >= expectedCleanup.length, path);
   }
 });
@@ -987,7 +1209,11 @@ test("same-owner Telegram transitions clear active observers before fresh refetc
       "useConfirmTelegramLink",
       { linked: true },
     ],
-    ["src/features/account/model/use-unlink-telegram.ts", "useUnlinkTelegram", { linked: false }],
+    [
+      "src/features/account/model/use-unlink-telegram.ts",
+      "useUnlinkTelegram",
+      { linked: false },
+    ],
   ];
 
   for (const [path, exportName, response] of cases) {

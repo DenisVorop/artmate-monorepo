@@ -4,6 +4,7 @@ import type { DehydratedState } from "@tanstack/react-query";
 import { HydrationBoundary } from "@tanstack/react-query";
 import { ReactQueryDevtools } from "@tanstack/react-query-devtools";
 
+import { AuthRoot } from "@/features/auth";
 import { UserProvider, type AuthSession } from "@/entities/session";
 import { DeviceProvider, type DeviceInfo } from "@/shared/lib/device";
 import { QueryStateProvider } from "@/shared/lib/query-state-manager";
@@ -39,7 +40,9 @@ export function AppProviders({
         <DeviceProvider initialDeviceInfo={initialDeviceInfo}>
           <UserProvider initialSession={initialSession}>
             <Suspense fallback={null}>
-              <QueryStateProvider>{children}</QueryStateProvider>
+              <QueryStateProvider>
+                <AuthRoot>{children}</AuthRoot>
+              </QueryStateProvider>
             </Suspense>
           </UserProvider>
         </DeviceProvider>

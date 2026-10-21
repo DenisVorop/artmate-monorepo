@@ -42,6 +42,7 @@ async function loadSharedAnalytics() {
   const factory = evaluateTypeScript(
     await readSource("src/shared/lib/analytics/create-analytics.ts"),
     {
+      "@/shared/lib/cookie-consent": { getCookieConsentSnapshot: () => true },
       "./dedupe": dedupe,
       "./product": product,
       "./sanitize-analytics-url": sanitizer,
@@ -492,4 +493,132 @@ test("provider attributes only its explicit post-click fetch to the current manu
   assert.equal(cancelOperations.length, 8);
   assert.equal(fetchOperations.length, 7, "the first half of a double submit is superseded");
   assert.ok(cancelOperations.every(([, options]) => options.exact === true));
+});
+
+test("sign-in promo retry uses the fresh account and preserves the original cart/code snapshot", async () => {
+  const harness = createComponentHarness();
+  const promoCode = evaluateTypeScript(
+    await readSource("src/features/promocode/lib/promo-code.ts"),
+    { "@/entities/cart": {} },
+  );
+  let userId;
+  let cart = { id: "cart-auth", items: [{ id: "item", price: 1000, quantity: 1 }] };
+  let storedCode = "SAVE10";
+  let auth = createDeferred();
+  const fetches = [];
+  const events = [];
+  const jsx = (type, props) => ({ type, props });
+  const { PromocodeProvider } = evaluateTypeScript(
+    await readSource("src/features/promocode/lib/promo-code-provider/promocode-provider.tsx"),
+    {
+      react: harness.react,
+      "react/jsx-runtime": { jsx, jsxs: jsx },
+      "@tanstack/react-query": {
+        useQueryClient: () => ({
+          cancelQueries: async () => {},
+          removeQueries() {},
+          fetchQuery: async (query) => {
+            fetches.push(query);
+            return { cartId: cart.id, code: storedCode, discount: 100, currency: "RUB" };
+          },
+        }),
+      },
+      "@/entities/session": { useUser: () => (userId ? { id: userId } : undefined) },
+      "@/entities/promocode": {
+        promoCodeQuery: {
+          preview: (value) => ({
+            queryKey: ["preview", value.accountIdentity, value.cartSignature, value.code],
+          }),
+        },
+        usePromoPreview: () => ({
+          data: undefined,
+          isPending: false,
+          isError: true,
+          error: new Error("Sign in"),
+          isPaused: false,
+        }),
+      },
+      "../analytics": { useAnalytics: () => ({ promoApplied: (...args) => events.push(args) }) },
+      "../promo-code": promoCode,
+      "../promo-code-storage": {
+        readCartPromoCode: () => storedCode,
+        writeStoredPromoCode: ({ code }) => {
+          storedCode = code;
+        },
+        clearStoredPromoCode: () => {
+          storedCode = undefined;
+        },
+      },
+      "./promocode.context": { PromocodeContext: { Provider: "Provider" } },
+    },
+  );
+  const render = () =>
+    harness.render(
+      PromocodeProvider,
+      {
+        cart,
+        children: "form remains mounted",
+        onLoginRequested: () => auth.promise,
+      },
+      "auth-promo",
+    );
+  const settle = async () => {
+    for (let i = 0; i < 4; i++) {
+      render();
+      harness.flushEffects();
+      await flushPromises();
+    }
+  };
+  await settle();
+  render().props.value.onLoginRequested();
+  render().props.value.onLoginRequested();
+  auth.resolve("user-one");
+  await settle();
+  assert.equal(
+    fetches.length,
+    0,
+    "success must wait for the published account rather than retry a guest closure",
+  );
+  userId = "user-one";
+  await settle();
+  assert.equal(fetches.length, 1);
+  assert.equal(fetches[0].queryKey[1], "user-one");
+  assert.equal(fetches[0].staleTime, 0);
+  assert.equal(events.length, 1);
+  assert.equal(render().props.children, "form remains mounted");
+
+  userId = undefined;
+  auth = createDeferred();
+  await settle();
+  render().props.value.onLoginRequested();
+  cart = { ...cart, items: [{ ...cart.items[0], quantity: 2 }] };
+  await settle();
+  userId = "user-two";
+  auth.resolve("user-two");
+  await settle();
+  assert.equal(fetches.length, 1, "changed cart must invalidate the captured continuation");
+
+  userId = undefined;
+  auth = createDeferred();
+  await settle();
+  render().props.value.onLoginRequested();
+  auth.resolve(undefined);
+  await settle();
+  assert.equal(fetches.length, 1, "cancelled auth cannot apply promo");
+
+  auth = createDeferred();
+  render().props.value.onLoginRequested();
+  userId = "another-account";
+  auth.resolve("expected-account");
+  await settle();
+  assert.equal(fetches.length, 1, "a different account cannot consume the continuation");
+
+  userId = undefined;
+  auth = createDeferred();
+  await settle();
+  render().props.value.onLoginRequested();
+  auth.reject(new Error("provider failed"));
+  await settle();
+  assert.equal(fetches.length, 1);
+  assert.equal(events.length, 1);
 });

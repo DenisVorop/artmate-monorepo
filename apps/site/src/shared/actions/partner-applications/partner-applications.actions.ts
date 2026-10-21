@@ -1,9 +1,12 @@
 "use server";
 
-import { headers } from "next/headers";
+import { cookies, headers } from "next/headers";
 
 import { ApiResult, type ApiResultDTO } from "@/shared/lib/api-result";
-import { apiCsrfHeader, getForwardedIpHeaders } from "@/shared/lib/api-security";
+import {
+  apiCsrfHeader,
+  getForwardedIpHeaders,
+} from "@/shared/lib/api-security";
 
 import type {
   PartnerApplicationResultDTO,
@@ -16,13 +19,13 @@ export async function submitPartnerApplication(
   input: SubmitPartnerApplicationInputDTO,
 ): Promise<ApiResultDTO<PartnerApplicationResultDTO>> {
   const result = await ApiResult.prepareApi(async () => {
-    const headerStore = await headers();
-
-    return requestPartnerApplications<PartnerApplicationResultDTO>("/partner-applications", {
-      body: JSON.stringify(input),
-      headers: getForwardedIpHeaders(headerStore),
-      method: "POST",
-    });
+    return requestPartnerApplications<PartnerApplicationResultDTO>(
+      "/partner-applications",
+      {
+        body: JSON.stringify(input),
+        method: "POST",
+      },
+    );
   })();
 
   const dto = result.toDTO() as ApiResultDTO<PartnerApplicationResultDTO>;
@@ -41,12 +44,22 @@ export async function submitPartnerApplication(
   };
 }
 
-async function requestPartnerApplications<T>(path: string, init: RequestInit = {}) {
+async function requestPartnerApplications<T>(
+  path: string,
+  init: RequestInit = {},
+) {
+  const cookieStore = await cookies();
+  const headerStore = await headers();
+  const accessToken = cookieStore.get("artmate_access_token")?.value;
   const response = await fetch(`${getApiBaseUrl()}${path}`, {
     ...init,
     cache: "no-store",
     headers: {
       "content-type": "application/json",
+      ...(accessToken
+        ? { cookie: `artmate_access_token=${encodeURIComponent(accessToken)}` }
+        : {}),
+      ...getForwardedIpHeaders(headerStore),
       ...init.headers,
       ...apiCsrfHeader,
     },

@@ -1,12 +1,17 @@
+import type { AuthConsentStateDTO } from "@/shared/actions/auth";
+
 import type {
   ConsentDecisionValues,
   ContactProfileValues,
   EmailCodeConfirmValues,
   EmailCodeRequestValues,
+  PasswordLoginValues,
+  PasswordCreationValues,
+  RegistrationValues,
 } from "./flow-form-values";
 
 type FlowViewBase = {
-  onCancel: () => void;
+  onCancel?: () => void;
   isPending?: boolean;
   error?: string;
 };
@@ -14,11 +19,39 @@ type FlowViewBase = {
 export type AuthFlowViewProps = FlowViewBase &
   (
     | {
+        step: "login";
+        initialEmail?: string;
+        onLogin: (_values: PasswordLoginValues) => void;
+        onSignup: () => void;
+        onRecovery: () => void;
+        onYandex: () => void;
+      }
+    | {
         step: "email";
         initialEmail?: string;
         onEmail: (_values: EmailCodeRequestValues) => void;
         onYandex: () => void;
+        onLogin: () => void;
       }
+    | {
+        step: "registration";
+        initialProfile?: Partial<ContactProfileValues>;
+        missingFields?: ("name" | "phone")[];
+        onRegistration: (_values: RegistrationValues) => void;
+      }
+    | {
+        step: "activation";
+        onActivation: (_values: PasswordCreationValues) => void;
+      }
+    | {
+        step: "recovery";
+        initialEmail?: string;
+        onRecovery: (_values: EmailCodeRequestValues) => void;
+        onLogin: () => void;
+      }
+    | { step: "recovery-sent"; onLogin: () => void }
+    | { step: "activation-invalid"; onRecovery: () => void }
+    | { step: "activation-loading" }
     | {
         step: "code";
         email: string;
@@ -30,15 +63,16 @@ export type AuthFlowViewProps = FlowViewBase &
     | {
         step: "profile";
         initialProfile?: Partial<ContactProfileValues>;
-        verifiedVia: "email" | "yandex";
+        missingFields?: ("name" | "phone")[];
         onProfile: (_values: ContactProfileValues) => void;
       }
     | {
         step: "consents";
-        verifiedVia: "email" | "yandex";
+        documents?: Pick<AuthConsentStateDTO, "personalData" | "emailAdvertising">;
         onConsents: (_values: ConsentDecisionValues) => void;
       }
-    | { step: "provider" }
+    | { step: "completion"; onRetry?: () => void }
+    | { step: "provider"; onLogin?: () => void }
     | { step: "success" }
     | { step: "cancelled"; onRestart: () => void }
   );

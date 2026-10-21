@@ -1,6 +1,5 @@
 "use client";
 
-import { zodResolver } from "@hookform/resolvers/zod";
 import {
   ArrowRight,
   BadgeCheck,
@@ -10,8 +9,10 @@ import {
   Send,
   Sparkles,
 } from "lucide-react";
-import { cloneElement, useEffect, useId, useRef, useState, type ReactElement } from "react";
-import { Controller, useForm, type Control } from "react-hook-form";
+import { cloneElement, useEffect, useId, useRef, type ReactElement } from "react";
+import { Controller, type Control } from "react-hook-form";
+
+import { withAuth } from "@/features/auth";
 
 import {
   Button,
@@ -20,7 +21,6 @@ import {
   CtaGradientButton,
   Input,
   Label,
-  PersonalDataConsentCheckbox,
   Select,
   SelectContent,
   SelectItem,
@@ -29,13 +29,8 @@ import {
   Textarea,
 } from "@/shared/ui";
 
-import {
-  partnerApplicationFormDefaultValues,
-  partnerApplicationFormSchema,
-  trackPartnerProgramEvent,
-  type PartnerApplicationFormValues,
-} from "../lib";
-import { useSubmitPartnerApplication } from "../model";
+import type { PartnerApplicationFormValues } from "../lib";
+import { usePartnerApplicationState } from "../lib/use-partner-application-state";
 
 const partnerTypeOptions = [
   { label: "Автор контента или блогер", value: "creator" },
@@ -76,68 +71,24 @@ const applicationBenefits = [
   },
 ] as const;
 
-export function PartnerApplicationForm() {
-  const [sent, setSent] = useState(false);
-  const startedRef = useRef(false);
-  const formId = useId();
+function BasePartnerApplicationForm() {
   const {
-    error: submitError,
+    form,
+    sent,
+    submitForm,
+    handleFormStart,
+    handleSendAnother,
     isPending,
-    reset: resetMutation,
-    submitPartnerApplication,
-  } = useSubmitPartnerApplication();
+    submitError,
+  } = usePartnerApplicationState();
   const {
     control,
     formState: { errors },
-    handleSubmit,
     register,
-    reset,
     watch,
-  } = useForm<PartnerApplicationFormValues>({
-    defaultValues: partnerApplicationFormDefaultValues,
-    resolver: zodResolver(partnerApplicationFormSchema),
-  });
+  } = form;
+  const formId = useId();
   const preferredContact = watch("preferredContact");
-
-  useEffect(() => {
-    const ctaLinks = Array.from(
-      document.querySelectorAll<HTMLAnchorElement>('a[href="#partner-application"]'),
-    );
-    const trackClick = () => trackPartnerProgramEvent("partner_cta_click");
-
-    ctaLinks.forEach((link) => link.addEventListener("click", trackClick));
-
-    return () => {
-      ctaLinks.forEach((link) => link.removeEventListener("click", trackClick));
-    };
-  }, []);
-
-  const submitForm = handleSubmit(async (values) => {
-    try {
-      await submitPartnerApplication(values);
-      trackPartnerProgramEvent("partner_form_success");
-      reset();
-      setSent(true);
-    } catch {
-      trackPartnerProgramEvent("partner_form_error");
-    }
-  });
-
-  const handleFormStart = () => {
-    if (startedRef.current) {
-      return;
-    }
-
-    startedRef.current = true;
-    trackPartnerProgramEvent("partner_form_start");
-  };
-
-  const handleSendAnother = () => {
-    startedRef.current = false;
-    reset();
-    resetMutation();
-    setSent(false);
-  };
 
   return (
     <section
@@ -170,8 +121,8 @@ export function PartnerApplicationForm() {
                   Давайте создавать поводы для творчества вместе
                 </h2>
                 <p className="max-w-lg text-base leading-7 text-neutral-300 sm:text-lg">
-                  Расскажите о себе и своей площадке. Мы изучим заявку и свяжемся удобным для вас
-                  способом.
+                  Расскажите о себе и своей площадке. Мы изучим заявку и
+                  свяжемся удобным для вас способом.
                 </p>
               </div>
             </div>
@@ -187,7 +138,9 @@ export function PartnerApplicationForm() {
                   </span>
                   <div className="space-y-0.5">
                     <p className="font-semibold text-white">{title}</p>
-                    <p className="text-sm leading-5 text-neutral-400">{description}</p>
+                    <p className="text-sm leading-5 text-neutral-400">
+                      {description}
+                    </p>
                   </div>
                 </div>
               ))}
@@ -206,14 +159,20 @@ export function PartnerApplicationForm() {
                   onSubmit={submitForm}
                 >
                   <div className="space-y-1">
-                    <h3 className="font-heading text-2xl font-bold">Расскажите о себе</h3>
+                    <h3 className="font-heading text-2xl font-bold">
+                      Расскажите о себе
+                    </h3>
                     <p className="text-sm leading-6 text-muted-foreground">
                       Поля помогут нам сразу подготовить предметное предложение.
                     </p>
                   </div>
 
                   <div className="grid gap-4 sm:grid-cols-2">
-                    <TextField error={errors.name?.message} id={`${formId}-name`} label="Имя">
+                    <TextField
+                      error={errors.name?.message}
+                      id={`${formId}-name`}
+                      label="Имя"
+                    >
                       <Input
                         id={`${formId}-name`}
                         autoComplete="name"
@@ -225,7 +184,11 @@ export function PartnerApplicationForm() {
                       />
                     </TextField>
 
-                    <TextField error={errors.email?.message} id={`${formId}-email`} label="Email">
+                    <TextField
+                      error={errors.email?.message}
+                      id={`${formId}-email`}
+                      label="Email"
+                    >
                       <Input
                         id={`${formId}-email`}
                         type="email"
@@ -342,23 +305,6 @@ export function PartnerApplicationForm() {
                     />
                   </div>
 
-                  <div className="space-y-2">
-                    <PersonalDataConsentCheckbox
-                      id={`${formId}-personal-data-consent`}
-                      aria-describedby={
-                        errors.acceptedPersonalDataConsent
-                          ? `${formId}-personal-data-consent-error`
-                          : undefined
-                      }
-                      hasError={Boolean(errors.acceptedPersonalDataConsent)}
-                      {...register("acceptedPersonalDataConsent")}
-                    />
-                    <FieldError
-                      id={`${formId}-personal-data-consent-error`}
-                      message={errors.acceptedPersonalDataConsent?.message}
-                    />
-                  </div>
-
                   <CtaGradientButton
                     type="submit"
                     size="lg"
@@ -368,7 +314,7 @@ export function PartnerApplicationForm() {
                     {isPending ? "Отправляем заявку" : "Отправить заявку"}
                     <Send className="size-4" />
                   </CtaGradientButton>
-                  <FormError message={submitError?.message} />
+                  <FormError message={submitError} />
                 </form>
               )}
             </CardContent>
@@ -393,7 +339,14 @@ type SelectFieldProps = {
   readonly options: readonly SelectOption[];
 };
 
-function SelectField({ control, error, id, label, name, options }: SelectFieldProps) {
+function SelectField({
+  control,
+  error,
+  id,
+  label,
+  name,
+  options,
+}: SelectFieldProps) {
   return (
     <div className="space-y-2">
       <Label htmlFor={id}>{label}</Label>
@@ -401,7 +354,11 @@ function SelectField({ control, error, id, label, name, options }: SelectFieldPr
         control={control}
         name={name}
         render={({ field }) => (
-          <Select value={field.value} onValueChange={field.onChange} disabled={field.disabled}>
+          <Select
+            value={field.value}
+            onValueChange={field.onChange}
+            disabled={field.disabled}
+          >
             <SelectTrigger
               id={id}
               size="lg"
@@ -442,7 +399,11 @@ function TextField({ children, error, id, label, optional }: TextFieldProps) {
     <div className="space-y-2">
       <Label htmlFor={id}>
         {label}
-        {optional ? <span className="font-normal text-muted-foreground">необязательно</span> : null}
+        {optional ? (
+          <span className="font-normal text-muted-foreground">
+            необязательно
+          </span>
+        ) : null}
       </Label>
       {cloneElement(children, error ? { "aria-describedby": errorId } : {})}
       <FieldError id={errorId} message={error} />
@@ -450,7 +411,13 @@ function TextField({ children, error, id, label, optional }: TextFieldProps) {
   );
 }
 
-function FieldError({ id, message }: { readonly id: string; readonly message?: string }) {
+function FieldError({
+  id,
+  message,
+}: {
+  readonly id: string;
+  readonly message?: string;
+}) {
   return message ? (
     <p id={id} role="alert" className="text-sm text-destructive">
       {message}
@@ -468,12 +435,17 @@ function FormError({ message }: { readonly message?: string }) {
       role="alert"
       className="rounded-xl border border-destructive/25 bg-destructive/8 px-4 py-3 text-sm text-destructive"
     >
-      Не удалось отправить заявку. Попробуйте ещё раз или напишите нам через страницу контактов.
+      Не удалось отправить заявку. Попробуйте ещё раз или напишите нам через
+      страницу контактов.
     </p>
   );
 }
 
-function SuccessState({ onSendAnother }: { readonly onSendAnother: () => void }) {
+function SuccessState({
+  onSendAnother,
+}: {
+  readonly onSendAnother: () => void;
+}) {
   const titleRef = useRef<HTMLHeadingElement>(null);
 
   useEffect(() => {
@@ -482,15 +454,24 @@ function SuccessState({ onSendAnother }: { readonly onSendAnother: () => void })
 
   return (
     <div className="flex min-h-[34rem] flex-col items-center justify-center py-10 text-center">
-      <div role="status" aria-live="polite" className="flex flex-col items-center">
+      <div
+        role="status"
+        aria-live="polite"
+        className="flex flex-col items-center"
+      >
         <span className="mb-6 flex size-16 items-center justify-center rounded-2xl bg-gradient-to-br from-emerald-50 to-teal-50 text-emerald-600 ring-1 ring-emerald-200/80">
           <CheckCircle2 className="size-8" />
         </span>
-        <h3 ref={titleRef} tabIndex={-1} className="font-heading text-3xl font-bold outline-none">
+        <h3
+          ref={titleRef}
+          tabIndex={-1}
+          className="font-heading text-3xl font-bold outline-none"
+        >
           Заявка уже у команды
         </h3>
         <p className="mt-3 max-w-md leading-7 text-muted-foreground">
-          Изучим вашу площадку и свяжемся выбранным способом, чтобы обсудить формат и условия.
+          Изучим вашу площадку и свяжемся выбранным способом, чтобы обсудить
+          формат и условия.
         </p>
       </div>
       <Button
@@ -505,3 +486,7 @@ function SuccessState({ onSendAnother }: { readonly onSendAnother: () => void })
     </div>
   );
 }
+
+export const PartnerApplicationForm = withAuth(BasePartnerApplicationForm, {
+  source: "partner_application",
+});
