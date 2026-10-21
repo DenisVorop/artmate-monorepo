@@ -19,6 +19,10 @@ import {
   ApiTags,
 } from "@nestjs/swagger";
 
+import { RequireSiteAction } from "../auth/require-site-action";
+import { SiteActionGuard } from "../auth/site-action.guard";
+import type { SiteActionRequest } from "../auth/contracts/site-action-access.contract";
+
 import { AuthGuard } from "../auth/auth.guard";
 import type { AuthUser } from "../auth/auth.types";
 import { ValidateResponse } from "../common/response-validation.interceptor";
@@ -35,7 +39,7 @@ import {
 import { PartnerApplicationsThrottleService } from "./partner-applications-throttle.service";
 import { PartnerApplicationsService } from "./partner-applications.service";
 
-type PublicRequest = {
+type PublicRequest = SiteActionRequest & {
   headers: {
     "x-forwarded-for"?: string | string[];
     "x-real-ip"?: string | string[];
@@ -60,21 +64,26 @@ export class PublicPartnerApplicationsController {
   @ApiAcceptedResponse({ type: PartnerApplicationSubmissionResultDTO })
   @HttpCode(HttpStatus.ACCEPTED)
   @Post()
+  @RequireSiteAction("partner_application")
+  @UseGuards(SiteActionGuard)
   createApplication(
     @Body() body: CreatePartnerApplicationRequestDTO,
     @Req() request: PublicRequest,
   ) {
     this.throttle.assertAllowed({
       email: body.email,
-      forwardedFor: this.getHeader(request.headers["x-forwarded-for"]),
-      realIp: this.getHeader(request.headers["x-real-ip"]),
+      forwardedFor: this._getHeader(request.headers["x-forwarded-for"]),
+      realIp: this._getHeader(request.headers["x-real-ip"]),
       requestIp: request.ip,
     });
 
-    return this.partnerApplicationsService.createApplication(body);
+    return this.partnerApplicationsService.createApplication(
+      body,
+      request.siteAction,
+    );
   }
 
-  private getHeader(value: string | string[] | undefined) {
+  private _getHeader(value: string | string[] | undefined) {
     return Array.isArray(value) ? value[0] : value;
   }
 }

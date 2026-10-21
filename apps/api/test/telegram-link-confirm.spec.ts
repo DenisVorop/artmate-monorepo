@@ -9,8 +9,7 @@ import { GUARDS_METADATA } from "@nestjs/common/constants";
 import { AuthController } from "../src/auth/auth.controller";
 import { AuthGuard } from "../src/auth/auth.guard";
 import { ConfirmTelegramLinkRequestDTO } from "../src/auth/dto/confirm-telegram-link-request.dto";
-import { RegisterRequestDTO } from "../src/auth/dto/register-request.dto";
-import { RequestAccountRecoveryDTO } from "../src/auth/dto/request-account-recovery.dto";
+import { RequestRegistrationCodeDTO } from "../src/auth/dto/registration-flow-request.dto";
 
 const pipe = new ValidationPipe({
   forbidNonWhitelisted: true,
@@ -20,7 +19,9 @@ const pipe = new ValidationPipe({
 
 describe("Telegram link confirmation contract", () => {
   it("accepts code only and rejects missing, malformed, or legacy consent input", async () => {
-    const valid = await transform(ConfirmTelegramLinkRequestDTO, { code: "123456" });
+    const valid = await transform(ConfirmTelegramLinkRequestDTO, {
+      code: "123456",
+    });
     assert.equal(valid.code, "123456");
     assert.deepEqual(Object.keys(valid), ["code"]);
 
@@ -44,35 +45,16 @@ describe("Telegram link confirmation contract", () => {
     assert.equal(guards.includes(AuthGuard), true);
   });
 
-  it("keeps consent required for registration and password reset requests", async () => {
+  it("accepts only email for the shared flow recovery request", async () => {
+    const request = await transform(RequestRegistrationCodeDTO, {
+      email: "user@example.com",
+    });
+    assert.deepEqual(Object.keys(request), ["email"]);
     await assert.rejects(
-      transform(RegisterRequestDTO, {
+      transform(RequestRegistrationCodeDTO, {
         email: "user@example.com",
-        password: "password123",
+        acceptedPersonalDataConsent: true,
       }),
-    );
-    await assert.rejects(
-      transform(RequestAccountRecoveryDTO, { email: "user@example.com" }),
-    );
-
-    assert.equal(
-      (
-        await transform(RegisterRequestDTO, {
-          acceptedPersonalDataConsent: true,
-          email: "user@example.com",
-          password: "password123",
-        })
-      ).acceptedPersonalDataConsent,
-      true,
-    );
-    assert.equal(
-      (
-        await transform(RequestAccountRecoveryDTO, {
-          acceptedPersonalDataConsent: true,
-          email: "user@example.com",
-        })
-      ).acceptedPersonalDataConsent,
-      true,
     );
   });
 });

@@ -40,6 +40,23 @@ export class CsrfMiddleware implements NestMiddleware {
   }
 
   private isExempt(request: CsrfRequest) {
+    const path = (
+      request.originalUrl ??
+      request.path ??
+      request.url ??
+      ""
+    ).split("?")[0];
+    const contentType = this.getHeaderValue(request.headers["content-type"])
+      ?.split(";")[0]
+      ?.trim()
+      .toLowerCase();
+    if (
+      request.method?.toUpperCase() === "POST" &&
+      path === "/consents/email-advertising/unsubscribe" &&
+      (contentType === "application/x-www-form-urlencoded" ||
+        contentType === "multipart/form-data")
+    )
+      return true;
     const paths = [
       request.originalUrl,
       request.baseUrl && request.url

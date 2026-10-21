@@ -44,7 +44,10 @@ model PartnerApplication {
   partnerType      PartnerApplicationType              @map("partner_type")
   audienceSize     PartnerApplicationAudienceSize      @map("audience_size")
   comment          String?                             @db.Text
-  consent          Boolean
+  /// Historical client checkbox; never backfilled into verified consent.
+  consent          Boolean?
+  authenticatedUserId String? @map("authenticated_user_id")
+  consentAcceptanceId String? @map("consent_acceptance_id")
   utmSource        String?                             @map("utm_source") @db.VarChar(200)
   utmMedium        String?                             @map("utm_medium") @db.VarChar(200)
   utmCampaign      String?                             @map("utm_campaign") @db.VarChar(200)
@@ -54,6 +57,7 @@ model PartnerApplication {
   createdAt        DateTime                            @default(now()) @map("created_at")
   updatedAt        DateTime                            @default(now()) @updatedAt @map("updated_at")
 
+  consentAcceptance RequiredConsentAcceptance? @relation(fields: [consentAcceptanceId], references: [id], onDelete: Restrict, map: "partner_application_acceptance_fk")
   affiliatePartner AffiliatePartner?
 
   @@index([status, createdAt])

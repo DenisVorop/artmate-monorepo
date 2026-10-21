@@ -1,9 +1,7 @@
 export const AUTH_ACCESS_TOKEN_COOKIE_NAME = "artmate_access_token";
-export const AUTH_OAUTH_STATE_COOKIE_PREFIX = "artmate_oauth_state";
 
 export const AUTH_ACCESS_TOKEN_EXPIRES_IN = "7d";
 export const AUTH_ACCESS_TOKEN_MAX_AGE_MS = 1000 * 60 * 60 * 24 * 7;
-export const AUTH_OAUTH_STATE_MAX_AGE_MS = 1000 * 60 * 10;
 export const AUTH_LOGIN_THROTTLE_WINDOW_MS = 1000 * 60 * 15;
 export const AUTH_LOGIN_LOCKOUT_MS = 1000 * 60 * 15;
 export const AUTH_LOGIN_MAX_FAILED_ATTEMPTS = 5;

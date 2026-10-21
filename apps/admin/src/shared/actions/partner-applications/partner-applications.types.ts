@@ -34,7 +34,9 @@ export type PartnerApplicationDTO = {
   partnerType: PartnerApplicationPartnerTypeDTO;
   audienceSize: PartnerApplicationAudienceSizeDTO;
   comment?: string | null;
-  consent: true;
+  consent: boolean | null;
+  authenticatedUserId?: string;
+  consentAcceptanceId?: string;
   utmSource?: string | null;
   utmMedium?: string | null;
   utmCampaign?: string | null;

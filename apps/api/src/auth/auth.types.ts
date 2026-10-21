@@ -39,6 +39,7 @@ export type YandexTokenResponse = {
 };
 
 export type YandexProfileResponse = {
+  client_id?: unknown;
   id?: unknown;
   default_email?: unknown;
   display_name?: unknown;

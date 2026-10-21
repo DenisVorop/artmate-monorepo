@@ -4,10 +4,7 @@ import { ApiBody, ApiOkResponse, ApiOperation, ApiTags } from "@nestjs/swagger";
 import { ValidateResponse } from "../common/response-validation.interceptor";
 
 import { ContactsService } from "./contacts.service";
-import {
-  ContactMessageResultDTO,
-  CreateContactMessageRequestDTO,
-} from "./dto";
+import { ContactMessageResultDTO, CreateContactMessageRequestDTO } from "./dto";
 
 @ApiTags("Contacts")
 @Controller("contacts")

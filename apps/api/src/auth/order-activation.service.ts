@@ -1,7 +1,6 @@
 import crypto from "node:crypto";
 
 import {
-  BadRequestException,
   HttpException,
   HttpStatus,
   Injectable,
@@ -20,13 +19,10 @@ import { NotificationQueueService } from "../notifications/notification-queue.se
 import { PrismaService } from "../prisma/prisma.service";
 import { UsersService } from "../users/users.service";
 
-import type { AuthPrincipal } from "./auth.types";
-import { CredentialsAuthService } from "./credentials-auth.service";
 import {
   createOrderActivationToken,
   createOrderActivationTokenHash,
   createOrderActivationTokenId,
-  verifyOrderActivationToken,
 } from "./order-activation-token";
 import { PasswordResetService } from "./password-reset.service";
 
@@ -49,11 +45,6 @@ type RecoveryInput = {
   readonly ipAddress?: string;
 };
 
-type ConfirmActivationInput = {
-  readonly password: string;
-  readonly token: string;
-};
-
 type RecoveryThrottleSubject = {
   readonly hash: string;
   readonly maxRequests: number;
@@ -65,7 +56,6 @@ export class OrderActivationService {
   private readonly logger = new Logger(OrderActivationService.name);
 
   constructor(
-    private readonly credentialsAuthService: CredentialsAuthService,
     private readonly mailerService: MailerService,
     private readonly notificationQueueService: NotificationQueueService,
     private readonly passwordResetService: PasswordResetService,
@@ -112,7 +102,7 @@ export class OrderActivationService {
         email,
         input.ipAddress,
       )) {
-        const block = await this.incrementRecoveryThrottle(tx, subject);
+        const block = await this._incrementRecoveryThrottle(tx, subject);
         if (block && (!latestBlock || block > latestBlock)) latestBlock = block;
       }
 
@@ -169,138 +159,6 @@ export class OrderActivationService {
     }
 
     return { ok: true as const };
-  }
-
-  async validateActivation(token: string) {
-    const secret = this.getSecret();
-    const tokenId = verifyOrderActivationToken(token, secret);
-    if (!tokenId) return { valid: false };
-
-    const storedToken = await this.prisma.authOrderActivationToken.findUnique({
-      where: { id: tokenId },
-    });
-    const now = new Date();
-    if (
-      !storedToken ||
-      storedToken.tokenHash !== createOrderActivationTokenHash(token, secret) ||
-      storedToken.consumedAt ||
-      storedToken.expiresAt <= now
-    ) {
-      return { valid: false };
-    }
-
-    const user = await this.prisma.user.findUnique({
-      where: { id: storedToken.userId },
-    });
-    if (!user || user.status !== UserStatus.ACTIVE) return { valid: false };
-
-    const credentialsAccount = await this.prisma.authAccount.findFirst({
-      where: {
-        provider: PrismaAuthProvider.CREDENTIALS,
-        userId: storedToken.userId,
-      },
-      include: { credential: true },
-    });
-    const oauthAccount = await this.prisma.authAccount.findFirst({
-      where: {
-        provider: { not: PrismaAuthProvider.CREDENTIALS },
-        userId: storedToken.userId,
-      },
-    });
-
-    return {
-      valid: Boolean(
-        credentialsAccount && !credentialsAccount.credential && !oauthAccount,
-      ),
-    };
-  }
-
-  async confirmActivation(input: ConfirmActivationInput): Promise<AuthPrincipal> {
-    const secret = this.getSecret();
-    const tokenId = verifyOrderActivationToken(input.token, secret);
-    if (!tokenId) throw this.invalidTokenException();
-    const tokenHash = createOrderActivationTokenHash(input.token, secret);
-    const initialToken = await this.prisma.authOrderActivationToken.findUnique({
-      where: { id: tokenId },
-    });
-    const initialNow = new Date();
-    if (
-      !initialToken ||
-      initialToken.tokenHash !== tokenHash ||
-      initialToken.consumedAt ||
-      initialToken.expiresAt <= initialNow
-    ) {
-      throw this.invalidTokenException();
-    }
-    const passwordHash = await this.credentialsAuthService.createPasswordHash(
-      input.password,
-    );
-    const activatedUser = await this.prisma.$transaction(async (tx) => {
-      await tx.$queryRaw`SELECT id FROM users WHERE id = ${initialToken.userId} FOR UPDATE`;
-      await tx.$queryRaw`SELECT id FROM auth_order_activation_tokens WHERE id = ${tokenId} FOR UPDATE`;
-      const token = await tx.authOrderActivationToken.findUnique({
-        where: { id: tokenId },
-      });
-      const now = new Date();
-
-      if (
-        !token ||
-        token.tokenHash !== tokenHash ||
-        token.consumedAt ||
-        token.expiresAt <= now ||
-        token.userId !== initialToken.userId
-      ) {
-        throw this.invalidTokenException();
-      }
-
-      const account = await tx.authAccount.findFirst({
-        where: {
-          provider: PrismaAuthProvider.CREDENTIALS,
-          userId: token.userId,
-          user: { status: UserStatus.ACTIVE },
-        },
-        include: { credential: true },
-      });
-      const oauthAccount = await tx.authAccount.findFirst({
-        where: {
-          provider: { not: PrismaAuthProvider.CREDENTIALS },
-          userId: token.userId,
-        },
-      });
-      if (!account || account.credential || oauthAccount) {
-        throw this.invalidTokenException();
-      }
-
-      await tx.authCredential.create({
-        data: { accountId: account.id, passwordHash, passwordUpdatedAt: now },
-      });
-      const activatedUser = await tx.user.update({
-        where: { id: token.userId },
-        data: {
-          authVersion: { increment: 1 },
-          emailVerifiedAt: now,
-        },
-        select: { authVersion: true, id: true },
-      });
-      await this.consumeActiveTokens(tx, token.userId, now);
-      await tx.authPasswordResetToken.updateMany({
-        where: { userId: token.userId, consumedAt: null },
-        data: { consumedAt: now },
-      });
-      await tx.authEmailVerificationCode.updateMany({
-        where: { userId: token.userId, consumedAt: null },
-        data: { consumedAt: now },
-      });
-
-      return activatedUser;
-    });
-
-    return {
-      ...(await this.credentialsAuthService.getCredentialsUserById(
-        activatedUser.id,
-      )),
-      authVersion: activatedUser.authVersion,
-    };
   }
 
   private async attachOrder(
@@ -364,10 +222,13 @@ export class OrderActivationService {
     return userId;
   }
 
-  private async incrementRecoveryThrottle(
+  private async _incrementRecoveryThrottle(
     tx: Prisma.TransactionClient,
     subject: RecoveryThrottleSubject,
   ) {
+    // Serialize initial bucket creation as well as the subsequent increment.
+    const lockKey = `recovery:${subject.scope}:${subject.hash}`;
+    await tx.$executeRaw`SELECT pg_advisory_xact_lock(hashtextextended(${lockKey}, 0))`;
     const now = new Date();
     const key = { scope: subject.scope, subjectHash: subject.hash };
     const throttle = await tx.authRecoveryThrottle.upsert({
@@ -393,7 +254,8 @@ export class OrderActivationService {
     }
 
     const windowExpired =
-      bucket.windowStartedAt.getTime() <= now.getTime() - recoveryThrottleWindowMs;
+      bucket.windowStartedAt.getTime() <=
+      now.getTime() - recoveryThrottleWindowMs;
     const requestCount = windowExpired ? 1 : bucket.requestCount + 1;
     const cooldownBlock =
       subject.scope === AuthRecoveryThrottleScope.EMAIL &&
@@ -414,7 +276,7 @@ export class OrderActivationService {
         ? cooldownBlock > hourlyBlock
           ? cooldownBlock
           : hourlyBlock
-        : cooldownBlock ?? hourlyBlock;
+        : (cooldownBlock ?? hourlyBlock);
 
     await tx.authRecoveryThrottle.update({
       where: { id: bucket.id },
@@ -511,7 +373,10 @@ export class OrderActivationService {
   }
 
   private createHmac(value: string) {
-    return crypto.createHmac("sha256", this.getSecret()).update(value).digest("hex");
+    return crypto
+      .createHmac("sha256", this.getSecret())
+      .update(value)
+      .digest("hex");
   }
 
   private normalizeEmail(email: string) {
@@ -526,18 +391,19 @@ export class OrderActivationService {
   private getSecret() {
     const secret = process.env.AUTH_JWT_SECRET?.trim();
     if (!secret) {
-      throw new InternalServerErrorException("AUTH_JWT_SECRET is not configured");
+      throw new InternalServerErrorException(
+        "AUTH_JWT_SECRET is not configured",
+      );
     }
     return secret;
   }
 
-  private invalidTokenException() {
-    return new BadRequestException("Order activation link is invalid or expired");
-  }
-
   private rateLimitException(retryAfterSeconds: number) {
     return new HttpException(
-      { message: "Account recovery is temporarily unavailable", retryAfterSeconds },
+      {
+        message: "Account recovery is temporarily unavailable",
+        retryAfterSeconds,
+      },
       HttpStatus.TOO_MANY_REQUESTS,
     );
   }

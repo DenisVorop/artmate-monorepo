@@ -28,6 +28,8 @@ import {
   getTelegramRequestHeaders,
 } from "../telegram/telegram-api";
 
+import { RegistrationEmailAdapter } from "./integrations/registration-email.adapter";
+
 type EmailNotificationInput = SendMailInput;
 
 type NotificationJobWriter = Pick<PrismaService, "notificationJob">;
@@ -268,6 +270,14 @@ export class NotificationQueueService implements OnModuleInit, OnModuleDestroy {
 
   private async dispatchEmail(payload: Prisma.JsonValue) {
     const object = this.parseObject(payload, "email payload");
+    if (object.kind === "email_registration") {
+      const message = await RegistrationEmailAdapter.prepare(
+        this.prisma,
+        object,
+      );
+      if (message) await this.mailerService.sendMail(message);
+      return;
+    }
     if (object.kind === "order_activation") {
       const activationTokenId = this.parseRequiredString(
         object.activationTokenId,
@@ -372,10 +382,7 @@ export class NotificationQueueService implements OnModuleInit, OnModuleDestroy {
         "email payload.passwordResetTokenId",
       );
       const secret = this.getRequiredEnv("AUTH_PASSWORD_RESET_SECRET");
-      const rawToken = createPasswordResetToken(
-        passwordResetTokenId,
-        secret,
-      );
+      const rawToken = createPasswordResetToken(passwordResetTokenId, secret);
       const tokenHash = createPasswordResetTokenHash(rawToken, secret);
       const token = await this.prisma.authPasswordResetToken.findUnique({
         where: { id: passwordResetTokenId },
@@ -454,10 +461,7 @@ export class NotificationQueueService implements OnModuleInit, OnModuleDestroy {
       );
       await this.mailerService.sendMail(
         this.mailerService.createPasswordResetEmail(
-          this.parseRequiredString(
-            object.recipient,
-            "email payload.recipient",
-          ),
+          this.parseRequiredString(object.recipient, "email payload.recipient"),
           resetUrl.toString(),
           ttlMinutes,
         ),
@@ -487,9 +491,10 @@ export class NotificationQueueService implements OnModuleInit, OnModuleDestroy {
   private async markJobFailed(job: NotificationJob, error: unknown) {
     const attempts = job.attempts + 1;
     const isFinalAttempt = attempts >= job.maxAttempts;
-    const errorMessage = job.channel === NotificationJobChannel.EMAIL
-      ? "Email notification delivery failed"
-      : this.getErrorMessage(error);
+    const errorMessage =
+      job.channel === NotificationJobChannel.EMAIL
+        ? "Email notification delivery failed"
+        : this.getErrorMessage(error);
 
     await this.prisma.notificationJob.update({
       where: { id: job.id },

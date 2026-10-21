@@ -10,7 +10,6 @@ import { AuthController } from "../src/auth/auth.controller";
 import { AuthService } from "../src/auth/auth.service";
 import { CredentialsAuthService } from "../src/auth/credentials-auth.service";
 import type { AuthTokenPayload, AuthUser } from "../src/auth/auth.types";
-import { YandexOAuthService } from "../src/auth/yandex-oauth.service";
 import { UserStatus } from "../src/generated/prisma/client";
 import type { PrismaService } from "../src/prisma/prisma.service";
 import { UsersService } from "../src/users/users.service";
@@ -90,7 +89,10 @@ describe("access JWT auth versioning", () => {
       },
     });
 
-    await service.createAccessToken({ ...payloadUser, authVersion: 4 } as never);
+    await service.createAccessToken({
+      ...payloadUser,
+      authVersion: 4,
+    } as never);
 
     assert.equal(userReads, 0);
     assert.equal(
@@ -175,7 +177,13 @@ describe("access JWT auth versioning", () => {
   });
 
   it("rejects malformed authVersion claims", async () => {
-    for (const authVersion of [-1, 1.5, Number.MAX_SAFE_INTEGER + 1, "0", null]) {
+    for (const authVersion of [
+      -1,
+      1.5,
+      Number.MAX_SAFE_INTEGER + 1,
+      "0",
+      null,
+    ]) {
       const service = createAuthService({
         payload: { ...toPayload(payloadUser), authVersion } as never,
         storedAuthVersion: 0,
@@ -306,18 +314,25 @@ describe("access JWT auth versioning", () => {
     const principal = { ...payloadUser, authVersion: 7 };
     const createCookieSession = (
       controller as unknown as {
-        createCookieSession(response: unknown, user: typeof principal): Promise<unknown>;
+        createCookieSession(
+          response: unknown,
+          user: typeof principal,
+        ): Promise<unknown>;
       }
     ).createCookieSession;
 
-    const session = await createCookieSession.call(controller, response, principal);
+    const session = await createCookieSession.call(
+      controller,
+      response,
+      principal,
+    );
 
     assert.equal(signedUsers[0]?.authVersion, 7);
     assert.deepEqual(session, { user: payloadUser });
     assert.equal(cookies.length, 1);
   });
 
-  it("uses captured versions for user/admin login, email verification and Yandex OAuth", async () => {
+  it("uses captured versions for affiliate and admin login", async () => {
     const signedVersions: number[] = [];
     let credentialsVersion = 4;
     const authService = {
@@ -338,9 +353,7 @@ describe("access JWT auth versioning", () => {
           ...payloadUser,
           authVersion: credentialsVersion,
           roles:
-            credentialsVersion === 5
-              ? (["admin"] as const)
-              : payloadUser.roles,
+            credentialsVersion === 5 ? (["admin"] as const) : payloadUser.roles,
         }),
       },
       emailVerificationService: {
@@ -349,15 +362,6 @@ describe("access JWT auth versioning", () => {
       loginThrottleService: {
         assertLoginAllowed: async () => undefined,
         recordSuccessfulLogin: async () => undefined,
-      },
-      oauthProvidersService: {
-        getProvider: () => ({
-          getUserByCode: async () => ({
-            ...payloadUser,
-            authVersion: 7,
-            provider: "yandex" as const,
-          }),
-        }),
       },
       usersService: {
         assertRole: () => undefined,
@@ -368,7 +372,7 @@ describe("access JWT auth versioning", () => {
       cookie: () => undefined,
     };
 
-    const loginSession = await controller.login(
+    const loginSession = await controller.loginAffiliate(
       { email: "buyer@example.com", password: "password" },
       undefined,
       undefined,
@@ -383,25 +387,12 @@ describe("access JWT auth versioning", () => {
       "127.0.0.1",
       response,
     );
-    const verificationSession = await controller.confirmEmailVerification(
-      { code: "123456", email: "buyer@example.com" },
-      response,
-    );
-    await controller.handleOAuthCallback(
-      "yandex",
-      "code",
-      "valid-state",
-      "auth_oauth_state_yandex=valid-state",
-      response,
-    );
-
-    assert.deepEqual(signedVersions, [4, 5, 6, 7]);
+    assert.deepEqual(signedVersions, [4, 5]);
     assert.equal("authVersion" in loginSession.user, false);
     assert.equal("authVersion" in adminSession.user, false);
-    assert.equal("authVersion" in verificationSession.user, false);
   });
 
-  it("captures authVersion in credentials and Yandex authentication results", () => {
+  it("captures authVersion in credentials authentication results", () => {
     const usersService = {
       mapPrismaRoles: () => ["customer"],
     } as unknown as UsersService;
@@ -418,23 +409,14 @@ describe("access JWT auth versioning", () => {
       Object.create(CredentialsAuthService.prototype),
       { usersService },
     ) as CredentialsAuthService;
-    const yandex = Object.assign(Object.create(YandexOAuthService.prototype), {
-      usersService,
-    }) as YandexOAuthService;
-
     const credentialsPrincipal = (
       credentials as unknown as {
-        mapStoredAccount(account: typeof storedAccount): { authVersion: number };
+        mapStoredAccount(account: typeof storedAccount): {
+          authVersion: number;
+        };
       }
     ).mapStoredAccount(storedAccount);
-    const yandexPrincipal = (
-      yandex as unknown as {
-        mapStoredAccount(account: typeof storedAccount): { authVersion: number };
-      }
-    ).mapStoredAccount(storedAccount);
-
     assert.equal(credentialsPrincipal.authVersion, 9);
-    assert.equal(yandexPrincipal.authVersion, 9);
   });
 
   it("accepts the current env-backed token without exposing raw credentials in its claim", async () => {
@@ -457,10 +439,7 @@ describe("access JWT auth versioning", () => {
 
     assert.equal(typeof getEnvCredentialBinding(principal), "string");
     assert.equal(typeof getEnvCredentialBinding(signedPayload), "string");
-    assert.doesNotMatch(
-      JSON.stringify(signedPayload),
-      /dev-plain-password/u,
-    );
+    assert.doesNotMatch(JSON.stringify(signedPayload), /dev-plain-password/u);
     assert.notEqual(
       getEnvCredentialBinding(signedPayload),
       "dev-plain-password",
@@ -471,7 +450,10 @@ describe("access JWT auth versioning", () => {
       credentialsAuthService: credentials,
       payload: signedPayload,
     });
-    assert.equal((await verifier.verifyAccessToken("current-env-token")).id, "user-1");
+    assert.equal(
+      (await verifier.verifyAccessToken("current-env-token")).id,
+      "user-1",
+    );
   });
 
   it("revokes an env-backed token after AUTH_PASSWORD_HASH rotation", async () => {
@@ -501,9 +483,8 @@ describe("access JWT auth versioning", () => {
     process.env.AUTH_PASSWORD_EMAIL = "admin@example.com";
     process.env.NODE_ENV = "production";
     const credentials = createEnvCredentialsService();
-    process.env.AUTH_PASSWORD_HASH = await credentials.createPasswordHash(
-      "old-password",
-    );
+    process.env.AUTH_PASSWORD_HASH =
+      await credentials.createPasswordHash("old-password");
     const payload = await issueEnvToken(credentials, "old-password");
 
     delete process.env.AUTH_PASSWORD_HASH;
@@ -596,7 +577,10 @@ describe("access JWT auth versioning", () => {
       storedAuthVersion: 2,
     });
 
-    assert.equal((await storedCredentials.verifyAccessToken("db-token")).id, "user-1");
+    assert.equal(
+      (await storedCredentials.verifyAccessToken("db-token")).id,
+      "user-1",
+    );
     assert.equal((await yandex.verifyAccessToken("oauth-token")).id, "user-1");
   });
 
@@ -612,7 +596,10 @@ describe("access JWT auth versioning", () => {
     };
     const createCookieSession = (
       controller as unknown as {
-        createCookieSession(response: unknown, user: typeof principal): Promise<unknown>;
+        createCookieSession(
+          response: unknown,
+          user: typeof principal,
+        ): Promise<unknown>;
       }
     ).createCookieSession;
 
@@ -626,17 +613,19 @@ describe("access JWT auth versioning", () => {
   });
 });
 
-function createAuthService(options: {
-  authAccountHasCredential?: boolean;
-  credentialsAuthService?: CredentialsAuthService;
-  legacyAuthVersion?: number;
-  onSign?: (payload: AuthTokenPayload) => void;
-  onUserRead?: () => unknown;
-  payload?: AuthTokenPayload;
-  storedAuthVersion?: number;
-  storedRoles?: Array<"ADMIN" | "CUSTOMER" | "PARTNER">;
-  storedUserMissing?: boolean;
-} = {}) {
+function createAuthService(
+  options: {
+    authAccountHasCredential?: boolean;
+    credentialsAuthService?: CredentialsAuthService;
+    legacyAuthVersion?: number;
+    onSign?: (payload: AuthTokenPayload) => void;
+    onUserRead?: () => unknown;
+    payload?: AuthTokenPayload;
+    storedAuthVersion?: number;
+    storedRoles?: Array<"ADMIN" | "CUSTOMER" | "PARTNER">;
+    storedUserMissing?: boolean;
+  } = {},
+) {
   process.env.AUTH_JWT_SECRET = "test-jwt-secret";
   const jwtService = {
     signAsync: async (payload: AuthTokenPayload) => {
@@ -657,7 +646,10 @@ function createAuthService(options: {
   const prisma = {
     authAccount: {
       findUnique: async () => ({
-        credential: options.authAccountHasCredential === false ? null : { id: "credential-1" },
+        credential:
+          options.authAccountHasCredential === false
+            ? null
+            : { id: "credential-1" },
         providerEmail: "buyer@example.com",
         providerUserId: "buyer@example.com",
         userId: "user-1",
@@ -724,13 +716,15 @@ function createEnvCredentialsService() {
   return new CredentialsAuthService(prisma, usersService);
 }
 
-function createLegacyEnvVerificationFixture(options: {
-  authVersion?: number;
-  envCredentialBinding?: string;
-  omitBinding?: boolean;
-  status?: UserStatus;
-  storedAuthVersion?: number;
-} = {}) {
+function createLegacyEnvVerificationFixture(
+  options: {
+    authVersion?: number;
+    envCredentialBinding?: string;
+    omitBinding?: boolean;
+    status?: UserStatus;
+    storedAuthVersion?: number;
+  } = {},
+) {
   process.env.AUTH_JWT_SECRET = "test-jwt-secret";
   process.env.AUTH_PASSWORD_EMAIL = "buyer@example.com";
   process.env.AUTH_PASSWORD = "dev-password";
@@ -798,17 +792,15 @@ function createLegacyEnvVerificationFixture(options: {
     normalizeRoles: () => ["admin"],
   } as unknown as UsersService;
   const credentials = new CredentialsAuthService(prisma, usersService);
-  const currentBinding = credentials.getEnvCredentialBinding(
-    "buyer@example.com",
-  );
+  const currentBinding =
+    credentials.getEnvCredentialBinding("buyer@example.com");
   assert.ok(currentBinding);
   const payload: AuthTokenPayload = {
     ...toPayload(payloadUser),
     sub: "credentials:buyer@example.com",
     authVersion: options.authVersion ?? 0,
     ...(!options.omitBinding && {
-      envCredentialBinding:
-        options.envCredentialBinding ?? currentBinding,
+      envCredentialBinding: options.envCredentialBinding ?? currentBinding,
     }),
   };
   const jwtService = {
@@ -817,7 +809,12 @@ function createLegacyEnvVerificationFixture(options: {
   };
 
   return {
-    service: new AuthService(jwtService as never, credentials, prisma, usersService),
+    service: new AuthService(
+      jwtService as never,
+      credentials,
+      prisma,
+      usersService,
+    ),
     writes,
   };
 }
