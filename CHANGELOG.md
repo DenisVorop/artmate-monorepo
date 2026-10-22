@@ -1,5 +1,12 @@
 # Changelog
 
+## [0.51.3](https://github.com/DenisVorop/artmate-monorepo/compare/v0.51.2...v0.51.3) (2026-10-22)
+
+
+### Bug Fixes
+
+* **auth:** align and style primary actions ([a921982](https://github.com/DenisVorop/artmate-monorepo/commit/a92198233b1e4437739e136ec212730ac86ad809))
+
 ## [0.51.2](https://github.com/DenisVorop/artmate-monorepo/compare/v0.51.1...v0.51.2) (2026-10-22)
 
 
