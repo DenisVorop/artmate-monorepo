@@ -11,7 +11,6 @@ import { ActivationStep } from "./activation-step";
 import { CodeStep } from "./code-step";
 import { ConsentsStep } from "./consents-step";
 import { EmailStep } from "./email-step";
-import { FlowLayout } from "./flow-layout";
 import { LoginStep } from "./login-step";
 import { OutcomeStep } from "./outcome-step";
 import { ProfileStep } from "./profile-step";
@@ -43,11 +42,7 @@ export function AuthFlowView(props: AuthFlowViewProps) {
       break;
     case "recovery-sent":
     case "activation-invalid":
-      content = (
-        <FlowLayout>
-          <RecoveryResult {...props} titleId={titleId} />
-        </FlowLayout>
-      );
+      content = <RecoveryResult {...props} titleId={titleId} />;
       break;
     case "email":
       content = <EmailStep {...props} titleId={titleId} />;
@@ -65,11 +60,7 @@ export function AuthFlowView(props: AuthFlowViewProps) {
       content = <OutcomeStep {...props} titleId={titleId} />;
       break;
     default:
-      content = (
-        <FlowLayout>
-          <OutcomeStep {...props} titleId={titleId} />
-        </FlowLayout>
-      );
+      content = <OutcomeStep {...props} titleId={titleId} />;
   }
 
   return (
