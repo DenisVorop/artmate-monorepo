@@ -1,0 +1,14 @@
+# Композиция с альбомом для раскрашивания
+
+Создано встроенным image_gen. Исходник: glass-composition-v1.png. Прозрачный фон.
+
++Use case: precise-object-edit.
+Asset type: transparent 3D hero illustration for an Artmate coloring-book wholesale website.
+Input image 1: edit target, the existing colored-glass sculptural composition.
+Primary request: Add a clearly recognizable OPEN COLORING ALBUM as the integral base of this composition, plus a few colored pencils. The glass woman, flowers and butterflies should appear to emerge from the coloring pages, connecting the sculpture to the activity of coloring.
+Keep: the same serene stylized woman with closed eyes, deep teal flowing hair, warm peach glass skin, white daisies, coral flowers, red/orange tulips, emerald leaves, vivid pink/purple/orange butterflies. Preserve their luxurious glossy colored-glass appearance, character and cohesive palette. Reframe and slightly scale the sculpture so the album is fully visible.
+Added album: a real thin adult coloring book, opened wide, viewed in three-quarter perspective from slightly above. It must be unmistakably an album with a visible paper page stack, subtly curled white pages, and thin purple/teal cover edges. Place across the lower third, with both pages exposed enough to read as coloring pages. Pages display elegant black contour drawings of the same tulips, daisies and butterflies, with small unobtrusive color-by-number numerals in a few regions; a handful of petals have been filled in pink/orange while most remain white. Leave a readable area of line art in front of the sculpture. The stems transition naturally from flat outlined flowers on paper into the volumetric glass flowers rising above. The glass bust rises behind the center of the spread. This is a single thoughtfully composed scene, not a book cover with an image pasted onto it.
+Pencils: three sharpened colored pencils in pink, orange and teal, arranged near the front edge of the open album as a restrained secondary accent. Polished colored barrels, visible wooden sharpened tips. They support the coloring theme without covering the line art.
+Composition: square framing, complete open book visible with generous margins, sculpture above it, airy butterflies, balanced silhouette, suitable for a website hero at 500px. Keep the album visually substantial: around half the image width or more. Bright polished editorial 3D rendering, crisp softbox reflections and glass refraction, realistic white paper to contrast with jewel-like glass.
+Background: genuinely transparent alpha, no backdrop, no floor, no rectangular background. Keep natural object shading only.
+Avoid: closed cover mockup, folder, binder, plastic sleeve, a printed portrait textured onto a book cover, floating detached notebook unrelated to the sculpture, extra people, text labels, title, logos, watermarks, pedestals, clutter, matte clay.
