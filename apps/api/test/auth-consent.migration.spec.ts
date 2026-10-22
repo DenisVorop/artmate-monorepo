@@ -13,6 +13,7 @@ describe("auth and consent persistence", () => {
 
   before(async () => {
     db = new PGlite();
+    await db.exec("SET TIME ZONE 'UTC'");
     const root = resolve(__dirname, "../prisma/migrations");
     for (const entry of (await readdir(root, { withFileTypes: true }))
       .filter((entry) => entry.isDirectory())
@@ -30,15 +31,59 @@ describe("auth and consent persistence", () => {
   after(async () => db?.close());
   beforeEach(async () => {
     await db.exec("BEGIN");
+    // Each contract case supplies its own document fixtures.
+    await db.exec("TRUNCATE consent_revisions CASCADE");
     await _seedIdentity(db);
   });
   afterEach(async () => {
     await db.exec("ROLLBACK");
   });
 
-  it("migrates the full history without enrolling existing users or publishing documents", async () => {
+  it("publishes the initial documents without enrolling existing users, and can safely run again", async () => {
+    const migration = await readFile(
+      resolve(
+        __dirname,
+        "../prisma/migrations/20261022090000_publish_initial_auth_consents/migration.sql",
+      ),
+      "utf8",
+    );
+    await db.exec(migration);
+    const revisions = (
+      await db.query<{
+        kind: string;
+        document_bytes: Uint8Array;
+        form_snapshot_bytes: Uint8Array;
+        published: boolean;
+      }>(
+        "SELECT kind, document_bytes, form_snapshot_bytes, published_at IS NOT NULL AS published FROM consent_revisions ORDER BY kind",
+      )
+    ).rows;
+    assert.equal(revisions.length, 2);
+    for (const row of revisions) {
+      const name =
+        row.kind === "personal_data" ? "personal-data" : "advertising";
+      assert.deepEqual(
+        Buffer.from(row.document_bytes),
+        await readFile(
+          resolve(
+            __dirname,
+            `../../site/public/documents/legal/${name}-consent-2026-09-22.pdf`,
+          ),
+        ),
+      );
+      assert.equal(
+        Buffer.from(row.form_snapshot_bytes).subarray(0, 4).toString("hex"),
+        "504b0304",
+      );
+      assert.equal(row.published, true);
+    }
+    await db.exec(migration);
+    assert.deepEqual(
+      (await db.query("SELECT count(*)::int AS count FROM consent_revisions"))
+        .rows,
+      [{ count: 2 }],
+    );
     for (const table of [
-      "consent_revisions",
       "required_consent_acceptances",
       "email_advertising_subscriptions",
       "user_consent_states",
@@ -55,6 +100,32 @@ describe("auth and consent persistence", () => {
         )
       ).rows,
       [{ email_verified_at: null }],
+    );
+  });
+
+  it("preserves already published document revisions during initial publication", async () => {
+    await _seedRevisions(db);
+    const before = (
+      await db.query(
+        "SELECT id,kind,purpose,version,document_sha256,form_sha256,published_at,retired_at FROM consent_revisions ORDER BY id",
+      )
+    ).rows;
+    await db.exec(
+      await readFile(
+        resolve(
+          __dirname,
+          "../prisma/migrations/20261022090000_publish_initial_auth_consents/migration.sql",
+        ),
+        "utf8",
+      ),
+    );
+    assert.deepEqual(
+      (
+        await db.query(
+          "SELECT id,kind,purpose,version,document_sha256,form_sha256,published_at,retired_at FROM consent_revisions ORDER BY id",
+        )
+      ).rows,
+      before,
     );
   });
 
@@ -326,9 +397,11 @@ describe("auth and consent persistence", () => {
           email: "person@example.test",
           revision_id: "ads",
           source: "notification_settings",
-          email_verified_at_snapshot: (await db.query<{ email_verified_at: Date }>(
-            "SELECT email_verified_at FROM users WHERE id = 'settings-user'",
-          )).rows[0]!.email_verified_at,
+          email_verified_at_snapshot: (
+            await db.query<{ email_verified_at: Date }>(
+              "SELECT email_verified_at FROM users WHERE id = 'settings-user'",
+            )
+          ).rows[0]!.email_verified_at,
         },
       ],
     );
@@ -366,11 +439,18 @@ describe("auth and consent persistence", () => {
     for (const sql of [
       _settingsGrantSql({ source: "profile" }),
       _settingsGrantSql({ source: null }),
-      _settingsGrantSql({ authOperationId: "operation", identityFactId: "identity" }),
+      _settingsGrantSql({
+        authOperationId: "operation",
+        identityFactId: "identity",
+      }),
       _settingsGrantSql({ actorUserId: "other-user" }),
       _settingsGrantSql({ email: "other@example.test" }),
-      _settingsGrantSql({ emailVerifiedAt: "CURRENT_TIMESTAMP - INTERVAL '2 minutes'" }),
-      _settingsGrantSql({ emailVerifiedAt: "CURRENT_TIMESTAMP + INTERVAL '1 minute'" }),
+      _settingsGrantSql({
+        emailVerifiedAt: "CURRENT_TIMESTAMP - INTERVAL '2 minutes'",
+      }),
+      _settingsGrantSql({
+        emailVerifiedAt: "CURRENT_TIMESTAMP + INTERVAL '1 minute'",
+      }),
     ]) {
       await _reject(db, sql, "23514");
     }
@@ -380,7 +460,10 @@ describe("auth and consent persistence", () => {
     );
     await _reject(
       db,
-      _settingsGrantSql({ actorUserId: "unverified-user", email: "unverified@example.test" }),
+      _settingsGrantSql({
+        actorUserId: "unverified-user",
+        email: "unverified@example.test",
+      }),
       "23514",
     );
   });
@@ -391,7 +474,9 @@ describe("auth and consent persistence", () => {
     await _seedRevisions(db, false);
     await _reject(db, _settingsGrantSql(), "23514");
 
-    await db.exec("UPDATE consent_revisions SET published_at = CURRENT_TIMESTAMP");
+    await db.exec(
+      "UPDATE consent_revisions SET published_at = CURRENT_TIMESTAMP",
+    );
     await _reject(db, _settingsGrantSql({ revisionId: "pd" }), "23514");
 
     await db.exec(
@@ -690,22 +775,26 @@ function _grantSql(
       '${email}', 'ads', ${source === null ? "NULL" : "'" + source.replaceAll("'", "''") + "'"}, 'request', ${_contextSql()})`;
 }
 
-function _settingsGrantSql(options: {
-  actorUserId?: string;
-  authOperationId?: string | null;
-  email?: string;
-  emailVerifiedAt?: string;
-  identityFactId?: string | null;
-  revisionId?: string;
-  source?: string | null;
-} = {}): string {
+function _settingsGrantSql(
+  options: {
+    actorUserId?: string;
+    authOperationId?: string | null;
+    email?: string;
+    emailVerifiedAt?: string;
+    identityFactId?: string | null;
+    revisionId?: string;
+    source?: string | null;
+  } = {},
+): string {
   const actorUserId = options.actorUserId ?? "settings-user";
   const authOperationId = options.authOperationId ?? null;
   const identityFactId = options.identityFactId ?? null;
   const email = options.email ?? "person@example.test";
   const revisionId = options.revisionId ?? "ads";
-  const source = options.source === undefined ? "notification_settings" : options.source;
-  const emailVerifiedAt = options.emailVerifiedAt ?? "CURRENT_TIMESTAMP - INTERVAL '1 minute'";
+  const source =
+    options.source === undefined ? "notification_settings" : options.source;
+  const emailVerifiedAt =
+    options.emailVerifiedAt ?? "CURRENT_TIMESTAMP - INTERVAL '1 minute'";
   const literal = (value: string) => `'${value.replaceAll("'", "''")}'`;
 
   return `INSERT INTO email_advertising_consent_events

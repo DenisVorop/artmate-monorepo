@@ -456,6 +456,32 @@ export class AuthFlowCoordinator {
   }
 
   private _terminal(request: Request, code: AuthFailure["code"]): void {
+    if (request.config.presentation === "inline") {
+      request.registration = false;
+      const epoch = ++this._epoch;
+      const previous = this._inFlight;
+      this._set({
+        step: "login",
+        visible: true,
+        pending: true,
+        flow: undefined,
+        canRetry: false,
+        error:
+          code === "flow_expired" || code === "session_expired"
+            ? "Время входа истекло. Войдите заново."
+            : "Не удалось войти. Попробуйте ещё раз.",
+      });
+      this._inFlight = previous.then(async () => {
+        try {
+          await this._ports.cancel();
+        } catch {
+          // The next explicit attempt starts with fresh server state.
+        } finally {
+          if (this._owns(request, epoch)) this._set({ pending: false });
+        }
+      });
+      return;
+    }
     this._fail(request, { code });
     this._set({ step: "closed", pending: false, flow: undefined, canRetry: false });
     // Keep the owner through the current response turn, so a terminal callback cannot

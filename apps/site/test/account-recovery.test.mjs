@@ -235,7 +235,6 @@ async function routeHookFixture(entry, snapshot = { step: "loading" }) {
           states[index],
           (next) => {
             states[index] = next;
-            if (index === 1) operations.push(["failure", next]);
           },
         ];
       },
@@ -315,14 +314,14 @@ test("standalone StrictMode mount discards its first timer and starts one owner"
       fixture.operations.map(([kind]) => kind),
       ["start"],
     );
-    fixture.options.onError({ code: "cancelled" });
+    assert.equal(fixture.options.onError, undefined);
     assert.equal(fixture.operations.filter(([kind]) => kind === "start").length, 1);
   } finally {
     fixture.restore();
   }
 });
 
-test("activation token leaves URL after exchange; cancelled operation continues with ordinary login", async () => {
+test("activation token leaves URL after exchange without a separate failure-page retry", async () => {
   const fixture = await routeHookFixture(
     { type: "activation", token: "private" },
     { step: "activation", flow: { status: "PENDING" } },
@@ -332,8 +331,7 @@ test("activation token leaves URL after exchange; cancelled operation continues 
     fixture.effects[1]();
     assert.equal(new URL(fixture.location.href).searchParams.has("token"), false);
     assert.equal(new URL(fixture.location.href).searchParams.get("next"), "/account");
-    fixture.result.retry();
-    assert.deepEqual(fixture.operations.at(-1), ["document", "/auth"]);
+    assert.equal(fixture.result.retry, undefined);
     assert.equal(
       fixture.operations.some(([kind]) => kind === "start"),
       false,
@@ -394,8 +392,7 @@ test("cookie-triggered RSC rerender without query preserves the mounted transien
     // operation must still own its original exchange, never start a second one.
     const rerendered = fixture.rerender({ type: "resume" });
     assert.equal(fixture.operations.filter(([kind]) => kind === "start").length, 1);
-    rerendered.retry();
-    assert.deepEqual(fixture.operations.at(-1), ["document", "/auth"]);
+    assert.equal(rerendered.retry, undefined);
   } finally {
     fixture.restore();
   }

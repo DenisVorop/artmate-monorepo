@@ -1030,3 +1030,57 @@ test("password login and Yandex continuation do not create email registration te
     assert.equal(events, 0);
   }
 });
+
+test("inline auth keeps initialization failure inside a usable login form and permits a fresh attempt", async () => {
+  let attempts = 0;
+  let failures = 0;
+  const { coordinator, calls } = setup({
+    login: async () => (++attempts === 1 ? pending("preparing") : consents()),
+    resume: async () => pending("preparing"),
+    complete: async () => completed,
+  });
+  const outcome = coordinator.request(
+    Symbol(),
+    { presentation: "inline" },
+    {
+      onError: () => failures++,
+    },
+    undefined,
+  );
+  await flush();
+  await coordinator.login({ email: user.email, password: "test-password" });
+  await flush();
+  assert.equal(coordinator.getSnapshot().step, "login");
+  assert.equal(coordinator.getSnapshot().pending, false);
+  assert.equal(coordinator.getSnapshot().email, user.email);
+  assert.equal(coordinator.getSnapshot().error, "Не удалось войти. Попробуйте ещё раз.");
+  assert.equal(failures, 0);
+  assert.equal(
+    calls.some(([name]) => name === "publishSession"),
+    false,
+  );
+  await coordinator.login({ email: user.email, password: "test-password" });
+  assert.equal(coordinator.getSnapshot().step, "consents");
+  await coordinator.submitConsents({ personalData: true, advertising: false });
+  assert.equal((await outcome).status, "success");
+  assert.equal(failures, 0);
+});
+
+test("inline expired continuation returns to the standard login form without a session", async () => {
+  const { coordinator, calls } = setup({
+    start: async () => {
+      throw { status: 410 };
+    },
+  });
+  const outcome = coordinator.request(Symbol(), { presentation: "inline" }, {}, undefined);
+  await flush();
+  assert.equal(coordinator.getSnapshot().step, "login");
+  assert.equal(coordinator.getSnapshot().pending, false);
+  assert.equal(coordinator.getSnapshot().error, "Время входа истекло. Войдите заново.");
+  assert.equal(
+    calls.some(([name]) => name === "publishSession"),
+    false,
+  );
+  await coordinator.cancel();
+  assert.equal((await outcome).error.code, "cancelled");
+});
