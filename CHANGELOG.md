@@ -1,5 +1,12 @@
 # Changelog
 
+## [0.51.2](https://github.com/DenisVorop/artmate-monorepo/compare/v0.51.1...v0.51.2) (2026-10-22)
+
+
+### Bug Fixes
+
+* **auth:** clear auth cookies on logout ([7217906](https://github.com/DenisVorop/artmate-monorepo/commit/721790615abf47cd3c3682900af33c95f6edb852))
+
 ## [0.51.1](https://github.com/DenisVorop/artmate-monorepo/compare/v0.51.0...v0.51.1) (2026-10-22)
 
 
