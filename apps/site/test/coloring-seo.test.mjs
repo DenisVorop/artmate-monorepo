@@ -43,6 +43,7 @@ const routes = {
   home: "/",
   catalog: "/catalog",
   colorings: "/raskraski",
+  wholesale: "/wholesale",
   coloringCollection: (slug) => `/raskraski/digital/${slug}`,
   coloring: (collectionSlug, number) =>
     `/raskraski/digital/${collectionSlug}/${String(number).padStart(2, "0")}`,
@@ -119,8 +120,12 @@ async function loadMetadata() {
 }
 
 async function loadStructuredData() {
+  const registry = evaluateTypeScript(await readSource("src/shared/lib/seo/registry.ts"), {
+    "@/shared/constants": constantsMock,
+  });
   return evaluateTypeScript(await readSource("src/shared/lib/seo/structured-data.tsx"), {
     "@/shared/constants": constantsMock,
+    "./registry": registry,
     "./text": {
       createCategoryDescription: () => "category",
       createColoringSeoDescription: (collectionTitle, number) =>
@@ -132,6 +137,28 @@ async function loadStructuredData() {
     },
   });
 }
+
+test("wholesale JSON-LD uses the canonical page URL, registry content and breadcrumb", async () => {
+  const { WholesaleStructuredData } = await loadStructuredData();
+  const { seoPages } = evaluateTypeScript(await readSource("src/shared/lib/seo/registry.ts"), {
+    "@/shared/constants": constantsMock,
+  });
+  const markup = renderToStaticMarkup(WholesaleStructuredData());
+  const graph = JSON.parse(markup.match(/<script[^>]*>(.*?)<\/script>/s)[1])["@graph"];
+  const url = `${siteUrl}/wholesale`;
+  assert.equal(graph.length, 2);
+  const page = graph.find((entry) => entry["@type"] === "WebPage");
+  assert.equal(page.url, url);
+  assert.equal(page.name, seoPages.wholesale.title);
+  assert.equal(page.description, seoPages.wholesale.description);
+  assert.deepEqual(page.breadcrumb, { "@id": `${url}#breadcrumb` });
+  const breadcrumb = graph.find((entry) => entry["@type"] === "BreadcrumbList");
+  assert.equal(breadcrumb["@id"], `${url}#breadcrumb`);
+  assert.deepEqual(
+    breadcrumb.itemListElement.map((entry) => entry.item),
+    [`${siteUrl}/`, url],
+  );
+});
 
 test("createColoringMetadata uses its own canonical and only the intrinsic colored social image", async () => {
   const { createColoringMetadata } = await loadMetadata();

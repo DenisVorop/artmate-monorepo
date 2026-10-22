@@ -92,6 +92,7 @@ test("metadata/OG/Twitter/JSON-LD share product content, preserve URLs and expos
   assert.doesNotMatch(JSON.stringify(metadata), noAlbumClaims);
   const { ProductStructuredData } = await load("src/shared/lib/seo/structured-data.tsx", {
     "@/shared/constants": constants,
+    "./registry": { seoPages: {} },
     "./text": textHelpers,
   });
   const markup = renderToStaticMarkup(
