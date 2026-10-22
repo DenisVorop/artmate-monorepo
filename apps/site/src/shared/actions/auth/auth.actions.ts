@@ -11,13 +11,10 @@ import type {
   AuthTelegramLinkResponseDTO,
   AuthTelegramLinkStatusDTO,
   ConfirmTelegramLinkInputDTO,
-  LogoutDTO,
 } from "./auth.types";
 
 const authAccessTokenCookieName = "artmate_access_token";
 const defaultApiBaseUrl = "http://localhost:3002";
-
-type CookieStore = Awaited<ReturnType<typeof cookies>>;
 
 export async function getAuthProviders(): Promise<ApiResultDTO<AuthProvidersDTO>> {
   const result = await ApiResult.prepareApi(async () =>
@@ -33,21 +30,6 @@ export async function getAuthSession(): Promise<ApiResultDTO<AuthSessionDTO>> {
   )();
 
   return result.toDTO() as ApiResultDTO<AuthSessionDTO>;
-}
-
-export async function logout(): Promise<ApiResultDTO<LogoutDTO>> {
-  const result = await ApiResult.prepareApi(async () => {
-    const response = await _requestAuth<LogoutDTO>("/auth/logout", {
-      method: "POST",
-    });
-    const cookieStore = await cookies();
-
-    _clearAccessTokenCookie(cookieStore);
-
-    return response;
-  })();
-
-  return result.toDTO() as ApiResultDTO<LogoutDTO>;
 }
 
 export async function getTelegramLinkStatus(): Promise<ApiResultDTO<AuthTelegramLinkStatusDTO>> {
@@ -106,25 +88,6 @@ async function _requestAuth<T>(path: string, init: RequestInit = {}) {
   }
 
   return (await response.json()) as T;
-}
-
-function _clearAccessTokenCookie(cookieStore: CookieStore) {
-  const domain = _getCookieDomain();
-
-  cookieStore.set(authAccessTokenCookieName, "", {
-    ...(domain ? { domain } : {}),
-    httpOnly: true,
-    maxAge: 0,
-    path: "/",
-    sameSite: "lax",
-    secure: process.env.NODE_ENV === "production",
-  });
-}
-
-function _getCookieDomain() {
-  const domain = process.env.AUTH_COOKIE_DOMAIN?.trim();
-
-  return domain || undefined;
 }
 
 function _getApiBaseUrl() {

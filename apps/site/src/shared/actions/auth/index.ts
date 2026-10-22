@@ -3,9 +3,9 @@ export {
   getAuthProviders,
   getAuthSession,
   getTelegramLinkStatus,
-  logout,
   unlinkTelegram,
 } from "./auth.actions";
+export { logout } from "./logout.actions";
 export type {
   AuthOAuthProvider,
   AuthProvider,

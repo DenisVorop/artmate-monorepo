@@ -1,3 +1,4 @@
+import process from "node:process";
 import assert from "node:assert/strict";
 import { createRequire } from "node:module";
 import { readFile } from "node:fs/promises";
@@ -144,4 +145,23 @@ test("OAuth transport forwards only flow and provider cookies, accepts no access
     writes.every(([, , options]) => options.httpOnly && options.maxAge === 600),
     true,
   );
+});
+
+test("completed sessions use the configured domain while pending cookies stay host-only", async () => {
+  const previous = process.env.AUTH_COOKIE_DOMAIN;
+  process.env.AUTH_COOKIE_DOMAIN = ".artmate.ru";
+  try {
+    const { client, writes } = transport("COMPLETED", [
+      "artmate_access_token=new-session; Domain=.artmate.ru; Max-Age=604800",
+      "artmate_auth_pending=continuation; Max-Age=900",
+      "artmate_auth_browser=browser; Max-Age=86400",
+    ]);
+    await client.complete({ decisions: [] });
+    assert.equal(writes.find(([name]) => name === "artmate_access_token")[2].domain, ".artmate.ru");
+    for (const [name, , options] of writes)
+      if (name !== "artmate_access_token") assert.equal(options.domain, undefined);
+  } finally {
+    if (previous === undefined) delete process.env.AUTH_COOKIE_DOMAIN;
+    else process.env.AUTH_COOKIE_DOMAIN = previous;
+  }
 });

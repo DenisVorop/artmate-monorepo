@@ -1,6 +1,5 @@
 "use client";
 
-import { useRouter } from "next/navigation";
 import { LoaderCircle, LogOut, Palette, UserRound } from "lucide-react";
 
 import { getSessionUserDisplayName, useSession } from "@/entities/session";
@@ -19,9 +18,8 @@ import { Link } from "@/shared/ui/link";
 import { useLogoutMutation } from "../model";
 
 export function SessionMenu() {
-  const router = useRouter();
   const { mutate: logout, isPending: isLogoutPending } = useLogoutMutation({
-    onSuccess: () => router.replace(routes.home),
+    onSuccess: () => window.location.replace(routes.home),
   });
   const { user, isPending: isSessionPending } = useSession();
 

@@ -1,5 +1,6 @@
 "use client";
 
+import { useContext } from "react";
 import { useMutation, useQueryClient } from "@tanstack/react-query";
 
 import { emailSubscriptionQuery } from "@/entities/email-subscription";
@@ -16,15 +17,22 @@ import {
   welcomeOfferQueryKey,
 } from "@/shared/lib/query-keys";
 
+import { AuthContext } from "../lib/auth-provider/auth.context";
+
 type UseLogoutMutationOptions = {
   onSuccess?: () => void;
 };
 
 export function useLogoutMutation(options: UseLogoutMutationOptions = {}) {
   const queryClient = useQueryClient();
+  const coordinator = useContext(AuthContext);
   const { mutate, mutateAsync, isPending } = useMutation({
-    mutationFn: async () => ApiResult.fromDTO(await logout()).unwrap(),
-    onSuccess: () => {
+    mutationFn: async () => {
+      await coordinator?.cancel();
+      return ApiResult.fromDTO(await logout()).unwrap();
+    },
+    onSuccess: async () => {
+      await queryClient.cancelQueries({ queryKey: sessionQuery.baseKey });
       void queryClient.cancelQueries({
         queryKey: emailSubscriptionQuery.baseKey,
       });

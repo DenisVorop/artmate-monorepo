@@ -77,7 +77,10 @@ export class AuthFlowTransport {
       const maxAge = Number(
         parts.find((part) => part.toLowerCase().startsWith("max-age="))?.slice(8) ?? 900,
       );
+      const domain =
+        name === "artmate_access_token" ? process.env.AUTH_COOKIE_DOMAIN?.trim() : undefined;
       cookieStore.set(name, decodeURIComponent(parts[0]!.slice(index + 1)), {
+        ...(domain ? { domain } : {}),
         httpOnly: true,
         secure: process.env.NODE_ENV === "production",
         sameSite: "lax",
