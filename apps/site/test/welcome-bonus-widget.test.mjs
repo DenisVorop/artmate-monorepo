@@ -1119,6 +1119,8 @@ test("identity transitions cancel and clear personalized data before publishing 
       setQueryData: (queryKey) => calls.push(["set", queryKey]),
     };
     const evaluatedModule = evaluateTypeScript(await readSource(path), {
+      react: { useContext: () => undefined },
+      "../lib/auth-provider/auth.context": { AuthContext: {} },
       "@tanstack/react-query": {
         useMutation: (options) => {
           mutationOptions = options;
@@ -1163,6 +1165,7 @@ test("identity transitions cancel and clear personalized data before publishing 
     const expectedCleanup = [
       ...(exportName === "useLogoutMutation"
         ? [
+            ["cancel", ["session"]],
             ["cancel", ["email-subscription"]],
             ["remove", ["email-subscription"]],
             ["cancel", ["achievements"]],

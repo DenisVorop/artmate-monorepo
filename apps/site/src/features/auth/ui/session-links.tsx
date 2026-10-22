@@ -1,7 +1,6 @@
 "use client";
 
 import { LoaderCircle, LogOut, Palette, UserRound } from "lucide-react";
-import { useRouter } from "next/navigation";
 
 import { useSession } from "@/entities/session";
 import { routes } from "@/shared/constants";
@@ -11,12 +10,11 @@ import { Link } from "@/shared/ui/link";
 import { useLogoutMutation } from "../model";
 
 export function SessionLinks({ onNavigate }: { onNavigate: () => void }) {
-  const router = useRouter();
   const { user, isPending } = useSession();
   const { mutate: logout, isPending: isLogoutPending } = useLogoutMutation({
     onSuccess: () => {
       onNavigate();
-      router.replace(routes.home);
+      window.location.replace(routes.home);
     },
   });
 

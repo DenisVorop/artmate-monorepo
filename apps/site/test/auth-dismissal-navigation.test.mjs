@@ -99,6 +99,8 @@ for (const [path, name] of [
 ]) {
   test(`${name} redirects to home only after successful logout`, async () => {
     const events = [];
+    const previousWindow = globalThis.window;
+    globalThis.window = { location: { replace: (url) => events.push(["replace", url]) } };
     let options;
     const ui = evaluate(await read(path), {
       "next/navigation": {
@@ -126,6 +128,7 @@ for (const [path, name] of [
     ui[name]({ onNavigate: () => events.push(["close-menu"]) });
     assert.deepEqual(events, []);
     options.onSuccess();
+    globalThis.window = previousWindow;
     assert.deepEqual(
       events,
       name === "SessionLinks" ? [["close-menu"], ["replace", "/"]] : [["replace", "/"]],

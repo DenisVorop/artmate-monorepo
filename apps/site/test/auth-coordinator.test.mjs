@@ -1084,3 +1084,20 @@ test("inline expired continuation returns to the standard login form without a s
   await coordinator.cancel();
   assert.equal((await outcome).error.code, "cancelled");
 });
+
+test("logout cancellation discards the previous identity and email even after success", async () => {
+  const { coordinator, ports } = setup({ start: async () => completed });
+  await coordinator.request(Symbol(), { initialEmail: user.email }, {}, undefined);
+  assert.equal(coordinator.getSnapshot().user.id, user.id);
+  await coordinator.cancel();
+  assert.equal(coordinator.getSnapshot().step, "closed");
+  assert.equal(coordinator.getSnapshot().email, "");
+  assert.equal(coordinator.getSnapshot().user, undefined);
+  ports.start = async () => login;
+  const next = coordinator.request(Symbol(), {}, {}, undefined);
+  await flush();
+  assert.equal(coordinator.getSnapshot().step, "login");
+  assert.equal(coordinator.getSnapshot().email, "");
+  await coordinator.cancel();
+  await next;
+});

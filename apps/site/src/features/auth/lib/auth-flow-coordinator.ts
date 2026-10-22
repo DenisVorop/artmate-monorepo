@@ -141,14 +141,21 @@ export class AuthFlowCoordinator {
   public async cancel(): Promise<void> {
     const request = this._active;
     if (!request) {
-      this._set({ step: "closed", error: null, flow: undefined, user: undefined });
+      this._set({ step: "closed", error: null, flow: undefined, user: undefined, email: "" });
       return;
     }
     if (request.settled) return this._inFlight;
     const epoch = ++this._epoch;
     this._ports.cancelProvider?.();
     this._fail(request, { code: "cancelled" });
-    this._set({ step: "closed", pending: false, error: null, flow: undefined, user: undefined });
+    this._set({
+      step: "closed",
+      pending: false,
+      error: null,
+      flow: undefined,
+      user: undefined,
+      email: "",
+    });
     // Keep the cookie owner reserved until the outstanding response and cancellation drain.
     const previous = this._inFlight;
     this._inFlight = (async () => {
