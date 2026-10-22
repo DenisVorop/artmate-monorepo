@@ -1,10 +1,10 @@
 import Image from "next/image";
 import { LoaderCircle } from "lucide-react";
 
-import { Button } from "@/shared/ui";
+import { CtaGradientButton } from "@/shared/ui";
 
 import type { AuthFlowViewProps } from "../../lib/flow-view.types";
-import { stepFormClassName } from "./flow-layout";
+import { FlowLayout, primaryButtonClassName } from "./flow-layout";
 import { FormError } from "./form-error";
 import { StepHeading } from "./step-heading";
 
@@ -31,85 +31,95 @@ export function OutcomeStep({
 
   if (props.step === "completion") {
     return (
-      <div className={`${stepFormClassName} justify-center`} aria-busy={props.isPending}>
-        {props.isPending && (
-          <LoaderCircle
-            aria-hidden
-            className="size-6 animate-spin text-rose-500 motion-reduce:animate-none"
-          />
-        )}
-        <StepHeading id={titleId}>Завершаем вход</StepHeading>
-        {!props.error && (
-          <p role="status" className="text-sm leading-6 text-stone-500">
-            Подождите немного.
-          </p>
-        )}
-        <FormError message={props.error} />
-        {props.onRetry && (
-          <Button
-            type="button"
-            variant="outline"
-            className="text-stone-500 hover:text-stone-700"
-            disabled={props.isPending}
-            onClick={props.onRetry}
-          >
-            Повторить
-          </Button>
-        )}
-      </div>
+      <FlowLayout
+        actions={
+          props.onRetry && (
+            <CtaGradientButton
+              type="button"
+              className={primaryButtonClassName}
+              disabled={props.isPending}
+              onClick={props.onRetry}
+            >
+              Повторить
+            </CtaGradientButton>
+          )
+        }
+      >
+        <div className="space-y-5" aria-busy={props.isPending}>
+          {props.isPending && (
+            <LoaderCircle
+              aria-hidden
+              className="size-6 animate-spin text-rose-500 motion-reduce:animate-none"
+            />
+          )}
+          <StepHeading id={titleId}>Завершаем вход</StepHeading>
+          {!props.error && (
+            <p role="status" className="text-sm leading-6 text-stone-500">
+              Подождите немного.
+            </p>
+          )}
+          <FormError message={props.error} />
+        </div>
+      </FlowLayout>
     );
   }
 
   return (
-    <div
-      className={`${stepFormClassName} justify-center`}
-      aria-busy={props.step === "provider" || props.step === "activation-loading"}
-    >
-      {props.step === "provider" || props.step === "activation-loading" ? (
-        <>
-          <LoaderCircle
-            aria-hidden
-            className="size-6 animate-spin text-rose-500 motion-reduce:animate-none"
-          />
-          <StepHeading id={titleId}>
-            {props.step === "activation-loading" ? (
-              "Проверяем ссылку"
-            ) : (
-              <>
-                Возвращаемся <span className="sm:block">в Artmate</span>
-              </>
-            )}
-          </StepHeading>
-          <p role="status" className="text-sm leading-6 text-stone-500">
-            {props.step === "activation-loading"
-              ? "Подождите немного."
-              : "Завершите вход в окне Яндекса."}
-          </p>
-          {props.step === "provider" && props.onLogin && (
-            <Button
+    <FlowLayout
+      actions={
+        props.step === "provider" ? (
+          props.onLogin && (
+            <CtaGradientButton
               type="button"
-              variant="outline"
-              className="text-stone-500 hover:text-stone-700"
+              className={primaryButtonClassName}
               onClick={props.onLogin}
             >
               Другой способ входа
-            </Button>
-          )}
-        </>
-      ) : (
-        <>
-          <StepHeading id={titleId}>Вход отменён</StepHeading>
-          <p className="text-sm leading-6 text-stone-500">Вы ещё не вошли в аккаунт.</p>
-          <Button
+            </CtaGradientButton>
+          )
+        ) : props.step === "cancelled" ? (
+          <CtaGradientButton
             type="button"
-            variant="outline"
-            className="min-h-11 whitespace-normal text-stone-500 hover:text-stone-700"
+            className={primaryButtonClassName}
             onClick={props.onRestart}
           >
             Вернуться ко входу
-          </Button>
-        </>
-      )}
-    </div>
+          </CtaGradientButton>
+        ) : undefined
+      }
+    >
+      <div
+        className="space-y-5"
+        aria-busy={props.step === "provider" || props.step === "activation-loading"}
+      >
+        {props.step === "provider" || props.step === "activation-loading" ? (
+          <>
+            <LoaderCircle
+              aria-hidden
+              className="size-6 animate-spin text-rose-500 motion-reduce:animate-none"
+            />
+            <StepHeading id={titleId}>
+              {props.step === "activation-loading" ? (
+                "Проверяем ссылку"
+              ) : (
+                <>
+                  Возвращаемся <span className="sm:block">в Artmate</span>
+                </>
+              )}
+            </StepHeading>
+            <p role="status" className="text-sm leading-6 text-stone-500">
+              {props.step === "activation-loading"
+                ? "Подождите немного."
+                : "Завершите вход в окне Яндекса."}
+            </p>
+          </>
+        ) : (
+          <>
+            <StepHeading id={titleId}>Вход отменён</StepHeading>
+            <p className="text-sm leading-6 text-stone-500">Вы ещё не вошли в аккаунт.</p>
+          </>
+        )}
+      </div>
+    </FlowLayout>
   );
 }

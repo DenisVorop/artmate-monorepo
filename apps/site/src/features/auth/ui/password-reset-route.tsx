@@ -5,9 +5,9 @@ import { useId } from "react";
 import { routes } from "@/shared/constants";
 import { Button, CtaGradientButton } from "@/shared/ui";
 import { usePasswordResetRoute } from "../lib/use-password-reset-route";
-import { fieldStackClassName, FlowLayout, primaryButtonClassName } from "./flow/flow-layout";
-import { FormError } from "./flow/form-error";
+import { FlowLayout, primaryButtonClassName } from "./flow/flow-layout";
 import { PasswordFields } from "./flow/password-fields";
+import { StepForm } from "./flow/step-form";
 import { StepHeading } from "./flow/step-heading";
 import { AuthPageShell } from "./auth-page-shell";
 
@@ -22,38 +22,35 @@ export function PasswordResetRoute({ token }: { token?: string }) {
           aria-labelledby={titleId}
           className="w-full max-w-177 rounded-[22px] border border-stone-200 bg-white shadow-xl shadow-stone-900/5"
         >
-          <FlowLayout>
-            <div className="space-y-5">
-              <StepHeading id={titleId}>{isReset ? "Пароль обновлён" : "Смена пароля"}</StepHeading>
-              {isReset ? (
-                <>
-                  <p className="text-sm leading-6 text-stone-500">
-                    Теперь можно войти с новым паролем.
-                  </p>
-                  <Button asChild className="min-h-11 w-full">
+          {isReset || !hasToken ? (
+            <FlowLayout
+              actions={
+                <Button
+                  asChild
+                  className={`${primaryButtonClassName} border-0 bg-gradient-to-r from-rose-500 via-rose-400 to-orange-400 shadow-sm shadow-rose-500/20 hover:from-rose-500/95 hover:via-rose-400/95 hover:to-orange-400/95 focus-visible:ring-rose-400/30`}
+                >
+                  {isReset ? (
                     <a href={routes.auth}>Войти</a>
-                  </Button>
-                </>
-              ) : !hasToken ? (
-                <>
-                  <p className="text-sm leading-6 text-stone-500">
-                    Ссылка недействительна или истекла.
-                  </p>
-                  <Button asChild className="min-h-11 w-full">
+                  ) : (
                     <a href={routes.authRecovery}>Запросить новую ссылку</a>
-                  </Button>
-                </>
-              ) : (
-                <form className={fieldStackClassName} onSubmit={submit}>
-                  <PasswordFields
-                    idPrefix={titleId}
-                    passwordField={register("password")}
-                    confirmationField={register("passwordConfirm")}
-                    passwordError={errors.password?.message}
-                    confirmationError={errors.passwordConfirm?.message}
-                    disabled={isPending}
-                  />
-                  <FormError message={error} reserveSpace className="min-h-8" />
+                  )}
+                </Button>
+              }
+            >
+              <StepHeading id={titleId}>{isReset ? "Пароль обновлён" : "Смена пароля"}</StepHeading>
+              <p className="text-sm leading-6 text-stone-500">
+                {isReset
+                  ? "Теперь можно войти с новым паролем."
+                  : "Ссылка недействительна или истекла."}
+              </p>
+            </FlowLayout>
+          ) : (
+            <StepForm
+              onSubmit={submit}
+              isPending={isPending}
+              error={error}
+              actions={
+                <>
                   {error && (
                     <Button
                       asChild
@@ -70,10 +67,20 @@ export function PasswordResetRoute({ token }: { token?: string }) {
                   >
                     Сменить пароль
                   </CtaGradientButton>
-                </form>
-              )}
-            </div>
-          </FlowLayout>
+                </>
+              }
+            >
+              <StepHeading id={titleId}>Смена пароля</StepHeading>
+              <PasswordFields
+                idPrefix={titleId}
+                passwordField={register("password")}
+                confirmationField={register("passwordConfirm")}
+                passwordError={errors.password?.message}
+                confirmationError={errors.passwordConfirm?.message}
+                disabled={isPending}
+              />
+            </StepForm>
+          )}
         </section>
       </AuthPageShell>
     </main>
