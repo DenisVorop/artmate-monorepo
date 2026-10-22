@@ -1,5 +1,12 @@
 # Changelog
 
+## [0.52.0](https://github.com/DenisVorop/artmate-monorepo/compare/v0.51.3...v0.52.0) (2026-10-22)
+
+
+### Features
+
+* **site:** add wholesale landing page ([44e4a80](https://github.com/DenisVorop/artmate-monorepo/commit/44e4a80ed0b75c458d41566fb24b3b6ebbc72c80))
+
 ## [0.51.3](https://github.com/DenisVorop/artmate-monorepo/compare/v0.51.2...v0.51.3) (2026-10-22)
 
 
