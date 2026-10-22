@@ -11,9 +11,7 @@ import {
 } from "react";
 import { useRouter } from "next/navigation";
 
-import { routes } from "@/shared/constants";
-
-import type { AuthFailure, AuthRouteEntry } from "./auth-flow-state";
+import type { AuthRouteEntry } from "./auth-flow-state";
 import { AuthContext } from "./auth-provider/auth.context";
 import { useAuthRequest } from "./auth-provider/use-auth-request";
 import { getSafeAuthRedirectPath } from "./redirect";
@@ -25,17 +23,15 @@ export function useRouteAuth({ entry, next }: { entry?: AuthRouteEntry; next?: s
   // this mounted entry in memory; a document reload instead resumes its capability.
   const [initialEntry] = useState(() => entry);
   const coordinator = useContext(AuthContext)!;
-  const [failure, setFailure] = useState<AuthFailure | null>(null);
   const [isPrepared, setIsPrepared] = useState(false);
   const [isCleaning, startCleaning] = useTransition();
-  const { onAuth, isPending } = useAuthRequest(
+  const { onAuth } = useAuthRequest(
     {
       onSuccess: () => {
         _cleanToken();
         router.replace(getSafeAuthRedirectPath(next));
         router.refresh();
       },
-      onError: (error) => setFailure(error),
     },
     initialEntry,
   );
@@ -86,14 +82,6 @@ export function useRouteAuth({ entry, next }: { entry?: AuthRouteEntry; next?: s
           : initialEntry?.type === "resume"
             ? ("completion" as const)
             : ("login" as const),
-    isPending: isPending || isCleaning || !isPrepared,
-    failure,
-    retry: () => {
-      setFailure(null);
-      // A cancelled/terminal activation cannot reopen its consumed link.
-      if (initialEntry?.type === "activation") window.location.replace(routes.auth);
-      else void onAuth();
-    },
   };
 }
 

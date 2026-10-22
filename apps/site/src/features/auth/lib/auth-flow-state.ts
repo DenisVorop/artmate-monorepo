@@ -31,6 +31,7 @@ export type AuthOptions<Payload = void> = {
   onError?: (_error: AuthFailure, _payload: Payload) => void | Promise<void>;
 };
 export type AuthFlowConfig = {
+  presentation?: "inline";
   purpose?: "site_auth";
   source?: string;
   initialEmail?: string;
