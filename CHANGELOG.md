@@ -1,5 +1,14 @@
 # Changelog
 
+## [0.51.0](https://github.com/DenisVorop/artmate-monorepo/compare/v0.50.3...v0.51.0) (2026-10-22)
+
+
+### Features
+
+* **api:** add consent-aware authentication ([ca668a5](https://github.com/DenisVorop/artmate-monorepo/commit/ca668a5b72448be5524f620c49c8b8b483a97c3e))
+* **auth:** add reusable sign-in step UI ([a5eb169](https://github.com/DenisVorop/artmate-monorepo/commit/a5eb169c9ea26b8c11acef8a49c494112c72ddbf))
+* **site:** integrate reusable authentication ([6959581](https://github.com/DenisVorop/artmate-monorepo/commit/6959581386562bc05e6c56a0fd8144bf7b947140))
+
 ## [0.50.3](https://github.com/DenisVorop/artmate-monorepo/compare/v0.50.2...v0.50.3) (2026-10-19)
 
 
