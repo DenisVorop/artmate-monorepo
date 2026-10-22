@@ -15,6 +15,7 @@ import {
   createProductSeoDescription,
   normalizeSeoText,
 } from "./text";
+import { seoPages } from "./registry";
 import type {
   SeoBlogArticleContent,
   SeoBlogPost,
@@ -173,6 +174,39 @@ export function ColoringCollectionStructuredData({
   collection,
 }: ColoringCollectionStructuredDataProps) {
   return <StructuredData data={getColoringCollectionStructuredData(collection)} />;
+}
+
+export function WholesaleStructuredData() {
+  const url = getAbsoluteUrl(routes.wholesale);
+
+  return (
+    <StructuredData
+      data={{
+        "@context": "https://schema.org",
+        "@graph": [
+          {
+            "@type": "WebPage",
+            "@id": `${url}#webpage`,
+            url,
+            name: seoPages.wholesale.title,
+            description: seoPages.wholesale.description,
+            inLanguage: "ru-RU",
+            isPartOf: { "@id": websiteId },
+            about: { "@id": organizationId },
+            breadcrumb: { "@id": `${url}#breadcrumb` },
+          },
+          getBreadcrumbStructuredData(
+            [
+              { name: "Главная", url: routes.home },
+              { name: "Раскраски оптом", url: routes.wholesale },
+            ],
+            `${url}#breadcrumb`,
+            false,
+          ),
+        ],
+      }}
+    />
+  );
 }
 
 function StructuredData({ data }: { data: unknown }) {

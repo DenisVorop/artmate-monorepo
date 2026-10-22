@@ -107,6 +107,7 @@ export function Footer() {
               <ul className="space-y-3">
                 {[
                   { label: "Партнёрам", to: routes.partners },
+                  { label: "Оптовикам", to: routes.wholesale },
                   { label: "Написать нам", to: routes.contacts },
                 ].map((l) => (
                   <li key={l.label}>

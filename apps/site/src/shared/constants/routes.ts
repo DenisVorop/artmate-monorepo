@@ -54,6 +54,7 @@ export const routes = {
   contacts: "/contacts",
   faq: "/faq",
   partners: "/partners",
+  wholesale: "/wholesale",
   product: (categorySlug: string | undefined, productSlug: string) =>
     categorySlug
       ? `/catalog/raskraski/${categorySlug}/${productSlug}`

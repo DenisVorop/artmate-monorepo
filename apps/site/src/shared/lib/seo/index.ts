@@ -30,6 +30,7 @@ export {
   FaqStructuredData,
   ProductStructuredData,
   RootStructuredData,
+  WholesaleStructuredData,
 } from "./structured-data";
 export type {
   LegalSeoInput,

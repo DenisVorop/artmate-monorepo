@@ -34,7 +34,8 @@ export type SeoPageKey =
   | "home"
   | "partners"
   | "paymentAndDelivery"
-  | "product";
+  | "product"
+  | "wholesale";
 
 export type LegalSeoInput = {
   description: string;
