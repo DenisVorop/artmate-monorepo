@@ -1,7 +1,7 @@
-import { Button } from "@/shared/ui";
+import { CtaGradientButton } from "@/shared/ui";
 
 import type { AuthFlowViewProps } from "../../lib/flow-view.types";
-import { stepFormClassName } from "./flow-layout";
+import { FlowLayout, primaryButtonClassName } from "./flow-layout";
 import { StepHeading } from "./step-heading";
 
 export function RecoveryResult({
@@ -11,7 +11,18 @@ export function RecoveryResult({
   titleId: string;
 }) {
   return (
-    <div className={`${stepFormClassName} justify-center`}>
+    <FlowLayout
+      actions={
+        <CtaGradientButton
+          type="button"
+          className={primaryButtonClassName}
+          disabled={props.isPending}
+          onClick={props.step === "recovery-sent" ? props.onLogin : props.onRecovery}
+        >
+          {props.step === "recovery-sent" ? "Вернуться ко входу" : "Запросить новую ссылку"}
+        </CtaGradientButton>
+      }
+    >
       <StepHeading id={titleId}>
         {props.step === "recovery-sent" ? "Проверьте почту" : "Ссылка не действует"}
       </StepHeading>
@@ -20,15 +31,6 @@ export function RecoveryResult({
           ? "Если аккаунт с этой почтой существует, на неё придёт письмо для восстановления доступа."
           : "Ссылка не действует. Запросите новое письмо."}
       </p>
-      <Button
-        type="button"
-        variant="outline"
-        className="min-h-11 whitespace-normal text-stone-500 hover:text-stone-700"
-        disabled={props.isPending}
-        onClick={props.step === "recovery-sent" ? props.onLogin : props.onRecovery}
-      >
-        {props.step === "recovery-sent" ? "Вернуться ко входу" : "Запросить новую ссылку"}
-      </Button>
-    </div>
+    </FlowLayout>
   );
 }
