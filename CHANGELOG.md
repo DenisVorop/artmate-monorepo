@@ -1,5 +1,12 @@
 # Changelog
 
+## [0.51.1](https://github.com/DenisVorop/artmate-monorepo/compare/v0.51.0...v0.51.1) (2026-10-22)
+
+
+### Bug Fixes
+
+* **auth:** publish initial consent revisions ([da05ab1](https://github.com/DenisVorop/artmate-monorepo/commit/da05ab13ebab1e162c222a8157eec700fb34cc5c))
+
 ## [0.51.0](https://github.com/DenisVorop/artmate-monorepo/compare/v0.50.3...v0.51.0) (2026-10-22)
 
 
