@@ -1,5 +1,12 @@
 # Changelog
 
+## [0.52.1](https://github.com/DenisVorop/artmate-monorepo/compare/v0.52.0...v0.52.1) (2026-10-23)
+
+
+### Bug Fixes
+
+* **admin:** show order discount sources ([07b4996](https://github.com/DenisVorop/artmate-monorepo/commit/07b4996da104eeb39a2408feeab380edfbfbf8cf))
+
 ## [0.52.0](https://github.com/DenisVorop/artmate-monorepo/compare/v0.51.3...v0.52.0) (2026-10-22)
 
 
