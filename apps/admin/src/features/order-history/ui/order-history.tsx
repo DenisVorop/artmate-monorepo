@@ -16,6 +16,7 @@ import {
   getOrderShipmentNumber,
   getOrderShipmentStatusLabel,
   ShipmentTrackingNumber,
+  OrderDiscountSummary,
   OzonPostingLinks,
   useOrder,
   type AdminOrder,
@@ -104,9 +105,6 @@ function OrderSummary({ order }: { readonly order: AdminOrder }) {
               <CreditCard data-icon="inline-start" aria-hidden="true" />
               {getPaymentStatusLabel(order.payment.status)}
             </Badge>
-            {order.promoCode ? (
-              <Badge variant="outline">Промокод {order.promoCode}</Badge>
-            ) : null}
           </div>
           <h2 className="mt-3 text-2xl font-semibold tracking-normal">
             Заказ {order.id}
@@ -120,11 +118,12 @@ function OrderSummary({ order }: { readonly order: AdminOrder }) {
         <div className="grid grid-cols-2 gap-2 text-sm">
           <Metric label="Товары" value={`${order.itemsCount} шт.`} />
           <Metric label="Подытог" value={formatMoney(order.subtotal)} />
-          <Metric label="Скидка" value={`− ${formatMoney(order.discount)}`} />
           <Metric label="Доставка" value={formatMoney(order.deliveryPrice)} />
           <Metric label="Итого" value={formatMoney(order.total)} />
         </div>
       </div>
+
+      <OrderDiscountSummary order={order} className="mt-4 max-w-md text-sm" />
 
       {order.comment ? (
         <div className="mt-4 rounded-lg border bg-muted/35 p-3 text-sm">

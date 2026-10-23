@@ -59,6 +59,7 @@ import {
   createOrderPricingSnapshot,
   assertOrderPricingMatches,
 } from "./pricing/pricing-snapshot";
+import { getAdminOrderDiscount } from "./admin-order-discount";
 import { readOrderPricing } from "./pricing/read-order-pricing";
 import { readPurchaseRateSnapshot } from "./pricing/purchase-rate";
 import { OrdersLoyaltyService } from "./orders-loyalty.service";
@@ -2027,6 +2028,7 @@ export class OrdersStorage {
   private mapAdminOrder(order: StoredAdminOrder): AdminOrderDTO {
     return {
       ...this.mapOrder(order),
+      discountBreakdown: getAdminOrderDiscount(order),
       ozonPostings: OzonPostings.parse(order.ozonPostings),
       adminComments: order.adminComments.map((comment) =>
         this.mapAdminOrderComment(comment),

@@ -27,6 +27,7 @@ import {
   getOrderShipmentNumber,
   getOrderShipmentStatusLabel,
   ShipmentTrackingNumber,
+  OrderDiscountSummary,
   useOrders,
   type AdminOrder,
   type OrderStatus,
@@ -299,22 +300,7 @@ function OrderCard({
           <Metric label="Итого" value={formatMoney(order.total)} />
         </div>
 
-        {order.promoCode || order.discount > 0 ? (
-          <div className="flex items-center justify-between gap-3 rounded-lg border bg-muted/30 p-2 text-xs">
-            <div className="min-w-0">
-              <p className="text-muted-foreground">Промокод</p>
-              <p className="truncate font-mono font-medium">
-                {order.promoCode ?? "Скидка заказа"}
-              </p>
-            </div>
-            <div className="shrink-0 text-right">
-              <p className="text-muted-foreground">Скидка</p>
-              <p className="font-medium text-emerald-700">
-                − {formatMoney(order.discount)}
-              </p>
-            </div>
-          </div>
-        ) : null}
+        <OrderDiscountSummary order={order} />
 
         {order.delivery.provider === "cdek" ? (
           <ShipmentBadge order={order} />
