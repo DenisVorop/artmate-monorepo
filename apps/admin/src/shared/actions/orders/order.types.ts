@@ -99,6 +99,11 @@ export type AdminOrderDTO = {
   itemsCount: number;
   subtotal: number;
   discount: number;
+  discountBreakdown: {
+    promoDiscount: number;
+    loyaltyDiscount: number;
+    loyaltyPoints: number;
+  } | null;
   promoCode?: string | null;
   deliveryPrice: number;
   total: number;
