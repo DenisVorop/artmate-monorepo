@@ -1,5 +1,12 @@
 # Changelog
 
+## [0.52.2](https://github.com/DenisVorop/artmate-monorepo/compare/v0.52.1...v0.52.2) (2026-10-27)
+
+
+### Bug Fixes
+
+* **site:** show two catalog tiles on mobile ([84c8921](https://github.com/DenisVorop/artmate-monorepo/commit/84c89214aa632da1b83618d1edc60074e9c4155f))
+
 ## [0.52.1](https://github.com/DenisVorop/artmate-monorepo/compare/v0.52.0...v0.52.1) (2026-10-23)
 
 
