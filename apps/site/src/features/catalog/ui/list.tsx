@@ -13,7 +13,7 @@ export function List() {
       <Summary />
 
       {filteredProducts.length > 0 ? (
-        <ul className="grid gap-4 sm:grid-cols-2 xl:grid-cols-3 2xl:grid-cols-4">
+        <ul className="grid grid-cols-2 gap-x-3 gap-y-4 sm:gap-4 xl:grid-cols-3 2xl:grid-cols-4">
           {filteredProducts.map((product, index) => (
             <li key={product.id} className="h-full">
               {renderProductCard ? (
@@ -46,7 +46,7 @@ export function List() {
                 </p>
               </div>
 
-              <ul className="grid gap-4 sm:grid-cols-2 xl:grid-cols-3 2xl:grid-cols-4">
+              <ul className="grid grid-cols-2 gap-x-3 gap-y-4 sm:gap-4 xl:grid-cols-3 2xl:grid-cols-4">
                 {suggestedProducts.map((product, index) => (
                   <li key={product.id} className="h-full">
                     {renderProductCard ? (

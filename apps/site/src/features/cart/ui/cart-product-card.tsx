@@ -149,7 +149,9 @@ export function CartProductCard({
       eagerImage={eagerImage}
       mediaAspectRatio={mediaAspectRatio}
       variant={variant}
-      footerAction={<div className="w-[min(9.75rem,58%)] md:hidden">{renderCartAction()}</div>}
+      footerAction={
+        <div className="w-full sm:w-[min(9.75rem,58%)] md:hidden">{renderCartAction()}</div>
+      }
       product={product}
       mediaBadge={cashback}
       mediaAction={renderCartAction()}
