@@ -80,7 +80,7 @@ const reviews = [
 const stats = {
   rating: 5,
   ratingLabel: "4.95",
-  reviewsLabel: "7 000+ отзывов",
+  reviewsLabel: "9 500+ отзывов",
   reviewsTooltip: "Общее количество отзывов на Ozon и Wildberries по всем раскраскам.",
 } satisfies ReviewStats;
 

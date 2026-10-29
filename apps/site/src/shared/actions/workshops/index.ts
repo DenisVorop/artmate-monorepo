@@ -12,7 +12,6 @@ export {
   getOwnerRevisionAssetDataUrl,
   getPublicCommunityWork,
   getPublicWorkshop,
-  getPublicWorkAssetDataUrl,
   getWorkshopMarkerColors,
   publishMyWorkshopWork,
   reportCommunityWork,

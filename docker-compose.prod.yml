@@ -156,6 +156,8 @@ services:
       NEXT_PUBLIC_SITE_URL: ${NEXT_PUBLIC_SITE_URL:?NEXT_PUBLIC_SITE_URL is required}
       YANDEX_METRIKA_ID: ${YANDEX_METRIKA_ID:?YANDEX_METRIKA_ID is required}
       GOOGLE_ANALYTICS_ID: ${GOOGLE_ANALYTICS_ID:?GOOGLE_ANALYTICS_ID is required}
+    volumes:
+      - site-image-cache:/app/apps/site/.next/cache/images
     depends_on:
       - api
 
@@ -342,6 +344,7 @@ volumes:
   api-uploads:
   api-private-colorings:
   api-private-workshops:
+  site-image-cache:
   caddy-data:
   caddy-config:
 

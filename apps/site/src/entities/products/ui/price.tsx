@@ -20,7 +20,7 @@ export function ProductPrice({
     : 0;
 
   return (
-    <div className={cn("space-y-1", className)}>
+    <div className={cn("relative space-y-1", className)}>
       <div className="flex flex-wrap items-baseline gap-x-2 gap-y-1">
         <span
           className={cn(

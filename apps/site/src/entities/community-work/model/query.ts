@@ -5,7 +5,6 @@ import {
   getCommunityWorksForCollection,
   getPublicCommunityWork,
   getPublicWorkshop,
-  getPublicWorkAssetDataUrl,
 } from "@/shared/actions/workshops";
 import { ApiResult, type ApiResultDTO } from "@/shared/lib/api-result";
 
@@ -56,25 +55,22 @@ export const communityWorkQuery = {
       staleTime: 60_000,
       retryOnMount: false,
     }),
-  asset: (publicId: string, variant: "web" | "thumb") =>
+  featuredForCollections: (slugs: readonly string[]) =>
     queryOptions({
-      queryKey: [baseKey, "asset", publicId, variant] as const,
-      queryFn: async () => unwrapString(await getPublicWorkAssetDataUrl(publicId, variant)),
-      staleTime: Infinity,
+      queryKey: [baseKey, "featured-collections", slugs] as const,
+      queryFn: async () => {
+        const pages = await Promise.all(
+          slugs.map(async (slug) =>
+            collectionWorksPageSchema.parse(unwrap(await getCommunityWorksForCollection(slug))),
+          ),
+        );
+        return pages.flatMap((page) => page.works.slice(0, 1));
+      },
+      staleTime: 60_000,
       retryOnMount: false,
     }),
 };
 
 function unwrap(result: ApiResultDTO<unknown>) {
   return ApiResult.fromDTO(result).unwrap();
-}
-
-function unwrapString(result: ApiResultDTO<string>) {
-  const value = ApiResult.fromDTO(result).unwrap();
-
-  if (typeof value !== "string") {
-    throw new Error("Community work asset response did not contain an image");
-  }
-
-  return value;
 }

@@ -77,7 +77,6 @@ export {
 } from "./dropdown-menu";
 export { ExpandableText } from "./expandable-text";
 export { Input } from "./input";
-export { InfiniteCarousel } from "./infinite-carousel";
 export { Label } from "./label";
 export { MediaExpandButton } from "./media-expand-button";
 export { Popover, PopoverAnchor, PopoverContent, PopoverTrigger } from "./popover";

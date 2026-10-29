@@ -197,6 +197,21 @@ test("product card click sends one exact ecommerce click for either product link
   assert.equal(JSON.stringify(analyticsWindow.dataLayer).includes("must-not-leak"), false);
 });
 
+test("home shelves keep their own product list and position in ecommerce clicks", async () => {
+  const sharedAnalytics = await loadAnalytics();
+  const { useAnalytics } = await loadCartAnalytics(sharedAnalytics);
+  const product = createProduct();
+  const analyticsWindow = createAnalyticsWindow();
+  withWindow(analyticsWindow, () => {
+    useAnalytics().productClicked(product, { list: "home_catalog", position: 8 });
+    useAnalytics().productClicked(product, { list: "home_pairing", position: 2 });
+  });
+  assert.deepEqual(analyticsWindow.dataLayer, [
+    ecommerce("click", [analyticsProduct(product, { list: "home_catalog", position: 8 })]),
+    ecommerce("click", [analyticsProduct(product, { list: "home_pairing", position: 2 })]),
+  ]);
+});
+
 test("product detail emits detail and product_view once per memory view key", async () => {
   const sharedAnalytics = await loadAnalytics();
   const { useAnalytics } = await loadProductDetailsAnalytics(sharedAnalytics);

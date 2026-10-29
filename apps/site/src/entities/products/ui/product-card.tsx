@@ -3,7 +3,7 @@ import type { MouseEventHandler, ReactNode } from "react";
 
 import { Badge } from "@/shared/ui";
 import { routes } from "@/shared/constants";
-import { cn, shouldBypassNextImageOptimization } from "@/shared/lib";
+import { cn, ozonImageLoader, shouldBypassNextImageOptimization } from "@/shared/lib";
 import { AspectRatio } from "@/shared/ui/aspect-ratio";
 import { Card, CardContent, CardDescription, CardFooter, CardTitle } from "@/shared/ui/card";
 import { Link } from "@/shared/ui/link";
@@ -13,6 +13,7 @@ import { ProductPrice } from "./price";
 interface ProductCardProps {
   product: Product;
   eagerImage?: boolean;
+  imageSizes?: string;
   mediaAspectRatio?: number;
   variant?: "default" | "plain";
   footerAction?: ReactNode;
@@ -26,6 +27,7 @@ interface ProductCardProps {
 export function ProductCard({
   product,
   eagerImage = false,
+  imageSizes = "(min-width: 1280px) 25vw, (min-width: 1024px) 33vw, (min-width: 640px) 50vw, 100vw",
   mediaAspectRatio = 3 / 4,
   variant = "default",
   footerAction,
@@ -63,10 +65,12 @@ export function ProductCard({
               fill
               src={product.image}
               alt={product.title}
-              unoptimized={shouldBypassNextImageOptimization(product.image)}
+              loader={
+                shouldBypassNextImageOptimization(product.image) ? ozonImageLoader : undefined
+              }
               loading={eagerImage ? "eager" : "lazy"}
               fetchPriority={eagerImage ? "high" : undefined}
-              sizes="(min-width: 1280px) 25vw, (min-width: 1024px) 33vw, (min-width: 640px) 50vw, 100vw"
+              sizes={imageSizes}
               className="object-cover transition-transform duration-700 group-hover/product:scale-105"
             />
           </AspectRatio>
@@ -114,8 +118,10 @@ export function ProductCard({
         <CardTitle role="heading" aria-level={3} className="font-display leading-snug font-bold">
           <Link
             href={productHref}
-            className="text-stone-900 transition-colors hover:text-rose-500"
+            className="line-clamp-3 text-stone-900 transition-colors hover:text-rose-500"
             onClick={onOpen}
+            aria-label={product.title}
+            title={product.title}
           >
             {product.title}
           </Link>

@@ -1,0 +1,109 @@
+.hero {
+  width: var(--home-panel-width);
+  max-width: var(--home-container-width, 96rem);
+  margin-block: var(--home-panel-gap);
+  padding-top: calc(var(--home-panel-padding) + clamp(1rem, 1.8vw, 1.5rem));
+  padding-bottom: calc(var(--home-panel-padding) + 12px);
+}
+
+.layout {
+  position: relative;
+  isolation: isolate;
+  display: grid;
+  min-height: clamp(18.5rem, 25vw, 22rem);
+  grid-template-columns: minmax(0, 1.03fr) minmax(0, 1fr);
+  align-items: center;
+  gap: clamp(1.5rem, 3vw, 3rem);
+  padding-block: clamp(0.5rem, 1vw, 0.875rem);
+}
+
+.copy {
+  position: relative;
+  z-index: 4;
+  min-width: 0;
+}
+
+.heading {
+  max-width: 100%;
+  font-size: clamp(2rem, calc(4vw + 0.75rem), 4.5rem);
+  line-height: 1.15;
+  letter-spacing: -0.055em;
+}
+
+.description {
+  max-width: 100%;
+  margin-top: clamp(0.75rem, 1.2vw, 1.25rem);
+  font-size: clamp(1rem, calc(0.65vw + 0.6875rem), 1.375rem);
+  line-height: 1.55;
+}
+
+.rating {
+  gap: 8px;
+  margin-top: clamp(0.875rem, 1.1vw, 1.25rem);
+  font-size: clamp(0.75rem, 0.95vw, 1rem);
+}
+
+.rating > div:last-child {
+  font-size: clamp(0.75rem, 0.9vw, 0.875rem);
+}
+
+.visual {
+  position: relative;
+  isolation: isolate;
+  min-width: 0;
+  width: 100%;
+  max-width: clamp(17rem, 43vw, 43rem);
+  margin-inline: auto;
+  padding-inline: clamp(0.5rem, 1.6vw, 1.25rem);
+}
+
+.visual::after {
+  position: absolute;
+  z-index: -2;
+  inset: -3% 7% 7%;
+  border-radius: 26px;
+  border: 1px solid #ffffffd9;
+  background: #ffffffc7;
+  box-shadow: 0 8px 22px -18px #38404d26;
+  transform: rotate(-5deg);
+  content: "";
+}
+
+.surface {
+  position: absolute;
+  z-index: -1;
+  inset: 10% 2% -2%;
+  border-radius: 28px;
+  border: 1px solid #ffffffed;
+  background: linear-gradient(145deg, #fff, #ffffffd1);
+  box-shadow: 0 10px 24px -18px #38404d26;
+  transform: rotate(5deg);
+}
+
+.collage {
+  position: relative;
+  width: 100%;
+  aspect-ratio: 1.68;
+}
+
+.spark {
+  position: absolute;
+  z-index: 3;
+  top: 0;
+  right: 0;
+  color: #f7b74b;
+  font-size: clamp(20px, 1.8vw, 26px);
+  line-height: 1;
+  transform: rotate(10deg);
+}
+
+@media (max-width: 600px) {
+  .layout {
+    grid-template-columns: minmax(0, 1fr);
+    gap: clamp(20px, 4vw, 24px);
+  }
+
+  .visual {
+    max-width: none;
+  }
+}

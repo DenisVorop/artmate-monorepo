@@ -142,8 +142,7 @@ function PublicWorkContent({
         className="relative mx-auto aspect-[4/5] w-full max-w-4xl overflow-hidden rounded-3xl bg-stone-100 shadow-sm ring-1 ring-stone-200"
       >
         <PublicAssetImage
-          publicId={work.publicId}
-          variant="web"
+          src={work.submission.assets.web}
           priority
           alt={`Готовая работа «${work.official.coloring.title}» автора ${work.author.name}`}
           className="object-contain"
