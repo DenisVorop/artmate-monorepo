@@ -191,15 +191,6 @@ export async function reportCommunityWork(
   );
 }
 
-export async function getPublicWorkAssetDataUrl(
-  publicId: string,
-  variant: "web" | "thumb",
-): Promise<ApiResultDTO<string>> {
-  return requestResult(() =>
-    requestAssetDataUrl(`/club/works/${encodeURIComponent(publicId)}/assets/${variant}`),
-  );
-}
-
 async function requestResult<T>(request: () => Promise<T>): Promise<ApiResultDTO<T>> {
   const result = await ApiResult.prepareApi(request, { isEmptyCb: () => false })();
   const dto = result.toDTO() as ApiResultDTO<T>;

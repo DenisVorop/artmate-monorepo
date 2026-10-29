@@ -14,6 +14,8 @@ import {
 } from "@/shared/lib/analytics";
 
 export type ProductListPlacement =
+  | "home_catalog"
+  | "home_pairing"
   | "best_sellers"
   | "catalog"
   | "catalog_search_suggestions"

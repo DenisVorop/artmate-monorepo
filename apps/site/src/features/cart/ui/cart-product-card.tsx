@@ -20,6 +20,7 @@ const maxCartItemQuantity = 99;
 
 type CartProductCardProps = {
   readonly eagerImage?: boolean;
+  readonly imageSizes?: string;
   readonly mediaAspectRatio?: number;
   readonly variant?: "default" | "plain";
   readonly list: ProductListPlacement;
@@ -39,6 +40,7 @@ type CartQuantityControlsProps = {
 
 export function CartProductCard({
   eagerImage = false,
+  imageSizes,
   mediaAspectRatio,
   variant,
   list,
@@ -147,6 +149,7 @@ export function CartProductCard({
   return (
     <ProductCard
       eagerImage={eagerImage}
+      imageSizes={imageSizes}
       mediaAspectRatio={mediaAspectRatio}
       variant={variant}
       footerAction={
@@ -192,7 +195,8 @@ function CartQuantityControls({
         <Minus />
       </Button>
       <span className="text-center text-sm font-semibold text-stone-900" aria-live="polite">
-        {quantity} в корзине
+        {quantity}
+        {" в корзине"}
       </span>
       <Button
         aria-label="Увеличить количество"

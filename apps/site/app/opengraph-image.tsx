@@ -1,10 +1,9 @@
 import { readFile } from "node:fs/promises";
+import { join } from "node:path";
 import { ImageResponse } from "next/og";
+import { reviewsData } from "@/shared/actions/reviews/reviews.data";
 
-const flowersCoverUrl = new URL(
-  "../src/_pages/home/ui/hero-section/assets/flowers-cover.png",
-  import.meta.url,
-);
+const flowersCoverPath = join(process.cwd(), "src/shared/assets/opengraph/flowers-cover.png");
 
 // TODO: Replace this OG clone with a final hero/product mockup when real cover assets are ready.
 export const alt = "Artmate - раскраски по\u00a0номерам";
@@ -62,7 +61,7 @@ function LogoWordmark() {
 }
 
 export default async function Image() {
-  const flowersCover = await readFile(flowersCoverUrl);
+  const flowersCover = await readFile(flowersCoverPath);
   const flowersCoverSrc = `data:image/png;base64,${flowersCover.toString("base64")}`;
 
   return new ImageResponse(
@@ -218,7 +217,7 @@ export default async function Image() {
                 fontWeight: 700,
               }}
             >
-              7 000+ отзывов на&nbsp;Ozon и&nbsp;Wildberries
+              {reviewsData.stats.reviewsLabel} на&nbsp;Ozon и&nbsp;Wildberries
             </div>
           </div>
         </div>
@@ -323,9 +322,7 @@ export default async function Image() {
             }}
           >
             <span style={{ fontSize: "18px", color: "#a8a29e", fontWeight: 700 }}>Рейтинг</span>
-            <span style={{ fontSize: "32px", color: "#1c1917", fontWeight: 900 }}>
-              4.95 из 5
-            </span>
+            <span style={{ fontSize: "32px", color: "#1c1917", fontWeight: 900 }}>4.95 из 5</span>
           </div>
           <div
             style={{

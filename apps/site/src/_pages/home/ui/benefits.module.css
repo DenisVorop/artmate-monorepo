@@ -1,0 +1,108 @@
+.section {
+  padding-block: 16px;
+}
+
+.viewport {
+  overflow: hidden;
+  padding-block: 4px;
+  mask-image: linear-gradient(90deg, transparent, black 20px, black calc(100% - 20px), transparent);
+}
+
+.track {
+  display: flex;
+  width: max-content;
+  animation: drift 96s linear infinite;
+}
+
+.viewport:hover .track {
+  animation-play-state: paused;
+}
+
+.group,
+.item {
+  display: flex;
+  flex-shrink: 0;
+  align-items: center;
+  gap: 8px;
+}
+
+.group {
+  padding-right: 8px;
+}
+
+.pill {
+  flex-shrink: 0;
+  border: 1px solid white;
+  border-radius: 999px;
+  padding: 4px 10px;
+  box-shadow:
+    0 1px 0 #e9e2ed,
+    0 2px 4px #6252a20a;
+  font-size: 13px;
+  font-weight: 700;
+  line-height: 1.2;
+  letter-spacing: -0.02em;
+  white-space: nowrap;
+}
+
+.purple {
+  background: #eee8fa;
+  color: #6252a2;
+}
+
+.pink {
+  background: #fce5f0;
+  color: #bd176e;
+}
+
+.orange {
+  background: #ffecd9;
+  color: #ae5a23;
+}
+
+.yellow {
+  background: #fff2c9;
+  color: #8a681e;
+}
+
+.sticker {
+  width: 28px;
+  height: 28px;
+  max-width: none;
+  flex-shrink: 0;
+  object-fit: contain;
+  transform: rotate(-8deg);
+}
+
+@keyframes drift {
+  to {
+    transform: translateX(-50%);
+  }
+}
+
+@media (min-width: 48rem) {
+  .pill {
+    font-size: 14px;
+  }
+
+  .sticker {
+    width: 34px;
+    height: 34px;
+  }
+}
+
+@media (prefers-reduced-motion: reduce) {
+  .viewport {
+    overflow-x: auto;
+  }
+
+  .track {
+    animation: none;
+  }
+}
+
+@media (max-width: 600px) {
+  .section {
+    padding-block: 10px;
+  }
+}

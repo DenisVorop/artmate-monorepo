@@ -14,13 +14,14 @@ import {
 import { Link } from "@/shared/ui/link";
 
 import { desktopHelpItems, desktopNavItems, isRouteActive } from "../lib/navigation";
+import styles from "../header.module.css";
 
 export function Menu() {
   const pathname = usePathname();
   const isHelpActive = desktopHelpItems.some((item) => isRouteActive(pathname, item.href));
 
   return (
-    <ul className="flex items-center gap-5 text-sm font-medium xl:gap-7">
+    <ul className={cn("flex items-center font-medium", styles.menu)}>
       {desktopNavItems.map((item) => {
         const isActive = isRouteActive(pathname, item.href);
 

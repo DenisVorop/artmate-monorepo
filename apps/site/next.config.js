@@ -2,6 +2,7 @@
 
 import path from "node:path";
 import { fileURLToPath } from "node:url";
+import { networkInterfaces } from "node:os";
 
 // Minified PDF.js avoids nested Webpack runtime name collisions in dev eval bundles.
 const legacyPdfJsBuild = "pdfjs-dist/legacy/build/pdf.min.mjs";
@@ -14,6 +15,13 @@ const repoRoot = path.resolve(path.dirname(fileURLToPath(import.meta.url)), "../
 const nextConfig = {
   output: "standalone",
   outputFileTracingRoot: repoRoot,
+  allowedDevOrigins:
+    process.env.NODE_ENV === "development"
+      ? Object.values(networkInterfaces())
+          .flatMap((interfaces) => interfaces ?? [])
+          .filter((network) => network.family === "IPv4" && !network.internal)
+          .map((network) => network.address)
+      : [],
   htmlLimitedBots: /.*/,
   experimental: {
     serverActions: {
@@ -21,6 +29,9 @@ const nextConfig = {
     },
   },
   images: {
+    maximumDiskCacheSize: 512 * 1024 * 1024,
+    deviceSizes: [640, 750, 828, 1080, 1200, 1536, 1920, 2048, 2560, 3840],
+    imageSizes: [32, 48, 64, 96, 128, 160, 192, 256, 320, 384, 480],
     dangerouslyAllowLocalIP: process.env.NODE_ENV !== "production",
     remotePatterns: [
       apiImageRemotePattern,

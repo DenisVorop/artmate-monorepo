@@ -12,6 +12,7 @@ import { CatalogButton } from "./ui/catalog-button";
 import { DevelopmentBanner } from "./ui/development-banner";
 import { Menu } from "./ui/menu";
 import { MobileMenu } from "./ui/mobile-menu";
+import styles from "./header.module.css";
 
 export function Header() {
   const { isPending, user } = useSession();
@@ -30,15 +31,15 @@ export function Header() {
       )}
     >
       {hasDevelopmentBanner ? <DevelopmentBanner /> : null}
-      <div className="container flex h-[var(--site-header-nav-height)] items-center gap-2 lg:gap-8">
+      <div className={cn("container", styles.container, styles.row)}>
         <Logo />
-        <CatalogButton className="ml-auto lg:ml-0" />
+        <CatalogButton />
 
         <nav className="hidden min-w-0 flex-1 lg:block" aria-label="Основная навигация">
           <Menu />
         </nav>
 
-        <div className="flex shrink-0 items-center gap-0.5 lg:gap-2">
+        <div className={styles.actions}>
           <div className="hidden lg:block">
             <SessionMenu />
           </div>

@@ -2,6 +2,8 @@ import { MessageCircle, ShoppingBag } from "lucide-react";
 
 import { externalLinks } from "@/shared/constants";
 import { Button } from "@/shared/ui";
+import { cn } from "@/shared/lib";
+import styles from "../header.module.css";
 
 const marketplaceLinks = [
   {
@@ -17,7 +19,12 @@ const marketplaceLinks = [
 export function DevelopmentBanner() {
   return (
     <div className="h-[var(--site-header-banner-height)] border-b border-[#c79a5b]/70 bg-[#2b1c14] text-[#f8ead8] shadow-sm shadow-[#2b1c14]/20">
-      <div className="container flex h-full flex-col justify-center gap-2 text-xs leading-5 sm:text-sm xl:flex-row xl:items-center xl:justify-between">
+      <div
+        className={cn(
+          "container flex h-full flex-col justify-center gap-2 text-xs leading-5 sm:text-sm xl:flex-row xl:items-center xl:justify-between",
+          styles.container,
+        )}
+      >
         <p className="flex min-w-0 flex-wrap items-center gap-x-2 gap-y-1 font-medium">
           <span className="inline-flex items-center gap-1.5 rounded-full border border-[#d9b276]/70 bg-[#4a3021] px-2 py-0.5 text-[11px] font-semibold tracking-wide text-[#ffe3b5] uppercase">
             <span className="relative flex size-2" aria-hidden="true">
@@ -27,8 +34,8 @@ export function DevelopmentBanner() {
             В разработке
           </span>
           <span className="min-w-0">
-            Сайт временно работает в тестовом режиме. Для покупки используйте маркетплейсы,
-            для связи - Telegram.
+            Сайт временно работает в тестовом режиме. Для покупки используйте маркетплейсы, для
+            связи - Telegram.
           </span>
         </p>
 
