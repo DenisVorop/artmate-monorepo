@@ -1,5 +1,12 @@
 # Changelog
 
+## [0.53.0](https://github.com/DenisVorop/artmate-monorepo/compare/v0.52.2...v0.53.0) (2026-10-29)
+
+
+### Features
+
+* **site:** redesign homepage ([43f16d3](https://github.com/DenisVorop/artmate-monorepo/commit/43f16d34e0a51e00372643d63cb0b157439fec72))
+
 ## [0.52.2](https://github.com/DenisVorop/artmate-monorepo/compare/v0.52.1...v0.52.2) (2026-10-27)
 
 
