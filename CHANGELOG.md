@@ -1,5 +1,13 @@
 # Changelog
 
+## [0.54.0](https://github.com/DenisVorop/artmate-monorepo/compare/v0.53.0...v0.54.0) (2026-10-31)
+
+
+### Features
+
+* add community gallery and album pages ([9957819](https://github.com/DenisVorop/artmate-monorepo/commit/9957819cff4b9f58c9897bb6cc5ae49db93244d1))
+* **site:** separate catalog product sections ([fac6c95](https://github.com/DenisVorop/artmate-monorepo/commit/fac6c954af56c4a17695954aa37e670c31eb8df9))
+
 ## [0.53.0](https://github.com/DenisVorop/artmate-monorepo/compare/v0.52.2...v0.53.0) (2026-10-29)
 
 
