@@ -43,6 +43,8 @@ const routes = {
   home: "/",
   catalog: "/catalog",
   colorings: "/raskraski",
+  gallery: "/gallery",
+  galleryCollection: (slug) => `/gallery/${slug}`,
   wholesale: "/wholesale",
   coloringCollection: (slug) => `/raskraski/digital/${slug}`,
   coloring: (collectionSlug, number) =>
@@ -379,16 +381,26 @@ test("coloring route shares builder semantics for metadata and page, renders JSO
 
 async function loadSitemap(actionResults) {
   const source = await readSource("app/sitemap.ts");
+  const { galleryFiltersSchema } = evaluateTypeScript(
+    await readSource("src/entities/community-work/model/schemas.ts"),
+    {},
+  );
+  const { getGalleryCollectionSlug } = evaluateTypeScript(
+    await readSource("src/entities/community-work/lib/selectors.ts"),
+    {},
+  );
   const actions = {
     getBlogPosts: async () => actionResults.blog,
     getCatalogLandingPages: async () => actionResults.landings,
     getProductsData: async () => actionResults.products,
     getPublicColoringsManifest: async () => actionResults.colorings,
     getPublicColoringCollections: async () => actionResults.collections,
+    getCommunityGalleryFilters: async () => actionResults.gallery,
   };
 
   return evaluateTypeScript(source, {
     "@/entities/products": { getProductCategory: () => undefined },
+    "@/entities/community-work": { galleryFiltersSchema, getGalleryCollectionSlug },
     "@/shared/actions/blog": { getBlogPosts: actions.getBlogPosts },
     "@/shared/actions/catalog-landings": {
       getCatalogLandingPages: actions.getCatalogLandingPages,
@@ -400,6 +412,9 @@ async function loadSitemap(actionResults) {
       getPublicColoringCollections: actions.getPublicColoringCollections,
     },
     "@/shared/actions/products": { getProductsData: actions.getProductsData },
+    "@/shared/actions/workshops": {
+      getCommunityGalleryFilters: actions.getCommunityGalleryFilters,
+    },
     "@/shared/constants": {
       getAbsoluteUrl: constantsMock.getAbsoluteUrl,
       routes: {
@@ -434,6 +449,14 @@ async function loadSitemap(actionResults) {
 }
 
 const successfulSitemapActions = {
+  gallery: {
+    status: "success",
+    data: {
+      collections: [
+        { slug: "cifrovaya-raskraska-kotiki-2", title: "Котики 2", numbers: [8, 17] },
+      ],
+    },
+  },
   blog: { status: "success", data: { items: [] } },
   landings: { status: "success", data: [] },
   products: { status: "success", data: { categories: [], products: [] } },
@@ -459,6 +482,13 @@ test("sitemap adds only public manifest coloring routes with API modification da
   const sitemap = await loadSitemap(successfulSitemapActions);
   const result = await sitemap();
   const coloringRoutes = result.filter((entry) => entry.url.includes("/raskraski/"));
+  const galleryRoutes = result.filter((entry) => entry.url.includes("/gallery"));
+
+  assert.deepEqual(
+    galleryRoutes.map((entry) => entry.url),
+    [`${siteUrl}/gallery`, `${siteUrl}/gallery/kotiki-2`],
+  );
+  assert.ok(galleryRoutes.every((entry) => !entry.url.includes("?")));
 
   assert.deepEqual(coloringRoutes, [
     {

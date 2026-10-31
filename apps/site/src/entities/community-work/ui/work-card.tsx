@@ -13,10 +13,12 @@ export function CommunityWorkCard({
   work,
   className,
   onOpenImage,
+  href,
 }: {
   work: CommunityWorkSummary;
   className?: string;
   onOpenImage?: MouseEventHandler<HTMLButtonElement>;
+  href?: string;
 }) {
   const content = (
     <Card className="h-full gap-0 overflow-hidden py-0 transition-shadow group-hover:shadow-md">
@@ -60,7 +62,7 @@ export function CommunityWorkCard({
       {content}
     </Button>
   ) : (
-    <Link href={routes.publicWork(work.publicId)} className={cardClassName}>
+    <Link href={href ?? routes.publicWork(work.publicId)} className={cardClassName}>
       {content}
     </Link>
   );

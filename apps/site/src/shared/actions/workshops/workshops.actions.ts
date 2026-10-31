@@ -179,6 +179,21 @@ export async function getCommunityWorksForCollection(
   );
 }
 
+export async function getCommunityGalleryFilters(): Promise<ApiResultDTO<unknown>> {
+  return requestResult(() => requestJson("/club/gallery/filters"));
+}
+
+export async function getCommunityGalleryWorks(
+  cursor?: string,
+  filters: { collections?: string[]; number?: number } = {},
+): Promise<ApiResultDTO<unknown>> {
+  const query = new URLSearchParams();
+  if (cursor) query.set("cursor", cursor);
+  for (const collection of filters.collections ?? []) query.append("collection", collection);
+  if (filters.number !== undefined) query.set("number", String(filters.number));
+  return requestResult(() => requestJson(`/club/gallery/works${query.size ? `?${query}` : ""}`));
+}
+
 export async function reportCommunityWork(
   publicId: string,
   input: ReportCommunityWorkInput,

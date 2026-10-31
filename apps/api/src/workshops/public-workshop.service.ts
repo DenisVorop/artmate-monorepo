@@ -1,11 +1,13 @@
 import { randomBytes } from "node:crypto";
 
-import { BadRequestException, ConflictException, Injectable, NotFoundException } from "@nestjs/common";
-
 import {
-  Prisma,
-  WorkshopReportReason,
-} from "../generated/prisma/client";
+  BadRequestException,
+  ConflictException,
+  Injectable,
+  NotFoundException,
+} from "@nestjs/common";
+
+import { Prisma, WorkshopReportReason } from "../generated/prisma/client";
 import { PrismaService } from "../prisma/prisma.service";
 import type { CreateWorkshopReportDTO } from "./dto";
 import { publicWorkshopWorkWhere } from "./workshop-eligibility";
@@ -17,7 +19,9 @@ import {
 } from "../colorings/public-coloring-variant-eligibility";
 
 const publicWorkInclude = {
-  workshop: { select: { handle: true, owner: { select: { name: true, image: true } } } },
+  workshop: {
+    select: { handle: true, owner: { select: { name: true, image: true } } },
+  },
   coloring: {
     select: {
       number: true,
@@ -55,7 +59,9 @@ const publicWorkInclude = {
   },
 } satisfies Prisma.WorkshopWorkInclude;
 
-type PublicWork = Prisma.WorkshopWorkGetPayload<{ include: typeof publicWorkInclude }>;
+type PublicWork = Prisma.WorkshopWorkGetPayload<{
+  include: typeof publicWorkInclude;
+}>;
 
 @Injectable()
 export class PublicWorkshopService {
@@ -127,11 +133,78 @@ export class PublicWorkshopService {
   }
 
   async getCollectionWorks(collectionSlug: string, cursor?: string) {
+    return this.getWorksPage(12, cursor, [collectionSlug]);
+  }
+
+  async getGalleryFilters() {
+    const works = await this.prisma.workshopWork.findMany({
+      where: publicWorkshopWorkWhere,
+      distinct: ["coloringId"],
+      select: {
+        coloring: {
+          select: {
+            number: true,
+            collection: { select: { slug: true, title: true } },
+          },
+        },
+      },
+    });
+    const collections = new Map<
+      string,
+      { slug: string; title: string; numbers: number[] }
+    >();
+    for (const { coloring } of works) {
+      const collection = collections.get(coloring.collection.slug) ?? {
+        ...coloring.collection,
+        numbers: [],
+      };
+      if (!collection.numbers.includes(coloring.number))
+        collection.numbers.push(coloring.number);
+      collections.set(collection.slug, collection);
+    }
+    return {
+      collections: [...collections.values()]
+        .map((collection) => ({
+          ...collection,
+          numbers: collection.numbers.sort((a, b) => a - b),
+        }))
+        .sort((a, b) => a.title.localeCompare(b.title, "ru")),
+    };
+  }
+
+  async getGalleryWorks(
+    cursor?: string,
+    collectionSlugs: string[] = [],
+    number?: number,
+  ) {
+    if (
+      !Array.isArray(collectionSlugs) ||
+      collectionSlugs.length > 30 ||
+      collectionSlugs.some(
+        (value) =>
+          typeof value !== "string" || !/^[a-z0-9-]{1,120}$/.test(value),
+      ) ||
+      (number !== undefined &&
+        (!Number.isInteger(number) || number < 1 || number > 99))
+    ) {
+      throw new BadRequestException("Invalid gallery filter");
+    }
+    return this.getWorksPage(60, cursor, collectionSlugs, number);
+  }
+
+  private async getWorksPage(
+    pageSize: number,
+    cursor?: string,
+    collectionSlugs: string[] = [],
+    number?: number,
+  ) {
     const after: Prisma.WorkshopWorkWhereInput[] = [];
     if (cursor !== undefined) {
       const match =
         typeof cursor === "string" &&
-        /^(\d{4}-\d{2}-\d{2}T\d{2}:\d{2}:\d{2}\.\d{3}Z)_([0-9a-f]{32})$/.exec(cursor);
+        /^(\d{4}-\d{2}-\d{2}T\d{2}:\d{2}:\d{2}\.\d{3}Z)_([0-9a-f]{32})$/.exec(
+          cursor,
+        );
       if (!match || !Number.isFinite(Date.parse(match[1]!))) {
         throw new BadRequestException("Invalid works cursor");
       }
@@ -150,22 +223,33 @@ export class PublicWorkshopService {
       where: {
         AND: [
           publicWorkshopWorkWhere,
-          { coloring: { is: { collection: { is: { slug: collectionSlug } } } } },
+          ...(collectionSlugs.length
+            ? [
+                {
+                  coloring: {
+                    is: {
+                      collection: { is: { slug: { in: collectionSlugs } } },
+                    },
+                  },
+                },
+              ]
+            : []),
+          ...(number !== undefined ? [{ coloring: { is: { number } } }] : []),
           ...after,
         ],
       },
       include: publicWorkInclude,
       orderBy: [{ publishedAt: "desc" }, { id: "desc" }],
-      take: 13,
+      take: pageSize + 1,
     });
-    const page = works.slice(0, 12);
+    const page = works.slice(0, pageSize);
     const last = page.at(-1);
     return {
       works: page
         .filter((work) => work.publishedRevision)
         .map((work) => this.mapWork(work as PublicWork)),
       nextCursor:
-        works.length > 12 && last?.publishedAt
+        works.length > pageSize && last?.publishedAt
           ? `${last.publishedAt.toISOString()}_${last.id}`
           : null,
     };
@@ -187,11 +271,17 @@ export class PublicWorkshopService {
     });
   }
 
-  async report(publicId: string, reporterId: string, input: CreateWorkshopReportDTO) {
+  async report(
+    publicId: string,
+    reporterId: string,
+    input: CreateWorkshopReportDTO,
+  ) {
     const work = await this.findPublicWork(publicId);
 
     if (work.publishedRevision!.id !== input.revisionId) {
-      throw new ConflictException("Work publication changed; reload before reporting");
+      throw new ConflictException(
+        "Work publication changed; reload before reporting",
+      );
     }
 
     try {
@@ -206,9 +296,15 @@ export class PublicWorkshopService {
         },
       });
 
-      return { status: report.status, createdAt: report.createdAt.toISOString() };
+      return {
+        status: report.status,
+        createdAt: report.createdAt.toISOString(),
+      };
     } catch (error) {
-      if (error instanceof Prisma.PrismaClientKnownRequestError && error.code === "P2002") {
+      if (
+        error instanceof Prisma.PrismaClientKnownRequestError &&
+        error.code === "P2002"
+      ) {
         throw new ConflictException("Work was already reported by this user");
       }
 
@@ -247,7 +343,10 @@ export class PublicWorkshopService {
         image: work.workshop.owner.image?.trim() || undefined,
       },
       official: {
-        collection: { slug: collectionSlug, title: work.coloring.collection.title },
+        collection: {
+          slug: collectionSlug,
+          title: work.coloring.collection.title,
+        },
         coloring: { number: work.coloring.number, title: work.coloring.title },
         coloredUrl: original
           ? publicOriginalAssetUrl(
@@ -318,11 +417,16 @@ export class PublicWorkshopService {
   }
 
   private symbol(position: number) {
-    return position <= 9 ? String(position) : String.fromCharCode(55 + position);
+    return position <= 9
+      ? String(position)
+      : String.fromCharCode(55 + position);
   }
 
   private apiUrl() {
-    return (process.env.API_PUBLIC_URL ?? "http://localhost:3002").replace(/\/+$/, "");
+    return (process.env.API_PUBLIC_URL ?? "http://localhost:3002").replace(
+      /\/+$/,
+      "",
+    );
   }
 
   private notFound() {

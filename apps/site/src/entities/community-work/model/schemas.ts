@@ -112,6 +112,27 @@ export const collectionWorksPageSchema = z
   })
   .strict();
 
+export const galleryWorksPageSchema = z
+  .object({
+    works: communityWorksSchema.max(60),
+    nextCursor: z.string().max(80).nullable(),
+  })
+  .strict();
+
+export const galleryFiltersSchema = z
+  .object({
+    collections: z.array(
+      z
+        .object({
+          slug: boundedSlug,
+          title: boundedTitle,
+          numbers: z.array(z.number().int().min(1).max(99)),
+        })
+        .strict(),
+    ),
+  })
+  .strict();
+
 export const communityWorkReportSchema = z
   .object({
     status: z.literal("OPEN"),

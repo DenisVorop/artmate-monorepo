@@ -1,9 +1,18 @@
+import type { InfiniteData } from "@tanstack/react-query";
+
 import {
   communityWorkQuery,
   type CommunityWorkSummary,
+  type GalleryWorksPage,
+  type GalleryFilters,
+  type GalleryWorksFilters,
+  getGalleryCollectionSlug,
   type PublicCommunityWork,
   type PublicWorkshop,
 } from "@/entities/community-work";
+import { productsQuery, type ProductsData } from "@/entities/products";
+import { readGalleryFilters } from "@/features/community-gallery";
+import type { SearchParams } from "@/shared/lib/query-state-manager";
 
 import type { TaskFn } from "../types/data-builder";
 
@@ -12,6 +21,10 @@ import { BaseDataBuilder } from "./base-data-builder";
 type Fields = {
   workshop?: PublicWorkshop | null;
   work?: PublicCommunityWork | null;
+  gallery?: InfiniteData<GalleryWorksPage>;
+  galleryFilters?: GalleryFilters;
+  galleryCollection?: GalleryFilters["collections"][number];
+  galleryProducts?: ProductsData | null;
   relatedWorks?: CommunityWorkSummary[];
 };
 
@@ -32,6 +45,51 @@ export class CommunityDataBuilder<
     return this.add("workshop", () =>
       fetchOrNull(() => queryClient.fetchQuery(communityWorkQuery.workshop(handle))),
     );
+  }
+
+  withGallery(filters: GalleryWorksFilters = {}) {
+    const queryClient = this.queryClient;
+    const query = communityWorkQuery.gallery(filters);
+
+    return this.add("gallery", async () => {
+      await queryClient.prefetchInfiniteQuery(query);
+      return queryClient.getQueryData(query.queryKey);
+    });
+  }
+
+  withGalleryFilters() {
+    const queryClient = this.queryClient;
+    const query = communityWorkQuery.galleryFilters();
+    return this.add("galleryFilters", async () => {
+      await queryClient.prefetchQuery(query);
+      return queryClient.getQueryData(query.queryKey);
+    });
+  }
+
+  withGalleryProducts() {
+    const queryClient = this.queryClient;
+    const query = productsQuery.getData();
+    return this.add("galleryProducts", async () => {
+      await queryClient.prefetchQuery(query);
+      return queryClient.getQueryData(query.queryKey);
+    });
+  }
+
+  withGalleryCollection(slug: string, searchParams: SearchParams = {}) {
+    const queryClient = this.queryClient;
+    return this.add("galleryCollection", async function () {
+      const filters = await this.$.galleryFilters;
+      if (!filters) throw new Error("Gallery filters unavailable");
+      const collection = filters.collections.find(
+        (item) => getGalleryCollectionSlug(item.slug) === slug,
+      );
+      if (collection) {
+        await queryClient.prefetchInfiniteQuery(
+          communityWorkQuery.gallery(readGalleryFilters(searchParams, collection.slug)),
+        );
+      }
+      return collection;
+    });
   }
 
   withWork(publicId: string) {

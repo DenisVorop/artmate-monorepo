@@ -262,7 +262,7 @@ test("editor UI hides optional materials and marker mappings behind nested contr
   assert.match(editor, /advertisingConsent/);
   assert.match(editor, /publicationConsent/);
   assert.match(editor, /Опубликовать работу после модерации/);
-  assert.match(editor, /автоматически появится/);
+  assert.match(editor, /работа появится в открытой мастерской и общей галерее/);
   assert.match(editor, /Хочу, чтобы моя работа вдохновляла других/);
   assert.match(editor, /Все введённые данные сохранены в форме/);
   assert.match(editor, /toCreateRevisionInput\(formValues, resolvedTools, officialColors\)/);

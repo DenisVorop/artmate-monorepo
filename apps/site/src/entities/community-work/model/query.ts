@@ -1,6 +1,8 @@
 import { infiniteQueryOptions, queryOptions } from "@tanstack/react-query";
 
 import {
+  getCommunityGalleryWorks,
+  getCommunityGalleryFilters,
   getCommunityWorksForColoring,
   getCommunityWorksForCollection,
   getPublicCommunityWork,
@@ -11,14 +13,39 @@ import { ApiResult, type ApiResultDTO } from "@/shared/lib/api-result";
 import {
   collectionWorksPageSchema,
   communityWorksSchema,
+  galleryWorksPageSchema,
+  galleryFiltersSchema,
   publicCommunityWorkSchema,
   publicWorkshopSchema,
 } from "./schemas";
+import type { GalleryWorksFilters } from "./types";
 
 const baseKey = "community-work";
 
 export const communityWorkQuery = {
   baseKey: [baseKey] as const,
+  galleryFilters: () =>
+    queryOptions({
+      queryKey: [baseKey, "gallery-filters"] as const,
+      queryFn: async () => galleryFiltersSchema.parse(unwrap(await getCommunityGalleryFilters())),
+      staleTime: 60_000,
+      retryOnMount: false,
+    }),
+  gallery: (filters: GalleryWorksFilters = {}) =>
+    infiniteQueryOptions({
+      queryKey: [
+        baseKey,
+        "gallery",
+        [...(filters.collections ?? [])].sort(),
+        filters.number ?? null,
+      ] as const,
+      initialPageParam: undefined as string | undefined,
+      queryFn: async ({ pageParam }) =>
+        galleryWorksPageSchema.parse(unwrap(await getCommunityGalleryWorks(pageParam, filters))),
+      getNextPageParam: (lastPage) => lastPage.nextCursor ?? undefined,
+      staleTime: 60_000,
+      retryOnMount: false,
+    }),
   workshop: (handle: string) =>
     queryOptions({
       queryKey: [baseKey, "workshop", handle] as const,

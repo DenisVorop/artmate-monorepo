@@ -7,6 +7,7 @@ export {
   createColoringMetadata,
   createLegalMetadata,
   createPageMetadata,
+  createGalleryCollectionMetadata,
   createProductMetadata,
   createRootMetadata,
 } from "./metadata";
@@ -28,6 +29,7 @@ export {
   ColoringCollectionsStructuredData,
   ColoringStructuredData,
   FaqStructuredData,
+  GalleryStructuredData,
   ProductStructuredData,
   RootStructuredData,
   WholesaleStructuredData,

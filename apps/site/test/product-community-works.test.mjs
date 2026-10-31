@@ -26,16 +26,21 @@ async function load(path, mocks) {
   return mod.exports;
 }
 const element = (type, props) => ({ type, props });
+const { routes } = await load("shared/constants/routes.ts", {});
+const { getGalleryCollectionSlug } = await load("entities/community-work/lib/selectors.ts", {});
 const { CommunityWorks } = await load("features/product-details/ui/community-works.tsx", {
   "react/jsx-runtime": { jsx: element, jsxs: element },
-  "@/entities/community-work": { CommunityWorkCard: "CommunityWorkCard" },
-  "@/shared/ui": { Button: "Button" },
+  "@/entities/community-work": { CommunityWorkCard: "CommunityWorkCard", getGalleryCollectionSlug },
+  "@/shared/constants": { routes },
+  "@/shared/ui/link": { Link: "Link" },
+  "@/shared/ui": { Button: "Button", Card: "Card", CardContent: "CardContent" },
   "@/shared/ui/skeleton": { Skeleton: "Skeleton" },
   "@/shared/ui/typography": { SectionTitle: "SectionTitle" },
   "../lib/use-works-scroll": { useWorksScroll: () => ({ trackRef: {}, endRef: {} }) },
 });
 function render(extra) {
   return CommunityWorks({
+    collectionSlug: "cifrovaya-raskraska-kotiki-2",
     works: [],
     hasNextPage: false,
     isFetchingNextPage: false,
@@ -153,6 +158,18 @@ test("every loaded work stays in the horizontal feed without an expand button", 
   assert.equal(find(tree, "Skeleton").length, 0);
   const track = find(tree, "div").find((node) => node.props.role === "region");
   assert.equal(track.props["aria-label"], "Лента работ пользователей");
+  assert.ok(
+    find(tree, "CommunityWorkCard").every((node) => node.props.href === "/gallery/kotiki-2"),
+  );
+  const galleryCard = find(track, "Link");
+  assert.equal(galleryCard.length, 1);
+  assert.equal(galleryCard[0].props.href, "/gallery/kotiki-2");
+  assert.equal(
+    track.props.children.at(-1),
+    galleryCard[0],
+    "The gallery link is the last card in the feed",
+  );
+  assert.equal(find(galleryCard[0], "Card").length, 1);
 });
 test("a next-page failure keeps previous works and offers only retry", async () => {
   let retries = 0;
