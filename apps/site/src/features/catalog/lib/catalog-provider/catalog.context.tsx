@@ -25,6 +25,7 @@ export type CatalogContextValue = FiltersState & {
   updateFilters: (_patch: Partial<FiltersState>) => void;
   setQuery: (_query: string) => void;
   setCategory: (_categoryId?: CatalogCategoryValue) => void;
+  getCategoryHref: (_category?: CatalogCategoryValue) => string;
   toggleTag: (_slug: string) => void;
   clearFilters: () => void;
   clearAll: () => void;

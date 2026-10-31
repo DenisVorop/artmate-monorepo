@@ -25,6 +25,7 @@ import {
 } from "@/shared/ui";
 import { Checkbox } from "@/shared/ui/checkbox";
 import { cn } from "@/shared/lib";
+import { Link } from "@/shared/ui/link";
 import { useCatalog } from "../lib/catalog-provider";
 import type { CatalogCategoryValue } from "../lib/catalog-state";
 import { PriceFilter } from "./price-filter";
@@ -35,6 +36,7 @@ export function Filters() {
     categories,
     products,
     setCategory,
+    getCategoryHref,
     filterCount,
     countLabel,
     clearFilters,
@@ -52,20 +54,24 @@ export function Filters() {
             (category) => (
               <Button
                 key={category.id}
-                type="button"
+                asChild
                 variant="ghost"
-                aria-pressed={(activeCategory?.id ?? "") === category.id}
-                onClick={() =>
-                  setCategory((category.id || undefined) as CatalogCategoryValue | undefined)
-                }
                 className={cn(
                   "relative h-auto min-h-10 w-full justify-between gap-3 py-2 pr-3 pl-6 text-left whitespace-normal",
                   (activeCategory?.id ?? "") === category.id &&
                     "bg-rose-50/70 text-rose-700 before:absolute before:top-1/2 before:left-3 before:h-3.5 before:w-0.5 before:-translate-y-1/2 before:-rotate-6 before:rounded-full before:bg-rose-400 before:content-[''] hover:bg-rose-100/70 hover:text-rose-700 dark:bg-rose-950 dark:text-rose-200",
                 )}
               >
-                <span>{category.title}</span>
-                <span className="shrink-0 text-xs text-muted-foreground">{category.count}</span>
+                <Link
+                  href={getCategoryHref(
+                    (category.id || undefined) as CatalogCategoryValue | undefined,
+                  )}
+                  scroll={false}
+                  aria-current={(activeCategory?.id ?? "") === category.id ? "page" : undefined}
+                >
+                  <span>{category.title}</span>
+                  <span className="shrink-0 text-xs text-muted-foreground">{category.count}</span>
+                </Link>
               </Button>
             ),
           )}

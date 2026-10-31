@@ -32,6 +32,13 @@ export const seoPages = {
     keywords: ["common", "products", "catalog", "каталог раскрасок Artmate"],
     ogAlt: "Каталог Artmate - раскраски по\u00a0номерам",
   },
+  catalogColorings: {
+    title: "Раскраски Artmate — каталог",
+    description:
+      "Раскраски по номерам и пиксельные раскраски Artmate. Выберите альбом по теме, формату и цене.",
+    canonical: routes.catalogColorings,
+    keywords: ["common", "products", "catalog", "раскраски Artmate"],
+  },
   product: {
     title: "Альбом Artmate - раскраска по\u00a0номерам A4 на\u00a0спирали",
     description:

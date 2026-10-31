@@ -1,4 +1,5 @@
 import type { ProductCategory } from "@/entities/products";
+import type { CatalogSection } from "@/features/catalog";
 import { routes } from "@/shared/constants";
 import {
   Breadcrumb,
@@ -13,16 +14,20 @@ import { PageTitle, SectionSubtitle } from "@/shared/ui/typography";
 
 type HeroProps = {
   category?: ProductCategory;
+  section?: CatalogSection;
 };
 
-export function Hero({ category }: HeroProps) {
+export function Hero({ category, section }: HeroProps) {
   return (
     <section className="container border-b border-border/70 py-6 md:py-8">
       <div className="space-y-4">
-        <CatalogBreadcrumbs category={category} />
+        <CatalogBreadcrumbs category={category} section={section} />
         <div className="space-y-3">
           <div className="flex items-center gap-3 md:gap-5">
-            <PageTitle className="min-w-0">{category?.title ?? "Каталог Artmate"}</PageTitle>
+            <PageTitle className="min-w-0">
+              {category?.title ??
+                (section === "colorings" ? "Раскраски Artmate" : "Каталог Artmate")}
+            </PageTitle>
             <svg
               viewBox="0 0 100 76"
               aria-hidden="true"
@@ -42,7 +47,9 @@ export function Hero({ category }: HeroProps) {
           </div>
           {!category && (
             <SectionSubtitle className="max-w-2xl">
-              Раскраски и материалы для рисования
+              {section === "colorings"
+                ? "Раскраски по номерам и пиксельные раскраски"
+                : "Раскраски и материалы для рисования"}
             </SectionSubtitle>
           )}
         </div>
@@ -51,7 +58,7 @@ export function Hero({ category }: HeroProps) {
   );
 }
 
-function CatalogBreadcrumbs({ category }: { category?: ProductCategory }) {
+function CatalogBreadcrumbs({ category, section }: HeroProps) {
   return (
     <Breadcrumb>
       <BreadcrumbList>
@@ -62,7 +69,7 @@ function CatalogBreadcrumbs({ category }: { category?: ProductCategory }) {
         </BreadcrumbItem>
         <BreadcrumbSeparator />
         <BreadcrumbItem>
-          {category ? (
+          {category || section ? (
             <BreadcrumbLink asChild>
               <Link href={routes.catalog}>Каталог</Link>
             </BreadcrumbLink>
@@ -70,6 +77,20 @@ function CatalogBreadcrumbs({ category }: { category?: ProductCategory }) {
             <BreadcrumbPage>Каталог</BreadcrumbPage>
           )}
         </BreadcrumbItem>
+        {section === "colorings" && (
+          <>
+            <BreadcrumbSeparator />
+            <BreadcrumbItem>
+              {category ? (
+                <BreadcrumbLink asChild>
+                  <Link href={routes.catalogColorings}>Раскраски</Link>
+                </BreadcrumbLink>
+              ) : (
+                <BreadcrumbPage>Раскраски</BreadcrumbPage>
+              )}
+            </BreadcrumbItem>
+          </>
+        )}
         {category && (
           <>
             <BreadcrumbSeparator />

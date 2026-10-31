@@ -6,12 +6,14 @@ import { ProductCashback } from "@/features/product-cashback";
 import { DataState } from "@/shared/ui";
 
 import { BaseCatalog } from "./base-catalog";
+import type { CatalogCategoryValue } from "../lib/catalog-state";
 
 type CatalogProps = {
   initialCategoryId?: string;
+  section?: CatalogCategoryValue;
 };
 
-export function Catalog({ initialCategoryId }: CatalogProps) {
+export function Catalog({ initialCategoryId, section }: CatalogProps) {
   const { data, isError } = useProductsData();
 
   if (isError) {
@@ -46,6 +48,7 @@ export function Catalog({ initialCategoryId }: CatalogProps) {
       categories={data.categories}
       products={data.products}
       initialCategoryId={initialCategoryId}
+      section={section}
       renderProductCard={(product, index, placement) => (
         <CartProductCard
           product={product}

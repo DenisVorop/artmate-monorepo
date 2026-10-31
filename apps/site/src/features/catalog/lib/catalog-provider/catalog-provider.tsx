@@ -29,6 +29,7 @@ type CatalogProviderProps = {
   categories: ProductCategory[];
   products: Product[];
   initialCategoryId?: string;
+  section?: CatalogCategoryValue;
   renderProductCard?: (
     _product: Product,
     _index: number,
@@ -41,12 +42,16 @@ export function CatalogProvider({
   categories,
   products,
   initialCategoryId,
+  section,
   renderProductCard,
   children,
 }: CatalogProviderProps) {
   const router = useRouter();
   const [params, { addMany }] = useQueryState<SearchParams>();
-  const urlFilters = useMemo(() => readCatalogFilters(params, products), [params, products]);
+  const urlFilters = useMemo(() => {
+    const next = readCatalogFilters(params, products);
+    return section ? { ...next, category: undefined } : next;
+  }, [params, products, section]);
   const urlSignature = JSON.stringify(getCatalogParams(urlFilters));
   const [filters, setFilters] = useState(urlFilters);
   const currentFilters = useRef(filters);
@@ -82,9 +87,8 @@ export function CatalogProvider({
     [addMany],
   );
 
-  const setCategory = useCallback(
+  const getCategoryHref = useCallback(
     (value?: CatalogCategoryValue) => {
-      clearTimeout(searchTimer.current);
       const availableTags = new Set(
         products
           .filter((product) =>
@@ -97,15 +101,18 @@ export function CatalogProvider({
         category: value,
         tagSlugs: currentFilters.current.tagSlugs.filter((slug) => availableTags.has(slug)),
       };
-      currentFilters.current = next;
-      setFilters(next);
-      setCategoryId(undefined);
-      pendingSignature.current = JSON.stringify(getCatalogParams(next));
-      router.replace(getCatalogHrefWithFilters(next, params) as Route, {
+      return getCatalogHrefWithFilters(next, params);
+    },
+    [params, products],
+  );
+  const setCategory = useCallback(
+    (value?: CatalogCategoryValue) => {
+      clearTimeout(searchTimer.current);
+      router.replace(getCategoryHref(value) as Route, {
         scroll: false,
       });
     },
-    [params, products, router],
+    [getCategoryHref, router],
   );
 
   const setQuery = useCallback((query: string) => updateFilters({ query }), [updateFilters]);
@@ -145,12 +152,18 @@ export function CatalogProvider({
   );
 
   const searchResult = useMemo(
-    () => getCatalogSearchResult(products, { ...filters, categoryId }),
-    [categoryId, filters, products],
+    () =>
+      getCatalogSearchResult(products, {
+        ...filters,
+        category: section ?? filters.category,
+        categoryId,
+      }),
+    [categoryId, filters, products, section],
   );
   const facets = useMemo(
-    () => getCatalogFacets(products, { ...filters, categoryId }),
-    [categoryId, filters, products],
+    () =>
+      getCatalogFacets(products, { ...filters, category: section ?? filters.category, categoryId }),
+    [categoryId, filters, products, section],
   );
   const selectedTags = useMemo(
     () => [
@@ -172,6 +185,7 @@ export function CatalogProvider({
   const routeCategory = getProductCategory(categories, categoryId);
   const routeProduct = products.find((product) => product.categoryId === routeCategory?.id);
   const activeCategoryValue =
+    section ??
     filters.category ??
     (routeCategory && routeProduct ? getProductCatalogCategory(routeProduct) : undefined);
   const value: CatalogContextValue = {
@@ -191,6 +205,7 @@ export function CatalogProvider({
     updateFilters,
     setQuery,
     setCategory,
+    getCategoryHref,
     toggleTag,
     clearFilters,
     clearAll,

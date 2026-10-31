@@ -128,8 +128,14 @@ export function getCatalogHrefWithFilters(filters: FiltersState, existingParams:
     if (typeof value === "string") params.set(key, value);
     else if (Array.isArray(value)) for (const entry of value) params.append(key, entry);
   }
+  params.delete("category");
   const search = params.toString();
-  const href = routes.catalog;
+  const href =
+    filters.category === "colorings"
+      ? routes.catalogColorings
+      : filters.category === "markers"
+        ? routes.catalogMarkers
+        : routes.catalog;
   return search ? `${href}?${search}` : href;
 }
 

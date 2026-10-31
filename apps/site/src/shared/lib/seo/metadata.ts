@@ -85,7 +85,7 @@ export function createLegalMetadata(document: LegalSeoInput): Metadata {
 export function createCategoryMetadata(category: SeoCategory): Metadata {
   const title = `${category.title} — каталог Artmate`;
   const description = createCategoryDescription(category.title);
-  const canonical = `/catalog/raskraski/${category.slug}`;
+  const canonical = routes.catalogCategory(category.slug);
 
   return createMetadata({
     title,
@@ -129,9 +129,7 @@ export function createCatalogLandingMetadata(landing: SeoCatalogLanding): Metada
 export function createProductMetadata(product: SeoProduct, category?: SeoCategory): Metadata {
   const title = `${product.title} - Artmate`;
   const description = createProductSeoDescription(product);
-  const canonical = category
-    ? `/catalog/raskraski/${category.slug}/${product.slug}`
-    : `/catalog/raskraski/${product.slug}`;
+  const canonical = routes.product(category?.slug, product.slug);
 
   return createMetadata({
     title,

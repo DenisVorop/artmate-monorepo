@@ -39,21 +39,7 @@ function evaluateTypeScript(source, mocks) {
 }
 
 const siteUrl = "https://artmate.example";
-const routes = {
-  home: "/",
-  catalog: "/catalog",
-  colorings: "/raskraski",
-  gallery: "/gallery",
-  galleryCollection: (slug) => `/gallery/${slug}`,
-  wholesale: "/wholesale",
-  coloringCollection: (slug) => `/raskraski/digital/${slug}`,
-  coloring: (collectionSlug, number) =>
-    `/raskraski/digital/${collectionSlug}/${String(number).padStart(2, "0")}`,
-  product: (categorySlug, productSlug) =>
-    categorySlug
-      ? `/catalog/raskraski/${categorySlug}/${productSlug}`
-      : `/catalog/raskraski/${productSlug}`,
-};
+const { routes } = evaluateTypeScript(await readSource("src/shared/constants/routes.ts"), {});
 const coloring = {
   id: "coloring-1",
   number: 1,
@@ -399,7 +385,9 @@ async function loadSitemap(actionResults) {
   };
 
   return evaluateTypeScript(source, {
-    "@/entities/products": { getProductCategory: () => undefined },
+    "@/entities/products": {
+      getProductCategory: (categories, id) => categories.find((category) => category.id === id),
+    },
     "@/entities/community-work": { galleryFiltersSchema, getGalleryCollectionSlug },
     "@/shared/actions/blog": { getBlogPosts: actions.getBlogPosts },
     "@/shared/actions/catalog-landings": {
@@ -421,7 +409,6 @@ async function loadSitemap(actionResults) {
         ...routes,
         blog: "/blog",
         blogPost: (slug) => `/blog/${slug}`,
-        catalogCategory: (slug) => `/catalog/raskraski/${slug}`,
         catalogLanding: (slug) => `/catalog/podborki/${slug}`,
         contacts: "/contacts",
         faq: "/faq",
@@ -519,4 +506,40 @@ test("sitemap rejects manifest errors instead of silently omitting coloring rout
   });
 
   await assert.rejects(() => sitemap(), /manifest unavailable/);
+});
+
+test("marker metadata and sitemap use the marker section rather than the coloring hierarchy", async () => {
+  const { createCategoryMetadata, createProductMetadata } = await loadMetadata();
+  const category = {
+    id: "markers",
+    slug: "markery",
+    title: "Маркеры",
+    image: "https://assets.example/markers.webp",
+  };
+  const product = {
+    id: "marker",
+    slug: "markers-168",
+    title: "Маркеры Artmate",
+    categoryId: category.id,
+    categorySlug: category.slug,
+    image: category.image,
+    price: 2000,
+  };
+  assert.equal(createCategoryMetadata(category).alternates.canonical, "/catalog/markery");
+  assert.equal(
+    createProductMetadata(product, category).alternates.canonical,
+    "/catalog/markery/markers-168",
+  );
+  const sitemap = await loadSitemap({
+    ...successfulSitemapActions,
+    products: { status: "success", data: { categories: [category], products: [product] } },
+  });
+  const result = await sitemap();
+  assert.deepEqual(
+    result.filter((entry) => entry.url.includes("/markery")).map((entry) => entry.url),
+    [`${siteUrl}/catalog/markery`, `${siteUrl}/catalog/markery/markers-168`],
+  );
+  assert.ok(result.some((entry) => entry.url === `${siteUrl}/catalog`));
+  assert.ok(result.some((entry) => entry.url === `${siteUrl}/catalog/raskraski`));
+  assert.ok(result.every((entry) => !entry.url.includes("/raskraski/markery")));
 });

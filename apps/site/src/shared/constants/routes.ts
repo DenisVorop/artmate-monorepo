@@ -1,4 +1,12 @@
 const coloringNumberPattern = /^(?:0[1-9]|[1-9]\d)$/;
+const catalogColoringsPath = "/catalog/raskraski";
+const catalogMarkersPath = "/catalog/markery";
+
+function getCatalogCategoryPath(categorySlug: string) {
+  return categorySlug === "markery"
+    ? catalogMarkersPath
+    : `${catalogColoringsPath}/${categorySlug}`;
+}
 
 export function formatColoringNumber(number: number) {
   if (!Number.isInteger(number) || number < 1 || number > 99) {
@@ -37,6 +45,8 @@ export const routes = {
   publicWork: (publicId: string) => `/club/works/${publicId}`,
   cart: "/cart",
   catalog: "/catalog",
+  catalogColorings: catalogColoringsPath,
+  catalogMarkers: catalogMarkersPath,
   colorings: "/raskraski",
   gallery: "/gallery",
   galleryCollection: (slug: string) => `/gallery/${slug}`,
@@ -44,7 +54,7 @@ export const routes = {
   digitalCollection: (slug: string) => `/raskraski/digital/${slug}`,
   coloring: (collectionSlug: string, number: number) =>
     `/raskraski/digital/${collectionSlug}/${formatColoringNumber(number)}`,
-  catalogCategory: (categorySlug: string) => `/catalog/raskraski/${categorySlug}`,
+  catalogCategory: getCatalogCategoryPath,
   catalogLanding: (slug: string) => `/catalog/podborki/${slug}`,
   blog: "/blog",
   blogPost: (id: string) => `/blog/${id}`,
@@ -59,8 +69,8 @@ export const routes = {
   wholesale: "/wholesale",
   product: (categorySlug: string | undefined, productSlug: string) =>
     categorySlug
-      ? `/catalog/raskraski/${categorySlug}/${productSlug}`
-      : `/catalog/raskraski/${productSlug}`,
+      ? `${getCatalogCategoryPath(categorySlug)}/${productSlug}`
+      : `${catalogColoringsPath}/${productSlug}`,
   legal: {
     index: "/legal",
     loyaltyRules: "/legal/loyalty-rules",
