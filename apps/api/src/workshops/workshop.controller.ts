@@ -42,6 +42,8 @@ import {
   CreateWorkshopRevisionMultipartDTO,
   CreateWorkshopToolDTO,
   PublicCollectionWorksDTO,
+  PublicGalleryFiltersDTO,
+  PublicGalleryWorksDTO,
   PublicWorkshopDTO,
   PublicWorkshopWorkDTO,
   UpdateWorkshopVisibilityDTO,
@@ -77,10 +79,22 @@ function WorkshopAssetHeaders() {
     propertyKey: string | symbol,
     descriptor: PropertyDescriptor,
   ) => {
-    Header("Cache-Control", "private, no-store")(target, propertyKey, descriptor);
+    Header("Cache-Control", "private, no-store")(
+      target,
+      propertyKey,
+      descriptor,
+    );
     Header("Content-Type", "image/webp")(target, propertyKey, descriptor);
-    Header("X-Content-Type-Options", "nosniff")(target, propertyKey, descriptor);
-    Header("X-Robots-Tag", "noindex, noimageindex")(target, propertyKey, descriptor);
+    Header("X-Content-Type-Options", "nosniff")(
+      target,
+      propertyKey,
+      descriptor,
+    );
+    Header("X-Robots-Tag", "noindex, noimageindex")(
+      target,
+      propertyKey,
+      descriptor,
+    );
   };
 }
 
@@ -200,7 +214,10 @@ export class WorkshopController {
   @csrfHeader
   @HttpCode(HttpStatus.OK)
   @Post("me/works/:workId/publish")
-  publish(@Req() request: AuthenticatedRequest, @Param("workId") workId: string) {
+  publish(
+    @Req() request: AuthenticatedRequest,
+    @Param("workId") workId: string,
+  ) {
     return this.workshops.publish(request.user.id, workId);
   }
 
@@ -209,14 +226,20 @@ export class WorkshopController {
   @csrfHeader
   @HttpCode(HttpStatus.OK)
   @Post("me/works/:workId/unpublish")
-  unpublish(@Req() request: AuthenticatedRequest, @Param("workId") workId: string) {
+  unpublish(
+    @Req() request: AuthenticatedRequest,
+    @Param("workId") workId: string,
+  ) {
     return this.workshops.unpublish(request.user.id, workId);
   }
 
   @csrfHeader
   @HttpCode(HttpStatus.NO_CONTENT)
   @Delete("me/works/:workId")
-  async delete(@Req() request: AuthenticatedRequest, @Param("workId") workId: string) {
+  async delete(
+    @Req() request: AuthenticatedRequest,
+    @Param("workId") workId: string,
+  ) {
     await this.workshops.deleteWork(request.user.id, workId);
   }
 
@@ -240,7 +263,9 @@ export class WorkshopController {
 
   @WorkshopAssetHeaders()
   @ApiParam({ name: "variant", enum: ["normalized", "web", "thumb"] })
-  @ApiOkResponse({ content: { "image/webp": { schema: { type: "string", format: "binary" } } } })
+  @ApiOkResponse({
+    content: { "image/webp": { schema: { type: "string", format: "binary" } } },
+  })
   @ApiNotFoundResponse()
   @Get("me/revisions/:revisionId/assets/:variant")
   async getAsset(
@@ -248,8 +273,15 @@ export class WorkshopController {
     @Param("revisionId") revisionId: string,
     @Param("variant") variant: string,
   ) {
-    const buffer = await this.workshops.getOwnerAsset(request.user.id, revisionId, variant);
-    return new StreamableFile(buffer, { type: "image/webp", length: buffer.length });
+    const buffer = await this.workshops.getOwnerAsset(
+      request.user.id,
+      revisionId,
+      variant,
+    );
+    return new StreamableFile(buffer, {
+      type: "image/webp",
+      length: buffer.length,
+    });
   }
 
   @ValidateResponse(MarkerColorDTO, { isArray: true })
@@ -272,6 +304,35 @@ export class WorkshopController {
 @Controller("club")
 export class PublicWorkshopController {
   constructor(private readonly workshops: PublicWorkshopService) {}
+
+  @ValidateResponse(PublicGalleryFiltersDTO)
+  @ApiOkResponse({ type: PublicGalleryFiltersDTO })
+  @Get("gallery/filters")
+  getGalleryFilters(@Res({ passthrough: true }) response: HeaderResponse) {
+    response.setHeader("Cache-Control", "no-store");
+    return this.workshops.getGalleryFilters();
+  }
+
+  @ValidateResponse(PublicGalleryWorksDTO)
+  @ApiOkResponse({ type: PublicGalleryWorksDTO })
+  @Get("gallery/works")
+  getGalleryWorks(
+    @Res({ passthrough: true }) response: HeaderResponse,
+    @Query("cursor") cursor?: string,
+    @Query("collection") collection?: string | string[],
+    @Query("number") number?: string,
+  ) {
+    response.setHeader("Cache-Control", "no-store");
+    return this.workshops.getGalleryWorks(
+      cursor,
+      typeof collection === "string" ? [collection] : collection,
+      number === undefined
+        ? undefined
+        : typeof number === "string" && /^\d{1,2}$/.test(number)
+          ? Number(number)
+          : NaN,
+    );
+  }
 
   @ValidateResponse(PublicWorkshopDTO)
   @ApiOkResponse({ type: PublicWorkshopDTO })
@@ -303,7 +364,10 @@ export class PublicWorkshopController {
     @Param("variant") variant: string,
   ) {
     const buffer = await this.workshops.getAsset(publicId, variant);
-    return new StreamableFile(buffer, { type: "image/webp", length: buffer.length });
+    return new StreamableFile(buffer, {
+      type: "image/webp",
+      length: buffer.length,
+    });
   }
 
   @ValidateResponse(PublicWorkshopWorkDTO, { isArray: true })
@@ -385,13 +449,19 @@ export class WorkshopModerationController {
   }
 
   @WorkshopAssetHeaders()
-  @ApiParam({ name: "variant", enum: ["normalized", "web", "thumb", "official"] })
+  @ApiParam({
+    name: "variant",
+    enum: ["normalized", "web", "thumb", "official"],
+  })
   @Get(":revisionId/assets/:variant")
   async getAsset(
     @Param("revisionId") revisionId: string,
     @Param("variant") variant: string,
   ) {
     const buffer = await this.moderation.getAsset(revisionId, variant);
-    return new StreamableFile(buffer, { type: "image/webp", length: buffer.length });
+    return new StreamableFile(buffer, {
+      type: "image/webp",
+      length: buffer.length,
+    });
   }
 }

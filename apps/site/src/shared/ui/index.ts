@@ -79,6 +79,7 @@ export { ExpandableText } from "./expandable-text";
 export { Input } from "./input";
 export { Label } from "./label";
 export { MediaExpandButton } from "./media-expand-button";
+export { PageHero } from "./page-hero";
 export { Popover, PopoverAnchor, PopoverContent, PopoverTrigger } from "./popover";
 export { PersonalDataConsentCheckbox } from "./personal-data-consent-checkbox";
 export { Progress } from "./progress";

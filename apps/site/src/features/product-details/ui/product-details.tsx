@@ -128,7 +128,11 @@ export function ProductDetails({ productId }: ProductDetailsProps) {
         />
 
         {product.digitalCollection && communityWorks.works.length > 0 && (
-          <CommunityWorks key={product.digitalCollection.slug} {...communityWorks} />
+          <CommunityWorks
+            key={product.digitalCollection.slug}
+            collectionSlug={product.digitalCollection.slug}
+            {...communityWorks}
+          />
         )}
 
         <Separator />

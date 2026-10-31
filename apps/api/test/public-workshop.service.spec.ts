@@ -2,7 +2,7 @@ import assert from "node:assert/strict";
 import { describe, it } from "node:test";
 
 import type { PrismaService } from "../src/prisma/prisma.service";
-import { ColoringStatus } from "../src/generated/prisma/client";
+import { ColoringStatus, type Prisma } from "../src/generated/prisma/client";
 import type { WorkshopStorageService } from "../src/workshops/workshop-storage.service";
 import { PublicWorkshopService } from "../src/workshops/public-workshop.service";
 
@@ -73,6 +73,185 @@ describe("PublicWorkshopService original comparison", () => {
       );
     });
   }
+});
+
+describe("PublicWorkshopService gallery", () => {
+  it("applies multiple albums and picture number before pagination, preserving public eligibility", async () => {
+    let query: Prisma.WorkshopWorkFindManyArgs | undefined;
+    const service = new PublicWorkshopService(
+      {
+        workshopWork: {
+          findMany: async (args: Prisma.WorkshopWorkFindManyArgs) => {
+            query = args;
+            return [];
+          },
+        },
+      } as unknown as PrismaService,
+      {} as WorkshopStorageService,
+    );
+    const albums = ["cifrovaya-raskraska-kotiki-2", "flowers"];
+    await service.getGalleryWorks(undefined, albums, 17);
+    const conditions = query!.where!.AND as Prisma.WorkshopWorkWhereInput[];
+    assert.equal(conditions[0]!.isPublicationEnabled, true);
+    assert.deepEqual(conditions[0]!.publishedRevision, {
+      is: { status: "APPROVED" },
+    });
+    assert.deepEqual(conditions[1], {
+      coloring: { is: { collection: { is: { slug: { in: albums } } } } },
+    });
+    assert.deepEqual(conditions[2], { coloring: { is: { number: 17 } } });
+    assert.equal(query!.take, 61);
+    await assert.rejects(service.getGalleryWorks(undefined, ["bad/slug"]), {
+      message: "Invalid gallery filter",
+    });
+    await assert.rejects(service.getGalleryWorks(undefined, [], 0), {
+      message: "Invalid gallery filter",
+    });
+    await assert.rejects(service.getGalleryWorks(undefined, [], 100), {
+      message: "Invalid gallery filter",
+    });
+    await assert.rejects(service.getGalleryWorks(undefined, [], 1.5), {
+      message: "Invalid gallery filter",
+    });
+  });
+
+  it("builds album and picture choices from public works without author metadata", async () => {
+    let query: Prisma.WorkshopWorkFindManyArgs | undefined;
+    const rows = [
+      {
+        coloring: { number: 17, collection: { slug: "cats", title: "Котики" } },
+      },
+      {
+        coloring: { number: 8, collection: { slug: "cats", title: "Котики" } },
+      },
+      {
+        coloring: { number: 8, collection: { slug: "cats", title: "Котики" } },
+      },
+      {
+        coloring: {
+          number: 3,
+          collection: { slug: "flowers", title: "Цветы" },
+        },
+      },
+    ];
+    const service = new PublicWorkshopService(
+      {
+        workshopWork: {
+          findMany: async (args: Prisma.WorkshopWorkFindManyArgs) => {
+            query = args;
+            return rows;
+          },
+        },
+      } as unknown as PrismaService,
+      {} as WorkshopStorageService,
+    );
+    const filters = await service.getGalleryFilters();
+    assert.deepEqual(filters, {
+      collections: [
+        { slug: "cats", title: "Котики", numbers: [8, 17] },
+        { slug: "flowers", title: "Цветы", numbers: [3] },
+      ],
+    });
+    assert.equal(query!.where!.deletedAt, null);
+    assert.equal(query!.where!.isPublicationEnabled, true);
+    assert.deepEqual(query!.where!.publishedRevision, {
+      is: { status: "APPROVED" },
+    });
+    assert.equal("include" in query!, false);
+    assert.equal("workshop" in query!.select!, false);
+  });
+
+  it("paginates across collections using the published date and a stable tie-breaker", async () => {
+    const publishedAt = new Date("2026-10-30T12:00:00.000Z");
+    const works = Array.from({ length: 61 }, (_, index) => ({
+      ...createWork(),
+      id: (1000 - index).toString(16).padStart(32, "0"),
+      publicId: (1000 - index).toString(16).padStart(24, "0"),
+      publishedAt,
+    }));
+    works[1]!.coloring.collection.slug = "another-collection";
+    let rows = works;
+    const calls: Prisma.WorkshopWorkFindManyArgs[] = [];
+    const service = new PublicWorkshopService(
+      {
+        workshopWork: {
+          findMany: async (args: Prisma.WorkshopWorkFindManyArgs) => {
+            calls.push(args);
+            return rows;
+          },
+        },
+      } as unknown as PrismaService,
+      {} as WorkshopStorageService,
+    );
+    const first = await service.getGalleryWorks();
+    assert.equal(first.works.length, 60);
+    assert.equal(
+      first.works[1]!.official.collection.slug,
+      "another-collection",
+    );
+    assert.equal(
+      first.nextCursor,
+      `${publishedAt.toISOString()}_${works[59]!.id}`,
+    );
+    assert.equal(calls[0]!.take, 61);
+    assert.deepEqual(calls[0]!.orderBy, [
+      { publishedAt: "desc" },
+      { id: "desc" },
+    ]);
+    const conditions = calls[0]!.where!.AND as Prisma.WorkshopWorkWhereInput[];
+    assert.equal(conditions.length, 1);
+    assert.equal(conditions[0]!.deletedAt, null);
+    assert.equal(conditions[0]!.isPublicationEnabled, true);
+    assert.deepEqual(conditions[0]!.publishedRevision, {
+      is: { status: "APPROVED" },
+    });
+    assert.deepEqual(conditions[0]!.workshop, {
+      is: {
+        isPublic: true,
+        owner: { is: { status: "ACTIVE", deletedAt: null } },
+      },
+    });
+    assert.equal("publicationConsent" in first.works[0]!.submission, false);
+    rows = works.slice(60);
+    const second = await service.getGalleryWorks(first.nextCursor!);
+    assert.equal(second.works.length, 1);
+    assert.equal(second.works[0]!.publicId, works[60]!.publicId);
+    assert.equal(second.nextCursor, null);
+    assert.deepEqual(
+      (calls[1]!.where!.AND as Prisma.WorkshopWorkWhereInput[])[1],
+      {
+        OR: [
+          { publishedAt: { lt: publishedAt } },
+          { publishedAt, id: { lt: works[59]!.id } },
+        ],
+      },
+    );
+    rows = works.slice(0, 60);
+    assert.equal((await service.getGalleryWorks()).nextCursor, null);
+  });
+
+  it("rejects malformed cursors before querying public works", async () => {
+    const service = new PublicWorkshopService(
+      {
+        workshopWork: {
+          findMany: async () => {
+            throw new Error("Must not query for invalid cursor");
+          },
+        },
+      } as unknown as PrismaService,
+      {} as WorkshopStorageService,
+    );
+    for (const cursor of [
+      "",
+      "invalid",
+      `2026-02-30T00:00:00.000Z_${"a".repeat(32)}`,
+      `2026-10-30T00:00:00.000Z_${"a".repeat(24)}`,
+    ]) {
+      await assert.rejects(service.getGalleryWorks(cursor), {
+        message: "Invalid works cursor",
+      });
+    }
+  });
 });
 
 function createService(work: ReturnType<typeof createWork>) {

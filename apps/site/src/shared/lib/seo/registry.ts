@@ -3,6 +3,13 @@ import { routes } from "@/shared/constants";
 import type { SeoPageConfig, SeoPageKey } from "./types";
 
 export const seoPages = {
+  gallery: {
+    title: "Галерея готовых работ Artmate",
+    description:
+      "Готовые раскраски участников Artmate: фотографии работ, авторы и разные исполнения картин из наших альбомов.",
+    canonical: routes.gallery,
+    keywords: ["common", "готовые раскраски Artmate", "работы участников Artmate"],
+  },
   home: {
     title: "Artmate - раскраски по\u00a0номерам для\u00a0взрослых и\u00a0детей",
     description:

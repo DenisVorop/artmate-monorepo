@@ -28,13 +28,6 @@ const deviceInfoCache = new Map<string, DeviceInfo>();
 
 export const fallbackDeviceInfo = createDeviceInfo("mobile", false);
 
-export function getDeviceTypeFromViewportWidth(width: number): DeviceType {
-  if (width >= desktopMinWidthPx) return "desktop";
-  if (width >= tabletMinWidthPx) return "tablet";
-
-  return "mobile";
-}
-
 export function createDeviceInfo(device: DeviceType, isApple: boolean) {
   const cacheKey = `${device}:${isApple ? "apple" : "other"}`;
   const cached = deviceInfoCache.get(cacheKey);

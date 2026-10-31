@@ -2,6 +2,7 @@
 
 import { useMutation, useQueryClient } from "@tanstack/react-query";
 
+import { communityWorkQuery } from "@/entities/community-work";
 import { ownerWorkshopSchema, workshopQuery } from "@/entities/workshop";
 import {
   updateMyWorkshopVisibility,
@@ -17,7 +18,10 @@ export function useUpdateWorkshopVisibility(options: { onSuccess?: () => void } 
         ApiResult.fromDTO(await updateMyWorkshopVisibility(input)).unwrap(),
       ),
     onSuccess: async () => {
-      await queryClient.invalidateQueries({ queryKey: workshopQuery.baseKey });
+      await Promise.all([
+        queryClient.invalidateQueries({ queryKey: workshopQuery.baseKey }),
+        queryClient.invalidateQueries({ queryKey: communityWorkQuery.baseKey }),
+      ]);
       options.onSuccess?.();
     },
   });

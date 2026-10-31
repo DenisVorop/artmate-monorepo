@@ -31,6 +31,7 @@ export type SeoPageKey =
   | "checkoutSuccess"
   | "contacts"
   | "faq"
+  | "gallery"
   | "home"
   | "partners"
   | "paymentAndDelivery"
@@ -61,6 +62,17 @@ export type SeoFaqSection = {
   items: readonly {
     answer: string;
     question: string;
+  }[];
+};
+
+export type SeoGallery = {
+  url: string;
+  collection?: { title: string; slug: string };
+  works: readonly {
+    publicId: string;
+    author: { name: string; handle: string };
+    official: { coloring: { title: string } };
+    submission: { assets: { web: string }; publishedAt: string };
   }[];
 };
 

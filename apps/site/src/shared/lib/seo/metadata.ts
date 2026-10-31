@@ -63,6 +63,14 @@ export function createPageMetadata(pageKey: SeoPageKey): Metadata {
   return createMetadata(seoPages[pageKey]);
 }
 
+export function createGalleryCollectionMetadata(slug: string, title: string): Metadata {
+  return createMetadata({
+    title: `Раскраска по номерам «${title}» — галерея Artmate`,
+    description: `Раскраска по номерам «${title}» в готовых работах участников Artmate. Рассмотрите раскрашенные страницы и выберите альбом.`,
+    canonical: routes.galleryCollection(slug),
+  });
+}
+
 export function createLegalMetadata(document: LegalSeoInput): Metadata {
   const title = `${document.title} - ${siteConfig.name}`;
 

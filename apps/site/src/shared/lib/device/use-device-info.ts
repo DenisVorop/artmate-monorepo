@@ -7,7 +7,6 @@ import {
   createDeviceInfo,
   desktopMinWidthPx,
   getDeviceInfoFromUserAgent,
-  getDeviceTypeFromViewportWidth,
   tabletMinWidthPx,
 } from "./device-info";
 
@@ -44,7 +43,11 @@ function getClientDeviceInfo() {
     navigator.userAgent,
     navigatorWithUserAgentData.userAgentData?.platform,
   );
-  const device = getDeviceTypeFromViewportWidth(window.innerWidth);
+  const device = window.matchMedia(`(min-width: ${desktopMinWidthPx}px)`).matches
+    ? "desktop"
+    : window.matchMedia(`(min-width: ${tabletMinWidthPx}px)`).matches
+      ? "tablet"
+      : "mobile";
 
   if (isIosDevice()) {
     return createDeviceInfo(device, true);

@@ -241,6 +241,25 @@ export class PublicCollectionWorksDTO {
   nextCursor!: string | null;
 }
 
+export class PublicGalleryWorksDTO {
+  @ApiProperty({ type: [PublicWorkshopWorkDTO], maxItems: 60 })
+  @IsArray()
+  @ArrayMaxSize(60)
+  works!: PublicWorkshopWorkDTO[];
+
+  @ApiProperty({ type: String, nullable: true })
+  @IsOptional()
+  @IsString()
+  @MaxLength(80)
+  nextCursor!: string | null;
+}
+
+export class PublicGalleryFiltersDTO {
+  @ApiProperty({ type: "array", items: { type: "object" } })
+  @IsArray()
+  collections!: { slug: string; title: string; numbers: number[] }[];
+}
+
 export class WorkshopModerationListItemDTO {
   @ApiProperty({ pattern: idPattern.source })
   @Matches(idPattern)

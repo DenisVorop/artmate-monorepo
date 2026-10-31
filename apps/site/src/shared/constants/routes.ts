@@ -38,6 +38,8 @@ export const routes = {
   cart: "/cart",
   catalog: "/catalog",
   colorings: "/raskraski",
+  gallery: "/gallery",
+  galleryCollection: (slug: string) => `/gallery/${slug}`,
   coloringCollection: (slug: string) => `/raskraski/digital/${slug}`,
   digitalCollection: (slug: string) => `/raskraski/digital/${slug}`,
   coloring: (collectionSlug: string, number: number) =>

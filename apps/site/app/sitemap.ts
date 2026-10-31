@@ -1,10 +1,12 @@
 import type { MetadataRoute } from "next";
 import { getProductCategory } from "@/entities/products";
+import { galleryFiltersSchema, getGalleryCollectionSlug } from "@/entities/community-work";
 import { getBlogPosts } from "@/shared/actions/blog";
 import { getCatalogLandingPages } from "@/shared/actions/catalog-landings";
 import { getPublicColoringCollections } from "@/shared/actions/coloring-collections";
 import { getPublicColoringsManifest } from "@/shared/actions/colorings";
 import { getProductsData } from "@/shared/actions/products";
+import { getCommunityGalleryFilters } from "@/shared/actions/workshops";
 import { getAbsoluteUrl, routes } from "@/shared/constants";
 import { ensureApiResult } from "@/shared/lib/api-result";
 
@@ -36,6 +38,11 @@ const staticRoutes = [
   {
     path: routes.blog,
     changeFrequency: "weekly",
+    priority: 0.7,
+  },
+  {
+    path: routes.gallery,
+    changeFrequency: "daily",
     priority: 0.7,
   },
   {
@@ -116,19 +123,37 @@ const staticRoutes = [
 ] satisfies SitemapEntry[];
 
 export default async function sitemap(): Promise<MetadataRoute.Sitemap> {
-  const [blogData, landingData, productsResult, coloringsResult, coloringCollectionsResult] =
-    await Promise.all([
-      getBlogPosts(),
-      getCatalogLandingPages(),
-      getProductsData(),
-      getPublicColoringsManifest(),
-      getPublicColoringCollections(),
-    ]);
+  const [
+    blogData,
+    landingData,
+    productsResult,
+    coloringsResult,
+    coloringCollectionsResult,
+    galleryFiltersResult,
+  ] = await Promise.all([
+    getBlogPosts(),
+    getCatalogLandingPages(),
+    getProductsData(),
+    getPublicColoringsManifest(),
+    getPublicColoringCollections(),
+    getCommunityGalleryFilters(),
+  ]);
   const productsData = ensureApiResult(productsResult).data;
   const blogPosts = ensureApiResult(blogData).data?.items ?? [];
   const catalogLandings = ensureApiResult(landingData).data ?? [];
   const colorings = ensureApiResult(coloringsResult).data;
   const coloringCollections = ensureApiResult(coloringCollectionsResult).data;
+  const galleryData = ensureApiResult(galleryFiltersResult).data;
+  const galleryRoutes = galleryData
+    ? galleryFiltersSchema.parse(galleryData).collections.map(
+        (collection) =>
+          ({
+            path: routes.galleryCollection(getGalleryCollectionSlug(collection.slug)),
+            changeFrequency: "daily",
+            priority: 0.6,
+          }) satisfies SitemapEntry,
+      )
+    : [];
 
   if (!colorings) {
     throw new Error("Public colorings manifest returned no data");
@@ -240,6 +265,7 @@ export default async function sitemap(): Promise<MetadataRoute.Sitemap> {
     ...categoryRoutes,
     ...catalogLandingRoutes,
     ...productRoutes,
+    ...galleryRoutes,
     ...coloringCollectionRoutes,
     ...coloringRoutes,
   ]) {

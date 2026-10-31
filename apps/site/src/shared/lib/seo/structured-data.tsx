@@ -24,6 +24,7 @@ import type {
   SeoColoringCollection,
   SeoColoringCollectionSummary,
   SeoFaqSection,
+  SeoGallery,
   SeoProduct,
 } from "./types";
 
@@ -121,6 +122,62 @@ type ColoringCollectionStructuredDataProps = {
 
 export function RootStructuredData() {
   return <StructuredData data={rootStructuredData} />;
+}
+
+export function GalleryStructuredData({ url, collection, works }: SeoGallery) {
+  const pageUrl = getAbsoluteUrl(url);
+  const breadcrumbId = `${pageUrl}#breadcrumbs`;
+  const name = collection
+    ? `Раскраска по номерам «${collection.title}» — галерея Artmate`
+    : seoPages.gallery.title;
+  return (
+    <StructuredData
+      data={{
+        "@context": "https://schema.org",
+        "@graph": [
+          {
+            "@type": "CollectionPage",
+            "@id": pageUrl,
+            url: pageUrl,
+            name,
+            inLanguage: "ru-RU",
+            isPartOf: { "@id": websiteId },
+            breadcrumb: { "@id": breadcrumbId },
+            mainEntity: {
+              "@type": "ItemList",
+              numberOfItems: works.length,
+              itemListElement: works.map((work, index) => ({
+                "@type": "ListItem",
+                position: index + 1,
+                item: {
+                  "@type": "ImageObject",
+                  "@id": `${getAbsoluteUrl(routes.publicWork(work.publicId))}#photo`,
+                  url: getAbsoluteUrl(routes.publicWork(work.publicId)),
+                  contentUrl: work.submission.assets.web,
+                  name: work.official.coloring.title,
+                  datePublished: work.submission.publishedAt,
+                  author: {
+                    "@type": "Person",
+                    name: work.author.name,
+                    url: getAbsoluteUrl(routes.publicWorkshop(work.author.handle)),
+                  },
+                },
+              })),
+            },
+          },
+          getBreadcrumbStructuredData(
+            [
+              { name: "Главная", url: routes.home },
+              { name: "Галерея", url: routes.gallery },
+              ...(collection ? [{ name: collection.title, url }] : []),
+            ],
+            breadcrumbId,
+            false,
+          ),
+        ],
+      }}
+    />
+  );
 }
 
 export function ProductStructuredData({ category, product, url }: ProductStructuredDataProps) {

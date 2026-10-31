@@ -45,15 +45,15 @@ test("owner routes are session-aware bindings and editor uses canonical numbers"
   assert.match(editor, /\.withMarkerColors\(\)/);
 });
 
-test("club routes never enter sitemap and no global club feed exists", async () => {
+test("private club pages stay out of sitemap while the public gallery has its own route", async () => {
   const sitemap = await readSource("app/sitemap.ts");
+  const gallery = await readSource("app/(site)/gallery/page.tsx");
 
   assert.doesNotMatch(sitemap, /routes\.publicWorkshop|routes\.publicWork|\/club/);
 
-  await assert.rejects(
-    () => readFile(new URL("../app/(site)/club/page.tsx", import.meta.url), "utf8"),
-    (error) => error.code === "ENOENT",
-  );
+  assert.match(sitemap, /routes\.gallery/);
+  assert.match(gallery, /\.withGallery\(/);
+  assert.match(gallery, /dehydrateQueryClient\(queryClient\)/);
 });
 
 test("FSD keeps route UI, query state, transport and editor responsibilities separated", async () => {

@@ -2,6 +2,7 @@
 
 import { useMutation, useQueryClient } from "@tanstack/react-query";
 
+import { communityWorkQuery } from "@/entities/community-work";
 import { workshopQuery } from "@/entities/workshop";
 import { deleteMyWorkshopWork } from "@/shared/actions/workshops";
 import { ApiResult } from "@/shared/lib/api-result";
@@ -12,7 +13,10 @@ export function useDeleteWorkshopWork(options: { onSuccess?: () => void } = {}) 
     mutationFn: async (workId: string) =>
       ApiResult.fromDTO(await deleteMyWorkshopWork(workId)).unwrap(),
     onSuccess: async () => {
-      await queryClient.invalidateQueries({ queryKey: workshopQuery.baseKey });
+      await Promise.all([
+        queryClient.invalidateQueries({ queryKey: workshopQuery.baseKey }),
+        queryClient.invalidateQueries({ queryKey: communityWorkQuery.baseKey }),
+      ]);
       options.onSuccess?.();
     },
   });
