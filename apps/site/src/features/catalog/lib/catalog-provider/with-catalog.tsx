@@ -4,11 +4,13 @@ import type { ComponentType, ReactNode } from "react";
 import type { Product, ProductCategory } from "@/entities/products";
 import { CatalogProvider } from "./catalog-provider";
 import type { CatalogProductPlacement } from "./catalog.context";
+import type { CatalogCategoryValue } from "../catalog-state";
 
 type WithCatalogProps = {
   categories: ProductCategory[];
   products: Product[];
   initialCategoryId?: string;
+  section?: CatalogCategoryValue;
   renderProductCard?: (
     _product: Product,
     _index: number,
@@ -21,6 +23,7 @@ export function withCatalog(Component: ComponentType) {
     categories,
     products,
     initialCategoryId,
+    section,
     renderProductCard,
   }: WithCatalogProps) {
     return (
@@ -28,6 +31,7 @@ export function withCatalog(Component: ComponentType) {
         categories={categories}
         products={products}
         initialCategoryId={initialCategoryId}
+        section={section}
         renderProductCard={renderProductCard}
       >
         <Component />

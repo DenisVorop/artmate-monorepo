@@ -33,6 +33,16 @@ export function Breadcrumbs({ product }: BreadcrumbsProps) {
           </BreadcrumbLink>
         </BreadcrumbItem>
         <BreadcrumbSeparator />
+        {categorySlug !== "markery" && (
+          <>
+            <BreadcrumbItem>
+              <BreadcrumbLink asChild>
+                <Link href={routes.catalogColorings}>Раскраски</Link>
+              </BreadcrumbLink>
+            </BreadcrumbItem>
+            <BreadcrumbSeparator />
+          </>
+        )}
         {categorySlug && categoryTitle && (
           <>
             <BreadcrumbItem>

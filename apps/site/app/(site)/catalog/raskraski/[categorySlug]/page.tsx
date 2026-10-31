@@ -75,7 +75,7 @@ export default async function Page({ params }: CatalogCategoryRouteProps) {
           url={categoryUrl}
         />
         <HydrationBoundary state={dehydrateQueryClient(queryClient)}>
-          <CatalogPage category={category} initialCategoryId={category.id} />
+          <CatalogPage category={category} initialCategoryId={category.id} section="colorings" />
         </HydrationBoundary>
       </>
     );

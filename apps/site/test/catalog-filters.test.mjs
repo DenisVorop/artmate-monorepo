@@ -20,7 +20,13 @@ const mod = { exports: {} };
 new Function("require", "module", "exports", compiled)(
   (id) =>
     id === "@/shared/constants"
-      ? { routes: { catalog: "/catalog", catalogCategory: (slug) => `/catalog/raskraski/${slug}` } }
+      ? {
+          routes: {
+            catalog: "/catalog",
+            catalogColorings: "/catalog/raskraski",
+            catalogMarkers: "/catalog/markery",
+          },
+        }
       : require(id),
   mod,
   mod.exports,
@@ -178,8 +184,8 @@ test("URL round trip preserves filters, zero price and unrelated parameters; inv
     tags: "travel",
   });
   const url = new URL(href, "https://example.test");
-  assert.equal(url.pathname, "/catalog");
-  assert.equal(url.searchParams.get("category"), "colorings");
+  assert.equal(url.pathname, "/catalog/raskraski");
+  assert.equal(url.searchParams.get("category"), null);
   assert.equal(url.searchParams.get("utm_source"), "example");
   assert.equal(url.searchParams.get("tags"), "pikselnye,po-nomeram");
   assert.equal(url.searchParams.get("min"), "0");

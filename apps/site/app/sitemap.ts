@@ -21,6 +21,11 @@ type SitemapEntry = {
 
 const staticRoutes = [
   {
+    path: routes.catalogColorings,
+    changeFrequency: "weekly",
+    priority: 0.8,
+  },
+  {
     path: routes.home,
     changeFrequency: "weekly",
     priority: 1,

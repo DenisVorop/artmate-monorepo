@@ -15,6 +15,15 @@ const repoRoot = path.resolve(path.dirname(fileURLToPath(import.meta.url)), "../
 const nextConfig = {
   output: "standalone",
   outputFileTracingRoot: repoRoot,
+  async redirects() {
+    return [
+      {
+        source: "/catalog/raskraski/markery/:path*",
+        destination: "/catalog/markery/:path*",
+        permanent: true,
+      },
+    ];
+  },
   allowedDevOrigins:
     process.env.NODE_ENV === "development"
       ? Object.values(networkInterfaces())

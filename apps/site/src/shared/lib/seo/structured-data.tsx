@@ -362,6 +362,9 @@ function getProductStructuredData(product: SeoProduct, url: string, category?: S
       [
         { name: "Главная", url: routes.home },
         { name: "Каталог", url: routes.catalog },
+        ...((category?.slug ?? product.categorySlug) !== "markery"
+          ? [{ name: "Раскраски", url: routes.catalogColorings }]
+          : []),
         category
           ? { name: category.title, url: routes.catalogCategory(category.slug) }
           : product.categorySlug && product.category
@@ -387,7 +390,7 @@ function getCatalogCategoryStructuredData(
     {
       "@context": "https://schema.org",
       "@type": "CollectionPage",
-      name: `${category.title} - раскраски по номерам Artmate`,
+      name: `${category.title} — каталог Artmate`,
       description: createCategoryDescription(category.title),
       url: categoryUrl,
       breadcrumb: {
@@ -419,6 +422,9 @@ function getCatalogCategoryStructuredData(
       [
         { name: "Главная", url: routes.home },
         { name: "Каталог", url: routes.catalog },
+        ...(category.slug !== "markery"
+          ? [{ name: "Раскраски", url: routes.catalogColorings }]
+          : []),
         { name: category.title, url },
       ],
       breadcrumbId,
