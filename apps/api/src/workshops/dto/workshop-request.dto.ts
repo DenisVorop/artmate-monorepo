@@ -25,6 +25,16 @@ const symbolPattern = /^[1-9A-J]$/;
 const markerNumberPattern = /^(?:[A-Za-z0-9][A-Za-z0-9._-]{0,11})?$/;
 const plainTextPattern = /^(?![\s\S]*(?:https?:\/\/|www\.|<|>))[\s\S]*$/i;
 
+const publicImageWidths = [160, 240, 320, 480, 640, 800, 960, 1200];
+
+export class PublicWorkshopAssetQueryDTO {
+  @ApiPropertyOptional({ enum: publicImageWidths })
+  @IsOptional()
+  @Type(() => Number)
+  @IsIn(publicImageWidths)
+  width?: number;
+}
+
 function trim({ value }: { value: unknown }) {
   return typeof value === "string" ? value.trim() : value;
 }

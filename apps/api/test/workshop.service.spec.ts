@@ -1078,7 +1078,7 @@ describe("PublicWorkshopService", () => {
     assert.ok(query);
     assert.strictEqual(query.where.AND[0], publicWorkshopWorkWhere);
     assert.deepEqual(query.where.AND[1], {
-      coloring: { is: { collection: { is: { slug: "forest" } } } },
+      coloring: { is: { collection: { is: { slug: { in: ["forest"] } } } } },
     });
     assert.equal(query.take, 13);
     assert.deepEqual(query.orderBy, [{ publishedAt: "desc" }, { id: "desc" }]);

@@ -57,12 +57,14 @@ const workshopService = {
   },
 };
 const publicCollectionSlugs: string[] = [];
+let requestedAssetWidth: number | undefined;
 const publicService = {
   getCollectionWorks: async (slug: string) => {
     publicCollectionSlugs.push(slug);
     return { works: [], nextCursor: null };
   },
-  getAsset: async (publicId: string) => {
+  getAsset: async (publicId: string, _variant: string, width?: number) => {
+    requestedAssetWidth = width;
     if (publicId !== "public-work") {
       throw new NotFoundException("Club resource not found");
     }
@@ -489,6 +491,31 @@ describe("Workshop HTTP security contract", () => {
       publicAsset.headers.get("x-robots-tag"),
       "noindex, noimageindex",
     );
+  });
+
+  it("accepts bounded responsive widths while preserving public asset visibility and headers", async () => {
+    for (const width of [160, 240, 320, 480, 640, 800, 960, 1200]) {
+      const response = await fetch(
+        `${baseUrl}/club/works/public-work/assets/web?width=${width}`,
+      );
+      assert.equal(response.status, 200);
+      assert.equal(requestedAssetWidth, width);
+      assert.equal(response.headers.get("content-type"), "image/webp");
+      assert.equal(response.headers.get("cache-control"), "private, no-store");
+      await response.arrayBuffer();
+    }
+    for (const width of ["0", "-1", "99999", "321", "640.5", "abc", ""]) {
+      const response = await fetch(
+        `${baseUrl}/club/works/public-work/assets/web?width=${width}`,
+      );
+      assert.equal(response.status, 400, width);
+      await response.arrayBuffer();
+    }
+    const privateAsset = await fetch(
+      `${baseUrl}/club/works/private-work/assets/web?width=640`,
+    );
+    assert.equal(privateAsset.status, 404);
+    await privateAsset.arrayBuffer();
   });
 });
 

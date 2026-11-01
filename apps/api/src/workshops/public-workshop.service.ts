@@ -255,7 +255,7 @@ export class PublicWorkshopService {
     };
   }
 
-  async getAsset(publicId: string, variant: string) {
+  async getAsset(publicId: string, variant: string, width?: number) {
     const assetVariant = this.parsePublicVariant(variant);
     const work = await this.findPublicWork(publicId);
     const revision = work.publishedRevision;
@@ -264,11 +264,15 @@ export class PublicWorkshopService {
       throw this.notFound();
     }
 
-    return this.storage.read(revision[`${assetVariant}StorageKey`], {
-      checksum: revision[`${assetVariant}Checksum`],
-      width: revision[`${assetVariant}Width`],
-      height: revision[`${assetVariant}Height`],
-    });
+    return this.storage.read(
+      revision[`${assetVariant}StorageKey`],
+      {
+        checksum: revision[`${assetVariant}Checksum`],
+        width: revision[`${assetVariant}Width`],
+        height: revision[`${assetVariant}Height`],
+      },
+      width,
+    );
   }
 
   async report(

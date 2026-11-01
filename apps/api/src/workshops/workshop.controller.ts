@@ -45,6 +45,7 @@ import {
   PublicGalleryFiltersDTO,
   PublicGalleryWorksDTO,
   PublicWorkshopDTO,
+  PublicWorkshopAssetQueryDTO,
   PublicWorkshopWorkDTO,
   UpdateWorkshopVisibilityDTO,
   WorkshopCollectionDetailDTO,
@@ -362,8 +363,13 @@ export class PublicWorkshopController {
   async getAsset(
     @Param("publicId") publicId: string,
     @Param("variant") variant: string,
+    @Query() query: PublicWorkshopAssetQueryDTO,
   ) {
-    const buffer = await this.workshops.getAsset(publicId, variant);
+    const buffer = await this.workshops.getAsset(
+      publicId,
+      variant,
+      query.width,
+    );
     return new StreamableFile(buffer, {
       type: "image/webp",
       length: buffer.length,

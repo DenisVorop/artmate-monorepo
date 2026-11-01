@@ -2,15 +2,17 @@
 
 import Image from "next/image";
 import { useState } from "react";
+import { getPublicAssetSrcSet } from "../lib/image";
 
 type PublicAssetImageProps = {
   src: string;
   alt: string;
   className?: string;
   priority?: boolean;
+  sizes?: string;
 };
 
-export function PublicAssetImage({ src, alt, className, priority }: PublicAssetImageProps) {
+export function PublicAssetImage({ src, alt, className, priority, sizes }: PublicAssetImageProps) {
   const [failedSrc, setFailedSrc] = useState<string>();
 
   if (failedSrc === src) {
@@ -22,15 +24,19 @@ export function PublicAssetImage({ src, alt, className, priority }: PublicAssetI
   }
 
   return (
-    <Image
-      fill
-      unoptimized
-      src={src}
-      alt={alt}
-      loading={priority ? "eager" : "lazy"}
-      fetchPriority={priority ? "high" : undefined}
-      onError={() => setFailedSrc(src)}
-      className={className ?? "object-cover"}
-    />
+    <picture className="absolute inset-0">
+      {sizes && <source type="image/webp" srcSet={getPublicAssetSrcSet(src)} sizes={sizes} />}
+      <Image
+        fill
+        unoptimized
+        src={src}
+        alt={alt}
+        loading={priority ? "eager" : "lazy"}
+        fetchPriority={priority ? "high" : undefined}
+        decoding="async"
+        onError={() => setFailedSrc(src)}
+        className={className ?? "object-cover"}
+      />
+    </picture>
   );
 }

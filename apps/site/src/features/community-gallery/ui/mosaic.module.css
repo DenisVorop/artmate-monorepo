@@ -13,6 +13,18 @@
   min-height: 0;
 }
 
+.block[data-compact] {
+  grid-template-columns: repeat(2, minmax(0, 1fr));
+  grid-template-rows: none;
+  aspect-ratio: auto;
+}
+
+.block[data-compact] > .tile {
+  grid-column: auto;
+  grid-row: auto;
+  aspect-ratio: 3 / 4;
+}
+
 @media (min-width: 768px) {
   .block {
     grid-template-columns: var(--wide-columns);
@@ -23,5 +35,15 @@
   .tile {
     grid-column: var(--wide-column);
     grid-row: var(--wide-row);
+  }
+
+  .block[data-compact] {
+    grid-template-columns: repeat(3, minmax(0, 1fr));
+  }
+}
+
+@media (min-width: 1280px) {
+  .block[data-compact] {
+    grid-template-columns: repeat(4, minmax(0, 1fr));
   }
 }

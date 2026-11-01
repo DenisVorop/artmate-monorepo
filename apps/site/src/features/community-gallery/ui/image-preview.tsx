@@ -38,6 +38,7 @@ export function ImagePreview({ preview }: { preview: ReturnType<typeof useImageP
               alt={`Работа ${work.author.name}: ${work.official.coloring.title}`}
               className="object-contain"
               priority
+              sizes="(min-width: 1362px) 768px, (min-width: 768px) 56.4vw, 100vw"
             />
           </div>
           <div className="space-y-5 p-5 pb-[max(1.25rem,env(safe-area-inset-bottom))] md:overflow-y-auto lg:p-7">

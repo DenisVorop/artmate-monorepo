@@ -1,14 +1,18 @@
 "use client";
 
-import dynamic from "next/dynamic";
-
+import { lazy, Suspense, useCallback, useEffect, useState, type ComponentType } from "react";
 import { useGalleryWorks, type GalleryWorksFilters } from "@/entities/community-work";
 import { Button, DataState } from "@/shared/ui";
 
 import { useImagePreview } from "../lib/use-image-preview";
+import { schedulePreviewPreload } from "../lib/preload-preview";
 import { Mosaic } from "./mosaic";
+import { PreviewLoading } from "./preview-loading";
 
-const ImagePreview = dynamic(() => import("./image-preview").then((module) => module.ImagePreview));
+const loadImagePreview = () =>
+  import("./image-preview").then((module) => ({ default: module.ImagePreview }));
+const ImagePreview = lazy(loadImagePreview);
+type PreviewComponent = ComponentType<{ preview: ReturnType<typeof useImagePreview> }>;
 
 export function GalleryWorks({
   filters,
@@ -28,6 +32,16 @@ export function GalleryWorks({
     isFetchNextPageError,
   } = useGalleryWorks(filters);
   const preview = useImagePreview();
+  const [LoadedPreview, setLoadedPreview] = useState<PreviewComponent | null>(null);
+  const preloadImagePreview = useCallback(
+    () =>
+      loadImagePreview()
+        .then((module) => setLoadedPreview(() => module.default))
+        .catch(() => undefined),
+    [],
+  );
+  useEffect(() => schedulePreviewPreload(preloadImagePreview), [preloadImagePreview]);
+  const Preview = LoadedPreview ?? ImagePreview;
 
   if (isPending)
     return <DataState title="Загружаем работы" description="Собираем фотографии участников." />;
@@ -73,7 +87,7 @@ export function GalleryWorks({
 
   return (
     <section aria-label="Галерея работ участников" className="space-y-5 md:space-y-6">
-      <Mosaic works={works} onOpenImage={preview.openImage} />
+      <Mosaic works={works} onOpenImage={preview.openImage} onPreviewIntent={preloadImagePreview} />
       {hasNextPage && (
         <div className="flex flex-col items-center gap-3 pt-4">
           {isFetchNextPageError && (
@@ -95,7 +109,11 @@ export function GalleryWorks({
           </Button>
         </div>
       )}
-      {preview.selectedWork && <ImagePreview preview={preview} />}
+      {preview.selectedWork && (
+        <Suspense fallback={<PreviewLoading preview={preview} />}>
+          <Preview preview={preview} />
+        </Suspense>
+      )}
     </section>
   );
 }

@@ -1,7 +1,7 @@
 "use client";
 
 import { X } from "lucide-react";
-import type { ComponentProps, ReactNode, RefObject } from "react";
+import { useLayoutEffect, type ComponentProps, type ReactNode, type RefObject } from "react";
 
 import { useIsMobile } from "@/shared/lib/device";
 
@@ -65,6 +65,16 @@ export function ResponsiveMediaViewer({
   toolbar,
 }: ResponsiveMediaViewerProps) {
   const isMobile = useIsMobile();
+  useLayoutEffect(() => {
+    if (!open) return;
+    // The root scrolls on pages with overflow-x-hidden; locking only body is insufficient.
+    const root = document.documentElement;
+    const overflow = root.style.overflow;
+    root.style.overflow = "hidden";
+    return () => {
+      root.style.overflow = overflow;
+    };
+  }, [open]);
   const handleCloseAutoFocus = (event: Event) => {
     if (!returnFocusRef?.current) {
       return;
