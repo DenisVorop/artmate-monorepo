@@ -1,6 +1,7 @@
 import type { CatalogLandingPage as CatalogLandingPageData } from "@/entities/catalog-landings";
 import { CatalogLandingProducts } from "@/features/catalog-landing-products";
 import { CatalogLandingsLinks } from "@/features/catalog-landings-links";
+import { routes } from "@/shared/constants";
 import {
   Accordion,
   AccordionContent,
@@ -10,10 +11,9 @@ import {
   CardContent,
   CardHeader,
   CardTitle,
-  Separator,
+  PageHero,
 } from "@/shared/ui";
 
-import { Breadcrumbs } from "./ui/breadcrumbs";
 import { RichText } from "./ui/rich-text";
 
 type CatalogLandingPageProps = {
@@ -23,19 +23,24 @@ type CatalogLandingPageProps = {
 export function CatalogLandingPage({ landing }: CatalogLandingPageProps) {
   return (
     <main className="bg-background">
-      <section className="container py-10 md:py-14">
-        <Breadcrumbs title={landing.h1} />
-        <div className="max-w-3xl">
-          <h1 className="text-4xl font-semibold tracking-normal text-foreground md:text-5xl">
-            {landing.h1}
-          </h1>
-          <RichText className="mt-5 text-lg leading-8" html={landing.introHtml} />
-        </div>
+      <section className="container py-5 md:py-8">
+        <PageHero
+          breadcrumbs={[
+            { label: "Главная", href: routes.home },
+            { label: "Каталог", href: routes.catalog },
+            { label: landing.h1 },
+          ]}
+          title={landing.h1}
+          description={
+            landing.introHtml ? (
+              <RichText
+                className="text-sm leading-6 text-stone-600 [&_p:last-child]:mb-0"
+                html={landing.introHtml}
+              />
+            ) : undefined
+          }
+        />
       </section>
-
-      <div className="container">
-        <Separator />
-      </div>
 
       <CatalogLandingProducts products={landing.products} />
 

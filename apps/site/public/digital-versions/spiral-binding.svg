@@ -1,0 +1,98 @@
+<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 32 800" fill="none">
+  <title>Белая пружина с квадратной перфорацией</title>
+  <defs>
+    <linearGradient id="white-wire" x1="0" y1="12" x2="0" y2="29" gradientUnits="userSpaceOnUse">
+      <stop stop-color="#ffffff" />
+      <stop offset=".42" stop-color="#fafaf9" />
+      <stop offset=".78" stop-color="#e7e5e1" />
+      <stop offset="1" stop-color="#cfccc5" />
+    </linearGradient>
+    <linearGradient id="rear-wire" x1="0" y1="19" x2="0" y2="34" gradientUnits="userSpaceOnUse">
+      <stop stop-color="#e7e5e1" />
+      <stop offset="1" stop-color="#bbb7ae" />
+    </linearGradient>
+    <linearGradient id="hole-depth" x1="20" y1="15" x2="29" y2="25" gradientUnits="userSpaceOnUse">
+      <stop stop-color="#48453f" />
+      <stop offset="1" stop-color="#777168" />
+    </linearGradient>
+    <path id="rear-curves" d="M24 18C23 28 6 30 3 22M24 23C23 33 6 35 3 27" />
+    <path id="front-curves" d="M3 22C1 14 13 12 24 18M3 27C1 19 13 17 24 23" />
+    <g id="rear-turn" fill="none" stroke-linecap="round" stroke-linejoin="round">
+      <use
+        href="#rear-curves"
+        transform="translate(.3 .8)"
+        stroke="#57534e"
+        stroke-opacity=".18"
+        stroke-width="3.6"
+      />
+      <use href="#rear-curves" stroke="url(#rear-wire)" stroke-width="2.8" />
+    </g>
+    <g id="front-turn">
+      <path d="M19.5 14.5H29.5V25.5H19.5Z" fill="#1c1917" fill-opacity=".15" />
+      <path d="M20 15H29V24H20Z" fill="url(#hole-depth)" />
+      <path d="M20 24.5H29.5V15" stroke="#ffffff" stroke-opacity=".65" stroke-width=".7" />
+      <g fill="none" stroke-linecap="round" stroke-linejoin="round">
+        <use
+          href="#front-curves"
+          transform="translate(.3 .8)"
+          stroke="#57534e"
+          stroke-opacity=".24"
+          stroke-width="3.8"
+        />
+        <use href="#front-curves" stroke="#cbc8c0" stroke-width="3.7" />
+        <use href="#front-curves" stroke="url(#white-wire)" stroke-width="3.1" />
+        <use
+          href="#front-curves"
+          transform="translate(0 -.45)"
+          stroke="#ffffff"
+          stroke-opacity=".75"
+          stroke-width=".7"
+        />
+      </g>
+    </g>
+  </defs>
+  <g id="binding-back" fill="none">
+    <use href="#rear-turn" />
+    <use href="#rear-turn" y="40" />
+    <use href="#rear-turn" y="80" />
+    <use href="#rear-turn" y="120" />
+    <use href="#rear-turn" y="160" />
+    <use href="#rear-turn" y="200" />
+    <use href="#rear-turn" y="240" />
+    <use href="#rear-turn" y="280" />
+    <use href="#rear-turn" y="320" />
+    <use href="#rear-turn" y="360" />
+    <use href="#rear-turn" y="400" />
+    <use href="#rear-turn" y="440" />
+    <use href="#rear-turn" y="480" />
+    <use href="#rear-turn" y="520" />
+    <use href="#rear-turn" y="560" />
+    <use href="#rear-turn" y="600" />
+    <use href="#rear-turn" y="640" />
+    <use href="#rear-turn" y="680" />
+    <use href="#rear-turn" y="720" />
+    <use href="#rear-turn" y="760" />
+  </g>
+  <g id="binding-front" fill="none">
+    <use href="#front-turn" />
+    <use href="#front-turn" y="40" />
+    <use href="#front-turn" y="80" />
+    <use href="#front-turn" y="120" />
+    <use href="#front-turn" y="160" />
+    <use href="#front-turn" y="200" />
+    <use href="#front-turn" y="240" />
+    <use href="#front-turn" y="280" />
+    <use href="#front-turn" y="320" />
+    <use href="#front-turn" y="360" />
+    <use href="#front-turn" y="400" />
+    <use href="#front-turn" y="440" />
+    <use href="#front-turn" y="480" />
+    <use href="#front-turn" y="520" />
+    <use href="#front-turn" y="560" />
+    <use href="#front-turn" y="600" />
+    <use href="#front-turn" y="640" />
+    <use href="#front-turn" y="680" />
+    <use href="#front-turn" y="720" />
+    <use href="#front-turn" y="760" />
+  </g>
+</svg>

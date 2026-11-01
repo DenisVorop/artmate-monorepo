@@ -7,10 +7,13 @@ import {
   useColoringCollectionsData,
 } from "@/entities/coloring-collection";
 import { routes } from "@/shared/constants";
+import { cn } from "@/shared/lib/utils";
 import { AspectRatio, Button, DataState } from "@/shared/ui";
 import { Link } from "@/shared/ui/link";
 
 import { useTrackOpen } from "../lib/use-track-open";
+
+import styles from "./cover.module.css";
 
 export function ColoringCollectionsCatalog() {
   const { collections, isError, isPending, refetch } = useColoringCollectionsData();
@@ -57,7 +60,7 @@ export function ColoringCollectionsCatalog() {
 
   return (
     <section className="container pb-12 md:pb-16" aria-label="Тематики цифровых раскрасок">
-      <ul className="grid gap-4 sm:grid-cols-2 sm:gap-5 lg:grid-cols-3 xl:grid-cols-4">
+      <ul className="grid grid-cols-2 gap-3 sm:gap-5 md:grid-cols-3 lg:grid-cols-5">
         {collections.map((collection, index) => (
           <li key={collection.id}>
             <CollectionCover collection={collection} eager={index === 0} />
@@ -79,19 +82,52 @@ function CollectionCover({
     <Link
       href={routes.coloringCollection(collection.slug)}
       aria-label={`Открыть тематику «${collection.title}»`}
-      className="group block overflow-hidden rounded-2xl bg-muted shadow-sm ring-1 ring-stone-200 transition-shadow duration-300 hover:shadow-lg focus-visible:ring-3 focus-visible:ring-rose-400"
+      className="group relative block pt-0.5 pr-1.5 pb-2 pl-2.5 focus-visible:ring-3 focus-visible:ring-rose-400 sm:pl-3"
     >
-      <AspectRatio ratio={3 / 4} className="relative">
-        <Image
-          fill
-          src={collection.cover.url}
-          alt={collection.cover.alt}
-          unoptimized
-          loading={eager ? "eager" : "lazy"}
-          fetchPriority={eager ? "high" : undefined}
-          sizes="(min-width: 1280px) 25vw, (min-width: 1024px) 33vw, (min-width: 640px) 50vw, 100vw"
-          className="object-cover transition-transform duration-700 group-hover:scale-[1.025]"
+      <AspectRatio
+        ratio={collection.cover.width / collection.cover.height}
+        className="relative isolate"
+      >
+        <span
+          aria-hidden="true"
+          className="absolute inset-0 translate-x-1 translate-y-1.5 bg-stone-200 shadow-sm"
         />
+        <span
+          aria-hidden="true"
+          className="absolute inset-0 translate-x-0.5 translate-y-0.5 bg-white ring-1 ring-stone-300"
+        />
+        <svg
+          aria-hidden="true"
+          focusable="false"
+          viewBox="0 0 32 800"
+          fill="none"
+          preserveAspectRatio="none"
+          className={cn(styles.binding, styles.bindingBack)}
+        >
+          <use href="/digital-versions/spiral-binding.svg#binding-back" />
+        </svg>
+        <span className="absolute inset-0 z-10 overflow-hidden bg-white shadow-sm ring-1 ring-stone-200 transition-shadow duration-300 group-hover:shadow-lg">
+          <Image
+            fill
+            src={collection.cover.url}
+            alt={collection.cover.alt}
+            unoptimized
+            loading={eager ? "eager" : "lazy"}
+            fetchPriority={eager ? "high" : undefined}
+            sizes="(min-width: 1024px) 20vw, (min-width: 768px) 33vw, 50vw"
+            className="object-cover"
+          />
+        </span>
+        <svg
+          aria-hidden="true"
+          focusable="false"
+          viewBox="0 0 32 800"
+          fill="none"
+          preserveAspectRatio="none"
+          className={cn(styles.binding, styles.bindingFront)}
+        >
+          <use href="/digital-versions/spiral-binding.svg#binding-front" />
+        </svg>
       </AspectRatio>
     </Link>
   );

@@ -1,49 +1,25 @@
 import { ColoringCollectionsCatalog } from "@/features/coloring-collections-catalog";
 import { routes } from "@/shared/constants";
-import {
-  Badge,
-  Breadcrumb,
-  BreadcrumbItem,
-  BreadcrumbLink,
-  BreadcrumbList,
-  BreadcrumbPage,
-  BreadcrumbSeparator,
-} from "@/shared/ui";
-import { Link } from "@/shared/ui/link";
-import { PageTitle, SectionSubtitle } from "@/shared/ui/typography";
+import { Button, CtaGradientLink, PageHero } from "@/shared/ui";
 
 export function ColoringCollectionsPage() {
   return (
-    <main className="bg-[radial-gradient(circle_at_top_left,rgba(251,113,133,0.08),transparent_34rem)]">
-      <section className="container space-y-6 py-5 md:space-y-8 md:py-8">
-        <Breadcrumb>
-          <BreadcrumbList>
-            <BreadcrumbItem>
-              <BreadcrumbLink asChild>
-                <Link href={routes.home}>Главная</Link>
-              </BreadcrumbLink>
-            </BreadcrumbItem>
-            <BreadcrumbSeparator />
-            <BreadcrumbItem>
-              <BreadcrumbPage>Цифровые версии</BreadcrumbPage>
-            </BreadcrumbItem>
-          </BreadcrumbList>
-        </Breadcrumb>
-
-        <div className="grid items-end gap-4 md:grid-cols-[minmax(0,3fr)_minmax(18rem,2fr)] md:gap-8">
-          <div>
-            <Badge variant="secondary" className="mb-5 h-auto px-3 py-1.5 text-rose-700">
-              Цифровая библиотека Artmate
-            </Badge>
-            <PageTitle className="max-w-3xl">
-              Цифровые версии <span className="text-rose-500">ARTMATE</span>
-            </PageTitle>
-          </div>
-          <SectionSubtitle className="max-w-md pb-1 md:justify-self-end">
-            Выберите тематику и посмотрите, как каждая иллюстрация выглядит в палитре маркеров
-            Artmate.
-          </SectionSubtitle>
-        </div>
+    <main className="bg-stone-100/80 text-stone-900">
+      <section className="container py-5 md:py-8">
+        <PageHero
+          breadcrumbs={[{ label: "Главная", href: routes.home }, { label: "Цифровые версии" }]}
+          title="Цифровые версии"
+          description="Цветные образцы, контуры и палитры к раскраскам Artmate. Выберите альбом, затем нужную картину."
+          actions={
+            <Button
+              asChild
+              size="lg"
+              className="min-h-11 border-0 bg-gradient-to-r from-rose-500 via-rose-400 to-orange-400 px-5 font-semibold text-white shadow-sm shadow-rose-500/20 hover:from-rose-500/95 hover:via-rose-400/95 hover:to-orange-400/95"
+            >
+              <CtaGradientLink href={routes.catalogColorings}>Выбрать альбом</CtaGradientLink>
+            </Button>
+          }
+        />
       </section>
 
       <ColoringCollectionsCatalog />
