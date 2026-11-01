@@ -1,5 +1,12 @@
 # Changelog
 
+## [0.56.0](https://github.com/DenisVorop/artmate-monorepo/compare/v0.55.0...v0.56.0) (2026-11-01)
+
+
+### Features
+
+* **site:** restyle cashback and sale prices ([3598e81](https://github.com/DenisVorop/artmate-monorepo/commit/3598e81d2123283b4ab254ec17c27a29fe890c28))
+
 ## [0.55.0](https://github.com/DenisVorop/artmate-monorepo/compare/v0.54.2...v0.55.0) (2026-11-01)
 
 
