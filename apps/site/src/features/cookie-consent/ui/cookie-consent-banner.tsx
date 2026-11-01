@@ -27,20 +27,18 @@ export function CookieConsentBanner() {
       return;
     }
 
-    const updateHeight = () => {
-      rootStyle.setProperty(
-        "--site-cookie-consent-height",
-        `${section.getBoundingClientRect().height}px`,
-      );
-    };
-    const resizeObserver =
-      typeof ResizeObserver === "undefined" ? undefined : new ResizeObserver(updateHeight);
-
-    updateHeight();
-    resizeObserver?.observe(section);
+    const resizeObserver = new ResizeObserver(([entry]) => {
+      const height = entry?.borderBoxSize[0]?.blockSize;
+      if (height === undefined) return;
+      const value = `${height}px`;
+      if (rootStyle.getPropertyValue("--site-cookie-consent-height") !== value) {
+        rootStyle.setProperty("--site-cookie-consent-height", value);
+      }
+    });
+    resizeObserver.observe(section, { box: "border-box" });
 
     return () => {
-      resizeObserver?.disconnect();
+      resizeObserver.disconnect();
       resetHeight();
     };
   }, [isVisible]);
@@ -61,8 +59,8 @@ export function CookieConsentBanner() {
             <Cookie className="size-3.5 sm:size-4" aria-hidden="true" />
           </div>
           <p className="text-xs leading-4 text-stone-600 sm:text-sm sm:leading-5">
-            Сайт использует cookie и технические данные для работы сервиса. Нажимая
-            «Принять», вы соглашаетесь с{" "}
+            Сайт использует cookie и технические данные для работы сервиса. Нажимая «Принять», вы
+            соглашаетесь с{" "}
             <Link
               href={routes.legal.cookiePolicy}
               className="font-semibold text-stone-900 underline underline-offset-4 hover:text-rose-600 focus-visible:text-rose-600"

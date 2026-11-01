@@ -8,6 +8,10 @@ type CatalogLandingProductsProps = {
   readonly products: readonly Product[];
 };
 
+// This grid uses the full container, without the catalog sidebar.
+const imageSizes =
+  "(min-width: 96rem) 22.75rem, (min-width: 80rem) 18.75rem, (min-width: 64rem) 20rem, (min-width: 48rem) 22.5rem, (min-width: 40rem) 18.5rem, calc(50vw - 1.375rem)";
+
 export function CatalogLandingProducts({ products }: CatalogLandingProductsProps) {
   return (
     <section className="container py-10" aria-label="Товары подборки">
@@ -18,6 +22,7 @@ export function CatalogLandingProducts({ products }: CatalogLandingProductsProps
             product={product}
             cashback={<ProductCashback product={product} />}
             eagerImage={index === 0}
+            imageSizes={imageSizes}
             list="catalog_landing"
             position={index + 1}
           />

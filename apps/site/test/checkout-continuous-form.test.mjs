@@ -208,7 +208,7 @@ test("checkout fixed surfaces reserve cookie consent height and sticky summary f
     /top-\[calc\(var\(--site-header-banner-height\)\+var\(--site-header-nav-height\)\+1px\+1rem\)\]/u,
   );
   assert.doesNotMatch(summary, /lg:top-24/u);
-  assert.match(cookieBanner, /getBoundingClientRect\(\)\.height/u);
+  assert.doesNotMatch(cookieBanner, /getBoundingClientRect|offsetHeight|scrollHeight/u);
   assert.match(cookieBanner, /new ResizeObserver/u);
 });
 
@@ -237,7 +237,7 @@ test("cookie consent publishes its offset in a layout effect", async () => {
   assert.doesNotMatch(source, /\buseEffect\b/u);
 });
 
-test("cookie consent publishes its measured height and resets it after resize, hiding, and unmount", async () => {
+test("cookie consent publishes observed border-box height without synchronous layout reads and cleans up", async () => {
   const source = await readSource("src/features/cookie-consent/ui/cookie-consent-banner.tsx");
   const output = ts.transpileModule(source, {
     compilerOptions: {
@@ -251,10 +251,11 @@ test("cookie consent publishes its measured height and resets it after resize, h
   const section = {
     height: 132,
     getBoundingClientRect() {
-      return { height: this.height };
+      throw new Error("Cookie height must come from ResizeObserver");
     },
   };
   const styles = new Map();
+  const styleWrites = [];
   const effectSlots = [];
   const observers = [];
   let effectCursor = 0;
@@ -265,8 +266,9 @@ test("cookie consent publishes its measured height and resets it after resize, h
       observers.push(this);
     }
 
-    observe(target) {
+    observe(target, options) {
       this.target = target;
+      this.options = options;
     }
 
     disconnect() {
@@ -312,7 +314,11 @@ test("cookie consent publishes its measured height and resets it after resize, h
     documentElement: {
       style: {
         removeProperty: (name) => styles.delete(name),
-        setProperty: (name, value) => styles.set(name, value),
+        getPropertyValue: (name) => styles.get(name) ?? "",
+        setProperty: (name, value) => {
+          styleWrites.push([name, value]);
+          styles.set(name, value);
+        },
       },
     },
   };
@@ -337,12 +343,20 @@ test("cookie consent publishes its measured height and resets it after resize, h
     };
 
     assert.ok(render());
-    assert.equal(styles.get("--site-cookie-consent-height"), "132px");
+    assert.equal(styles.has("--site-cookie-consent-height"), false);
     const observer = observers.at(-1);
     assert.strictEqual(observer.target, section);
+    assert.deepEqual(observer.options, { box: "border-box" });
+    const notify = (instance) =>
+      instance.callback([{ target: section, borderBoxSize: [{ blockSize: section.height }] }]);
+    notify(observer);
+    assert.equal(styles.get("--site-cookie-consent-height"), "132px");
+    const initialWrites = styleWrites.length;
+    notify(observer);
+    assert.equal(styleWrites.length, initialWrites);
 
     section.height = 168;
-    observer.callback();
+    notify(observer);
     assert.equal(styles.get("--site-cookie-consent-height"), "168px");
 
     consent.isAccepted = true;
@@ -352,6 +366,8 @@ test("cookie consent publishes its measured height and resets it after resize, h
 
     consent.isAccepted = false;
     assert.ok(render());
+    assert.equal(styles.has("--site-cookie-consent-height"), false);
+    notify(observers.at(-1));
     assert.equal(styles.get("--site-cookie-consent-height"), "168px");
     effectSlots.forEach((slot) => slot.cleanup?.());
     assert.equal(styles.has("--site-cookie-consent-height"), false);

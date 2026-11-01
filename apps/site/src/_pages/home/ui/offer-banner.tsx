@@ -30,6 +30,7 @@ export function OfferBanner() {
             width={1500}
             height={1100}
             loading="eager"
+            fetchPriority="high"
             sizes="(min-width: 1536px) 1324px, calc(88vw - 28px)"
             className={styles.campaignImage}
           />

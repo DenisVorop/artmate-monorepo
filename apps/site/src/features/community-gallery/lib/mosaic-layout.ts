@@ -60,29 +60,37 @@ function place(items: readonly { publicId: string }[], block: number, narrow: bo
   return { columns, ratio, positions };
 }
 
-function imageFraction(layout: Placement, index: number) {
-  const tracks = layout.columns.split(" ").map(Number.parseFloat);
-  const width = tracks[layout.positions[index]!.column - 1]! / tracks.reduce((a, b) => a + b, 0);
-  const span = Number(layout.positions[index]!.row.split("span ")[1]);
-  // object-cover also needs enough pixels when a tall tile crops the sides.
-  return Math.max(width, ((span / 12) * 0.8) / layout.ratio);
-}
-
 export function getMosaicImageSizes(
   block: { items: readonly unknown[]; wide: Placement; narrow: Placement },
   index: number,
 ) {
   const compact = block.items.length <= 3;
-  const wide = compact ? 1 / 3 : imageFraction(block.wide, index);
-  const narrow = compact ? 1 / 2 : imageFraction(block.narrow, index);
-  const large = compact ? 1 / 4 : wide;
-  const fluid = (fraction: number) =>
-    `calc(${(fraction * 100).toFixed(3)}vw - ${(fraction * 32).toFixed(3)}px)`;
+  const size = (layout: Placement, gap: number, compactColumns: number, capped = false) => {
+    const length = (fraction: number, gapOffset: number) =>
+      capped
+        ? `${(fraction * 1468 - gapOffset).toFixed(1)}px`
+        : `calc(${(fraction * 100).toFixed(3)}vw - ${(fraction * 32 + gapOffset).toFixed(3)}px)`;
+
+    if (compact) {
+      // Compact tiles are 3:4; the 4:5 photo must also cover their full height.
+      const fraction = 4 / 5 / (3 / 4) / compactColumns;
+      return length(fraction, (compactColumns - 1) * gap * fraction);
+    }
+
+    const tracks = layout.columns.split(" ").map(Number.parseFloat);
+    const width = tracks[layout.positions[index]!.column - 1]! / tracks.reduce((a, b) => a + b, 0);
+    const span = Number(layout.positions[index]!.row.split("span ")[1]);
+    // Both grid axes exclude gaps. Keep enough pixels for object-cover in tall tiles.
+    return `max(${length(width, (tracks.length - 1) * gap * width)}, ${length(
+      ((span / 12) * 0.8) / layout.ratio,
+      (1 - span / 12) * gap * 0.8,
+    )})`;
+  };
   return [
-    `(min-width: 1500px) ${(large * 1468).toFixed(1)}px`,
-    `(min-width: 1280px) ${fluid(large)}`,
-    `(min-width: 768px) ${fluid(wide)}`,
-    fluid(narrow),
+    `(min-width: 1500px) ${size(block.wide, 20, 4, true)}`,
+    `(min-width: 1280px) ${size(block.wide, 20, 4)}`,
+    `(min-width: 768px) ${size(block.wide, 20, 3)}`,
+    size(block.narrow, 12, 2),
   ].join(", ");
 }
 

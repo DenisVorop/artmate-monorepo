@@ -16,9 +16,7 @@ async function load(path) {
 }
 
 test("preview code uses idle time even while other page resources are loading; unmount cancels it", async () => {
-  const { scheduleIdlePreload } = await load(
-    "shared/lib/schedule-idle-preload.ts",
-  );
+  const { scheduleIdlePreload } = await load("shared/lib/schedule-idle-preload.ts");
   const originalWindow = globalThis.window;
   const originalDocument = globalThis.document;
   let idle, cancelled;
@@ -52,9 +50,7 @@ test("preview code uses idle time even while other page resources are loading; u
 });
 
 test("browsers without idle callbacks schedule a cancellable task and tolerate failed prefetch", async () => {
-  const { scheduleIdlePreload } = await load(
-    "shared/lib/schedule-idle-preload.ts",
-  );
+  const { scheduleIdlePreload } = await load("shared/lib/schedule-idle-preload.ts");
   const originalWindow = globalThis.window;
   const originalDocument = globalThis.document;
   let run, cancelled;
@@ -90,7 +86,10 @@ test("image candidates expose every supported width and preserve the source quer
   const candidates = getPublicAssetSrcSet(
     "https://api.artmate.example/club/works/work/assets/web?v=revision",
   ).split(", ");
-  const expected = [160, 240, 320, 480, 640, 800, 960, 1200];
+  const expected = [
+    160, 200, 240, 280, 320, 360, 400, 440, 480, 520, 560, 600, 640, 680, 720, 760, 800, 880, 960,
+    1080, 1200,
+  ];
   assert.equal(candidates.length, expected.length);
   candidates.forEach((candidate, index) => {
     const [src, descriptor] = candidate.split(" ");
@@ -111,8 +110,30 @@ test("mosaic image hints follow wide columns, cover crops and the compact grid i
   assert.notEqual(getMosaicImageSizes(block, 0), getMosaicImageSizes(block, 1));
   const [single] = getMosaicBlocks(works.slice(0, 1));
   const compact = getMosaicImageSizes(single, 0);
-  assert.match(compact, /367\.0px/);
-  assert.match(compact, /25\.000vw/);
-  assert.match(compact, /33\.333vw/);
-  assert.match(compact, /50\.000vw/);
+  assert.match(compact, /375\.5px/);
+  assert.match(compact, /26\.667vw/);
+  assert.match(compact, /35\.556vw/);
+  assert.match(compact, /53\.333vw/);
+});
+
+test("mosaic hints subtract column and row gaps while preserving cover resolution", async () => {
+  const { getMosaicImageSizes } = await load("features/community-gallery/lib/mosaic-layout.ts");
+  const layout = {
+    columns: "2fr 1fr 1fr",
+    ratio: 1.6,
+    positions: [
+      { column: 1, row: "1 / span 12" },
+      { column: 2, row: "1 / span 6" },
+    ],
+  };
+  const block = { items: Array(5), wide: layout, narrow: layout };
+  const fullHeight = getMosaicImageSizes(block, 0);
+  // At the cap, width = (1468 - 2 * 20) / 2; cover needs 1468 / 1.6 * 0.8.
+  assert.match(fullHeight, /max\(714\.0px, 734\.0px\)/);
+  assert.match(fullHeight, /max\(calc\(50\.000vw - 36\.000px\), calc\(50\.000vw - 16\.000px\)\)/);
+  const halfHeight = getMosaicImageSizes(block, 1);
+  // A six-row tile includes five of the eleven row gaps.
+  assert.match(halfHeight, /max\(357\.0px, 359\.0px\)/);
+  assert.match(halfHeight, /max\(calc\(25\.000vw - 18\.000px\), calc\(25\.000vw - 16\.000px\)\)/);
+  assert.match(halfHeight, /max\(calc\(25\.000vw - 14\.000px\), calc\(25\.000vw - 12\.800px\)\)/);
 });

@@ -1,4 +1,7 @@
-const publicImageWidths = [160, 240, 320, 480, 640, 800, 960, 1200];
+const publicImageWidths = [
+  160, 200, 240, 280, 320, 360, 400, 440, 480, 520, 560, 600, 640, 680, 720, 760, 800, 880, 960,
+  1080, 1200,
+];
 
 export function getPublicAssetSrcSet(src: string) {
   return publicImageWidths

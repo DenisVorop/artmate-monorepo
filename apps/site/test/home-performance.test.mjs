@@ -19,6 +19,28 @@ async function load(path, mocks = {}) {
   return mod.exports;
 }
 
+test("home LCP banner is in server HTML with a high-priority responsive preload", async () => {
+  const { OfferBanner } = await load("_pages/home/ui/offer-banner.tsx", {
+    "@/features/home-offer": { HomeOffer: () => React.createElement("span", null, "−12%") },
+    "@/shared/lib": { cn: (...values) => values.filter(Boolean).join(" ") },
+    "./constants": { homeLinks: { albums: "/catalog/raskraski" } },
+    "./home.module.css": { default: {} },
+  });
+  const html = renderToStaticMarkup(React.createElement(OfferBanner));
+  const image = html.match(/<img\b[^>]*alt="Кот в очках[^>]*>/)?.[0];
+  const preload = [...html.matchAll(/<link\b[^>]*>/g)]
+    .map(([tag]) => tag)
+    .find((tag) => tag.includes("cats-glasses-banner.webp"));
+  assert.ok(image, "The LCP image must be discoverable before hydration");
+  assert.match(image, /loading="eager"/);
+  assert.match(image, /fetchPriority="high"/i);
+  assert.match(image, /srcSet=/i);
+  assert.ok(preload, "React should preload the responsive LCP image from server HTML");
+  assert.match(preload, /rel="preload"/);
+  assert.match(preload, /as="image"/);
+  assert.match(preload, /fetchPriority="high"/i);
+});
+
 test("Ozon card requests a responsive CDN rendition and preserves signed query parameters", async () => {
   const { ozonImageLoader } = await load("shared/lib/image-url.ts");
   const source = "https://ir.ozone.ru/s3/multimedia-1-s/13242365452.jpg?test=1";

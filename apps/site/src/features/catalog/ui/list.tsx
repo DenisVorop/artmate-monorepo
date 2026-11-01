@@ -2,6 +2,7 @@
 
 import { ProductCard } from "@/entities/products";
 import { useCatalog } from "../lib/catalog-provider";
+import { imageSizes } from "../lib/image-sizes";
 import { EmptyState } from "./empty-state";
 import { Summary } from "./summary";
 
@@ -22,6 +23,7 @@ export function List() {
                 <ProductCard
                   product={product}
                   eagerImage={index === 0}
+                  imageSizes={imageSizes}
                   mediaAspectRatio={3 / 4}
                   variant="plain"
                 />
@@ -52,7 +54,12 @@ export function List() {
                     {renderProductCard ? (
                       renderProductCard(product, index, "catalog_search_suggestions")
                     ) : (
-                      <ProductCard product={product} mediaAspectRatio={3 / 4} variant="plain" />
+                      <ProductCard
+                        product={product}
+                        imageSizes={imageSizes}
+                        mediaAspectRatio={3 / 4}
+                        variant="plain"
+                      />
                     )}
                   </li>
                 ))}

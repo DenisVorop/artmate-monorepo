@@ -280,7 +280,7 @@ test("digital catalog UI keeps covers clean, uses light card derivatives, and ha
 
   assert.match(catalog, /aria-label=\{`Открыть тематику «\$\{collection\.title\}»`\}/);
   assert.match(catalog, /src=\{collection\.cover\.url\}/);
-  assert.match(catalog, /\bunoptimized\b/);
+  assert.doesNotMatch(catalog, /\bunoptimized\b/);
   assert.match(catalog, /transition-shadow/);
   assert.match(catalog, /hover:shadow-lg/);
   assert.doesNotMatch(catalog, /hover:-translate-y/);
