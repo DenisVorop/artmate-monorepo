@@ -1,5 +1,12 @@
 # Changelog
 
+## [0.56.1](https://github.com/DenisVorop/artmate-monorepo/compare/v0.56.0...v0.56.1) (2026-11-01)
+
+
+### Performance Improvements
+
+* optimize page loading and image delivery ([5a2da79](https://github.com/DenisVorop/artmate-monorepo/commit/5a2da791521e1a99c9d0ac314b468381592ca68f))
+
 ## [0.56.0](https://github.com/DenisVorop/artmate-monorepo/compare/v0.55.0...v0.56.0) (2026-11-01)
 
 
