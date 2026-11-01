@@ -1,5 +1,12 @@
 # Changelog
 
+## [0.55.0](https://github.com/DenisVorop/artmate-monorepo/compare/v0.54.2...v0.55.0) (2026-11-01)
+
+
+### Features
+
+* **site:** unify catalog and digital design ([f399578](https://github.com/DenisVorop/artmate-monorepo/commit/f399578e369943a3a9ced959b7e85bd2ea5b287f))
+
 ## [0.54.2](https://github.com/DenisVorop/artmate-monorepo/compare/v0.54.1...v0.54.2) (2026-11-01)
 
 
