@@ -44,9 +44,9 @@ export function PageHero({ title, description, breadcrumbs, actions }: PageHeroP
       <div className={cn("grid gap-x-8 gap-y-3", actions && "sm:grid-cols-[minmax(0,1fr)_auto]")}>
         <PageTitle className="sm:col-start-1 sm:row-start-1">{title}</PageTitle>
         {description && (
-          <p className="max-w-2xl text-sm leading-6 text-stone-600 sm:col-start-1 sm:row-start-2">
+          <div className="max-w-2xl text-sm leading-6 text-stone-600 sm:col-start-1 sm:row-start-2">
             {description}
-          </p>
+          </div>
         )}
         {actions && (
           <div className="flex min-w-0 flex-col gap-3 sm:col-start-2 sm:row-start-1 sm:flex-row sm:self-end">
