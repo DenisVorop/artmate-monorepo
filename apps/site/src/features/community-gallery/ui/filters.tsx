@@ -17,7 +17,7 @@ export function Filters({
 }: {
   options: GalleryFilters;
   filters: GalleryWorksFilters;
-  onChange(_filters: GalleryWorksFilters): void;
+  onChange(_update: (_current: GalleryWorksFilters) => GalleryWorksFilters): void;
   onReset(): void;
 }) {
   const mobile = useIsMobile();
@@ -49,13 +49,21 @@ export function Filters({
           selected={selected}
           value={albumLabel}
           mobile={mobile}
-          onChange={(collections) => onChange({ ...filters, collections })}
+          onToggle={(slug) =>
+            onChange((current) => ({
+              ...current,
+              collections: (current.collections ?? []).includes(slug)
+                ? current.collections!.filter((item) => item !== slug)
+                : [...(current.collections ?? []), slug],
+            }))
+          }
+          onClear={() => onChange((current) => ({ ...current, collections: [] }))}
         />
         <NumberFilter
           numbers={numbers}
           selected={filters.number}
           mobile={mobile}
-          onChange={(number) => onChange({ ...filters, number })}
+          onChange={(number) => onChange((current) => ({ ...current, number }))}
         />
         {hasFilters && (
           <Button

@@ -43,6 +43,14 @@ const processingTimeoutSeconds = 20;
 
 @Injectable()
 export class WorkshopMediaService {
+  async resize(buffer: Buffer, width: number) {
+    return sharp(buffer, { limitInputPixels: maxDecodePixels })
+      .resize({ width, withoutEnlargement: true })
+      .webp({ quality: 78, effort: 4 })
+      .timeout({ seconds: processingTimeoutSeconds })
+      .toBuffer();
+  }
+
   async processPhoto(
     file: WorkshopUploadedFile,
     crop: WorkshopCrop,
@@ -68,7 +76,9 @@ export class WorkshopMediaService {
         orientedHeight > maxInputSide ||
         orientedWidth * orientedHeight > maxInputPixels
       ) {
-        throw new BadRequestException("Workshop photo dimensions are too large");
+        throw new BadRequestException(
+          "Workshop photo dimensions are too large",
+        );
       }
 
       // Force a complete single-page decode before deriving any stored bytes.
@@ -194,7 +204,8 @@ export class WorkshopMediaService {
       throw new BadRequestException("Workshop photo channels are invalid");
     }
 
-    const baseWidth = Math.floor(Math.min(info.width, info.height * 0.8) / 4) * 4;
+    const baseWidth =
+      Math.floor(Math.min(info.width, info.height * 0.8) / 4) * 4;
     const cropWidth = Math.floor(baseWidth / crop.zoom / 4) * 4;
     const cropHeight = (cropWidth * 5) / 4;
 
@@ -225,7 +236,10 @@ export class WorkshopMediaService {
     maxWidth: number,
     quality: number,
   ): Promise<WorkshopAsset> {
-    const width = Math.max(4, Math.floor(Math.min(input.width, maxWidth) / 4) * 4);
+    const width = Math.max(
+      4,
+      Math.floor(Math.min(input.width, maxWidth) / 4) * 4,
+    );
     const height = (width * 5) / 4;
     const buffer = await sharp(input.pixels, {
       raw: { width: input.width, height: input.height, channels: 3 },
@@ -285,9 +299,9 @@ export class WorkshopMediaService {
 
     if (
       buffer.length >= 8 &&
-      buffer.subarray(0, 8).equals(
-        Buffer.from([0x89, 0x50, 0x4e, 0x47, 0x0d, 0x0a, 0x1a, 0x0a]),
-      )
+      buffer
+        .subarray(0, 8)
+        .equals(Buffer.from([0x89, 0x50, 0x4e, 0x47, 0x0d, 0x0a, 0x1a, 0x0a]))
     ) {
       return "image/png" as const;
     }

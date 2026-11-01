@@ -65,6 +65,7 @@ test("home hydration includes one featured work per collection, not all twelve f
 
 test("public thumbnail is present in server HTML and loads lazily without a base64 action round trip", async () => {
   const { PublicAssetImage } = await load("entities/community-work/ui/public-asset-image.tsx", {
+    "../lib/image": await load("entities/community-work/lib/image.ts"),
     "next/image": {
       default: ({ src, alt, loading, className }) =>
         React.createElement("img", { src, alt, loading, className }),
@@ -77,4 +78,14 @@ test("public thumbnail is present in server HTML and loads lazily without a base
   assert.match(html, /loading="lazy"/);
   assert.ok(html.includes(`src="${src}"`));
   assert.doesNotMatch(html, /data:image|animate-pulse/);
+  const responsive = renderToStaticMarkup(
+    React.createElement(PublicAssetImage, {
+      src: src.replace("thumb", "web"),
+      alt: "Работа участника",
+      sizes: "50vw",
+    }),
+  );
+  assert.match(responsive, /<source type="image\/webp"/);
+  assert.match(responsive, /width=320 320w/);
+  assert.match(responsive, /sizes="50vw"/);
 });

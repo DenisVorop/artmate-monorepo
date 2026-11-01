@@ -10,22 +10,30 @@ export function CommunityWorkImageCard({
   work,
   onOpenImage,
   priority = false,
+  imageSizes = "(max-width: 767px) 50vw, 33vw",
+  onPreviewIntent,
 }: {
   work: CommunityWorkSummary;
   onOpenImage: MouseEventHandler<HTMLButtonElement>;
   priority?: boolean;
+  imageSizes?: string;
+  onPreviewIntent?: () => void;
 }) {
   return (
     <Button
       type="button"
       variant="ghost"
       onClick={onOpenImage}
+      onPointerEnter={onPreviewIntent}
+      onFocus={onPreviewIntent}
+      onPointerDown={onPreviewIntent}
       aria-label={`Открыть работу «${work.official.coloring.title}» автора ${work.author.name}`}
       className="group relative block h-full w-full overflow-hidden rounded-2xl bg-stone-100 p-0 text-left font-normal whitespace-normal focus-visible:ring-rose-400"
     >
       <PublicAssetImage
         key={work.revisionId}
         src={work.submission.assets.web}
+        sizes={imageSizes}
         alt={`Работа ${work.author.name}: ${work.official.coloring.title}`}
         priority={priority}
         className="object-cover"

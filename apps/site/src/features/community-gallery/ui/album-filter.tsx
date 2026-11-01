@@ -26,13 +26,12 @@ type Props = {
   selected: string[];
   value: string;
   mobile: boolean;
-  onChange(_selected: string[]): void;
+  onToggle(_slug: string): void;
+  onClear(): void;
 };
 
-export function AlbumFilter({ options, selected, value, mobile, onChange }: Props) {
+export function AlbumFilter({ options, selected, value, mobile, onToggle, onClear }: Props) {
   const id = useId();
-  const toggle = (slug: string, checked: boolean) =>
-    onChange(checked ? [...selected, slug] : selected.filter((item) => item !== slug));
   const field = <FilterField label="Альбом" value={value} className="md:w-88" />;
   if (mobile)
     return (
@@ -58,11 +57,7 @@ export function AlbumFilter({ options, selected, value, mobile, onChange }: Prop
               htmlFor={`${id}-all`}
               className="min-h-13 cursor-pointer gap-3 rounded-xl px-3 py-3 text-base font-normal"
             >
-              <Checkbox
-                id={`${id}-all`}
-                checked={!selected.length}
-                onCheckedChange={() => onChange([])}
-              />
+              <Checkbox id={`${id}-all`} checked={!selected.length} onCheckedChange={onClear} />
               Все альбомы
             </Label>
             <div className="my-1 border-t border-stone-100" />
@@ -75,7 +70,7 @@ export function AlbumFilter({ options, selected, value, mobile, onChange }: Prop
                 <Checkbox
                   id={`${id}-${option.slug}`}
                   checked={selected.includes(option.slug)}
-                  onCheckedChange={(checked) => toggle(option.slug, checked === true)}
+                  onCheckedChange={() => onToggle(option.slug)}
                 />
                 {getCommunityCollectionTitle(option.title)}
               </Label>
@@ -103,7 +98,7 @@ export function AlbumFilter({ options, selected, value, mobile, onChange }: Prop
       >
         <DropdownMenuCheckboxItem
           checked={!selected.length}
-          onCheckedChange={() => onChange([])}
+          onCheckedChange={onClear}
           onSelect={(event) => event.preventDefault()}
           className="min-h-12 rounded-lg py-3"
         >
@@ -114,7 +109,7 @@ export function AlbumFilter({ options, selected, value, mobile, onChange }: Prop
           <DropdownMenuCheckboxItem
             key={option.slug}
             checked={selected.includes(option.slug)}
-            onCheckedChange={(checked) => toggle(option.slug, checked)}
+            onCheckedChange={() => onToggle(option.slug)}
             onSelect={(event) => event.preventDefault()}
             className="min-h-12 rounded-lg py-3"
           >

@@ -1,15 +1,24 @@
-'use client';
+"use client";
 
-import type { Route } from 'next';
-import { usePathname, useRouter, useSearchParams } from 'next/navigation';
-import type { ReactNode } from 'react';
-import { useCallback, useMemo } from 'react';
+import type { Route } from "next";
+import { usePathname, useRouter, useSearchParams } from "next/navigation";
+import type { ReactNode } from "react";
+import { useCallback, useMemo } from "react";
 
-import { useStableCallback } from '../hooks/use-stable-callback';
-import { objectEntries } from '../object-entries';
+import { useStableCallback } from "../hooks/use-stable-callback";
+import { objectEntries } from "../object-entries";
 
-import { QueryStateContext } from './query-state.context';
-import type { TQueryStateContext, SearchParams } from './query-state.context';
+import { QueryStateContext } from "./query-state.context";
+import type { TQueryStateContext, SearchParams } from "./query-state.context";
+
+function readParams(params: URLSearchParams): SearchParams {
+  const result: SearchParams = {};
+  for (const key of new Set(params.keys())) {
+    const values = params.getAll(key);
+    result[key] = values.length > 1 ? values : values[0];
+  }
+  return result;
+}
 
 export function QueryStateProvider({ children }: { children?: ReactNode }) {
   const router = useRouter();
@@ -17,21 +26,22 @@ export function QueryStateProvider({ children }: { children?: ReactNode }) {
   const searchParams = useSearchParams();
 
   const updateURLParams = useCallback(
-    (newParams: SearchParams) => {
+    (newParams: SearchParams, options?: { shallow?: boolean }) => {
       const queryString = new URLSearchParams();
       objectEntries(newParams).forEach(([key, value]) => {
         if (Array.isArray(value)) {
           value.forEach((v) => {
             queryString.append(key, v);
           });
-        } else if (typeof value === 'string') {
+        } else if (typeof value === "string") {
           queryString.append(key, value);
         }
       });
 
       const search = queryString.toString();
       const url = search ? `?${search}` : pathname;
-      router.replace(url as Route, { scroll: false });
+      if (options?.shallow) window.history.replaceState(null, "", url + window.location.hash);
+      else router.replace(url as Route, { scroll: false });
     },
     [pathname, router],
   );
@@ -48,12 +58,14 @@ export function QueryStateProvider({ children }: { children?: ReactNode }) {
 
   /** Массовое добавление параметров. Значения, по совпадающим ключам, будут заменены. */
   const addMany = useCallback(
-    (newEntries: Record<string, string | string[]>) => {
-      const newParams = { ...Object.fromEntries(searchParams.entries()) } as SearchParams;
+    (newEntries: Record<string, string | string[]>, options?: { shallow?: boolean }) => {
+      const newParams = readParams(
+        options?.shallow ? new URLSearchParams(window.location.search) : searchParams,
+      );
       objectEntries(newEntries).forEach(([key, value]) => {
         newParams[key] = value;
       });
-      updateURLParams(newParams);
+      updateURLParams(newParams, options);
     },
     [searchParams, updateURLParams],
   );
@@ -70,10 +82,13 @@ export function QueryStateProvider({ children }: { children?: ReactNode }) {
   /** Массовое обновление параметров */
   const updateMany = useCallback(
     (newEntries: Record<string, string | string[]>) => {
-      const patch = Object.entries(newEntries).reduce((acc, [key, value]) => {
-        const p = patchParams(acc, key, value);
-        return { ...acc, ...p };
-      }, Object.fromEntries(searchParams.entries()) as SearchParams);
+      const patch = Object.entries(newEntries).reduce(
+        (acc, [key, value]) => {
+          const p = patchParams(acc, key, value);
+          return { ...acc, ...p };
+        },
+        Object.fromEntries(searchParams.entries()) as SearchParams,
+      );
       updateURLParams(patch);
     },
     [searchParams, updateURLParams],
@@ -139,7 +154,7 @@ export function QueryStateProvider({ children }: { children?: ReactNode }) {
   );
 
   const ctx = useMemo<TQueryStateContext<SearchParams>>(
-    () => [Object.fromEntries(searchParams.entries()), methods],
+    () => [readParams(searchParams), methods],
     [methods, searchParams],
   );
 
@@ -149,15 +164,15 @@ export function QueryStateProvider({ children }: { children?: ReactNode }) {
 function patchParams(params: SearchParams, key: string, value: string | string[]): SearchParams {
   const patchingParams = { ...params };
   if (!patchingParams[key]) patchingParams[key] = value;
-  if (typeof patchingParams[key] === 'string') {
-    if (typeof value === 'string') {
+  if (typeof patchingParams[key] === "string") {
+    if (typeof value === "string") {
       patchingParams[key] = [...new Set([patchingParams[key], value])];
     } else if (Array.isArray(value)) {
       patchingParams[key] = [...new Set([patchingParams[key], ...value])];
     }
   }
   if (Array.isArray(patchingParams[key])) {
-    if (typeof value === 'string') {
+    if (typeof value === "string") {
       patchingParams[key] = [...new Set([...patchingParams[key], value])];
     } else if (Array.isArray(value)) {
       patchingParams[key] = [...new Set([...patchingParams[key], ...value])];

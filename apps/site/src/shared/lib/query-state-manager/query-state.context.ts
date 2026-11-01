@@ -1,6 +1,6 @@
-'use client';
+"use client";
 
-import { createContext, useContext } from 'react';
+import { createContext, useContext } from "react";
 
 type SearchValue = string | string[] | undefined;
 export type SearchParams = Record<string, SearchValue>;
@@ -11,7 +11,10 @@ export type TQueryStateContext<T extends SearchParams> = [
     /** Добавить параметр. Если такой ключ уже есть, то его значение будет заменено. */
     add<K extends keyof T>(_key: K, _value: Exclude<T[K], undefined>): void;
     /** Массовое добавление параметров. Значения, по совпадающим ключам, будут заменены. */
-    addMany<K extends keyof T>(_newEntries: Record<K, Exclude<T[K], undefined>>): void;
+    addMany<K extends keyof T>(
+      _newEntries: Record<K, Exclude<T[K], undefined>>,
+      _options?: { shallow?: boolean },
+    ): void;
     /** Обновить существующий или добавить новый параметр. */
     update<K extends keyof T>(_key: K, _value: Exclude<T[K], undefined>): void;
     /** Массовое обновление параметров */
@@ -32,7 +35,7 @@ export type TQueryStateContext<T extends SearchParams> = [
 ];
 
 const stub = () => {
-  throw new Error('<QueryStateContextProvider> not found.');
+  throw new Error("<QueryStateContextProvider> not found.");
 };
 
 export const QueryStateContext = createContext<TQueryStateContext<SearchParams>>([
@@ -51,7 +54,7 @@ export const QueryStateContext = createContext<TQueryStateContext<SearchParams>>
   },
 ]);
 
-QueryStateContext.displayName = 'QueryStateContext';
+QueryStateContext.displayName = "QueryStateContext";
 
 export function useQueryState<T extends SearchParams>() {
   return useContext(QueryStateContext) as unknown as TQueryStateContext<T>;

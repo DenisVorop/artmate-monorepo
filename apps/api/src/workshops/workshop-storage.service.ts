@@ -26,6 +26,8 @@ export type WorkshopStorageEntry = {
 @Injectable()
 export class WorkshopStorageService {
   private readonly logger = new Logger(WorkshopStorageService.name);
+  private readonly resizedAssets = new Map<string, Buffer>();
+  private resizedBytes = 0;
 
   constructor(
     private readonly media: WorkshopMediaService,
@@ -57,7 +59,9 @@ export class WorkshopStorageService {
 
       return stored;
     } catch (error) {
-      await this.cleanup(stored.filter(({ created }) => created).map(({ key }) => key));
+      await this.cleanup(
+        stored.filter(({ created }) => created).map(({ key }) => key),
+      );
       throw error;
     }
   }
@@ -65,11 +69,15 @@ export class WorkshopStorageService {
   async read(
     key: string,
     expected: { checksum: string; width: number; height: number },
+    width?: number,
   ) {
     try {
       const path = this.resolveKey(key);
       await this.assertSafePath(path);
-      const handle = await open(path, constants.O_RDONLY | constants.O_NOFOLLOW);
+      const handle = await open(
+        path,
+        constants.O_RDONLY | constants.O_NOFOLLOW,
+      );
 
       try {
         const opened = await handle.stat();
@@ -87,7 +95,33 @@ export class WorkshopStorageService {
 
         const buffer = await handle.readFile();
         await this.media.verifyDerivative(buffer, expected);
-        return buffer;
+        if (width === undefined || width >= expected.width) return buffer;
+
+        // Eligibility, file safety and checksum are checked before using a derivative.
+        const cacheKey = `${key}:${width}`;
+        const cached = this.resizedAssets.get(cacheKey);
+        if (cached) {
+          this.resizedAssets.delete(cacheKey);
+          this.resizedAssets.set(cacheKey, cached);
+          return cached;
+        }
+        const resized = await this.media.resize(buffer, width);
+        const concurrent = this.resizedAssets.get(cacheKey);
+        if (concurrent) return concurrent;
+        const maxCacheBytes = 8 * 1024 * 1024;
+        if (resized.length <= maxCacheBytes) {
+          while (
+            this.resizedAssets.size >= 64 ||
+            this.resizedBytes + resized.length > maxCacheBytes
+          ) {
+            const oldest = this.resizedAssets.keys().next().value!;
+            this.resizedBytes -= this.resizedAssets.get(oldest)!.length;
+            this.resizedAssets.delete(oldest);
+          }
+          this.resizedAssets.set(cacheKey, resized);
+          this.resizedBytes += resized.length;
+        }
+        return resized;
       } finally {
         await handle.close();
       }
@@ -96,7 +130,11 @@ export class WorkshopStorageService {
         throw new NotFoundException("Workshop asset not found");
       }
 
-      if (error instanceof Error && "code" in error && error.code === "ENOENT") {
+      if (
+        error instanceof Error &&
+        "code" in error &&
+        error.code === "ENOENT"
+      ) {
         throw new NotFoundException("Workshop asset not found");
       }
 
@@ -112,7 +150,13 @@ export class WorkshopStorageService {
           await this.assertSafePath(path);
           await unlink(path);
         } catch (error) {
-          if (!(error instanceof Error && "code" in error && error.code === "ENOENT")) {
+          if (
+            !(
+              error instanceof Error &&
+              "code" in error &&
+              error.code === "ENOENT"
+            )
+          ) {
             this.logger.warn(`Failed to clean workshop asset ${key}`);
           }
         }
@@ -126,7 +170,9 @@ export class WorkshopStorageService {
       await this.assertSafePath(path);
       await unlink(path);
     } catch (error) {
-      if (!(error instanceof Error && "code" in error && error.code === "ENOENT")) {
+      if (
+        !(error instanceof Error && "code" in error && error.code === "ENOENT")
+      ) {
         throw error;
       }
     }

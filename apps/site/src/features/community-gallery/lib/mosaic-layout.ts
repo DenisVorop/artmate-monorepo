@@ -60,6 +60,32 @@ function place(items: readonly { publicId: string }[], block: number, narrow: bo
   return { columns, ratio, positions };
 }
 
+function imageFraction(layout: Placement, index: number) {
+  const tracks = layout.columns.split(" ").map(Number.parseFloat);
+  const width = tracks[layout.positions[index]!.column - 1]! / tracks.reduce((a, b) => a + b, 0);
+  const span = Number(layout.positions[index]!.row.split("span ")[1]);
+  // object-cover also needs enough pixels when a tall tile crops the sides.
+  return Math.max(width, ((span / 12) * 0.8) / layout.ratio);
+}
+
+export function getMosaicImageSizes(
+  block: { items: readonly unknown[]; wide: Placement; narrow: Placement },
+  index: number,
+) {
+  const compact = block.items.length <= 3;
+  const wide = compact ? 1 / 3 : imageFraction(block.wide, index);
+  const narrow = compact ? 1 / 2 : imageFraction(block.narrow, index);
+  const large = compact ? 1 / 4 : wide;
+  const fluid = (fraction: number) =>
+    `calc(${(fraction * 100).toFixed(3)}vw - ${(fraction * 32).toFixed(3)}px)`;
+  return [
+    `(min-width: 1500px) ${(large * 1468).toFixed(1)}px`,
+    `(min-width: 1280px) ${fluid(large)}`,
+    `(min-width: 768px) ${fluid(wide)}`,
+    fluid(narrow),
+  ].join(", ");
+}
+
 export function getMosaicBlocks<T extends { publicId: string }>(works: readonly T[]) {
   const blocks = [];
   let position = 0;

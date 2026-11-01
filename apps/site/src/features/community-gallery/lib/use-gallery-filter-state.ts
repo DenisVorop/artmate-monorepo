@@ -1,6 +1,6 @@
 "use client";
 
-import { useState } from "react";
+import { useRef, useState } from "react";
 import type { GalleryWorksFilters } from "@/entities/community-work";
 import { useQueryState } from "@/shared/lib/query-state-manager";
 import { getGalleryParams, readGalleryFilters } from "./gallery-state";
@@ -16,10 +16,16 @@ export function useGalleryFilterState(initialCollectionSlug?: string) {
     pending?.signature === signature
       ? pending.filters
       : readGalleryFilters(params, initialCollectionSlug);
+  const currentFilters = useRef(filters);
+  currentFilters.current = filters;
 
-  const updateFilters = (next: GalleryWorksFilters) => {
+  const updateFilters = (
+    update: GalleryWorksFilters | ((_current: GalleryWorksFilters) => GalleryWorksFilters),
+  ) => {
+    const next = typeof update === "function" ? update(currentFilters.current) : update;
+    currentFilters.current = next;
     setPending({ signature, filters: next });
-    addMany(getGalleryParams(next));
+    addMany(getGalleryParams(next), { shallow: true });
   };
 
   return { filters, updateFilters, clearFilters: () => updateFilters({ collections: [] }) };
