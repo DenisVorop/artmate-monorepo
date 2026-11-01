@@ -27,6 +27,8 @@ export function ImagePreview({ preview }: { preview: ReturnType<typeof useImageP
               src={preview.selectedWork.submission.assets.web}
               alt={`Работа ${preview.selectedWork.author.name}: ${preview.selectedWork.official.coloring.title}`}
               className="object-contain"
+              priority
+              sizes="(min-width: 1362px) 1200px, 94vw"
             />
           </div>
           <div className="mt-3 flex shrink-0 flex-col gap-3 rounded-xl border border-rose-100 bg-white p-3 sm:flex-row sm:items-center sm:justify-between sm:px-4">

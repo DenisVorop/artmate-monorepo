@@ -1,11 +1,11 @@
-import type { CSSProperties } from "react";
+import { memo, type CSSProperties } from "react";
 
 import { CommunityWorkImageCard, type CommunityWorkSummary } from "@/entities/community-work";
 
 import { getMosaicBlocks, getMosaicImageSizes } from "../lib/mosaic-layout";
 import styles from "./mosaic.module.css";
 
-export function Mosaic({
+export const Mosaic = memo(function Mosaic({
   works,
   onOpenImage,
   onPreviewIntent,
@@ -56,4 +56,4 @@ export function Mosaic({
       ))}
     </div>
   );
-}
+});

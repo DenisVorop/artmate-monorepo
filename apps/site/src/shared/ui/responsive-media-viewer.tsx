@@ -67,12 +67,11 @@ export function ResponsiveMediaViewer({
   const isMobile = useIsMobile();
   useLayoutEffect(() => {
     if (!open) return;
-    // The root scrolls on pages with overflow-x-hidden; locking only body is insufficient.
-    const root = document.documentElement;
-    const overflow = root.style.overflow;
-    root.style.overflow = "hidden";
+    const body = document.body;
+    const overflow = body.style.overflow;
+    body.style.overflow = "hidden";
     return () => {
-      root.style.overflow = overflow;
+      body.style.overflow = overflow;
     };
   }, [open]);
   const handleCloseAutoFocus = (event: Event) => {
@@ -89,6 +88,7 @@ export function ResponsiveMediaViewer({
       <Drawer {...drawerModalProps} open={open} onOpenChange={onOpenChange} direction="bottom">
         <DrawerContent
           data-responsive-media-viewer="drawer"
+          overlayClassName="supports-backdrop-filter:backdrop-blur-none"
           onCloseAutoFocus={handleCloseAutoFocus}
           className={
             compact
@@ -118,12 +118,13 @@ export function ResponsiveMediaViewer({
     <Dialog open={open} onOpenChange={onOpenChange}>
       <DialogContent
         data-responsive-media-viewer="dialog"
+        overlayClassName="supports-backdrop-filter:backdrop-blur-none"
         onCloseAutoFocus={handleCloseAutoFocus}
         showCloseButton={false}
         className={
           compact
-            ? "flex max-h-[90dvh] flex-col gap-0 overflow-hidden border-rose-100 bg-white p-0 text-stone-900 shadow-2xl sm:max-w-lg"
-            : "flex h-[min(92dvh,64rem)] max-w-[min(94vw,80rem)] flex-col gap-0 overflow-hidden border-rose-100 bg-white p-0 text-stone-900 shadow-2xl shadow-stone-950/20 ring-stone-900/10 sm:max-w-[min(94vw,80rem)]"
+            ? "flex max-h-[90dvh] flex-col gap-0 overflow-hidden border-rose-100 bg-white p-0 text-stone-900 shadow-2xl sm:max-w-lg data-open:animate-none data-closed:animate-none"
+            : "flex h-[min(92dvh,64rem)] max-w-[min(94vw,80rem)] flex-col gap-0 overflow-hidden border-rose-100 bg-white p-0 text-stone-900 shadow-2xl shadow-stone-950/20 ring-stone-900/10 sm:max-w-[min(94vw,80rem)] data-open:animate-none data-closed:animate-none"
         }
       >
         <DialogTitle className="sr-only">{title}</DialogTitle>

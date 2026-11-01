@@ -3,9 +3,9 @@
 import { lazy, Suspense, useCallback, useEffect, useState, type ComponentType } from "react";
 import { useGalleryWorks, type GalleryWorksFilters } from "@/entities/community-work";
 import { Button, DataState } from "@/shared/ui";
+import { scheduleIdlePreload } from "@/shared/lib/schedule-idle-preload";
 
 import { useImagePreview } from "../lib/use-image-preview";
-import { schedulePreviewPreload } from "../lib/preload-preview";
 import { Mosaic } from "./mosaic";
 import { PreviewLoading } from "./preview-loading";
 
@@ -40,7 +40,7 @@ export function GalleryWorks({
         .catch(() => undefined),
     [],
   );
-  useEffect(() => schedulePreviewPreload(preloadImagePreview), [preloadImagePreview]);
+  useEffect(() => scheduleIdlePreload(preloadImagePreview), [preloadImagePreview]);
   const Preview = LoadedPreview ?? ImagePreview;
 
   if (isPending)
@@ -109,7 +109,7 @@ export function GalleryWorks({
           </Button>
         </div>
       )}
-      {preview.selectedWork && (
+      {(LoadedPreview || preview.selectedWork) && (
         <Suspense fallback={<PreviewLoading preview={preview} />}>
           <Preview preview={preview} />
         </Suspense>

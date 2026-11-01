@@ -13,11 +13,13 @@ export function CommunityWorkCard({
   work,
   className,
   onOpenImage,
+  onPreviewIntent,
   href,
 }: {
   work: CommunityWorkSummary;
   className?: string;
   onOpenImage?: MouseEventHandler<HTMLButtonElement>;
+  onPreviewIntent?: () => void;
   href?: string;
 }) {
   const content = (
@@ -56,6 +58,9 @@ export function CommunityWorkCard({
       type="button"
       variant="ghost"
       onClick={onOpenImage}
+      onPointerEnter={onPreviewIntent}
+      onFocus={onPreviewIntent}
+      onPointerDown={onPreviewIntent}
       aria-label={`Открыть изображение: ${work.official.coloring.title}`}
       className={cn("w-full p-0 text-left font-normal whitespace-normal", cardClassName)}
     >

@@ -3,7 +3,7 @@ import { readFile } from "node:fs/promises";
 import { createRequire } from "node:module";
 import { test } from "node:test";
 import React from "react";
-import { renderToStaticMarkup } from "react-dom/server";
+import { renderToStaticMarkup, renderToString } from "react-dom/server";
 
 const require = createRequire(import.meta.url);
 const ts = require("typescript");
@@ -88,4 +88,65 @@ test("public thumbnail is present in server HTML and loads lazily without a base
   assert.match(responsive, /<source type="image\/webp"/);
   assert.match(responsive, /width=320 320w/);
   assert.match(responsive, /sizes="50vw"/);
+});
+
+test("a cold home preview keeps the page and work cards visible inside the app suspense boundary", async () => {
+  const pending = new Promise(() => {});
+  const PendingPreview = () => {
+    throw pending;
+  };
+  const work = {
+    publicId: "work-1",
+    official: { collection: { slug: "cats" }, coloring: { title: "Котик" } },
+  };
+  const preview = {
+    selectedWork: work,
+    isOpen: true,
+    triggerRef: { current: null },
+    onOpenChange() {},
+  };
+  const loading = await load("features/home-community/ui/preview-loading.tsx", {
+    "@/shared/ui": {
+      // eslint-disable-next-line react/prop-types -- Primitive stub isolates the suspense boundary.
+      ResponsiveMediaViewer: ({ children }) =>
+        React.createElement("section", { role: "dialog" }, children),
+    },
+    "@/shared/ui/skeleton": { Skeleton: () => React.createElement("div") },
+  });
+  const { HomeCommunity } = await load("features/home-community/ui/community.tsx", {
+    react: { ...React, lazy: () => PendingPreview },
+    "next/dynamic": { default: () => PendingPreview },
+    "@/entities/community-work": {
+      useFeaturedCollectionWorks: () => ({ works: [work] }),
+      CommunityWorkCard: () => React.createElement("button", null, "Открыть изображение: Котик"),
+    },
+    "@/shared/ui/typography": {
+      // eslint-disable-next-line react/prop-types -- Presentation stub for isolated component tests.
+      SectionTitle: ({ children }) => React.createElement("h2", null, children),
+    },
+    // eslint-disable-next-line react/prop-types -- Primitive stub for isolated component tests.
+    "@/shared/ui": { Button: ({ children }) => React.createElement("div", null, children) },
+    "@/shared/ui/link": {
+      // eslint-disable-next-line react/prop-types -- Primitive stub for isolated component tests.
+      Link: ({ href, children }) => React.createElement("a", { href }, children),
+    },
+    "@/shared/constants": { routes: { gallery: "/gallery" } },
+    "@/shared/lib": { cn: (...values) => values.filter(Boolean).join(" ") },
+    "@/shared/lib/schedule-idle-preload": { scheduleIdlePreload() {} },
+    "../lib/constants": { homeCommunityCollectionSlugs: ["cats"] },
+    "../lib/use-image-preview": { useImagePreview: () => preview },
+    "./preview-loading": loading,
+  });
+  const html = renderToString(
+    React.createElement(
+      React.Suspense,
+      { fallback: React.createElement("p", { "data-app-fallback": true }, "Страница скрыта") },
+      React.createElement(HomeCommunity),
+    ),
+  );
+  assert.match(html, /Работы участников/);
+  assert.match(html, /Открыть изображение: Котик/);
+  assert.match(html, /role="dialog"/);
+  assert.match(html, /Открываем фотографию…/);
+  assert.doesNotMatch(html, /data-app-fallback/);
 });
