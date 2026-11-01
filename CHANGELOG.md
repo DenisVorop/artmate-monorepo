@@ -1,5 +1,12 @@
 # Changelog
 
+## [0.54.1](https://github.com/DenisVorop/artmate-monorepo/compare/v0.54.0...v0.54.1) (2026-11-01)
+
+
+### Bug Fixes
+
+* **gallery:** improve filters and media loading ([4311aa7](https://github.com/DenisVorop/artmate-monorepo/commit/4311aa73a2eedaadbb0d703b54af67265b4273c7))
+
 ## [0.54.0](https://github.com/DenisVorop/artmate-monorepo/compare/v0.53.0...v0.54.0) (2026-10-31)
 
 
