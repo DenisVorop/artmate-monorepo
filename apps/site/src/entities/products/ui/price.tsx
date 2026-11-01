@@ -18,10 +18,24 @@ export function ProductPrice({
   const discountPercent = hasDiscount
     ? Math.floor(((originalPrice - price) / originalPrice) * 100)
     : 0;
+  const originalPriceLabel = hasDiscount ? (
+    <s
+      className={cn(
+        "whitespace-nowrap text-muted-foreground",
+        variant === "detail" && "text-lg",
+        variant === "card" && "text-sm decoration-rose-400",
+        variant === "compact" && "text-xs",
+      )}
+    >
+      <span className="sr-only">Обычная цена: </span>
+      {originalPrice.toLocaleString("ru-RU")} ₽
+    </s>
+  ) : null;
 
   return (
     <div className={cn("relative space-y-1", className)}>
       <div className="flex flex-wrap items-baseline gap-x-2 gap-y-1">
+        {variant === "card" && originalPriceLabel}
         <span
           className={cn(
             "font-semibold whitespace-nowrap tabular-nums",
@@ -34,18 +48,11 @@ export function ProductPrice({
           <span className="sr-only">{hasDiscount ? "Цена со скидкой: " : "Цена: "}</span>
           {price.toLocaleString("ru-RU")} ₽
         </span>
-        {hasDiscount && (
-          <s
-            className={cn(
-              "whitespace-nowrap text-muted-foreground",
-              variant === "detail" && "text-lg",
-              variant === "card" && "text-sm",
-              variant === "compact" && "text-xs",
-            )}
-          >
-            <span className="sr-only">Обычная цена: </span>
-            {originalPrice.toLocaleString("ru-RU")} ₽
-          </s>
+        {variant !== "card" && originalPriceLabel}
+        {hasDiscount && variant === "card" && discountPercent > 0 && (
+          <span className="text-sm font-semibold whitespace-nowrap text-rose-600 tabular-nums">
+            <span className="sr-only">Скидка: </span>−{discountPercent}%
+          </span>
         )}
         {hasDiscount && variant === "detail" && discountPercent > 0 && (
           <Badge

@@ -1,19 +1,11 @@
 "use client";
 
-import { Info } from "lucide-react";
 import { useState } from "react";
 
 import { LoyaltyPoints } from "@/entities/loyalty";
 import type { Product } from "@/entities/products";
 import { decline, cn } from "@/shared/lib";
-import {
-  Badge,
-  Button,
-  Tooltip,
-  TooltipContent,
-  TooltipProvider,
-  TooltipTrigger,
-} from "@/shared/ui";
+import { Button, Tooltip, TooltipContent, TooltipProvider, TooltipTrigger } from "@/shared/ui";
 
 import { useProductCashback } from "../lib/use-product-cashback";
 
@@ -28,30 +20,26 @@ export function ProductCashback({ product, className }: { product: Product; clas
     <TooltipProvider>
       <Tooltip open={open} onOpenChange={setOpen}>
         <TooltipTrigger asChild>
-          <Badge
-            asChild
-            variant="secondary"
-            className="border-emerald-100 bg-emerald-50 text-emerald-800"
+          <Button
+            type="button"
+            size="xs"
+            className={cn(
+              "h-7 rounded-sm bg-gradient-to-r from-rose-500 to-orange-400 px-2.5 text-sm font-bold text-white shadow-sm hover:from-rose-600 hover:to-orange-500 focus-visible:border-rose-300 focus-visible:ring-rose-400/40",
+              className,
+            )}
+            aria-label={`Кешбэк: ${pointsLabel} за «${product.title}»`}
+            onClick={(event) => {
+              event.preventDefault();
+              setOpen((value) => !value);
+            }}
           >
-            <Button
-              type="button"
-              variant="ghost"
-              size="xs"
-              className={cn(
-                "h-6 gap-1.5 px-2 hover:bg-emerald-100 hover:text-emerald-900",
-                className,
-              )}
-              aria-label={`О кешбэке за «${product.title}»`}
-              onClick={(event) => {
-                event.preventDefault();
-                setOpen((value) => !value);
-              }}
-            >
-              Кешбэк
-              <LoyaltyPoints points={reward.points} prefix="+" iconClassName="size-3.5" />
-              <Info className="size-3 opacity-60" aria-hidden="true" />
-            </Button>
-          </Badge>
+            <LoyaltyPoints
+              points={reward.points}
+              prefix="+"
+              className="flex-row-reverse"
+              iconClassName="size-4"
+            />
+          </Button>
         </TooltipTrigger>
         <TooltipContent side="top" align="start" className="max-w-56">
           За покупку этого товара можно получить {pointsLabel} в клубе Artmate.

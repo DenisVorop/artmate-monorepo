@@ -37,10 +37,6 @@ export function ProductCard({
   mediaActionVisibility = "hover",
   onOpen,
 }: ProductCardProps) {
-  const discountPercent =
-    product.originalPrice !== undefined && product.originalPrice > product.price
-      ? Math.floor(((product.originalPrice - product.price) / product.originalPrice) * 100)
-      : 0;
   const productHref = routes.product(product.categorySlug, product.slug);
   const showMediaActionAlways = mediaActionVisibility === "always";
 
@@ -76,26 +72,18 @@ export function ProductCard({
           </AspectRatio>
         </Link>
 
-        <div
-          className={cn(
-            "absolute top-3 left-3 z-10 flex flex-wrap items-center gap-1.5 empty:hidden",
-            discountPercent > 0 ? "max-w-[calc(100%-5.5rem)]" : "max-w-[calc(100%-1.5rem)]",
-          )}
-        >
+        <div className="absolute top-3 left-3 z-10 empty:hidden">
           {product.isHit && <Badge className="h-6 bg-rose-500 text-white shadow-sm">Хит</Badge>}
-          {mediaBadge}
         </div>
 
-        {discountPercent > 0 && (
-          <Badge className="pointer-events-none absolute top-3 right-3 h-6 border-rose-100 bg-white text-rose-700 shadow-sm">
-            −{discountPercent}%
-          </Badge>
-        )}
+        <div className="peer/media-badge absolute bottom-0 left-0 z-10 max-w-full empty:hidden">
+          {mediaBadge}
+        </div>
 
         {mediaAction ? (
           <div
             className={cn(
-              "pointer-events-none absolute inset-0 items-end p-4 transition-opacity duration-200",
+              "pointer-events-none absolute inset-0 items-end p-4 transition-opacity duration-200 peer-[:not(:empty)]/media-badge:pb-10",
               mediaActionViewport === "desktop" ? "hidden md:flex" : "flex",
               showMediaActionAlways
                 ? "bg-gradient-to-t from-stone-900/30 via-transparent to-transparent opacity-100"
