@@ -44,11 +44,8 @@ export async function RootLayout({ children }: RootLayoutProps) {
   );
 
   return (
-    <html
-      lang="ru"
-      className={`${comfortaa.variable} ${nunito.variable} overflow-x-hidden`}
-    >
-      <body>
+    <html lang="ru" className={`${comfortaa.variable} ${nunito.variable}`}>
+      <body className="overflow-x-clip">
         <RootStructuredData />
         {!sensitiveAuth && (
           <>

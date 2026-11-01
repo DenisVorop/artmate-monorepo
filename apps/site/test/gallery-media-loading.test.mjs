@@ -15,21 +15,16 @@ async function load(path) {
   return mod.exports;
 }
 
-test("preview code waits for page load and idle time; unmount cancels the scheduled download", async () => {
-  const { schedulePreviewPreload } = await load(
-    "features/community-gallery/lib/preload-preview.ts",
+test("preview code uses idle time even while other page resources are loading; unmount cancels it", async () => {
+  const { scheduleIdlePreload } = await load(
+    "shared/lib/schedule-idle-preload.ts",
   );
   const originalWindow = globalThis.window;
   const originalDocument = globalThis.document;
-  let onLoad, idle, cancelled;
+  let idle, cancelled;
   let calls = 0;
   globalThis.document = { readyState: "loading" };
   globalThis.window = {
-    addEventListener: (event, callback) => {
-      assert.equal(event, "load");
-      onLoad = callback;
-    },
-    removeEventListener: () => {},
     requestIdleCallback: (callback) => {
       idle = callback;
       return 10;
@@ -39,13 +34,11 @@ test("preview code waits for page load and idle time; unmount cancels the schedu
     },
   };
   try {
-    const cleanup = schedulePreviewPreload(async () => {
+    const cleanup = scheduleIdlePreload(async () => {
       calls++;
     });
     assert.equal(calls, 0);
-    assert.equal(idle, undefined);
-    onLoad();
-    assert.equal(calls, 0);
+    assert.equal(typeof idle, "function");
     idle();
     assert.equal(calls, 1);
     cleanup();
@@ -58,16 +51,15 @@ test("preview code waits for page load and idle time; unmount cancels the schedu
   }
 });
 
-test("browsers without idle callbacks schedule a cancellable task after load and tolerate failed prefetch", async () => {
-  const { schedulePreviewPreload } = await load(
-    "features/community-gallery/lib/preload-preview.ts",
+test("browsers without idle callbacks schedule a cancellable task and tolerate failed prefetch", async () => {
+  const { scheduleIdlePreload } = await load(
+    "shared/lib/schedule-idle-preload.ts",
   );
   const originalWindow = globalThis.window;
   const originalDocument = globalThis.document;
   let run, cancelled;
   globalThis.document = { readyState: "complete" };
   globalThis.window = {
-    removeEventListener: () => {},
     setTimeout: (callback, delay) => {
       run = callback;
       assert.ok(delay > 0);
@@ -78,7 +70,7 @@ test("browsers without idle callbacks schedule a cancellable task after load and
     },
   };
   try {
-    const cleanup = schedulePreviewPreload(async () => {
+    const cleanup = scheduleIdlePreload(async () => {
       throw new Error("offline");
     });
     run();

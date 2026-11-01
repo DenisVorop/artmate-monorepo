@@ -30,8 +30,8 @@ export function ImagePreview({ preview }: { preview: ReturnType<typeof useImageP
       }
     >
       {work && (
-        <div className="flex min-h-0 flex-1 flex-col overflow-y-auto md:grid md:grid-cols-[minmax(0,1.5fr)_minmax(18rem,1fr)] md:overflow-hidden">
-          <div className="relative h-[52dvh] min-h-64 shrink-0 bg-stone-100 md:h-full md:min-h-0">
+        <div className="flex min-h-0 flex-1 flex-col overflow-y-auto overscroll-contain md:grid md:grid-cols-[minmax(0,1.5fr)_minmax(18rem,1fr)] md:items-start">
+          <div className="relative h-[52dvh] min-h-64 shrink-0 bg-stone-100 md:sticky md:top-0 md:h-[min(calc(92dvh-3.5rem),60.5rem)] md:min-h-0">
             <PublicAssetImage
               key={work.revisionId}
               src={work.submission.assets.web}
@@ -41,7 +41,7 @@ export function ImagePreview({ preview }: { preview: ReturnType<typeof useImageP
               sizes="(min-width: 1362px) 768px, (min-width: 768px) 56.4vw, 100vw"
             />
           </div>
-          <div className="space-y-5 p-5 pb-[max(1.25rem,env(safe-area-inset-bottom))] md:overflow-y-auto lg:p-7">
+          <div className="min-w-0 space-y-5 p-5 pb-[max(1.25rem,env(safe-area-inset-bottom))] lg:p-7">
             <div className="space-y-2">
               <h2 className="font-heading text-xl leading-snug font-bold text-stone-900 sm:text-2xl">
                 {work.official.coloring.title}
