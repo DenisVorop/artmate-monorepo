@@ -48,14 +48,13 @@ export function Hero() {
         <div className={styles.visual}>
           <div aria-hidden="true" className={styles.surface} />
           <div className={styles.collage}>
-            {illustrations.map(({ src, alt, className }, index) => (
+            {illustrations.map(({ src, alt, className }) => (
               <Image
                 key={src}
                 src={src}
                 alt={alt}
                 width={640}
                 height={898}
-                preload={index === 1}
                 loading="eager"
                 sizes="(min-width: 1536px) 240px, (min-width: 601px) 16vw, calc(36vw - 25px)"
                 className={`absolute rounded-lg shadow-lg shadow-stone-900/15 ${className}`}

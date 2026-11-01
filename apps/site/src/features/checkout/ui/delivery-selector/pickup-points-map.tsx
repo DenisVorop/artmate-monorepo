@@ -9,6 +9,7 @@ import { cn } from "@/shared/lib";
 
 import { clusterPickupPoints, getPickupPointsFitKey } from "../../lib";
 
+import "leaflet/dist/leaflet.css";
 import styles from "./pickup-points-map.module.css";
 
 type LeafletModule = typeof import("leaflet");

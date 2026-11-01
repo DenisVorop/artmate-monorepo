@@ -2,25 +2,38 @@ import { ArrowRight, Clock } from "lucide-react";
 import Image from "next/image";
 
 import type { BlogPost } from "../model";
-import { AspectRatio, Badge, Button, Card, CardContent, CardDescription, CardTitle } from "@/shared/ui";
+import {
+  AspectRatio,
+  Badge,
+  Button,
+  Card,
+  CardContent,
+  CardDescription,
+  CardTitle,
+} from "@/shared/ui";
 import { routes } from "@/shared/constants";
 import { Link } from "@/shared/ui/link";
 
 type FeaturedPostProps = {
   post: BlogPost;
+  imageSizes?: string;
 };
 
-export function FeaturedPost({ post }: FeaturedPostProps) {
+export function FeaturedPost({
+  post,
+  imageSizes = "(min-width: 768px) 50vw, 100vw",
+}: FeaturedPostProps) {
   return (
     <Card className="grid gap-0 overflow-hidden py-0 md:grid-cols-2">
       <Link href={routes.blogPost(post.slug)} className="block bg-muted">
         <AspectRatio ratio={16 / 10} className="relative h-full md:aspect-auto">
           <Image
             fill
-            priority
+            loading="eager"
+            fetchPriority="high"
             src={post.image}
             alt={post.title}
-            sizes="(min-width: 768px) 50vw, 100vw"
+            sizes={imageSizes}
             className="object-cover"
           />
         </AspectRatio>

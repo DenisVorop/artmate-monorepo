@@ -494,7 +494,10 @@ describe("Workshop HTTP security contract", () => {
   });
 
   it("accepts bounded responsive widths while preserving public asset visibility and headers", async () => {
-    for (const width of [160, 240, 320, 480, 640, 800, 960, 1200]) {
+    for (const width of [
+      160, 200, 240, 280, 320, 360, 400, 440, 480, 520, 560, 600, 640, 680, 720,
+      760, 800, 880, 960, 1080, 1200,
+    ]) {
       const response = await fetch(
         `${baseUrl}/club/works/public-work/assets/web?width=${width}`,
       );

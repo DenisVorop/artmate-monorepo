@@ -12,7 +12,6 @@ import { CatalogButton } from "./ui/catalog-button";
 import { DevelopmentBanner } from "./ui/development-banner";
 import { Menu } from "./ui/menu";
 import { MobileMenu } from "./ui/mobile-menu";
-import styles from "./header.module.css";
 
 export function Header() {
   const { isPending, user } = useSession();
@@ -31,7 +30,7 @@ export function Header() {
       )}
     >
       {hasDevelopmentBanner ? <DevelopmentBanner /> : null}
-      <div className={cn("container", styles.container, styles.row)}>
+      <div className="container flex h-(--site-header-nav-height) w-full max-w-[96rem] items-center gap-[clamp(0.5rem,2.2vw,2rem)]">
         <Logo />
         <CatalogButton />
 
@@ -39,7 +38,7 @@ export function Header() {
           <Menu />
         </nav>
 
-        <div className={styles.actions}>
+        <div className="ml-auto flex shrink-0 items-center gap-[clamp(0.125rem,0.55vw,0.5rem)]">
           <div className="hidden lg:block">
             <SessionMenu />
           </div>

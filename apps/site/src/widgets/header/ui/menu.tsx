@@ -14,14 +14,13 @@ import {
 import { Link } from "@/shared/ui/link";
 
 import { desktopHelpItems, desktopNavItems, isRouteActive } from "../lib/navigation";
-import styles from "../header.module.css";
 
 export function Menu() {
   const pathname = usePathname();
   const isHelpActive = desktopHelpItems.some((item) => isRouteActive(pathname, item.href));
 
   return (
-    <ul className={cn("flex items-center font-medium", styles.menu)}>
+    <ul className="flex items-center gap-[clamp(0.75rem,1.8vw,1.75rem)] text-[clamp(0.8125rem,calc(0.25vw+0.6875rem),0.875rem)] font-medium [&_button]:[font-size:inherit]">
       {desktopNavItems.map((item) => {
         const isActive = isRouteActive(pathname, item.href);
 

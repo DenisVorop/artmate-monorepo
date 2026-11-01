@@ -46,7 +46,7 @@ export class WorkshopMediaService {
   async resize(buffer: Buffer, width: number) {
     return sharp(buffer, { limitInputPixels: maxDecodePixels })
       .resize({ width, withoutEnlargement: true })
-      .webp({ quality: 78, effort: 4 })
+      .webp({ quality: 72, effort: 4 })
       .timeout({ seconds: processingTimeoutSeconds })
       .toBuffer();
   }

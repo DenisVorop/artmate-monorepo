@@ -7,6 +7,7 @@ import { DataState } from "@/shared/ui";
 
 import { BaseCatalog } from "./base-catalog";
 import type { CatalogCategoryValue } from "../lib/catalog-state";
+import { imageSizes } from "../lib/image-sizes";
 
 type CatalogProps = {
   initialCategoryId?: string;
@@ -55,6 +56,7 @@ export function Catalog({ initialCategoryId, section }: CatalogProps) {
           cashback={<ProductCashback product={product} />}
           mediaAspectRatio={3 / 4}
           variant="plain"
+          imageSizes={imageSizes}
           eagerImage={index === 0}
           list={placement}
           position={index + 1}

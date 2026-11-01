@@ -2,15 +2,29 @@ import { ArrowRight, Clock, Tag } from "lucide-react";
 import Image from "next/image";
 
 import type { BlogPost } from "../model";
-import { AspectRatio, Badge, Card, CardContent, CardDescription, CardFooter, CardTitle } from "@/shared/ui";
+import {
+  AspectRatio,
+  Badge,
+  Card,
+  CardContent,
+  CardDescription,
+  CardFooter,
+  CardTitle,
+} from "@/shared/ui";
 import { routes } from "@/shared/constants";
 import { Link } from "@/shared/ui/link";
 
 type PostCardProps = {
   post: BlogPost;
+  eagerImage?: boolean;
+  imageSizes?: string;
 };
 
-export function PostCard({ post }: PostCardProps) {
+export function PostCard({
+  post,
+  eagerImage = false,
+  imageSizes = "(min-width: 1024px) 33vw, (min-width: 640px) 50vw, 100vw",
+}: PostCardProps) {
   return (
     <Card className="group/blog-post h-full gap-0 py-0 transition-shadow hover:shadow-md">
       <Link href={routes.blogPost(post.slug)} className="block overflow-hidden bg-muted">
@@ -19,7 +33,9 @@ export function PostCard({ post }: PostCardProps) {
             fill
             src={post.image}
             alt={post.title}
-            sizes="(min-width: 1024px) 33vw, (min-width: 640px) 50vw, 100vw"
+            loading={eagerImage ? "eager" : "lazy"}
+            fetchPriority={eagerImage ? "high" : undefined}
+            sizes={imageSizes}
             className="object-cover transition-transform duration-500 group-hover/blog-post:scale-105"
           />
         </AspectRatio>
@@ -53,7 +69,7 @@ export function PostCard({ post }: PostCardProps) {
         <span className="text-xs text-muted-foreground">{post.date}</span>
         <Link
           href={routes.blogPost(post.slug)}
-          className="inline-flex items-center gap-1 text-xs font-semibold text-foreground transition-colors hover:text-rose-500 group-hover/blog-post:text-rose-500"
+          className="inline-flex items-center gap-1 text-xs font-semibold text-foreground transition-colors group-hover/blog-post:text-rose-500 hover:text-rose-500"
         >
           Читать
           <ArrowRight className="size-3.5" />

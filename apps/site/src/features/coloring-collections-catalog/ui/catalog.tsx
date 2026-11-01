@@ -13,7 +13,11 @@ import { Link } from "@/shared/ui/link";
 
 import { useTrackOpen } from "../lib/use-track-open";
 
-import styles from "./cover.module.css";
+// Account for the capped container, grid gaps and the space around each cover.
+const coverSizes =
+  "(min-width: 96rem) 16.675rem, (min-width: 80rem) 13.475rem, (min-width: 64rem) 10.275rem, (min-width: 48rem) 13.375rem, (min-width: 40rem) 17.25rem, calc(50vw - 2.375rem)";
+const bindingClassName =
+  "pointer-events-none absolute inset-y-0 -left-[3%] h-full w-[6.8%] overflow-visible";
 
 export function ColoringCollectionsCatalog() {
   const { collections, isError, isPending, refetch } = useColoringCollectionsData();
@@ -102,7 +106,7 @@ function CollectionCover({
           viewBox="0 0 32 800"
           fill="none"
           preserveAspectRatio="none"
-          className={cn(styles.binding, styles.bindingBack)}
+          className={cn(bindingClassName, "z-0")}
         >
           <use href="/digital-versions/spiral-binding.svg#binding-back" />
         </svg>
@@ -111,10 +115,9 @@ function CollectionCover({
             fill
             src={collection.cover.url}
             alt={collection.cover.alt}
-            unoptimized
             loading={eager ? "eager" : "lazy"}
             fetchPriority={eager ? "high" : undefined}
-            sizes="(min-width: 1024px) 20vw, (min-width: 768px) 33vw, 50vw"
+            sizes={coverSizes}
             className="object-cover"
           />
         </span>
@@ -124,7 +127,7 @@ function CollectionCover({
           viewBox="0 0 32 800"
           fill="none"
           preserveAspectRatio="none"
-          className={cn(styles.binding, styles.bindingFront)}
+          className={cn(bindingClassName, "z-20")}
         >
           <use href="/digital-versions/spiral-binding.svg#binding-front" />
         </svg>

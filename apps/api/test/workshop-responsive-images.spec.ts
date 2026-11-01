@@ -37,6 +37,13 @@ it("resizes verified photos to WebP without enlargement, reuses transforms and n
     assert.equal(metadata.exif, undefined);
     assert.deepEqual(await storage.read(key, expected, 480), small);
     assert.equal(resizeCalls, 1);
+    for (const width of [200, 280, 360, 520, 680, 1080]) {
+      const resized = await storage.read(key, expected, width);
+      const dimensions = await sharp(resized).metadata();
+      assert.equal(dimensions.width, width);
+      assert.equal(dimensions.height, width * 1.25);
+      assert.ok(resized.length < buffer.length);
+    }
     assert.deepEqual(await storage.read(key, expected, 1200), buffer);
     assert.deepEqual(await storage.read(key, expected, 1920), buffer);
     await assert.rejects(
