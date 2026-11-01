@@ -1,5 +1,12 @@
 # Changelog
 
+## [0.54.2](https://github.com/DenisVorop/artmate-monorepo/compare/v0.54.1...v0.54.2) (2026-11-01)
+
+
+### Bug Fixes
+
+* **site:** stabilize community work previews ([f2559e6](https://github.com/DenisVorop/artmate-monorepo/commit/f2559e6f0d3b3b0dba70a7a9a570283cecb0d0ff))
+
 ## [0.54.1](https://github.com/DenisVorop/artmate-monorepo/compare/v0.54.0...v0.54.1) (2026-11-01)
 
 
