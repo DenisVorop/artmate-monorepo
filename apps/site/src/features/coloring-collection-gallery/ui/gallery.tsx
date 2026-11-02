@@ -1,26 +1,21 @@
 "use client";
 
 import type { ReactNode } from "react";
+import { ArrowUpRight } from "lucide-react";
 import Image from "next/image";
 
 import { useColoringCollectionData } from "@/entities/coloring-collection";
 import { routes } from "@/shared/constants";
 import {
-  Badge,
-  Breadcrumb,
-  BreadcrumbItem,
-  BreadcrumbLink,
-  BreadcrumbList,
-  BreadcrumbPage,
-  BreadcrumbSeparator,
   Button,
   Card,
   CardContent,
   CardTitle,
+  CtaGradientLink,
   DataState,
+  PageHero,
 } from "@/shared/ui";
 import { Link } from "@/shared/ui/link";
-import { PageTitle, SectionSubtitle } from "@/shared/ui/typography";
 
 import { getDigitalCollectionPresentation } from "../lib/presentation";
 import { useTrackOpen } from "../lib/use-track-open";
@@ -68,53 +63,49 @@ export function ColoringCollectionGallery({
   const presentation = getDigitalCollectionPresentation(collection);
 
   return (
-    <main className="bg-[radial-gradient(circle_at_top_left,rgba(251,113,133,0.08),transparent_34rem)]">
-      <section className="container space-y-5 py-5 md:space-y-6 md:py-6">
-        <Breadcrumb>
-          <BreadcrumbList>
-            <BreadcrumbItem>
-              <BreadcrumbLink asChild>
-                <Link href={routes.home}>Главная</Link>
-              </BreadcrumbLink>
-            </BreadcrumbItem>
-            <BreadcrumbSeparator />
-            <BreadcrumbItem>
-              <BreadcrumbLink asChild>
-                <Link href={routes.colorings}>Цифровые версии</Link>
-              </BreadcrumbLink>
-            </BreadcrumbItem>
-            <BreadcrumbSeparator />
-            <BreadcrumbItem>
-              <BreadcrumbPage>{presentation.albumTitle}</BreadcrumbPage>
-            </BreadcrumbItem>
-          </BreadcrumbList>
-        </Breadcrumb>
-
-        <div className="max-w-4xl space-y-4">
-          <div className="flex flex-wrap items-start justify-between gap-3">
-            <div className="space-y-3">
-              <PageTitle>{presentation.heading}</PageTitle>
-              <Badge variant="secondary" className="h-auto px-3 py-1.5 text-rose-700">
-                {collection.coloringCount} картин
-              </Badge>
-            </div>
-            {workshopAction ? <div className="shrink-0">{workshopAction}</div> : null}
-          </div>
-          <SectionSubtitle>{presentation.instruction}</SectionSubtitle>
-        </div>
+    <main className="bg-stone-100/80 text-stone-900">
+      <section className="container py-5 md:py-8">
+        <PageHero
+          breadcrumbs={[
+            { label: "Главная", href: routes.home },
+            { label: "Цифровые версии", href: routes.colorings },
+            { label: presentation.albumTitle },
+          ]}
+          title={presentation.heading}
+          description={presentation.instruction}
+          actions={
+            <Button
+              asChild
+              size="lg"
+              className="min-h-11 border-0 bg-gradient-to-r from-rose-500 via-rose-400 to-orange-400 px-5 font-semibold text-white shadow-sm shadow-rose-500/20 hover:from-rose-500/95 hover:via-rose-400/95 hover:to-orange-400/95"
+            >
+              <CtaGradientLink
+                href={routes.product(collection.product.category?.slug, collection.product.slug)}
+                aria-label={`Посмотреть альбом «${presentation.albumTitle}»`}
+              >
+                Посмотреть альбом
+                <ArrowUpRight />
+              </CtaGradientLink>
+            </Button>
+          }
+        />
       </section>
 
       <section
-        className="container pb-12 md:pb-16"
+        className="container space-y-4 pb-12 md:space-y-5 md:pb-16"
         aria-label={`Иллюстрации «${collection.title}»`}
       >
+        <div className="flex flex-wrap items-center justify-between gap-3">
+          <p className="text-sm font-medium text-stone-600">{collection.coloringCount} картин</p>
+          {workshopAction}
+        </div>
         {collection.colorings.length > 0 ? (
-          <ul className="grid grid-cols-1 gap-4 sm:grid-cols-2 sm:gap-5 md:grid-cols-3 lg:grid-cols-4">
+          <ul className="grid grid-cols-2 gap-3 sm:gap-5 md:grid-cols-3 lg:grid-cols-5">
             {collection.colorings.map((coloring, index) => {
               const displayNumber = coloring.number;
 
               return (
-                <li key={coloring.id} className="h-full">
+                <li key={coloring.id} className="h-full min-w-0">
                   <Link
                     href={routes.coloring(collection.slug, displayNumber)}
                     aria-label={`Открыть картину ${displayNumber}: ${coloring.title}`}
@@ -134,15 +125,15 @@ export function ColoringCollectionGallery({
                           fetchPriority={index === 0 ? "high" : undefined}
                           className="object-cover transition-transform duration-500 group-hover:scale-[1.02]"
                         />
-                      </div>
-                      <CardContent className="flex items-start gap-2.5 px-3 py-3 sm:px-4">
-                        <span className="flex size-7 shrink-0 items-center justify-center rounded-full bg-rose-100 text-xs font-bold text-rose-700">
+                        <span className="absolute top-2 left-2 flex size-7 items-center justify-center rounded-full bg-white/95 text-xs font-bold text-rose-700 shadow-sm">
                           {displayNumber}
                         </span>
+                      </div>
+                      <CardContent className="px-3 py-3 sm:px-4">
                         <CardTitle
                           role="heading"
                           aria-level={2}
-                          className="pt-0.5 text-sm leading-snug text-stone-900 sm:text-base"
+                          className="line-clamp-2 min-h-[2.75em] text-sm leading-snug text-stone-900 sm:text-base"
                         >
                           {coloring.title}
                         </CardTitle>

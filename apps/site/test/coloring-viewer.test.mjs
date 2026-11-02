@@ -286,10 +286,7 @@ test("desktop viewer fits the image to dynamic viewport height without mobile le
 
   assert.match(rootClassName, /\bmx-auto\b/);
   assert.match(rootClassName, /\bw-full\b/);
-  assert.match(
-    rootClassName,
-    /(?:^|\s)md:max-w-\[var\(--comparison-max-width\)\](?=\s|$)/,
-  );
+  assert.match(rootClassName, /(?:^|\s)md:max-w-\[var\(--comparison-max-width\)\](?=\s|$)/);
   assert.doesNotMatch(rootClassName, /(?:^|\s)max-w-\[var\(--comparison-max-width\)\]/);
   assert.match(
     getJsxAttribute(viewerRoot, "style"),
@@ -620,17 +617,19 @@ test("keyboard main retry moves focus to the stable viewer before remount", asyn
 });
 
 test("details render persisted palette colors, legacy empty state, and a separate physical album callout", async () => {
-  const [detailsSource, heroSource, calloutSource, paletteSource, routesSource] = await Promise.all([
-    readSource("src/features/coloring-details/ui/coloring-details.tsx"),
-    readSource("src/features/coloring-details/ui/hero.tsx"),
-    readSource("src/features/coloring-details/ui/physical-album-callout.tsx"),
-    readSource("src/features/coloring-details/ui/palette-section.tsx"),
-    readSource("src/shared/constants/routes.ts"),
-  ]);
+  const [detailsSource, heroSource, calloutSource, paletteSource, routesSource] = await Promise.all(
+    [
+      readSource("src/features/coloring-details/ui/coloring-details.tsx"),
+      readSource("src/features/coloring-details/ui/hero.tsx"),
+      readSource("src/features/coloring-details/ui/physical-album-callout.tsx"),
+      readSource("src/features/coloring-details/ui/palette-section.tsx"),
+      readSource("src/shared/constants/routes.ts"),
+    ],
+  );
   const source = `${detailsSource}\n${heroSource}\n${calloutSource}\n${paletteSource}`;
   const { routes } = evaluateTypeScript(routesSource);
 
-  assert.match(source, /Цифровая версия в палитре Artmate/);
+  assert.match(heroSource, /<PageHero/);
   assert.match(source, /palette\.colors\.length/);
   assert.match(source, /Использовано \$\{palette\.colors\.length\} из 168 оттенков Artmate/);
   assert.match(source, /Палитра для этой иллюстрации пока не указана/);
@@ -640,16 +639,16 @@ test("details render persisted palette colors, legacy empty state, and a separat
   assert.match(source, /themes\.map/);
   assert.match(source, /Цифровые версии/);
   assert.match(source, /routes\.colorings/);
-  assert.match(
-    calloutSource,
-    /routes\.product\(product\.category\?\.slug, product\.slug\)/,
-  );
+  assert.match(calloutSource, /routes\.product\(product\.category\?\.slug, product\.slug\)/);
   assert.match(calloutSource, /Купить печатный альбом/);
   assert.match(calloutSource, /product\.title/);
   assert.match(calloutSource, /coverImage/);
   assert.match(detailsSource, /useProductsData\(\)/);
-  assert.match(detailsSource, /getProductById\(products\.data\.products, coloring\.collection\.product\.id\)/);
-  assert.doesNotMatch(heroSource, /Купить печатный альбом|productAction|CtaGradientLink|ShoppingBag/);
+  assert.match(
+    detailsSource,
+    /getProductById\(products\.data\.products, coloring\.collection\.product\.id\)/,
+  );
+  assert.match(heroSource, /Посмотреть альбом/);
   assert.doesNotMatch(calloutSource, /\bprice\b|isOutOfStock/);
   assert.doesNotMatch(detailsSource, /Эта иллюстрация входит в тематику/);
   assert.doesNotMatch(detailsSource, /Смотреть все иллюстрации/);
@@ -793,34 +792,33 @@ test("details compose hero, full-width viewer, and palette in semantic DOM order
   assert.match(details, /mx-auto w-full max-w-\[100rem\]/);
   assert.doesNotMatch(details, /lg:grid-cols-\[minmax\(0,1\.18fr\)/);
   assert.doesNotMatch(details, /lg:sticky/);
-  assert.match(hero, /<PageTitle[\s\S]*?\{title\}[\s\S]*?<\/PageTitle>/);
+  assert.match(hero, /<PageHero[\s\S]*?title=\{title\}/);
   assert.match(palette, /aria-labelledby="coloring-palette-title"/);
   assert.match(palette, /role="heading"/);
   assert.match(palette, /aria-level=\{2\}/);
   assert.match(palette, /grid-cols-1[^"]*sm:grid-cols-2[^"]*lg:grid-cols-3/);
 });
 
-test("hero stacks its digital title and description without purchase actions", async () => {
-  const hero = await readSource("src/features/coloring-details/ui/hero.tsx");
-  const [title] = getJsxElements(hero, "PageTitle");
-  const [description] = getJsxElements(hero, "ExpandableText");
-  const [subtitle] = getJsxElements(hero, "SectionSubtitle");
+test("both coloring heroes use PageHero with expandable description and an album link", async () => {
+  for (const feature of ["coloring-details", "coloring-variants"]) {
+    const hero = await readSource(`src/features/${feature}/ui/hero.tsx`);
+    const [pageHero] = getJsxElements(hero, "PageHero");
+    const [description] = getJsxElements(hero, "ExpandableText");
+    const [albumLink] = getJsxElements(hero, "CtaGradientLink");
 
-  assert.ok(title);
-  assert.ok(description);
-  assert.ok(subtitle);
-  assert.ok(title.pos < description.pos);
-  assert.equal(getJsxAttribute(getJsxAncestors(title)[0], "className"), "space-y-3");
-  assert.equal(getJsxAttribute(getJsxAncestors(description)[0], "className"), "space-y-3");
-  assert.match(hero, /<PageTitle>\{title\}<\/PageTitle>/);
-  assert.equal(getJsxAttribute(description, "collapsible"), "description.length > 700");
-  assert.match(
-    hero,
-    /<ExpandableText[\s\S]*?<SectionSubtitle>\{description\}<\/SectionSubtitle>[\s\S]*?<\/ExpandableText>/,
-  );
-  assert.doesNotMatch(hero, /dangerouslySetInnerHTML/);
-  assert.doesNotMatch(hero, /Button|CtaGradientLink|productAction|Купить печатный альбом/);
-  assert.doesNotMatch(hero, /grid-cols|flex-row|float-(?:left|right)|lg:justify-self-end/);
+    assert.ok(pageHero);
+    assert.ok(description);
+    assert.ok(albumLink);
+    assert.equal(getJsxAttribute(pageHero, "title"), "title");
+    assert.equal(getJsxAttribute(description, "collapsible"), "description.length > 700");
+    assert.match(hero, /<ExpandableText[\s\S]*?<p>\{description\}<\/p>[\s\S]*?<\/ExpandableText>/);
+    assert.equal(
+      getJsxAttribute(albumLink, "href"),
+      "routes.product(collection.product.category?.slug, collection.product.slug)",
+    );
+    assert.match(hero, /Посмотреть альбом/);
+    assert.doesNotMatch(hero, /dangerouslySetInnerHTML/);
+  }
 });
 
 test("route and image configuration expose only the bounded coloring paths", async () => {
