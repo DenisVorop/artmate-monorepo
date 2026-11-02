@@ -1,5 +1,12 @@
 # Changelog
 
+## [0.57.0](https://github.com/DenisVorop/artmate-monorepo/compare/v0.56.1...v0.57.0) (2026-11-02)
+
+
+### Features
+
+* **site:** unify digital page heroes ([2427ca9](https://github.com/DenisVorop/artmate-monorepo/commit/2427ca9f6846254676c57dd3dcc22c0ab6226d5b))
+
 ## [0.56.1](https://github.com/DenisVorop/artmate-monorepo/compare/v0.56.0...v0.56.1) (2026-11-01)
 
 
