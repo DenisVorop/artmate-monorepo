@@ -24,7 +24,7 @@ export function PaletteViewer({
   const right = state.palette.image;
 
   return (
-    <main className="overflow-hidden bg-[radial-gradient(circle_at_top_left,rgba(251,113,133,0.09),transparent_34rem)]">
+    <main className="overflow-hidden bg-stone-100/80 text-stone-900">
       <Hero
         collection={coloring.collection}
         description={coloring.description}

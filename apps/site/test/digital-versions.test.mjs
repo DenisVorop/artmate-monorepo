@@ -194,14 +194,16 @@ test("digital collection entity queries have stable hydrated list and slug ident
 });
 
 test("digital version routes use SSR builders, hydration, metadata, notFound, and structured data", async () => {
-  const [hub, collection, coloring, collectionBuilder, coloringBuilder, routes] = await Promise.all([
-    readSource("app/(site)/raskraski/page.tsx"),
-    readSource("app/(site)/raskraski/digital/[collectionSlug]/page.tsx"),
-    readSource("app/(site)/raskraski/digital/[collectionSlug]/[number]/page.tsx"),
-    readSource("src/_app/lib/coloring-collections-data-builder.ts"),
-    readSource("src/_app/lib/coloring-data-builder.ts"),
-    readSource("src/shared/constants/routes.ts"),
-  ]);
+  const [hub, collection, coloring, collectionBuilder, coloringBuilder, routes] = await Promise.all(
+    [
+      readSource("app/(site)/raskraski/page.tsx"),
+      readSource("app/(site)/raskraski/digital/[collectionSlug]/page.tsx"),
+      readSource("app/(site)/raskraski/digital/[collectionSlug]/[number]/page.tsx"),
+      readSource("src/_app/lib/coloring-collections-data-builder.ts"),
+      readSource("src/_app/lib/coloring-data-builder.ts"),
+      readSource("src/shared/constants/routes.ts"),
+    ],
+  );
 
   assert.match(routes, /colorings:\s*"\/raskraski"/);
   assert.match(
@@ -221,23 +223,33 @@ test("digital version routes use SSR builders, hydration, metadata, notFound, an
   assert.match(collection, /HydrationBoundary state=\{dehydrateQueryClient\(queryClient\)\}/);
   assert.match(coloring, /withProducts\(\)/);
   assert.match(coloring, /HydrationBoundary state=\{dehydrateQueryClient\(queryClient\)\}/);
-  assert.doesNotMatch(collectionBuilder, /productsQuery|ProductsDataResult|getProductsData|withProducts/);
+  assert.doesNotMatch(
+    collectionBuilder,
+    /productsQuery|ProductsDataResult|getProductsData|withProducts/,
+  );
   assert.match(coloringBuilder, /productsQuery\.getData\(\)\.queryKey/);
   assert.match(coloringBuilder, /await getProductsData\(\)/);
   assert.match(coloringBuilder, /withProducts\(\)/);
 });
 
 test("digital product references cannot carry price or stock in site schemas, types, actions, or API DTOs", async () => {
-  const [collectionSchema, coloringSchema, collectionTypes, coloringTypes, collectionAction, coloringAction, apiDto] =
-    await Promise.all([
-      readSource("src/shared/actions/coloring-collections/coloring-collections.schemas.ts"),
-      readSource("src/shared/actions/colorings/colorings.schemas.ts"),
-      readSource("src/shared/actions/coloring-collections/coloring-collections.types.ts"),
-      readSource("src/shared/actions/colorings/colorings.types.ts"),
-      readSource("src/shared/actions/coloring-collections/coloring-collections.actions.ts"),
-      readSource("src/shared/actions/colorings/colorings.actions.ts"),
-      readSource("../api/src/colorings/dto/public-coloring.dto.ts"),
-    ]);
+  const [
+    collectionSchema,
+    coloringSchema,
+    collectionTypes,
+    coloringTypes,
+    collectionAction,
+    coloringAction,
+    apiDto,
+  ] = await Promise.all([
+    readSource("src/shared/actions/coloring-collections/coloring-collections.schemas.ts"),
+    readSource("src/shared/actions/colorings/colorings.schemas.ts"),
+    readSource("src/shared/actions/coloring-collections/coloring-collections.types.ts"),
+    readSource("src/shared/actions/colorings/colorings.types.ts"),
+    readSource("src/shared/actions/coloring-collections/coloring-collections.actions.ts"),
+    readSource("src/shared/actions/colorings/colorings.actions.ts"),
+    readSource("../api/src/colorings/dto/public-coloring.dto.ts"),
+  ]);
 
   for (const source of [
     collectionSchema,
@@ -288,7 +300,7 @@ test("digital catalog UI keeps covers clean, uses light card derivatives, and ha
   assert.doesNotMatch(catalog, /productAction|price|isOutOfStock|В корзину/);
   assert.match(
     gallery,
-    /<ul className="grid grid-cols-1 gap-4 sm:grid-cols-2 sm:gap-5 md:grid-cols-3 lg:grid-cols-4">/,
+    /<ul className="grid grid-cols-2 gap-3 sm:gap-5 md:grid-cols-3 lg:grid-cols-5">/,
   );
   assert.doesNotMatch(gallery, /xl:grid-cols-5|sizes=/);
   assert.match(gallery, /src=\{coloring\.card\.url\}/);
@@ -308,23 +320,30 @@ test("digital catalog UI keeps covers clean, uses light card derivatives, and ha
   assert.match(header, /title: "Цифровые версии"/);
 });
 
-test("digital collection hero shows album presentation, exact instruction, and then the gallery", async () => {
+test("digital collection hero links to the album before the workshop action and gallery", async () => {
   const [gallery, workshopAction] = await Promise.all([
     readSource("src/features/coloring-collection-gallery/ui/gallery.tsx"),
     readSource("src/features/add-workshop-collection/ui/add-button.tsx"),
   ]);
   const hero = gallery.match(
-    /<section className="container space-y-5 py-5 md:space-y-6 md:py-6">[\s\S]*?<\/section>/,
+    /<section className="container py-5 md:py-8">[\s\S]*?<\/section>/,
   )?.[0];
 
   assert.ok(hero);
   assert.match(gallery, /getDigitalCollectionPresentation\(collection\)/);
   assert.match(
     hero,
-    /<PageTitle>\{presentation\.heading\}<\/PageTitle>[\s\S]*?\{collection\.coloringCount\} картин[\s\S]*?<SectionSubtitle>\{presentation\.instruction\}<\/SectionSubtitle>/,
+    /<PageHero[\s\S]*?title=\{presentation\.heading\}[\s\S]*?description=\{presentation\.instruction\}/,
   );
+  assert.match(
+    hero,
+    /routes\.product\(collection\.product\.category\?\.slug, collection\.product\.slug\)/,
+  );
+  assert.match(hero, /Посмотреть альбом/);
   assert.doesNotMatch(hero, /collection\.description|ExpandableText|Показать полностью/);
-  assert.match(hero, /<PageTitle>[\s\S]*?\{workshopAction\}[\s\S]*?<SectionSubtitle>/);
+  assert.doesNotMatch(hero, /workshopAction/);
+  assert.match(gallery, /\{collection\.coloringCount\} картин[\s\S]*?\{workshopAction\}/);
+  assert.ok(gallery.indexOf(hero) < gallery.indexOf("{workshopAction}"));
   assert.match(workshopAction, /size="sm"/);
   assert.match(workshopAction, /variant="outline"/);
   assert.doesNotMatch(workshopAction, /\bw-full\b/);

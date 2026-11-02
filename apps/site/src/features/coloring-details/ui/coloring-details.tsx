@@ -65,12 +65,13 @@ export function ColoringDetails({
   }
 
   const coloringTitle = `Картина ${coloring.number}`;
-  const productEnrichment = !products.isError && products.data
-    ? getProductById(products.data.products, coloring.collection.product.id)
-    : undefined;
+  const productEnrichment =
+    !products.isError && products.data
+      ? getProductById(products.data.products, coloring.collection.product.id)
+      : undefined;
 
   return (
-    <main className="overflow-hidden bg-[radial-gradient(circle_at_top_left,rgba(251,113,133,0.09),transparent_34rem)]">
+    <main className="overflow-hidden bg-stone-100/80 text-stone-900">
       <Hero
         collection={coloring.collection}
         description={coloring.description}
