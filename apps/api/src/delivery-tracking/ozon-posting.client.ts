@@ -7,6 +7,13 @@ export type OzonPostingState =
   | "cancelled"
   | "unknown";
 
+export class OzonPostingError extends Error {
+  constructor(readonly reason: "access_denied" | "provider_unavailable") {
+    super("Unable to check Ozon posting status");
+    this.name = "OzonPostingError";
+  }
+}
+
 function _isRecord(value: unknown): value is Record<string, unknown> {
   return typeof value === "object" && value !== null && !Array.isArray(value);
 }
@@ -59,7 +66,11 @@ export class OzonPostingClient {
       );
 
       if (!response.ok) {
-        throw new Error("Unsuccessful response");
+        throw new OzonPostingError(
+          response.status === 401 || response.status === 403
+            ? "access_denied"
+            : "provider_unavailable",
+        );
       }
 
       const body: unknown = await response.json();
@@ -86,9 +97,11 @@ export class OzonPostingClient {
         default:
           return "unknown";
       }
-    } catch {
+    } catch (error) {
       // Upstream errors may include credentials, addresses or response bodies.
-      throw new Error("Unable to check Ozon posting status");
+      throw error instanceof OzonPostingError
+        ? error
+        : new OzonPostingError("provider_unavailable");
     }
   }
 }

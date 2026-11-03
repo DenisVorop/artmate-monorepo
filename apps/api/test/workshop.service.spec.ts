@@ -451,6 +451,9 @@ describe("WorkshopService", () => {
       const tool = customTool();
       const revisionCreates: Array<{ data: Record<string, unknown> }> = [];
       const workUpdates: Array<{ data: Record<string, unknown> }> = [];
+      const notificationCreates: Array<{
+        data: { id: string; channel: string; payload: Record<string, unknown> };
+      }> = [];
       const work = {
         id: "b".repeat(32),
         publicId: "0123456789abcdef01234567",
@@ -489,17 +492,24 @@ describe("WorkshopService", () => {
           },
         },
         workshopModerationEvent: { create: async () => ({}) },
+        notificationJob: {
+          create: async (args: (typeof notificationCreates)[number]) => {
+            notificationCreates.push(args);
+          },
+        },
       };
       const prisma = {
         workshopCollection: {
           findFirst: async () => ({
             workshopId: work.workshopId,
             collectionId: work.collectionId,
+            collection: { title: "Лес" },
           }),
         },
         coloring: {
           findUnique: async () => ({
             id: work.coloringId,
+            title: "Лиса и сова",
             publishedRevision: {
               id: "official-revision-2",
               width: 800,
@@ -571,6 +581,21 @@ describe("WorkshopService", () => {
       );
       assert.equal(work.publishedRevisionId, oldPublished.id);
 
+      assert.equal(notificationCreates.length, 1);
+      assert.equal(
+        notificationCreates[0]?.data.id,
+        `workshop-moderation:${revisionCreates[0]?.data.id}`,
+      );
+      assert.equal(notificationCreates[0]?.data.channel, "TELEGRAM");
+      assert.deepEqual(notificationCreates[0]?.data.payload, {
+        kind: "admin_notice",
+        contractVersion: 1,
+        title: "Новая работа на модерации",
+        lines: ["Альбом: Лес", "Картина № 1: Лиса и сова"],
+        adminPath: `/workshop-moderation/${revisionCreates[0]?.data.id}`,
+        actionLabel: "Проверить работу",
+      });
+
       await service.createRevision(
         "user-1",
         "forest",
@@ -599,6 +624,8 @@ describe("WorkshopService", () => {
         isPublicationEnabled: true,
       });
       assert.equal(work.publishedRevisionId, oldPublished.id);
+
+      assert.equal(notificationCreates.length, 2);
 
       await service.createRevision(
         "user-1",

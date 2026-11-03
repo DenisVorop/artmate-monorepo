@@ -1,7 +1,10 @@
 import assert from "node:assert/strict";
 import { afterEach, beforeEach, test } from "node:test";
 
-import { OzonPostingClient } from "../src/delivery-tracking/ozon-posting.client";
+import {
+  OzonPostingClient,
+  OzonPostingError,
+} from "../src/delivery-tracking/ozon-posting.client";
 
 const postingNumber = "0121544692-0182-3";
 const originalClientId = process.env.OZON_CLIENT_ID;
@@ -165,6 +168,29 @@ test("HTTP, network and JSON errors expose no upstream data", async (t) => {
         assert.equal(error.message, "Unable to check Ozon posting status");
         assert.equal(error.cause, undefined);
         assert.doesNotMatch(error.stack ?? "", /private-|test-key/);
+        return true;
+      },
+    );
+    fetchMock.mock.restore();
+  }
+});
+
+test("denied access has a safe actionable classification without leaking upstream details", async (t) => {
+  for (const status of [401, 403, 503]) {
+    const fetchMock = t.mock.method(
+      globalThis,
+      "fetch",
+      async () => new Response("private response test-key", { status }),
+    );
+    await assert.rejects(
+      new OzonPostingClient().getState(postingNumber, "fbo"),
+      (error: unknown) => {
+        assert.ok(error instanceof OzonPostingError);
+        assert.equal(
+          error.reason,
+          status === 503 ? "provider_unavailable" : "access_denied",
+        );
+        assert.doesNotMatch(error.stack ?? "", /private response|test-key/);
         return true;
       },
     );

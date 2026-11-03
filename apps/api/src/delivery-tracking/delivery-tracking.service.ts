@@ -1,6 +1,6 @@
 import { Injectable, Logger } from "@nestjs/common";
 
-import { OzonPostingClient } from "./ozon-posting.client";
+import { OzonPostingClient, OzonPostingError } from "./ozon-posting.client";
 import { TrackingStorage, type PostingState } from "./tracking.storage";
 
 @Injectable()
@@ -20,6 +20,8 @@ export class DeliveryTrackingService {
       const lease = await this.storage.claimNext();
       if (!lease) return;
       let states: PostingState[] | null = [];
+      let failureReason: "access_denied" | "provider_unavailable" =
+        "provider_unavailable";
       try {
         for (const posting of lease.ozonPostings) {
           states.push({
@@ -27,13 +29,14 @@ export class DeliveryTrackingService {
             state: await this.ozon.getState(posting.number, posting.scheme),
           });
         }
-      } catch {
+      } catch (error) {
         states = null;
+        if (error instanceof OzonPostingError) failureReason = error.reason;
         this.logger.warn(
           "Delivery tracking request failed; retry is scheduled",
         );
       }
-      await this.storage.settle(lease, states);
+      await this.storage.settle(lease, states, failureReason);
     }
   }
 }

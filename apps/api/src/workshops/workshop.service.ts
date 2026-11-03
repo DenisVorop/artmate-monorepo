@@ -19,6 +19,7 @@ import {
   type WorkshopWorkRevision,
 } from "../generated/prisma/client";
 import { PrismaService } from "../prisma/prisma.service";
+import { publishAdminNotice } from "../notifications/contracts/admin-notice-command.contract";
 import type {
   AddWorkshopCollectionDTO,
   CreateWorkshopToolDTO,
@@ -676,6 +677,20 @@ export class WorkshopService {
           },
         });
 
+        await publishAdminNotice(
+          tx,
+          {
+            title: "Новая работа на модерации",
+            lines: [
+              `Альбом: ${context.collection.title}`,
+              `Картина № ${number}: ${context.coloring.title}`,
+            ],
+            adminPath: `/workshop-moderation/${revisionId}`,
+            actionLabel: "Проверить работу",
+          },
+          `workshop-moderation:${revisionId}`,
+        );
+
         return tx.workshopWork.findUnique({
           where: { id: workId },
           include: workInclude,
@@ -986,7 +1001,11 @@ export class WorkshopService {
           is: { slug, status: ColoringCollectionStatus.PUBLISHED },
         },
       },
-      select: { workshopId: true, collectionId: true },
+      select: {
+        workshopId: true,
+        collectionId: true,
+        collection: { select: { title: true } },
+      },
     });
 
     if (!membership) {
@@ -1000,6 +1019,7 @@ export class WorkshopService {
       },
       select: {
         id: true,
+        title: true,
         publishedRevision: {
           select: {
             id: true,

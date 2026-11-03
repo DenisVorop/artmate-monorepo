@@ -1,0 +1,9 @@
+// Notifications owns incident transitions and their transactional delivery jobs.
+model AdminNotificationIncident {
+  key       String    @id @db.VarChar(100)
+  active    Boolean   @default(false)
+  openedAt  DateTime? @map("opened_at")
+  updatedAt DateTime  @default(now()) @updatedAt @map("updated_at")
+
+  @@map("admin_notification_incidents")
+}
