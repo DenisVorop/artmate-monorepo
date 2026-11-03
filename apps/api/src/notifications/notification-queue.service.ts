@@ -29,6 +29,7 @@ import {
 } from "../telegram/telegram-api";
 
 import { RegistrationEmailAdapter } from "./integrations/registration-email.adapter";
+import { AdminTelegramAdapter } from "./integrations/admin-telegram.adapter";
 
 type EmailNotificationInput = SendMailInput;
 
@@ -263,7 +264,14 @@ export class NotificationQueueService implements OnModuleInit, OnModuleDestroy {
         await this.dispatchEmail(job.payload);
         return;
       case NotificationJobChannel.TELEGRAM:
-        await this.sendTelegram(this.parseTelegramPayload(job.payload));
+        {
+          const payload = this.parseObject(job.payload, "telegram payload");
+          await this.sendTelegram(
+            payload.kind === "admin_notice"
+              ? AdminTelegramAdapter.prepare(payload)
+              : this.parseTelegramPayload(job.payload),
+          );
+        }
         return;
     }
   }

@@ -76,6 +76,9 @@ export class TrackingStorage {
   async settle(
     lease: TrackingLease,
     states: PostingState[] | null,
+    failureReason:
+      | "access_denied"
+      | "provider_unavailable" = "provider_unavailable",
   ): Promise<boolean> {
     return this.prisma.$transaction(async (tx) => {
       await tx.$queryRaw`SELECT order_id FROM delivery_tracking_requests WHERE order_id = ${lease.orderId} FOR UPDATE`;
@@ -115,7 +118,7 @@ export class TrackingStorage {
           nextCheckAt: new Date(now.getTime() + checkIntervalMs),
           leaseToken: null,
           lockedUntil: null,
-          lastError: matches ? null : "provider_unavailable",
+          lastError: matches ? null : failureReason,
         },
       });
       if (allDelivered) {

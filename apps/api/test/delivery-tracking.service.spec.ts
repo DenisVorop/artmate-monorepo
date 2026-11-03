@@ -6,6 +6,7 @@ import { Logger } from "@nestjs/common";
 import { DeliveryTrackingService } from "../src/delivery-tracking/delivery-tracking.service";
 import {
   OzonPostingClient,
+  OzonPostingError,
   type OzonPostingState,
 } from "../src/delivery-tracking/ozon-posting.client";
 import {
@@ -193,4 +194,34 @@ test("a mixed order checks each posting using its saved scheme", async () => {
     ["1-2-3", "fbo"],
     ["1-2-4", "fbs"],
   ]);
+});
+
+test("access errors reach the persisted observation as a sanitized failure reason", async (t) => {
+  t.mock.method(Logger.prototype, "warn", () => undefined);
+  let next: TrackingLease | null = lease("denied");
+  const settled: unknown[][] = [];
+  const storage = {
+    claimNext: async () => {
+      const result = next;
+      next = null;
+      return result;
+    },
+    settle: async (...args: unknown[]) => {
+      settled.push(args);
+      return true;
+    },
+  };
+  const ozon = {
+    isConfigured: () => true,
+    getState: async () => {
+      throw new OzonPostingError("access_denied");
+    },
+  };
+  await new DeliveryTrackingService(
+    storage as unknown as TrackingStorage,
+    ozon as unknown as OzonPostingClient,
+  ).synchronize();
+  assert.equal(settled.length, 1);
+  assert.equal(settled[0]![1], null);
+  assert.equal(settled[0]![2], "access_denied");
 });
