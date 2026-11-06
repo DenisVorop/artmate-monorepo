@@ -1,0 +1,12 @@
+[Unit]
+Description=Artmate webhook origin on the Finnish Docker bridge
+Requires=docker.service
+After=network-online.target docker.service
+PartOf=docker.service
+
+[Socket]
+ListenStream=172.17.0.1:18444
+FreeBind=yes
+
+[Install]
+WantedBy=multi-user.target docker.service

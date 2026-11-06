@@ -1,13 +1,23 @@
 {$EDGE_PROXY_DOMAIN} {
 	handle /content-assistant/telegram/* {
-		reverse_proxy https://api.artmate.ru {
+		reverse_proxy https://host.docker.internal:18444 {
 			header_up Host api.artmate.ru
+			transport http {
+				tls_server_name api.artmate.ru
+				dial_timeout 5s
+				response_header_timeout 15s
+			}
 		}
 	}
 
 	handle /telegram/* {
-		reverse_proxy https://tg.artmate.ru {
+		reverse_proxy https://host.docker.internal:18444 {
 			header_up Host tg.artmate.ru
+			transport http {
+				tls_server_name tg.artmate.ru
+				dial_timeout 5s
+				response_header_timeout 15s
+			}
 		}
 	}
 
