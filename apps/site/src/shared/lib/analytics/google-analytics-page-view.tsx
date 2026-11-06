@@ -5,24 +5,19 @@ import { usePathname, useSearchParams } from "next/navigation";
 
 import { isSensitivePath } from "../is-sensitive-path";
 import { sanitizeAnalyticsUrl } from "./sanitize-analytics-url";
+import { isSilentVirtualPageView } from "./virtual-page-view";
 
 type GoogleAnalyticsPageViewProps = {
   readonly measurementId: string;
 };
 
-type GtagArguments = [
-  command: string,
-  targetId: string,
-  config?: Record<string, string>,
-];
+type GtagArguments = [command: string, targetId: string, config?: Record<string, string>];
 
 type GoogleAnalyticsWindow = Window & {
   gtag?: (..._args: GtagArguments) => void;
 };
 
-export function GoogleAnalyticsPageView({
-  measurementId,
-}: GoogleAnalyticsPageViewProps) {
+export function GoogleAnalyticsPageView({ measurementId }: GoogleAnalyticsPageViewProps) {
   const pathname = usePathname();
   const searchParams = useSearchParams();
   const currentUrlRef = useRef<string | null>(null);
@@ -42,6 +37,7 @@ export function GoogleAnalyticsPageView({
     }
 
     currentUrlRef.current = currentUrl;
+    if (isSilentVirtualPageView(currentUrl)) return;
     const safeUrl = new URL(currentUrl);
 
     (window as GoogleAnalyticsWindow).gtag?.("config", measurementId, {

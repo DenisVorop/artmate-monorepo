@@ -1,5 +1,12 @@
 import type { BlogPost } from "@/entities/blog";
-import { Breadcrumb, BreadcrumbItem, BreadcrumbLink, BreadcrumbList, BreadcrumbPage, BreadcrumbSeparator } from "@/shared/ui";
+import {
+  Breadcrumb,
+  BreadcrumbItem,
+  BreadcrumbLink,
+  BreadcrumbList,
+  BreadcrumbPage,
+  BreadcrumbSeparator,
+} from "@/shared/ui";
 import { routes } from "@/shared/constants";
 import { Link } from "@/shared/ui/link";
 

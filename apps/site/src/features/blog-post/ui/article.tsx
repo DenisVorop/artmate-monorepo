@@ -1,7 +1,7 @@
-import { ArrowLeft, Quote, Share2, Tag } from "lucide-react";
+import { Quote, Share2, Tag } from "lucide-react";
 
 import type { BlogArticleContent, BlogPost, BlogPostBlock } from "@/entities/blog";
-import { ShareActions } from "@/features/blog-post";
+import { ShareActions } from "./share-actions";
 import {
   Avatar,
   AvatarFallback,
@@ -18,27 +18,29 @@ import { getAbsoluteUrl, routes } from "@/shared/constants";
 import { Link } from "@/shared/ui/link";
 import { SectionTitle } from "@/shared/ui/typography";
 import { ArticleImage } from "./article-image";
+import { headingElementId } from "../lib/reading-stream";
 
 type ArticleProps = {
   articleId: string;
   post: BlogPost;
   content: BlogArticleContent;
+  preload?: boolean;
 };
 
-export function Article({ articleId, post, content }: ArticleProps) {
+export function Article({ articleId, post, content, preload = true }: ArticleProps) {
   const shareUrl = getAbsoluteUrl(routes.blogPost(post.slug));
 
   return (
     <article id={articleId} className="space-y-8">
-      <Card className="bg-muted/30">
-        <CardContent className="pt-6">
-          <p className="text-base leading-7 text-muted-foreground md:text-lg">{post.excerpt}</p>
-        </CardContent>
-      </Card>
-
       <div className="space-y-10">
         {content.blocks.map((block, index) => (
-          <BlockRenderer key={block.id} block={block} showSeparator={index > 0} />
+          <BlockRenderer
+            key={block.id}
+            block={block}
+            slug={post.slug}
+            showSeparator={index > 0}
+            preloadImage={preload && index === 0}
+          />
         ))}
       </div>
 
@@ -83,26 +85,36 @@ export function Article({ articleId, post, content }: ArticleProps) {
             <ShareActions title={post.title} url={shareUrl} />
           </CardContent>
         </Card>
-
-        <Button asChild variant="outline">
-          <Link href={routes.blog}>
-            <ArrowLeft />
-            Все статьи блога
-          </Link>
-        </Button>
       </div>
     </article>
   );
 }
 
-function BlockRenderer({ block, showSeparator }: { block: BlogPostBlock; showSeparator: boolean }) {
+function BlockRenderer({
+  block,
+  slug,
+  showSeparator,
+  preloadImage,
+}: {
+  block: BlogPostBlock;
+  slug: string;
+  showSeparator: boolean;
+  preloadImage: boolean;
+}) {
   if (block.type === "heading") {
-    const headingId = block.anchor ?? block.id;
+    const headingId = headingElementId(slug, block.anchor ?? block.id);
 
     return (
-      <section id={headingId} className="scroll-mt-24 space-y-5">
+      <section
+        id={headingId}
+        className="scroll-mt-[calc(var(--article-sticky-top)+4rem)] space-y-5 lg:scroll-mt-[calc(var(--article-sticky-top)+1rem)]"
+      >
         {showSeparator ? <Separator /> : null}
-        <SectionTitle className="text-foreground">{block.text}</SectionTitle>
+        {block.level === 3 ? (
+          <h3 className="font-heading text-xl leading-snug text-foreground">{block.text}</h3>
+        ) : (
+          <SectionTitle className="text-foreground">{block.text}</SectionTitle>
+        )}
       </section>
     );
   }
@@ -118,7 +130,9 @@ function BlockRenderer({ block, showSeparator }: { block: BlogPostBlock; showSep
       return null;
     }
 
-    return <ArticleImage src={src} alt={block.alt} caption={block.caption} />;
+    return (
+      <ArticleImage src={src} alt={block.alt} caption={block.caption} preload={preloadImage} />
+    );
   }
 
   if (block.type === "quote") {

@@ -358,6 +358,10 @@ test("SPA pageview sends only changed sanitized URLs with a safe referer", async
           path === "/auth/reset-password",
       },
       "./sanitize-analytics-url": sanitizer,
+      "./virtual-page-view": evaluateTypeScript(
+        await readSource("src/shared/lib/analytics/virtual-page-view.ts"),
+        { "./sanitize-analytics-url": sanitizer },
+      ),
       "next/navigation": {
         usePathname: () => "/catalog",
         useSearchParams: () => new URLSearchParams(),
@@ -375,7 +379,8 @@ test("SPA pageview sends only changed sanitized URLs with a safe referer", async
     },
     ym: (...args) => ymCalls.push(args),
   };
-  const document = { referrer: "" };
+  analyticsWindow.history = { state: {} };
+  const document = { referrer: "", title: "Artmate" };
 
   withBrowserGlobals({ analyticsWindow, document }, () => {
     pageView.YandexMetrikaPageView({ counterId: 109148727 });
@@ -390,7 +395,7 @@ test("SPA pageview sends only changed sanitized URLs with a safe referer", async
       109148727,
       "hit",
       "https://artmate.ru/product/markers?utm_source=catalog",
-      { referer: "https://artmate.ru/catalog?utm_source=menu" },
+      { referer: "https://artmate.ru/catalog?utm_source=menu", title: "Artmate" },
     ],
   ]);
 });

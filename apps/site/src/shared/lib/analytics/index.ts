@@ -33,3 +33,5 @@ export {
 } from "./sanitize-analytics-url";
 export { resolveYandexAttribution, type YandexAttribution } from "./yandex-attribution";
 export { YandexMetrika } from "./yandex-metrika";
+
+export { virtualPageViewState } from "./virtual-page-view";
