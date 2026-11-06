@@ -19,7 +19,7 @@ const { getMosaicBlocks } = mod.exports;
 test("mosaic covers every cell without holes or overlaps for any gallery length", () => {
   for (let count = 0; count <= 180; count++) {
     const works = Array.from({ length: count }, (_, index) => ({ publicId: String(index) }));
-    const blocks = getMosaicBlocks(works);
+    const blocks = getMosaicBlocks([works]);
     assert.deepEqual(
       blocks.flatMap((block) => block.items),
       works,
@@ -54,10 +54,28 @@ test("mosaic covers every cell without holes or overlaps for any gallery length"
 
 test("mosaic positions are stable for the same publications", () => {
   const works = Array.from({ length: 46 }, (_, index) => ({ publicId: `work-${index}` }));
-  assert.deepEqual(getMosaicBlocks(works), getMosaicBlocks(works));
+  assert.deepEqual(getMosaicBlocks([works]), getMosaicBlocks([works]));
   assert.ok(
-    getMosaicBlocks(works).some(
+    getMosaicBlocks([works]).some(
       (block) => new Set(block.wide.positions.map((tile) => tile.row)).size > 1,
     ),
   );
+});
+
+test("appending gallery pages preserves every previously placed tile", () => {
+  for (const count of [1, 3, 4, 5, 7, 12, 59, 60]) {
+    const firstPage = Array.from({ length: count }, (_, index) => ({ publicId: `first-${index}` }));
+    const secondPage = Array.from({ length: 60 }, (_, index) => ({ publicId: `second-${index}` }));
+    const before = getMosaicBlocks([firstPage]);
+    const after = getMosaicBlocks([firstPage, secondPage]);
+    assert.deepEqual(
+      after.slice(0, before.length),
+      before,
+      `Existing tiles moved after ${count} works`,
+    );
+    assert.deepEqual(
+      after.flatMap((block) => block.items),
+      [...firstPage, ...secondPage],
+    );
+  }
 });

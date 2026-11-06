@@ -22,7 +22,7 @@ export function CommunityWorkImageCard({
   likeAction?: ReactNode;
 }) {
   return (
-    <div className="group relative h-full w-full overflow-hidden rounded-2xl bg-stone-100">
+    <div className="group relative flex h-full w-full min-w-0 flex-col">
       <Button
         type="button"
         variant="ghost"
@@ -31,8 +31,9 @@ export function CommunityWorkImageCard({
         onFocus={onPreviewIntent}
         onPointerDown={onPreviewIntent}
         aria-label={`Открыть работу «${work.official.coloring.title}» автора ${work.author.name}`}
-        className="absolute inset-0 block h-full w-full rounded-2xl p-0 focus-visible:ring-rose-400 focus-visible:ring-inset"
-      >
+        className="absolute inset-0 z-10 block h-full w-full rounded-2xl p-0 hover:bg-transparent focus-visible:ring-rose-400 focus-visible:ring-inset"
+      />
+      <div className="relative min-h-0 flex-1 overflow-hidden rounded-2xl bg-stone-100">
         <PublicAssetImage
           key={work.revisionId}
           src={work.submission.assets.web}
@@ -41,19 +42,22 @@ export function CommunityWorkImageCard({
           priority={priority}
           className="object-cover"
         />
-      </Button>
-      <div
-        className={`pointer-events-none absolute inset-x-0 bottom-0 grid items-center gap-2 bg-gradient-to-t from-black/85 via-black/45 to-transparent px-3 pt-14 text-white sm:px-4 ${likeAction ? "grid-cols-[minmax(0,1fr)_auto] pb-2 sm:pb-3" : "grid-cols-1 pb-3 sm:pb-4"}`}
-      >
-        <div className="flex min-w-0 flex-col gap-1">
-          <span className="truncate text-xs leading-snug font-bold sm:text-sm lg:text-base">
-            {work.official.coloring.title}
-          </span>
-          <span className="truncate text-[10px] text-white/90 sm:text-xs">
-            {work.author.name} · {getCommunityCollectionTitle(work.official.collection.title)}
-          </span>
-        </div>
-        {likeAction && <div className="pointer-events-auto">{likeAction}</div>}
+        {likeAction && (
+          <div className="absolute right-1.5 bottom-1.5 z-20 rounded-full bg-black/60 text-white">
+            {likeAction}
+          </div>
+        )}
+      </div>
+      <div className="pointer-events-none flex h-13 min-w-0 shrink-0 flex-col gap-1 pt-2 pb-1">
+        <span
+          className="truncate text-sm leading-5 font-semibold text-stone-900 md:text-base"
+          title={work.official.coloring.title}
+        >
+          {work.official.coloring.title}
+        </span>
+        <span className="truncate text-xs leading-4 text-stone-600">
+          {work.author.name} · {getCommunityCollectionTitle(work.official.collection.title)}
+        </span>
       </div>
     </div>
   );

@@ -1,5 +1,5 @@
 type Position = { column: number; row: string };
-type Placement = { columns: string; ratio: number; positions: Position[] };
+type Placement = { columns: string; ratio: number; positions: Position[]; captionRows: number };
 
 const wideStacks: Record<number, number[]> = {
   1: [1],
@@ -57,7 +57,7 @@ function place(items: readonly { publicId: string }[], block: number, narrow: bo
       start += span;
     }
   }
-  return { columns, ratio, positions };
+  return { columns, ratio, positions, captionRows: Math.max(...stacks) };
 }
 
 export function getMosaicImageSizes(
@@ -69,10 +69,10 @@ export function getMosaicImageSizes(
     const length = (fraction: number, gapOffset: number) =>
       capped
         ? `${(fraction * 1468 - gapOffset).toFixed(1)}px`
-        : `calc(${(fraction * 100).toFixed(3)}vw - ${(fraction * 32 + gapOffset).toFixed(3)}px)`;
+        : `calc(${(fraction * 100).toFixed(3)}vw ${fraction * 32 + gapOffset < 0 ? "+" : "-"} ${Math.abs(fraction * 32 + gapOffset).toFixed(3)}px)`;
 
     if (compact) {
-      // Compact tiles are 3:4; the 4:5 photo must also cover their full height.
+      // Keep conservative cover candidates for tall 3:4 compact tiles.
       const fraction = 4 / 5 / (3 / 4) / compactColumns;
       return length(fraction, (compactColumns - 1) * gap * fraction);
     }
@@ -83,7 +83,7 @@ export function getMosaicImageSizes(
     // Both grid axes exclude gaps. Keep enough pixels for object-cover in tall tiles.
     return `max(${length(width, (tracks.length - 1) * gap * width)}, ${length(
       ((span / 12) * 0.8) / layout.ratio,
-      (1 - span / 12) * gap * 0.8,
+      (1 - span / 12) * gap * 0.8 - (layout.captionRows * (span / 12) - 1) * 52 * 0.8,
     )})`;
   };
   return [
@@ -94,20 +94,25 @@ export function getMosaicImageSizes(
   ].join(", ");
 }
 
-export function getMosaicBlocks<T extends { publicId: string }>(works: readonly T[]) {
+export function getMosaicBlocks<T extends { publicId: string }>(
+  workPages: readonly (readonly T[])[],
+) {
   const blocks = [];
-  let position = 0;
-  while (position < works.length) {
-    const remaining = works.length - position;
-    const preferred = [5, 7, 5][blocks.length % 3]!;
-    const size = remaining <= 7 ? remaining : Math.min(preferred, remaining - 3);
-    const items = works.slice(position, position + size);
-    blocks.push({
-      items,
-      wide: place(items, blocks.length, false),
-      narrow: place(items, blocks.length, true),
-    });
-    position += size;
+  // A loaded page is a sealed composition: appending another page cannot resize its tail.
+  for (const works of workPages) {
+    let position = 0;
+    while (position < works.length) {
+      const remaining = works.length - position;
+      const preferred = [5, 7, 5][blocks.length % 3]!;
+      const size = remaining <= 7 ? remaining : Math.min(preferred, remaining - 3);
+      const items = works.slice(position, position + size);
+      blocks.push({
+        items,
+        wide: place(items, blocks.length, false),
+        narrow: place(items, blocks.length, true),
+      });
+      position += size;
+    }
   }
   return blocks;
 }
