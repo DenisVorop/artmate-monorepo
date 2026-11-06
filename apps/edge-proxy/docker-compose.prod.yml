@@ -20,6 +20,8 @@ services:
   caddy:
     image: caddy:2-alpine
     restart: unless-stopped
+    extra_hosts:
+      - "host.docker.internal:host-gateway"
     depends_on:
       edge-proxy:
         condition: service_healthy

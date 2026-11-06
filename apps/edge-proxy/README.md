@@ -13,6 +13,13 @@ It currently handles:
   to `https://api.artmate.ru`.
 - `/telegram/*`: proxies Mini App bot webhooks to `https://tg.artmate.ru`.
 
+Webhook HTTPS reaches Artmate through the Finnish host's IPv6 TCP forwarder
+(`host.docker.internal:18444`), installed from `infra/telegram-relay/` by the edge
+deploy workflow. The listener is bound to the Docker bridge, and Caddy still
+verifies the origin certificate using `api.artmate.ru` or `tg.artmate.ru` as SNI.
+See [Telegram transport](../../infra/telegram-relay/README.md) for service setup
+and end-to-end checks.
+
 The main Artmate API should use
 `OPENAI_BASE_URL=https://<proxy-host>/v1` and
 `OPENAI_RELAY_TOKEN=<EDGE_PROXY_TOKEN>`.

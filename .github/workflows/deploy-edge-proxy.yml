@@ -60,9 +60,10 @@ jobs:
           EDGE_PROXY_USER: ${{ secrets.EDGE_PROXY_USER || secrets.AI_RELAY_USER || secrets.PRODUCTION_USER }}
         shell: bash
         run: |
-          ssh "$EDGE_PROXY_USER@$EDGE_PROXY_HOST" 'mkdir -p /opt/artmate-edge-proxy/infra/caddy'
+          ssh "$EDGE_PROXY_USER@$EDGE_PROXY_HOST" 'mkdir -p /opt/artmate-edge-proxy/infra/caddy /opt/artmate-edge-proxy/infra/telegram-relay'
           scp apps/edge-proxy/docker-compose.prod.yml "$EDGE_PROXY_USER@$EDGE_PROXY_HOST:/opt/artmate-edge-proxy/docker-compose.prod.yml"
           scp apps/edge-proxy/infra/caddy/Caddyfile "$EDGE_PROXY_USER@$EDGE_PROXY_HOST:/opt/artmate-edge-proxy/infra/caddy/Caddyfile"
+          scp infra/telegram-relay/artmate-telegram-origin-proxy.socket infra/telegram-relay/artmate-telegram-origin-proxy.service "$EDGE_PROXY_USER@$EDGE_PROXY_HOST:/opt/artmate-edge-proxy/infra/telegram-relay/"
 
       - name: Upload proxy env
         env:
@@ -146,7 +147,21 @@ jobs:
             fi
 
             cd /opt/artmate-edge-proxy
+            origin_proxy_changed=false
+            for unit in artmate-telegram-origin-proxy.socket artmate-telegram-origin-proxy.service; do
+              if ! sudo cmp -s "infra/telegram-relay/$unit" "/etc/systemd/system/$unit"; then
+                origin_proxy_changed=true
+              fi
+              sudo install -m 644 "infra/telegram-relay/$unit" "/etc/systemd/system/$unit"
+            done
+            sudo systemctl daemon-reload
+            if [ "$origin_proxy_changed" = true ]; then
+              sudo systemctl stop artmate-telegram-origin-proxy.service artmate-telegram-origin-proxy.socket
+            fi
+            sudo systemctl enable --now artmate-telegram-origin-proxy.socket
             docker compose --env-file .env --env-file .image.env -f docker-compose.prod.yml pull
+            docker compose --env-file .env --env-file .image.env -f docker-compose.prod.yml run --rm --no-deps caddy caddy validate --config /etc/caddy/Caddyfile
             docker compose --env-file .env --env-file .image.env -f docker-compose.prod.yml up -d --remove-orphans
+            docker compose --env-file .env --env-file .image.env -f docker-compose.prod.yml exec -T caddy caddy reload --config /etc/caddy/Caddyfile
             docker image prune -f
           '

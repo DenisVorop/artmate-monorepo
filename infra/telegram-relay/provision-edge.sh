@@ -10,7 +10,7 @@ fi
 # No password authentication; '*' does not impose OpenSSH's locked-account check.
 usermod --password '*' artmate-relay
 install -d -m 755 -o root -g root /home/artmate-relay/.ssh
-printf 'from="186.246.8.79",restrict,port-forwarding,permitopen="127.0.0.1:443" %s\n' "$relay_public_key" > /home/artmate-relay/.ssh/authorized_keys
+printf 'from="186.246.8.79,2a03:6f00:a::2:1236",restrict,port-forwarding,permitopen="127.0.0.1:443" %s\n' "$relay_public_key" > /home/artmate-relay/.ssh/authorized_keys
 chmod 644 /home/artmate-relay/.ssh/authorized_keys
 install -d -m 755 /etc/ssh/sshd_config.d
 grep -Eq '^Include[[:space:]]+/etc/ssh/sshd_config.d/\*\.conf' /etc/ssh/sshd_config || { echo 'sshd drop-in include missing'; exit 1; }

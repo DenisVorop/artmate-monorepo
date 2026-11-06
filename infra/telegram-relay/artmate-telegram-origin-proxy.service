@@ -1,0 +1,16 @@
+[Unit]
+Description=Artmate webhook TCP transport over IPv6
+Requires=artmate-telegram-origin-proxy.socket
+After=network-online.target artmate-telegram-origin-proxy.socket
+
+[Service]
+# Ubuntu 24.04 systemd-socket-proxyd expects IPv6 without square brackets.
+ExecStart=/usr/lib/systemd/systemd-socket-proxyd 2a03:6f00:a::2:1236:443
+DynamicUser=yes
+NoNewPrivileges=yes
+PrivateTmp=yes
+ProtectSystem=strict
+ProtectHome=yes
+RestrictAddressFamilies=AF_INET AF_INET6 AF_UNIX
+CapabilityBoundingSet=
+UMask=0077
