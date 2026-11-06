@@ -1076,6 +1076,7 @@ test("identity transitions cancel and clear personalized data before publishing 
   const workshopQueryKey = ["workshop"];
   const featureBannersQueryKey = ["feature-banners"];
   const welcomeOfferQueryKey = ["cart-pricing", "welcome-offer"];
+  const likesQueryKey = ["likes"];
   const cartPricingQueryKey = ["cart-pricing"];
   const sessionKey = ["session", "data"];
   const cases = [
@@ -1156,6 +1157,7 @@ test("identity transitions cancel and clear personalized data before publishing 
         cartPricingQueryKey,
         featureBannersQueryKey,
         welcomeOfferQueryKey,
+        likesQueryKey,
       },
     });
 
@@ -1166,6 +1168,8 @@ test("identity transitions cancel and clear personalized data before publishing 
       ...(exportName === "useLogoutMutation"
         ? [
             ["cancel", ["session"]],
+            ["cancel", likesQueryKey],
+            ["remove", likesQueryKey],
             ["cancel", ["email-subscription"]],
             ["remove", ["email-subscription"]],
             ["cancel", ["achievements"]],
