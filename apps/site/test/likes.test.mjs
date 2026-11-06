@@ -233,7 +233,7 @@ test("a lost mutation response reconciles committed server state instead of pres
   }
 });
 
-test("the real card renders independent photo and like buttons with a 68×44 minimum target", async () => {
+test("the real card keeps independent buttons and a 44px mobile like target", async () => {
   const { twMerge } = require("tailwind-merge"),
     { clsx } = require("clsx");
   const cn = (...values) => twMerge(clsx(...values));
@@ -273,7 +273,9 @@ test("the real card renders independent photo and like buttons with a 68×44 min
     }),
   );
   assert.equal((html.match(/<button\b/g) ?? []).length, 2);
-  assert.match(html, /min-h-11 min-w-17/);
+  assert.match(html, /min-h-11/);
+  assert.match(html, /min-w-11/);
+  assert.match(html, /md:min-w-17/);
   assert.match(html, /aria-pressed="false"/);
   assert.ok(
     html.indexOf("</button>") < html.indexOf("aria-pressed="),

@@ -120,7 +120,6 @@ test("mosaic hints subtract column and row gaps while preserving cover resolutio
   const { getMosaicImageSizes } = await load("features/community-gallery/lib/mosaic-layout.ts");
   const layout = {
     columns: "2fr 1fr 1fr",
-    captionRows: 2,
     ratio: 1.6,
     positions: [
       { column: 1, row: "1 / span 12" },
@@ -129,9 +128,9 @@ test("mosaic hints subtract column and row gaps while preserving cover resolutio
   };
   const block = { items: Array(5), wide: layout, narrow: layout };
   const fullHeight = getMosaicImageSizes(block, 0);
-  // The full-height tile includes the extra height reserved for two caption rows.
-  assert.match(fullHeight, /max\(714\.0px, 775\.6px\)/);
-  assert.match(fullHeight, /max\(calc\(50\.000vw - 36\.000px\), calc\(50\.000vw \+ 25\.600px\)\)/);
+  // At the cap, width = (1468 - 2 * 20) / 2; cover needs 1468 / 1.6 * 0.8.
+  assert.match(fullHeight, /max\(714\.0px, 734\.0px\)/);
+  assert.match(fullHeight, /max\(calc\(50\.000vw - 36\.000px\), calc\(50\.000vw - 16\.000px\)\)/);
   const halfHeight = getMosaicImageSizes(block, 1);
   // A six-row tile includes five of the eleven row gaps.
   assert.match(halfHeight, /max\(357\.0px, 359\.0px\)/);
