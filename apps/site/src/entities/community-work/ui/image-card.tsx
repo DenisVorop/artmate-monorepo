@@ -53,7 +53,7 @@ export function CommunityWorkImageCard({
             {work.author.name} · {getCommunityCollectionTitle(work.official.collection.title)}
           </span>
         </div>
-        {likeAction && <div className="pointer-events-auto">{likeAction}</div>}
+        {likeAction && <div className="pointer-events-auto flex items-end">{likeAction}</div>}
       </div>
     </div>
   );
