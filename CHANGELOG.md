@@ -1,5 +1,11 @@
 # Changelog
 
+## [0.58.1](https://github.com/DenisVorop/artmate-monorepo/compare/v0.58.0...v0.58.1) (2026-11-06)
+
+### Tests
+
+* **site:** fix logout likes cache expectations ([1bb0112](https://github.com/DenisVorop/artmate-monorepo/commit/1bb011262d3ca5bf0bbdeed0b7e099dd68186829))
+
 ## [0.58.0](https://github.com/DenisVorop/artmate-monorepo/compare/v0.57.0...v0.58.0) (2026-11-06)
 
 
