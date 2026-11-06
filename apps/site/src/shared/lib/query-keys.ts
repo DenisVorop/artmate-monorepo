@@ -8,6 +8,7 @@ export const cartPricingQueryKey = ["cart-pricing"] as const;
 export const featureBannersQueryKey = ["feature-banners"] as const;
 export const welcomeOfferQueryKey = [...cartPricingQueryKey, "welcome-offer"] as const;
 export const guestQueryOwner = "guest";
+export const likesQueryKey = ["likes"] as const;
 
 export function getQueryOwner(userId: string | null | undefined) {
   return userId ?? guestQueryOwner;

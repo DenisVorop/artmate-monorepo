@@ -2,6 +2,7 @@ import { memo, type CSSProperties } from "react";
 
 import { CommunityWorkImageCard, type CommunityWorkSummary } from "@/entities/community-work";
 import { cn } from "@/shared/lib";
+import { LikeButton } from "@/features/likes";
 
 import { getMosaicBlocks, getMosaicImageSizes } from "../lib/mosaic-layout";
 
@@ -59,6 +60,12 @@ export const Mosaic = memo(function Mosaic({
                 imageSizes={getMosaicImageSizes(block, index)}
                 onPreviewIntent={onPreviewIntent}
                 onOpenImage={(event) => onOpenImage(work, event.currentTarget)}
+                likeAction={
+                  <LikeButton
+                    subject={{ subjectType: "community-work", subjectId: work.publicId }}
+                    title={work.official.coloring.title}
+                  />
+                }
               />
             </li>
           ))}

@@ -6,6 +6,7 @@ import {
   getGalleryCollectionSlug,
   type useCollectionCommunityWorks,
 } from "@/entities/community-work";
+import { LikeButton } from "@/features/likes";
 import { routes } from "@/shared/constants";
 import { Link } from "@/shared/ui/link";
 import { Button, Card, CardContent } from "@/shared/ui";
@@ -50,6 +51,13 @@ export function CommunityWorks(props: CommunityWorksProps) {
               <CommunityWorkCard
                 work={work}
                 href={routes.galleryCollection(getGalleryCollectionSlug(props.collectionSlug))}
+                likeAction={
+                  <LikeButton
+                    subject={{ subjectType: "community-work", subjectId: work.publicId }}
+                    title={work.official.coloring.title}
+                    appearance="surface"
+                  />
+                }
               />
             </li>
           ))}

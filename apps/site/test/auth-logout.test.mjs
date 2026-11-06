@@ -148,6 +148,7 @@ test("logout drains authentication and cancels a stale session response before p
       cartPricingQueryKey: ["cart-pricing"],
       featureBannersQueryKey: ["feature-banners"],
       welcomeOfferQueryKey: ["cart-pricing", "welcome-offer"],
+      likesQueryKey: ["likes"],
     },
   });
   try {

@@ -1,6 +1,7 @@
 "use client";
 
 import { CommunityWorkCard, useCommunityWorks } from "@/entities/community-work";
+import { LikeButton } from "@/features/likes";
 import { Button, DataState } from "@/shared/ui";
 
 export function CommunityWorks({ slug, number }: { slug: string; number: number }) {
@@ -40,7 +41,16 @@ export function CommunityWorks({ slug, number }: { slug: string; number: number 
         <ul className="grid gap-5 sm:grid-cols-2 lg:grid-cols-3 xl:grid-cols-4">
           {works.map((work) => (
             <li key={work.publicId}>
-              <CommunityWorkCard work={work} />
+              <CommunityWorkCard
+                work={work}
+                likeAction={
+                  <LikeButton
+                    subject={{ subjectType: "community-work", subjectId: work.publicId }}
+                    title={work.official.coloring.title}
+                    appearance="surface"
+                  />
+                }
+              />
             </li>
           ))}
         </ul>

@@ -73,5 +73,9 @@ test("FSD keeps route UI, query state, transport and editor responsibilities sep
   assert.match(workshopBuilder, /queryClient\.fetchQuery/);
   assert.match(communityBuilder, /fetchOrNull/);
   assert.doesNotMatch(coloringDetails, /@\/features\//);
-  assert.doesNotMatch(publicWork, /@\/features\//);
+  // Public work may compose the shared likes action; orchestration stays in that feature.
+  const featureImports = [...publicWork.matchAll(/from "(@\/features\/[^"]+)"/g)].map(
+    (match) => match[1],
+  );
+  assert.deepEqual(featureImports, ["@/features/likes"]);
 });

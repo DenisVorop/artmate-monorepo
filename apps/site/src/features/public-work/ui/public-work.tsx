@@ -11,6 +11,7 @@ import {
   useCommunityWorks,
   usePublicCommunityWork,
 } from "@/entities/community-work";
+import { LikeButton } from "@/features/likes";
 import { routes } from "@/shared/constants";
 import {
   Avatar,
@@ -102,7 +103,14 @@ function PublicWorkContent({
       </Breadcrumb>
 
       <header className="space-y-5">
-        <PageTitle>{work.official.coloring.title}</PageTitle>
+        <div className="grid grid-cols-[minmax(0,1fr)_auto] items-start gap-3">
+          <PageTitle>{work.official.coloring.title}</PageTitle>
+          <LikeButton
+            subject={{ subjectType: "community-work", subjectId: work.publicId }}
+            title={work.official.coloring.title}
+            appearance="surface"
+          />
+        </div>
         <div
           className={`grid gap-4 rounded-2xl border border-rose-100 bg-rose-50/50 p-4 lg:items-center ${
             hasAuthorMaterialDetails
@@ -188,7 +196,8 @@ function PublicWorkContent({
               <Link
                 href={routes.product(work.relatedProduct.categorySlug, work.relatedProduct.slug)}
               >
-                <ShoppingBag data-icon="inline-start" />К альбому
+                <ShoppingBag data-icon="inline-start" />
+                Посмотреть альбом
               </Link>
             </Button>
           </div>
@@ -211,7 +220,16 @@ function PublicWorkContent({
           <ul className="grid gap-5 sm:grid-cols-2 lg:grid-cols-3">
             {otherWorks.map((item) => (
               <li key={item.publicId}>
-                <CommunityWorkCard work={item} />
+                <CommunityWorkCard
+                  work={item}
+                  likeAction={
+                    <LikeButton
+                      subject={{ subjectType: "community-work", subjectId: item.publicId }}
+                      title={item.official.coloring.title}
+                      appearance="surface"
+                    />
+                  }
+                />
               </li>
             ))}
           </ul>

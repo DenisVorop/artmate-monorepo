@@ -2,6 +2,7 @@
 
 import { lazy, Suspense, useCallback, useEffect, useState, type ComponentType } from "react";
 import { CommunityWorkCard, useFeaturedCollectionWorks } from "@/entities/community-work";
+import { LikeButton } from "@/features/likes";
 import { SectionTitle } from "@/shared/ui/typography";
 import { Button } from "@/shared/ui";
 import { Link } from "@/shared/ui/link";
@@ -58,6 +59,13 @@ export function HomeCommunity({ className }: { className?: string }) {
               work={work}
               onPreviewIntent={preloadImagePreview}
               onOpenImage={(event) => preview.openImage(work, event.currentTarget)}
+              likeAction={
+                <LikeButton
+                  subject={{ subjectType: "community-work", subjectId: work.publicId }}
+                  title={work.official.coloring.title}
+                  appearance="surface"
+                />
+              }
             />
           </li>
         ))}
