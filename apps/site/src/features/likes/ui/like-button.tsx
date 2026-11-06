@@ -29,7 +29,7 @@ export function LikeButton({
   );
   const contentClassName = cn(
     "inline-flex items-center",
-    appearance === "overlay" ? "gap-1 md:gap-1.5" : "gap-1.5",
+    appearance === "overlay" ? "translate-y-2 gap-1 md:gap-1.5" : "gap-1.5",
   );
   if (user && data && !data.canLike && !failed) {
     return (

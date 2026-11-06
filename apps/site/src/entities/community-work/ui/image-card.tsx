@@ -43,7 +43,7 @@ export function CommunityWorkImageCard({
         />
       </Button>
       <div
-        className={`pointer-events-none absolute inset-x-0 bottom-0 flex min-w-0 flex-col gap-1 bg-gradient-to-t from-black/85 via-black/45 to-transparent pt-14 pl-3 text-white sm:pl-4 ${likeAction ? "pr-1 pb-3 md:pr-4" : "pr-3 pb-3 sm:pr-4 sm:pb-4"}`}
+        className={`pointer-events-none absolute inset-x-0 bottom-0 flex min-w-0 flex-col gap-1 bg-gradient-to-t from-black/85 via-black/45 to-transparent pt-14 pl-3 text-white sm:pl-4 ${likeAction ? "pr-1 pb-1 md:pr-4" : "pr-3 pb-3 sm:pr-4 sm:pb-4"}`}
       >
         <span
           className={`min-w-0 truncate text-xs leading-snug font-bold sm:text-sm lg:text-base ${likeAction ? "pr-2 sm:pr-3 md:pr-0" : ""}`}
@@ -56,8 +56,8 @@ export function CommunityWorkImageCard({
           <span className="truncate text-[10px] leading-5 text-white/90 sm:text-xs">
             {work.author.name} · {getCommunityCollectionTitle(work.official.collection.title)}
           </span>
-          {/* Keep the 44px hit target while the caption row follows its 20px content. */}
-          {likeAction && <div className="pointer-events-auto -my-3 flex">{likeAction}</div>}
+          {/* The 44px target extends above the 20px content, leaving only 4px below. */}
+          {likeAction && <div className="pointer-events-auto -mt-5 -mb-1 flex">{likeAction}</div>}
         </div>
       </div>
     </div>
