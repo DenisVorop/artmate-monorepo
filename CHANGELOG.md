@@ -1,5 +1,20 @@
 # Changelog
 
+## [0.58.0](https://github.com/DenisVorop/artmate-monorepo/compare/v0.57.0...v0.58.0) (2026-11-06)
+
+
+### Features
+
+* **api:** add admin Telegram notifications ([80fb023](https://github.com/DenisVorop/artmate-monorepo/commit/80fb023b65b908e86cb247c7af51d9e865737510))
+* **api:** add universal likes ([1539c03](https://github.com/DenisVorop/artmate-monorepo/commit/1539c03741fc3f7e79277d3510ec861b01b877e3))
+* **blog:** add continuous article reading ([4640cb8](https://github.com/DenisVorop/artmate-monorepo/commit/4640cb8ddf25c61ba88a76f297749f43b1d0aad8))
+* **site:** add shared likes to community works ([f30be37](https://github.com/DenisVorop/artmate-monorepo/commit/f30be372e2691f08f6dcee2bec48ffcbf7dc30be))
+
+
+### Bug Fixes
+
+* **infra:** restore Telegram transport over IPv6 ([07a33aa](https://github.com/DenisVorop/artmate-monorepo/commit/07a33aababc02a1c120cd8968859fe9357ffb890))
+
 ## [0.57.0](https://github.com/DenisVorop/artmate-monorepo/compare/v0.56.1...v0.57.0) (2026-11-02)
 
 
