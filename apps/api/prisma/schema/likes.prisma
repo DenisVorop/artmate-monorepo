@@ -1,0 +1,20 @@
+// Likes owns these identifiers; no foreign keys to other domains.
+model Like {
+  subjectType String   @map("subject_type") @db.VarChar(64)
+  subjectId   String   @map("subject_id") @db.VarChar(128)
+  actorId     String   @map("actor_id") @db.VarChar(128)
+  createdAt   DateTime @default(now()) @map("created_at")
+
+  @@id([subjectType, subjectId, actorId])
+  @@index([actorId])
+  @@map("likes")
+}
+
+model LikeWriteWindow {
+  actorId   String   @id @map("actor_id") @db.VarChar(128)
+  startedAt DateTime @map("started_at")
+  attempts  Int
+
+  @@index([startedAt])
+  @@map("like_write_windows")
+}
