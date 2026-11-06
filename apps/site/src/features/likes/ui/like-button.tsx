@@ -20,7 +20,7 @@ export function LikeButton({
   const className = cn(
     "min-h-11 items-center rounded-full text-xs font-semibold tabular-nums sm:text-sm",
     appearance === "overlay"
-      ? "min-w-11 items-end px-1 pb-0 text-white hover:bg-white/15 hover:text-white focus-visible:border-white/60 focus-visible:ring-rose-300/70 md:min-w-17 md:px-3"
+      ? "min-w-11 px-1 text-white hover:bg-white/15 hover:text-white focus-visible:border-white/60 focus-visible:ring-rose-300/70 md:min-w-17 md:px-3"
       : "min-w-17 px-3 text-stone-600 hover:bg-stone-100 hover:text-stone-900 focus-visible:border-stone-300 focus-visible:ring-rose-400/40",
     liked &&
       (appearance === "overlay"
