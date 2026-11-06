@@ -1,4 +1,4 @@
-import type { MouseEventHandler } from "react";
+import type { MouseEventHandler, ReactNode } from "react";
 
 import { Button } from "@/shared/ui";
 
@@ -12,40 +12,49 @@ export function CommunityWorkImageCard({
   priority = false,
   imageSizes = "(max-width: 767px) 50vw, 33vw",
   onPreviewIntent,
+  likeAction,
 }: {
   work: CommunityWorkSummary;
   onOpenImage: MouseEventHandler<HTMLButtonElement>;
   priority?: boolean;
   imageSizes?: string;
   onPreviewIntent?: () => void;
+  likeAction?: ReactNode;
 }) {
   return (
-    <Button
-      type="button"
-      variant="ghost"
-      onClick={onOpenImage}
-      onPointerEnter={onPreviewIntent}
-      onFocus={onPreviewIntent}
-      onPointerDown={onPreviewIntent}
-      aria-label={`Открыть работу «${work.official.coloring.title}» автора ${work.author.name}`}
-      className="group relative block h-full w-full overflow-hidden rounded-2xl bg-stone-100 p-0 text-left font-normal whitespace-normal focus-visible:ring-rose-400"
-    >
-      <PublicAssetImage
-        key={work.revisionId}
-        src={work.submission.assets.web}
-        sizes={imageSizes}
-        alt={`Работа ${work.author.name}: ${work.official.coloring.title}`}
-        priority={priority}
-        className="object-cover"
-      />
-      <span className="absolute inset-x-0 bottom-0 flex flex-col gap-1 bg-gradient-to-t from-black/85 via-black/45 to-transparent px-3 pt-14 pb-3 text-white sm:px-4 sm:pb-4">
-        <span className="line-clamp-2 text-xs leading-snug font-bold sm:text-sm lg:text-base">
-          {work.official.coloring.title}
-        </span>
-        <span className="line-clamp-1 text-[10px] text-white/90 sm:text-xs">
-          {work.author.name} · {getCommunityCollectionTitle(work.official.collection.title)}
-        </span>
-      </span>
-    </Button>
+    <div className="group relative h-full w-full overflow-hidden rounded-2xl bg-stone-100">
+      <Button
+        type="button"
+        variant="ghost"
+        onClick={onOpenImage}
+        onPointerEnter={onPreviewIntent}
+        onFocus={onPreviewIntent}
+        onPointerDown={onPreviewIntent}
+        aria-label={`Открыть работу «${work.official.coloring.title}» автора ${work.author.name}`}
+        className="absolute inset-0 block h-full w-full rounded-2xl p-0 focus-visible:ring-rose-400 focus-visible:ring-inset"
+      >
+        <PublicAssetImage
+          key={work.revisionId}
+          src={work.submission.assets.web}
+          sizes={imageSizes}
+          alt={`Работа ${work.author.name}: ${work.official.coloring.title}`}
+          priority={priority}
+          className="object-cover"
+        />
+      </Button>
+      <div
+        className={`pointer-events-none absolute inset-x-0 bottom-0 grid items-center gap-2 bg-gradient-to-t from-black/85 via-black/45 to-transparent px-3 pt-14 text-white sm:px-4 ${likeAction ? "grid-cols-[minmax(0,1fr)_auto] pb-2 sm:pb-3" : "grid-cols-1 pb-3 sm:pb-4"}`}
+      >
+        <div className="flex min-w-0 flex-col gap-1">
+          <span className="truncate text-xs leading-snug font-bold sm:text-sm lg:text-base">
+            {work.official.coloring.title}
+          </span>
+          <span className="truncate text-[10px] text-white/90 sm:text-xs">
+            {work.author.name} · {getCommunityCollectionTitle(work.official.collection.title)}
+          </span>
+        </div>
+        {likeAction && <div className="pointer-events-auto">{likeAction}</div>}
+      </div>
+    </div>
   );
 }

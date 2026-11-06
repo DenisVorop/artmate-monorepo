@@ -3,6 +3,7 @@
 import { Palette } from "lucide-react";
 
 import { CommunityWorkCard, usePublicWorkshop } from "@/entities/community-work";
+import { LikeButton } from "@/features/likes";
 import { Avatar, AvatarFallback, AvatarImage, Button, DataState } from "@/shared/ui";
 import { PageTitle } from "@/shared/ui/typography";
 
@@ -95,7 +96,16 @@ export function PublicWorkshopView({ handle }: { handle: string }) {
               <ul className="grid gap-5 sm:grid-cols-2 lg:grid-cols-3 xl:grid-cols-4">
                 {collection.works.map((work) => (
                   <li key={work.publicId}>
-                    <CommunityWorkCard work={work} />
+                    <CommunityWorkCard
+                      work={work}
+                      likeAction={
+                        <LikeButton
+                          subject={{ subjectType: "community-work", subjectId: work.publicId }}
+                          title={work.official.coloring.title}
+                          appearance="surface"
+                        />
+                      }
+                    />
                   </li>
                 ))}
               </ul>

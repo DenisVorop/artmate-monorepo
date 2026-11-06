@@ -15,6 +15,7 @@ import {
   cartPricingQueryKey,
   featureBannersQueryKey,
   welcomeOfferQueryKey,
+  likesQueryKey,
 } from "@/shared/lib/query-keys";
 
 import { AuthContext } from "../lib/auth-provider/auth.context";
@@ -33,6 +34,8 @@ export function useLogoutMutation(options: UseLogoutMutationOptions = {}) {
     },
     onSuccess: async () => {
       await queryClient.cancelQueries({ queryKey: sessionQuery.baseKey });
+      await queryClient.cancelQueries({ queryKey: likesQueryKey });
+      queryClient.removeQueries({ queryKey: likesQueryKey });
       void queryClient.cancelQueries({
         queryKey: emailSubscriptionQuery.baseKey,
       });

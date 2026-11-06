@@ -10,6 +10,7 @@ import {
   cartPricingQueryKey,
   featureBannersQueryKey,
   welcomeOfferQueryKey,
+  likesQueryKey,
 } from "@/shared/lib/query-keys";
 
 /** Replace identity-derived reads while preserving the cart, promo draft and caller form. */
@@ -25,6 +26,7 @@ export async function publishAuthSession(
     workshopQuery.baseKey,
     featureBannersQueryKey,
     welcomeOfferQueryKey,
+    likesQueryKey,
   ];
   await Promise.all([
     queryClient.cancelQueries({ queryKey: sessionQuery.baseKey }),

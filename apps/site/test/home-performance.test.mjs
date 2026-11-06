@@ -136,6 +136,7 @@ test("a cold home preview keeps the page and work cards visible inside the app s
     "@/shared/ui/skeleton": { Skeleton: () => React.createElement("div") },
   });
   const { HomeCommunity } = await load("features/home-community/ui/community.tsx", {
+    "@/features/likes": { LikeButton: () => null },
     react: { ...React, lazy: () => PendingPreview },
     "next/dynamic": { default: () => PendingPreview },
     "@/entities/community-work": {

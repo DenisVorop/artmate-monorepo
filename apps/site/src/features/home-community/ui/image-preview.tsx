@@ -3,6 +3,7 @@
 import Link from "next/link";
 import { ArrowUpRight } from "lucide-react";
 import { PublicAssetImage } from "@/entities/community-work";
+import { LikeButton } from "@/features/likes";
 import { Button, ResponsiveMediaViewer } from "@/shared/ui";
 import { routes } from "@/shared/constants";
 import type { useImagePreview } from "../lib/use-image-preview";
@@ -32,9 +33,19 @@ export function ImagePreview({ preview }: { preview: ReturnType<typeof useImageP
             />
           </div>
           <div className="mt-3 flex shrink-0 flex-col gap-3 rounded-xl border border-rose-100 bg-white p-3 sm:flex-row sm:items-center sm:justify-between sm:px-4">
-            <p className="min-w-0 text-sm font-semibold text-stone-700">
-              {preview.selectedWork.official.collection.title}
-            </p>
+            <div className="grid min-w-0 grid-cols-[minmax(0,1fr)_auto] items-center gap-3 sm:flex-1">
+              <p className="min-w-0 text-sm font-semibold text-stone-700">
+                {preview.selectedWork.official.collection.title}
+              </p>
+              <LikeButton
+                subject={{
+                  subjectType: "community-work",
+                  subjectId: preview.selectedWork.publicId,
+                }}
+                title={preview.selectedWork.official.coloring.title}
+                appearance="surface"
+              />
+            </div>
             <Button
               asChild
               size="lg"

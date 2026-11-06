@@ -4,6 +4,7 @@ import { ArrowUpRight } from "lucide-react";
 
 import { getCommunityCollectionTitle, PublicAssetImage } from "@/entities/community-work";
 import { getProductBySlug, useProductsData } from "@/entities/products";
+import { LikeButton } from "@/features/likes";
 import { routes } from "@/shared/constants";
 import { Avatar, AvatarFallback, AvatarImage, ResponsiveMediaViewer } from "@/shared/ui";
 import { Link } from "@/shared/ui/link";
@@ -47,17 +48,24 @@ export function ImagePreview({ preview }: { preview: ReturnType<typeof useImageP
                 {work.official.coloring.title}
               </h2>
             </div>
-            <Link
-              href={routes.publicWorkshop(work.author.handle)}
-              className="flex w-fit items-center gap-3 rounded-lg text-sm font-semibold text-stone-800 underline-offset-4 hover:underline"
-              onClick={() => preview.onOpenChange(false)}
-            >
-              <Avatar className="size-9">
-                {work.author.image && <AvatarImage src={work.author.image} alt="" />}
-                <AvatarFallback>{work.author.name.slice(0, 1).toUpperCase()}</AvatarFallback>
-              </Avatar>
-              {work.author.name}
-            </Link>
+            <div className="grid grid-cols-[minmax(0,1fr)_auto] items-center gap-3">
+              <Link
+                href={routes.publicWorkshop(work.author.handle)}
+                className="flex w-fit min-w-0 items-center gap-3 rounded-lg text-sm font-semibold text-stone-800 underline-offset-4 hover:underline"
+                onClick={() => preview.onOpenChange(false)}
+              >
+                <Avatar className="size-9 shrink-0">
+                  {work.author.image && <AvatarImage src={work.author.image} alt="" />}
+                  <AvatarFallback>{work.author.name.slice(0, 1).toUpperCase()}</AvatarFallback>
+                </Avatar>
+                <span className="truncate">{work.author.name}</span>
+              </Link>
+              <LikeButton
+                subject={{ subjectType: "community-work", subjectId: work.publicId }}
+                title={work.official.coloring.title}
+                appearance="surface"
+              />
+            </div>
             <dl className="grid grid-cols-2 gap-4 border-y border-stone-200 py-4 text-sm">
               <div className="space-y-1">
                 <dt className="text-xs text-stone-500">Тематика</dt>

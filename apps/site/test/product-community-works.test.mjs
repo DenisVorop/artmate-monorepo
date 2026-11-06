@@ -31,6 +31,7 @@ const { getGalleryCollectionSlug } = await load("entities/community-work/lib/sel
 const { CommunityWorks } = await load("features/product-details/ui/community-works.tsx", {
   "react/jsx-runtime": { jsx: element, jsxs: element },
   "@/entities/community-work": { CommunityWorkCard: "CommunityWorkCard", getGalleryCollectionSlug },
+  "@/features/likes": { LikeButton: "LikeButton" },
   "@/shared/constants": { routes },
   "@/shared/ui/link": { Link: "Link" },
   "@/shared/ui": { Button: "Button", Card: "Card", CardContent: "CardContent" },
@@ -148,7 +149,10 @@ test("empty works hide the entire section", () => {
   assert.equal(render(), null);
 });
 test("every loaded work stays in the horizontal feed without an expand button", () => {
-  const works = Array.from({ length: 18 }, (_, i) => ({ publicId: `work-${i}` }));
+  const works = Array.from({ length: 18 }, (_, i) => ({
+    publicId: `work-${i}`,
+    official: { coloring: { title: `Картина ${i + 1}` } },
+  }));
   const tree = render({ works });
   assert.deepEqual(
     find(tree, "CommunityWorkCard").map((node) => node.props.work),
@@ -174,7 +178,7 @@ test("every loaded work stays in the horizontal feed without an expand button", 
 test("a next-page failure keeps previous works and offers only retry", async () => {
   let retries = 0;
   const tree = render({
-    works: [{ publicId: "one" }],
+    works: [{ publicId: "one", official: { coloring: { title: "Картина" } } }],
     hasNextPage: true,
     isFetchNextPageError: true,
     fetchNextPage: async () => retries++,

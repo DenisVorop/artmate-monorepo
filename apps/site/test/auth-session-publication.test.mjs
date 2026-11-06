@@ -15,6 +15,7 @@ const personalizedRoots = [
   ["feature-banners"],
   ["cart-pricing", "welcome-offer"],
   ["email-subscription"],
+  ["likes"],
 ];
 const mocks = {
   "@/entities/email-subscription": {
@@ -36,6 +37,7 @@ const mocks = {
     cartPricingQueryKey: ["cart-pricing"],
     featureBannersQueryKey: personalizedRoots[4],
     welcomeOfferQueryKey: personalizedRoots[5],
+    likesQueryKey: personalizedRoots[7],
   },
 };
 const source = await readFile(
@@ -92,10 +94,7 @@ test("session publication removes personalized reads and preserves cart and ente
   assert.deepEqual(client.getQueryData(["cart-pricing", "preview"]), {
     total: 100,
   });
-  assert.equal(
-    client.getQueryState(["cart-pricing", "preview"]).isInvalidated,
-    true,
-  );
+  assert.equal(client.getQueryState(["cart-pricing", "preview"]).isInvalidated, true);
   client.clear();
 });
 
