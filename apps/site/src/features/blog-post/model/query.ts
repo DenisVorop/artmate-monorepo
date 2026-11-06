@@ -7,4 +7,5 @@ export const blogPostPageQuery = (slug: string) =>
     queryKey: ["blog", "post-page", slug] as const,
     queryFn: () => getBlogPostPageData(slug),
     staleTime: Infinity,
+    retryOnMount: false,
   });

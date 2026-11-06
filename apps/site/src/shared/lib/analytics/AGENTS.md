@@ -40,6 +40,10 @@ analytics.checkoutStarted(cart, attemptKey);
 - полная очистка корзины отправляет один ecommerce `remove` со всеми фактически
   удалёнными позициями, без отдельной цели Метрики;
 - page view сущности — только после успешной client-загрузки и прохождения error/404 guards;
+- в непрерывном чтении блога фоновая загрузка статьи не является просмотром: URL
+  меняется, когда начало материала входит в область чтения в видимой вкладке.
+  Просмотр отправляет общий SPA listener; обратная прокрутка и восстановление истории
+  меняют URL с `virtualPageViewState(..., false)`, без повторного просмотра;
 - `begin_checkout` — только после свежего успешного чтения непустой корзины; stale cache
   во время refetch, loading/error и empty cart не являются входом в checkout;
 - canonical `order_created` — только server/offline transactional outbox в транзакции

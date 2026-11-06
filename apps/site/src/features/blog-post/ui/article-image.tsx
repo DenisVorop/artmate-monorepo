@@ -10,6 +10,7 @@ type ArticleImageProps = {
   src: string;
   alt: string;
   caption?: string;
+  preload?: boolean;
 };
 
 type ImageOrientation = "landscape" | "portrait" | "square";
@@ -22,7 +23,7 @@ type ImageMetrics = {
 
 const fallbackRatio = 16 / 9;
 
-export function ArticleImage({ src, alt, caption }: ArticleImageProps) {
+export function ArticleImage({ src, alt, caption, preload = false }: ArticleImageProps) {
   const [metrics, setMetrics] = useState<ImageMetrics | null>(null);
   const activeMetrics = metrics?.src === src ? metrics : null;
   const orientation = activeMetrics?.orientation ?? "landscape";
@@ -70,6 +71,7 @@ export function ArticleImage({ src, alt, caption }: ArticleImageProps) {
         <AspectRatio ratio={ratio} className="relative bg-muted">
           <Image
             fill
+            preload={preload}
             src={src}
             alt={alt}
             sizes={getImageSizes(orientation)}

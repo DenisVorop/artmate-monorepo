@@ -7,7 +7,7 @@ import { BlogPostPage } from "@/pages/blog-post";
 import { getBlogPostBySlug } from "@/shared/actions/blog";
 import { routes } from "@/shared/constants";
 import { dehydrateQueryClient } from "@/shared/lib/dehydrate-query-client";
-import { BlogPostStructuredData, createBlogPostMetadata, Seo } from "@/shared/lib/seo";
+import { createBlogPostMetadata, Seo } from "@/shared/lib/seo";
 import { HydrationBoundary } from "@tanstack/react-query";
 
 type BlogPostRouteProps = {
@@ -40,11 +40,8 @@ export default async function Page({ params }: BlogPostRouteProps) {
   }
 
   return (
-    <>
-      <BlogPostStructuredData content={postPageData.content} post={postPageData.post} />
-      <HydrationBoundary state={dehydrateQueryClient(queryClient)}>
-        <BlogPostPage slug={slug} />
-      </HydrationBoundary>
-    </>
+    <HydrationBoundary state={dehydrateQueryClient(queryClient)}>
+      <BlogPostPage slug={slug} />
+    </HydrationBoundary>
   );
 }

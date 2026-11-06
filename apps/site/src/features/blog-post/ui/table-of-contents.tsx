@@ -1,68 +1,47 @@
 "use client";
 
-import { useEffect, useState } from "react";
-
-import { Button } from "@/shared/ui";
 import { cn } from "@/shared/lib";
-
-type TocItem = {
-  id: string;
-  label: string;
-};
+import { Button } from "@/shared/ui";
+import { useActiveSection, type TocItem } from "../lib/use-active-section";
 
 type TableOfContentsProps = {
   items: TocItem[];
+  onNavigate?: () => void;
 };
 
-export function TableOfContents({ items }: TableOfContentsProps) {
-  const [activeId, setActiveId] = useState(items[0]?.id ?? "");
-
-  useEffect(() => {
-    const observer = new IntersectionObserver(
-      (entries) => {
-        const visibleEntry = entries.find((entry) => entry.isIntersecting);
-
-        if (visibleEntry) {
-          setActiveId(visibleEntry.target.id);
-        }
-      },
-      { rootMargin: "-18% 0% -60% 0%" },
-    );
-
-    items.forEach(({ id }) => {
-      const element = document.getElementById(id);
-
-      if (element) {
-        observer.observe(element);
-      }
-    });
-
-    return () => observer.disconnect();
-  }, [items]);
-
-  function scrollToSection(id: string) {
-    const element = document.getElementById(id);
-
-    if (element) {
-      element.scrollIntoView({ behavior: "smooth", block: "start" });
-    }
-  }
+export function TableOfContents({ items, onNavigate }: TableOfContentsProps) {
+  const { activeId, scrollToSection } = useActiveSection(items);
 
   return (
     <nav aria-label="Содержание статьи" className="space-y-1">
       {items.map((item) => (
         <Button
           key={item.id}
-          type="button"
+          asChild
           variant={activeId === item.id ? "secondary" : "ghost"}
           size="sm"
-          onClick={() => scrollToSection(item.id)}
           className={cn(
             "h-auto w-full justify-start px-3 py-2 text-left whitespace-normal",
             activeId === item.id && "shadow-none",
+            item.level === 3 && "pl-6 text-[13px]",
           )}
         >
-          <span>{item.label}</span>
+          <a
+            href={`#${item.id}`}
+            aria-current={activeId === item.id ? "location" : undefined}
+            onClick={(event) => {
+              if (event.metaKey || event.ctrlKey || event.shiftKey || event.altKey) return;
+              event.preventDefault();
+              if (onNavigate) {
+                onNavigate();
+                requestAnimationFrame(() => scrollToSection(item.id));
+              } else {
+                scrollToSection(item.id);
+              }
+            }}
+          >
+            <span>{item.label}</span>
+          </a>
         </Button>
       ))}
     </nav>
