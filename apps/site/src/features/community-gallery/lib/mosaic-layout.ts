@@ -1,5 +1,5 @@
 type Position = { column: number; row: string };
-type Placement = { columns: string; ratio: number; positions: Position[]; captionRows: number };
+type Placement = { columns: string; ratio: number; positions: Position[] };
 
 const wideStacks: Record<number, number[]> = {
   1: [1],
@@ -57,7 +57,7 @@ function place(items: readonly { publicId: string }[], block: number, narrow: bo
       start += span;
     }
   }
-  return { columns, ratio, positions, captionRows: Math.max(...stacks) };
+  return { columns, ratio, positions };
 }
 
 export function getMosaicImageSizes(
@@ -69,10 +69,10 @@ export function getMosaicImageSizes(
     const length = (fraction: number, gapOffset: number) =>
       capped
         ? `${(fraction * 1468 - gapOffset).toFixed(1)}px`
-        : `calc(${(fraction * 100).toFixed(3)}vw ${fraction * 32 + gapOffset < 0 ? "+" : "-"} ${Math.abs(fraction * 32 + gapOffset).toFixed(3)}px)`;
+        : `calc(${(fraction * 100).toFixed(3)}vw - ${(fraction * 32 + gapOffset).toFixed(3)}px)`;
 
     if (compact) {
-      // Keep conservative cover candidates for tall 3:4 compact tiles.
+      // Compact tiles are 3:4; the 4:5 photo must also cover their full height.
       const fraction = 4 / 5 / (3 / 4) / compactColumns;
       return length(fraction, (compactColumns - 1) * gap * fraction);
     }
@@ -83,7 +83,7 @@ export function getMosaicImageSizes(
     // Both grid axes exclude gaps. Keep enough pixels for object-cover in tall tiles.
     return `max(${length(width, (tracks.length - 1) * gap * width)}, ${length(
       ((span / 12) * 0.8) / layout.ratio,
-      (1 - span / 12) * gap * 0.8 - (layout.captionRows * (span / 12) - 1) * 52 * 0.8,
+      (1 - span / 12) * gap * 0.8,
     )})`;
   };
   return [

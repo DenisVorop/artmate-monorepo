@@ -18,10 +18,10 @@ export function LikeButton({
   const { user, data, unknown, busy, failed, unavailable, liked, count, onClick } =
     useLikeAction(subject);
   const className = cn(
-    "min-h-11 min-w-17 gap-1.5 rounded-full px-3 text-xs font-semibold tabular-nums sm:text-sm",
+    "min-h-11 rounded-full text-xs font-semibold tabular-nums sm:text-sm",
     appearance === "overlay"
-      ? "text-white hover:bg-white/15 hover:text-white focus-visible:border-white/60 focus-visible:ring-rose-300/70"
-      : "text-stone-600 hover:bg-stone-100 hover:text-stone-900 focus-visible:border-stone-300 focus-visible:ring-rose-400/40",
+      ? "min-w-11 gap-1 px-1 text-white hover:bg-white/15 hover:text-white focus-visible:border-white/60 focus-visible:ring-rose-300/70 md:min-w-17 md:gap-1.5 md:px-3"
+      : "min-w-17 gap-1.5 px-3 text-stone-600 hover:bg-stone-100 hover:text-stone-900 focus-visible:border-stone-300 focus-visible:ring-rose-400/40",
     liked &&
       (appearance === "overlay"
         ? "text-rose-300 hover:text-rose-200"
