@@ -20,6 +20,7 @@ import { DeliveryModule } from "./delivery/delivery.module";
 import { FeatureBannersModule } from "./feature-banners/feature-banners.module";
 import { OrdersModule } from "./orders/orders.module";
 import { LoyaltyHttpModule } from "./loyalty/loyalty-http.module";
+import { LikesModule } from "./likes/likes.module";
 import { OzonModule } from "./ozon/ozon.module";
 import { PartnerApplicationsModule } from "./partner-applications/partner-applications.module";
 import { PrismaModule } from "./prisma/prisma.module";
@@ -43,6 +44,7 @@ import { MaterialsModule } from "./materials/materials.module";
     CartModule,
     OrdersModule,
     LoyaltyHttpModule,
+    LikesModule,
     ProductsModule,
     PromocodesModule,
     CatalogLandingsModule,
