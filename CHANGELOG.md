@@ -1,5 +1,17 @@
 # Changelog
 
+## [0.59.0](https://github.com/DenisVorop/artmate-monorepo/compare/v0.58.1...v0.59.0) (2026-11-08)
+
+
+### Features
+
+* **admin:** show delivery provider and pickup ID ([bc26526](https://github.com/DenisVorop/artmate-monorepo/commit/bc265267f67d9ed89dd056bb62a3c9133ed4c4a9))
+
+
+### Bug Fixes
+
+* **delivery:** resolve Magnitogorsk pickup points ([d1eb03d](https://github.com/DenisVorop/artmate-monorepo/commit/d1eb03da38eb5d028c601bd85aa4ec9b7308b822))
+
 ## [0.58.1](https://github.com/DenisVorop/artmate-monorepo/compare/v0.58.0...v0.58.1) (2026-11-06)
 
 ### Tests
