@@ -44,6 +44,14 @@ const adminOrderStatusLabels: Record<OrderStatus, string> = {
   cancelled: "Отменены",
 };
 
+const deliveryProviderLabels: Record<
+  AdminOrder["delivery"]["provider"],
+  string
+> = {
+  ozon: "Ozon",
+  cdek: "СДЭК",
+};
+
 export function OrderHistory({ orderId }: OrderHistoryProps) {
   const { isError, isPending, order } = useOrder(orderId);
 
@@ -228,9 +236,20 @@ function CustomerPanel({ order }: { readonly order: AdminOrder }) {
           <Truck className="size-4" aria-hidden="true" />
           Доставка
         </p>
-        <p className="mt-1 text-muted-foreground">
-          {order.delivery.pickupPoint.address}
-        </p>
+        <dl className="mt-2 grid grid-cols-[auto_minmax(0,1fr)] gap-x-3 gap-y-1">
+          <dt className="text-muted-foreground">Способ доставки</dt>
+          <dd className="font-medium">
+            {deliveryProviderLabels[order.delivery.provider]}
+          </dd>
+          <dt className="text-muted-foreground">Номер ПВЗ</dt>
+          <dd className="font-medium wrap-anywhere">
+            {order.delivery.pickupPoint.id}
+          </dd>
+          <dt className="text-muted-foreground">Адрес</dt>
+          <dd className="wrap-anywhere">
+            {order.delivery.pickupPoint.address}
+          </dd>
+        </dl>
       </div>
 
       {order.delivery.provider === "cdek" ? (
