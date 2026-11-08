@@ -56,14 +56,15 @@ export function selectLocalityBoundary(
     const candidate = value as NominatimLocality;
     const countryCode = candidate.address?.country_code;
     const addresstype = candidate.addresstype;
+    const type = candidate.type;
     const placeRank = candidate.place_rank;
 
     if (
       countryCode !== "ru" ||
       candidate.category !== "place" ||
-      candidate.type !== addresstype ||
       typeof addresstype !== "string" ||
       !localityAddressTypes.has(addresstype) ||
+      !matchesLocalityType(type, addresstype) ||
       typeof placeRank !== "number" ||
       !Number.isInteger(placeRank) ||
       placeRank < 12 ||
@@ -90,6 +91,15 @@ export function selectLocalityBoundary(
   if (matches.length === 0) throw new MissingLocalityBoundaryError();
   if (matches.length !== 1) throw new AmbiguousLocalityBoundaryError();
   return matches[0]!;
+}
+
+function matchesLocalityType(type: unknown, addressType: string) {
+  // Nominatim reports the OSM type and the derived address level separately.
+  return (
+    type === addressType ||
+    ((type === "city" || type === "town") &&
+      (addressType === "city" || addressType === "town"))
+  );
 }
 
 export function validateBoundary(value: unknown): ValidatedLocalityBoundary {

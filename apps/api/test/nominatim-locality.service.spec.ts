@@ -108,6 +108,64 @@ describe("Nominatim locality resolver", () => {
     }
   });
 
+  it("resolves Magnitogorsk despite a cached miss from the previous type check", async () => {
+    const magnitogorsk = {
+      code: 258,
+      countryCode: "RU",
+      latitude: 53.425064,
+      longitude: 58.972881,
+      name: "Магнитогорск",
+      region: "Челябинская область",
+    };
+    const previousFetch = globalThis.fetch;
+    let calls = 0;
+    globalThis.fetch = async () => {
+      calls += 1;
+      return Response.json([
+        {
+          ...candidate(),
+          name: magnitogorsk.name,
+          namedetails: { "name:ru": magnitogorsk.name },
+          type: "town",
+          addresstype: "city",
+          place_rank: 18,
+          geojson: {
+            type: "Polygon",
+            coordinates: [
+              [
+                [58.9, 53.3],
+                [59.2, 53.3],
+                [59.2, 53.55],
+                [58.9, 53.55],
+                [58.9, 53.3],
+              ],
+            ],
+          },
+        },
+      ]);
+    };
+    try {
+      const cache = createCache();
+      const previousMiss = {
+        payload: { status: "missing" },
+        freshUntil: new Date(Date.now() + 60_000),
+        expiresAt: new Date(Date.now() + 60_000),
+      };
+      const service = new NominatimLocalityService({
+        ...cache,
+        find: async (key: string) =>
+          key === "boundary:cdek:258" ? previousMiss : cache.entry,
+      } as never);
+
+      const boundary = await service.resolve(magnitogorsk);
+      assert.deepEqual(boundary.bbox, [58.9, 53.3, 59.2, 53.55]);
+      assert.deepEqual(await service.resolve(magnitogorsk), boundary);
+      assert.equal(calls, 1);
+    } finally {
+      globalThis.fetch = previousFetch;
+    }
+  });
+
   it("uses only fresh cached boundaries and refreshes a stale source synchronously", async () => {
     const previousFetch = globalThis.fetch;
     let calls = 0;

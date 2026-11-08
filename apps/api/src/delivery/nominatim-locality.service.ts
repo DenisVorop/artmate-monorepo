@@ -35,7 +35,8 @@ export class NominatimLocalityService {
   constructor(private readonly cache: DeliveryCacheRepository) {}
 
   async resolve(city: CdekCityDetailsDTO): Promise<ValidatedLocalityBoundary> {
-    const key = `boundary:cdek:${city.code}`;
+    // Ignore cached misses from before city/town address-level matching.
+    const key = `boundary:cdek:v2:${city.code}`;
     const cached = await this.cache.find(key);
     const now = Date.now();
     if (
