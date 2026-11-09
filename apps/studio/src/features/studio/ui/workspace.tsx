@@ -10,6 +10,7 @@ import { useLogout } from "../model/use-logout";
 import { Login } from "./login";
 import { CreateProject } from "./create-project";
 import { Book } from "./book";
+import { SimplificationPrompt } from "./simplification-prompt";
 export function StudioWorkspace({ projectId }: { projectId?: string }) {
   const session = useSession();
   const logout = useLogout();
@@ -111,6 +112,7 @@ export function StudioWorkspace({ projectId }: { projectId?: string }) {
           </div>
         </aside>
         <div className="workspace-area">
+          <SimplificationPrompt />
           {(projects.error || usage.error || logout.error) && (
             <p className="notice error" role="alert">
               {projects.error?.message ||
