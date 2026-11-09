@@ -1,9 +1,8 @@
 "use client";
 
-import { lazy, Suspense, useCallback, useEffect, useState, type ComponentType } from "react";
+import { lazy, Suspense, useCallback, useState, type ComponentType } from "react";
 import { CommunityWorkCard, useFeaturedCollectionWorks } from "@/entities/community-work";
 import { LikeButton } from "@/features/likes";
-import { scheduleIdlePreload } from "@/shared/lib/schedule-idle-preload";
 import { homeCommunityCollectionSlugs } from "../lib/constants";
 import { useImagePreview } from "../lib/use-image-preview";
 import { PreviewLoading } from "./preview-loading";
@@ -24,7 +23,6 @@ export function HomeCommunity() {
         .catch(() => undefined),
     [],
   );
-  useEffect(() => scheduleIdlePreload(preloadImagePreview), [preloadImagePreview]);
   const Preview = LoadedPreview ?? ImagePreview;
   const featuredWorks = homeCommunityCollectionSlugs
     .map((slug) => works.find((work) => work.official.collection.slug === slug))
