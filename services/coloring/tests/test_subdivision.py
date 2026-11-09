@@ -120,6 +120,31 @@ def test_physical_scale_not_pixel_area():
     assert min(result.areas_mm2) >= 5 and len(result.mesh.cells) > 1
 
 
+def test_cut_cannot_invalidate_label_in_existing_child(monkeypatch):
+    _, settings, result = split(max_regions=2)
+    neighbor, candidate = result.mesh.cells
+    cells = {cell.id: cell for cell in result.mesh.cells}
+    edges = {edge.id: edge for edge in result.mesh.edges}
+    fitter = LabelFitter(settings, 1, ArialFont(), ("1",))
+    fit = fitter.fit
+    checked_neighbors = []
+
+    def fit_without_space_in_neighbor(polygon, cell_id, color_index):
+        space = fit(polygon, cell_id, color_index)
+        if cell_id == neighbor.id:
+            checked_neighbors.append(cell_id)
+            return replace(space, center=None)
+        return space
+
+    monkeypatch.setattr(fitter, "fit", fit_without_space_in_neighbor)
+    proposal = CurvedSubdivisionProcessor._split(
+        cells, edges, candidate.id, Shapes(), fitter, 1, settings
+    )
+    assert checked_neighbors
+    if proposal is not None:
+        assert proposal[0][neighbor.id] == neighbor
+
+
 def test_thin_existing_region_is_reported_without_violating_area_or_recoloring():
     source, settings, result = split(rectangle(80, 1))
     assert result.mesh == source.mesh

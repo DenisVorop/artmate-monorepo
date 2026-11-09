@@ -199,10 +199,11 @@ class CurvedSubdivisionProcessor:
                         # Splitting a shared cubic also changes its neighbors' sampling.
                         # Validate those faces before accepting the candidate, including
                         # tiny prefilled holes exempt from the paint-area threshold.
-                        for identifier, neighbor in new_cells.items():
-                            if cells.get(identifier) != neighbor:
-                                shapes.polygon(neighbor, new_edges)
-                        child_polygons = [shapes.polygon(new_cells[i], new_edges) for i in children]
+                        changed_cells = tuple(c for i, c in new_cells.items() if cells.get(i) != c)
+                        changed_polygons = {
+                            c.id: shapes.polygon(c, new_edges) for c in changed_cells
+                        }
+                        child_polygons = [changed_polygons[i] for i in children]
                         if child_polygons[0].intersection(child_polygons[1]).area > 1e-7:
                             continue
                         if (
@@ -223,14 +224,19 @@ class CurvedSubdivisionProcessor:
                         # Также проверяем соседей, чьи общие кубики разделены и округлены.
                         if any(
                             cell_area(c, new_edges, scale) < settings.min_area_mm2
-                            for i, c in new_cells.items()
-                            if cells.get(i) != c and not c.prefilled
+                            for c in changed_cells
+                            if not c.prefilled
                         ):
                             continue
+                        # Соседний дочерний участок может потерять место под номер
+                        # при повторной дискретизации общего ребра.
                         if any(
-                            (space := fitter.fit(p, i, cell.color_index)).required
+                            (
+                                space := fitter.fit(changed_polygons[c.id], c.id, c.color_index)
+                            ).required
                             and space.center is None
-                            for p, i in zip(child_polygons, children, strict=True)
+                            for c in changed_cells
+                            if c.id != c.parent_region_id and not c.prefilled
                         ):
                             continue
                     except StageError:

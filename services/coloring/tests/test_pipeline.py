@@ -103,10 +103,11 @@ def test_invalid_json_or_unknown_options_are_not_ignored(tmp_path, content):
 
 
 @pytest.mark.parametrize("grid", [True, False])
-def test_pipeline_grid_option_and_large_minimum(grid):
-    settings = PipelineSettings(min_area_mm2=100, artificial_grid=grid)
-    assert settings.subdivision().target_area_mm2 == (200 if grid else None)
-    assert settings.geometry().min_area_mm2 == settings.numbering().min_area_mm2 == 100
+@pytest.mark.parametrize(("minimum", "target"), [(5, 20), (100, 200)])
+def test_pipeline_grid_option_and_area_limits(grid, minimum, target):
+    settings = PipelineSettings(min_area_mm2=minimum, artificial_grid=grid)
+    assert settings.subdivision().target_area_mm2 == (target if grid else None)
+    assert settings.geometry().min_area_mm2 == settings.numbering().min_area_mm2 == minimum
 
 
 @pytest.mark.parametrize("options", [(2, 5, 6), (4, 1, 3)])
