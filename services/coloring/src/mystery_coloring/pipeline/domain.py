@@ -7,6 +7,8 @@ from mystery_coloring.geometry.domain import GeometrySettings
 from mystery_coloring.numbering.domain import NumberingSettings
 from mystery_coloring.subdivision.domain import SubdivisionSettings
 
+PAINT_CELL_TARGET_AREA_MM2 = 20
+
 
 @dataclass(frozen=True)
 class PipelineSettings:
@@ -38,7 +40,11 @@ class PipelineSettings:
         return SubdivisionSettings(
             min_area_mm2=self.min_area_mm2,
             label_font_size_pt=self.font_size_pt,
-            target_area_mm2=max(60, 2 * self.min_area_mm2) if self.artificial_grid else None,
+            target_area_mm2=(
+                max(PAINT_CELL_TARGET_AREA_MM2, 2 * self.min_area_mm2)
+                if self.artificial_grid
+                else None
+            ),
         )
 
     def numbering(self) -> NumberingSettings:
