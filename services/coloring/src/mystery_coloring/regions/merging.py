@@ -13,9 +13,11 @@ def merge_small_regions(
     min_area: int | float,
     max_color_distance: float,
     protected: frozenset[int] = frozenset(),
+    mergeable_details: frozenset[int] = frozenset(),
 ) -> tuple[int, ...]:
     """Возвращает конечного представителя для каждого исходного ID.
 
+    Обычная область поглощает соприкасающиеся контрастные детали своего цвета.
     Цвет представителя не меняется. Проверяется отклонение каждого исходного
     цвета группы, поэтому последовательные объединения не обходят ограничение.
     """
@@ -27,12 +29,6 @@ def merge_small_regions(
     for border in borders:
         neighbors[border.first][border.second] = border.length_pixels
         neighbors[border.second][border.first] = border.length_pixels
-    queue = [
-        (area, region)
-        for region, area in enumerate(areas)
-        if area < min_area and region not in protected
-    ]
-    heapq.heapify(queue)
 
     def absorb(source: int, target: int) -> None:
         parent[source] = target
@@ -49,6 +45,37 @@ def merge_small_regions(
             neighbors[target][other] = combined
             neighbors[other][target] = combined
         neighbors[source].clear()
+
+    locked = protected - mergeable_details
+
+    def coalesce_same_color(target: int, pending: list[int], affected: set[int]) -> None:
+        while pending:
+            other = pending.pop()
+            if (
+                other in neighbors[target]
+                and other not in locked
+                and colors[other] == colors[target]
+            ):
+                affected.update(neighbors[other])
+                pending.extend(n for n in neighbors[other] if n not in neighbors[target])
+                absorb(other, target)
+
+    # Объединяем одинаковые цвета до попытки перекрасить маленькую обычную область.
+    touching_paint = {
+        other
+        for detail in mergeable_details
+        for other in neighbors[detail]
+        if other not in protected and colors[other] == colors[detail]
+    }
+    for target in sorted(touching_paint):
+        if parent[target] == target:
+            coalesce_same_color(target, list(neighbors[target]), set())
+    queue = [
+        (area, region)
+        for region, area in enumerate(sizes)
+        if area < min_area and parent[region] == region and region not in protected
+    ]
+    heapq.heapify(queue)
 
     while queue:
         area, source = heapq.heappop(queue)
@@ -75,25 +102,10 @@ def merge_small_regions(
         if not candidates:
             continue
         target = min(candidates)[-1]
-        affected = set(neighbors[source])
-        same_color = [
-            n
-            for n in neighbors[source]
-            if n != target and n not in protected and colors[n] == colors[target]
-        ]
+        pending = list(neighbors[source])
+        affected = set(pending)
         absorb(source, target)
-        # После перекраски может появиться мост к другим областям того же цвета.
-        # Убираем искусственные швы даже у крупных одноцветных соседей.
-        while same_color:
-            other = same_color.pop()
-            if parent[other] == other and other in neighbors[target]:
-                affected.update(neighbors[other])
-                same_color.extend(
-                    n
-                    for n in neighbors[other]
-                    if n != target and n not in protected and colors[n] == colors[target]
-                )
-                absorb(other, target)
+        coalesce_same_color(target, pending, affected)
         for changed in sorted(affected | {target}):
             if (
                 changed not in protected

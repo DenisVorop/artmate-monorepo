@@ -23,7 +23,14 @@ def subdivision_input(source, result, settings):
     rings = region_rings(boundaries)
     edge_map = {edge.id: edge for edge in edges}
     cells = tuple(
-        Cell(i, i, color, separate_touching_rings(rings[i], edge_map), i in result.prefilled_ids)
+        Cell(
+            i,
+            i,
+            color,
+            separate_touching_rings(rings[i], edge_map),
+            i in result.prefilled_ids,
+            i in result.mergeable_detail_ids,
+        )
         for i, color in enumerate(result.color_indices)
     )
     return SubdivisionInput(

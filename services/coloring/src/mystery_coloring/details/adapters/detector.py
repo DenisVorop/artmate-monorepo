@@ -3,6 +3,7 @@
 import cv2
 import numpy as np
 
+from mystery_coloring.details.adapters.color_islands import color_island_candidates
 from mystery_coloring.details.adapters.profile_colors import printable_pixels, profile_candidates
 from mystery_coloring.details.adapters.strokes import stroke_candidates
 from mystery_coloring.details.domain import DetailMap, FaceAnalysis
@@ -138,12 +139,14 @@ class ContrastDetailDetector:
                     )
                 )
         candidates.extend(profile_candidates(rgb, lab, settings, face_analysis.profiles))
+        candidates.extend(color_island_candidates(rgb, lab, settings, local))
         strokes = stroke_candidates(rgb, light, settings)
         result = np.zeros(light.shape, np.uint32)
         colors = []
         selected_sizes = []
         ordinary_dark_ids = set()
         locked_ids = set()
+        stroke_ids = set()
         covered = 0
         face_details = 0
         accents = None
@@ -169,7 +172,7 @@ class ContrastDetailDetector:
                 overlaps = np.unique(result[yy, xx], return_counts=True)
             free = result[yy, xx] == 0
             yy, xx = yy[free], xx[free]
-            if face_analysis.profiles or polarity == "stroke":
+            if face_analysis.profiles or polarity in {"stroke", "color"}:
                 yy, xx = printable_pixels(yy, xx, settings)
             if not len(xx) or covered + len(xx) > light.size * settings.max_coverage:
                 continue
@@ -182,9 +185,12 @@ class ContrastDetailDetector:
                     if old in ordinary_dark_ids and overlap >= selected_sizes[old - 1] * (2 / 3):
                         colors[old - 1] = color
                         locked_ids.add(int(old))
+                        stroke_ids.add(int(old))
             colors.append(color)
             if polarity == "stroke" or guided:
                 locked_ids.add(len(colors))
+            if polarity == "stroke":
+                stroke_ids.add(len(colors))
             selected_sizes.append(len(xx))
             if polarity == "dark" and not guided:
                 ordinary_dark_ids.add(len(colors))
@@ -220,6 +226,7 @@ class ContrastDetailDetector:
             face_analysis,
             face_details,
             frozenset(locked_ids),
+            frozenset(stroke_ids),
         )
 
     @staticmethod

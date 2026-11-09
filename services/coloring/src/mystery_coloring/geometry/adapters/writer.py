@@ -102,6 +102,8 @@ class GeometryFileWriter:
                         "color_index": result.color_indices[index],
                         "color_number": result.color_indices[index] + 1,
                         "area_mm2": area,
+                        "prefilled": index in result.prefilled_ids,
+                        "mergeable_prefilled": index in result.mergeable_detail_ids,
                         "neighbors": sorted(neighbors[index]),
                         "source_region_ids": result.source_region_ids[index],
                     }

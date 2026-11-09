@@ -7,7 +7,7 @@ from mystery_coloring.layout.domain import ArtMateTemplate, ArtworkPlacement, La
 from mystery_coloring.numbering.domain import NumberingInput, NumberingResult
 from mystery_coloring.pipeline.domain import PipelineSettings
 
-ALGORITHM_VERSION = "coloring-delivery-v15-detail-provenance"
+ALGORITHM_VERSION = "coloring-delivery-v20-same-color-face-details"
 
 
 @dataclass(frozen=True)

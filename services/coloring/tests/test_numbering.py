@@ -133,6 +133,74 @@ def test_tight_region_merges_with_suitable_color_neighbor_without_changing_curve
     result.validate(source, settings)
 
 
+def test_numbering_merge_absorbs_same_color_detail_chain_and_preserves_locked_neighbor(tmp_path):
+    colors = np.ones((15, 21), dtype=np.uint8)
+    colors[:, 10] = 0
+    colors[:, 11:] = 2
+    colors[3:8, 11:13] = 3
+    colors[3:8, 13:15] = 4
+    colors[3:8, 15:17] = 5
+    source = source_for(colors)
+    geometry = source.geometry
+    details = {c.color_index: c.id for c in geometry.mesh.cells if c.color_index >= 3}
+    cells = tuple(
+        replace(
+            c,
+            color_index=0 if c.color_index == 5 else 1,
+            prefilled=True,
+            mergeable_prefilled=c.color_index in (3, 4),
+        )
+        if c.color_index >= 3
+        else c
+        for c in geometry.mesh.cells
+    )
+    source = replace(source, geometry=replace(geometry, mesh=replace(geometry.mesh, cells=cells)))
+    path = tmp_path / "subdivision"
+    save_input(path, source)
+    source = SubdivisionReader().read(path)
+    _, _, _, result = run(source)
+    assert len(result.merges) == 1
+    merged, lineage = next(
+        (cell, lineage)
+        for cell, lineage in zip(result.mesh.cells, result.source_cell_ids, strict=True)
+        if cell.id == result.merges[0].result_cell_id
+    )
+    assert {details[3], details[4]} <= set(lineage)
+    assert merged.color_index == 1 and not merged.prefilled
+    assert any(label.cell_id == merged.id for label in result.labels)
+    locked = next(c for c in cells if c.id == details[5])
+    assert [c for c in result.mesh.cells if c.prefilled] == [locked]
+    old_edges = {e.id: e for e in geometry.mesh.edges}
+    assert all(edge == old_edges[edge.id] for edge in result.mesh.edges)
+
+
+@pytest.mark.parametrize("mergeable", [True, False], ids=["stroke", "face"])
+def test_printable_neighbor_absorbs_same_color_detail_and_keeps_contrast(mergeable):
+    colors = np.zeros((20, 20), dtype=np.uint8)
+    colors[3:5, 3:5] = 1
+    colors[11:13, 11:13] = 2
+    source = source_for(colors)
+    geometry = source.geometry
+    cells = tuple(
+        replace(
+            c,
+            color_index=0 if c.color_index == 1 else 2,
+            prefilled=True,
+            mergeable_prefilled=mergeable,
+        )
+        if c.color_index
+        else c
+        for c in geometry.mesh.cells
+    )
+    source = replace(source, geometry=replace(geometry, mesh=replace(geometry.mesh, cells=cells)))
+    _, _, _, result = run(source)
+    assert result.initially_unplaced_ids == ()
+    assert [c for c in result.mesh.cells if c.prefilled] == [cells[2]]
+    assert (cells[0].id, cells[1].id) in result.source_cell_ids
+    assert result.labels and result.recolored_area_mm2 == 0
+    assert all(edge in geometry.mesh.edges for edge in result.mesh.edges)
+
+
 def test_multiple_merges_finish_without_shrinking_font():
     colors = np.tile(np.asarray((0, 1, 0), dtype=np.uint8), (20, 1))
     source, settings, font, result = run(source_for(colors), font_size_pt=18)

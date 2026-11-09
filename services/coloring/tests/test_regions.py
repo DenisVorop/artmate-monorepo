@@ -269,15 +269,36 @@ def test_generic_same_color_connections_merge_regardless_of_width_or_contact(
 
 
 def test_same_color_flood_releases_every_generic_fragment_without_crossing_locked_features():
-    from mystery_coloring.regions.adapters.details import reconcile_details
+    mapping = merge_small_regions(
+        (1,) * 7,
+        (0, 0, 0, 0, 0, 1, 1),
+        tuple(SharedBorder(i, i + 1, 1) for i in range(6)),
+        ((0, 10), (10, 0)),
+        min_area=0,
+        max_color_distance=300,
+        protected=frozenset({1, 2, 3, 4, 5}),
+        mergeable_details=frozenset({1, 2, 4, 5}),
+    )
+    assert mapping == (0, 0, 0, 3, 4, 6, 6)
 
-    labels = np.arange(7, dtype=np.int32).reshape(1, 7)
-    mask = np.array([[0, 1, 1, 2, 1, 1, 0]], np.uint8)
-    keys = (0, 256, 256, 512, 256, 257, 1)
-    borders = tuple(SharedBorder(i, i + 1, 1) for i in range(6))
-    result = reconcile_details(mask, labels, keys, borders)
-    assert result.tolist() == [[0, 0, 0, 2, 1, 0, 0]]
-    assert mask.tolist() == [[0, 1, 1, 2, 1, 1, 0]]
+
+@pytest.mark.parametrize("protection", [1, 2])
+def test_same_color_detail_is_reconciled_before_recoloring_its_small_neighbor(protection):
+    from dataclasses import replace
+
+    source = replace(
+        make_input([[2, 2, 0, 0, 0]]), prefilled_mask=bytes((0, 0, 0, protection, protection))
+    )
+    result = RasterRegionProcessor().process(
+        source, RegionSettings(image_width_mm=5, min_area_mm2=2, max_color_distance=300)
+    )
+    if protection == 1:
+        assert result.color_indices == source.color_indices
+        assert not any(region.prefilled for region in result.regions)
+    else:
+        assert result.color_indices == bytes((2, 2, 2, 0, 0))
+        assert any(region.prefilled for region in result.regions)
+    assert_invariants(source, result)
 
 
 def test_same_color_detail_joins_petal_but_pink_highlight_stays_protected():
@@ -310,4 +331,4 @@ def test_invalid_detail_protection_level_is_rejected():
     from dataclasses import replace
 
     with pytest.raises(StageError, match="маска"):
-        replace(make_input([[0]]), prefilled_mask=bytes([3]))
+        replace(make_input([[0]]), prefilled_mask=bytes([4]))

@@ -87,6 +87,8 @@ class SubdivisionReader:
                     c["parent_region_id"],
                     c["color_index"],
                     tuple(tuple(r) for r in c["rings"]),
+                    c.get("prefilled", False),
+                    c.get("mergeable_prefilled", False),
                 )
                 for c in g["regions"]
             )

@@ -4,13 +4,14 @@ import json
 import math
 import re
 import xml.etree.ElementTree as ET
+from dataclasses import replace
 from pathlib import Path
 
 import cv2
 import numpy as np
 import pytest
 from PIL import Image
-from shapely import Polygon
+from shapely import LineString, Point, Polygon
 
 from mystery_coloring.domain import StageError
 from mystery_coloring.geometry.adapters.processor import SmoothGeometryProcessor
@@ -25,6 +26,7 @@ from mystery_coloring.geometry.curves import (
     region_areas,
     relax_points,
     round_polyline,
+    sample_curves,
 )
 from mystery_coloring.geometry.domain import Cubic, GeometrySettings
 from mystery_coloring.regions.adapters.segmenter import RasterRegionProcessor, connected_regions
@@ -71,6 +73,31 @@ def test_area_is_rechecked_after_curve_smoothing():
     assert len(result.areas_mm2) == 1
 
 
+@pytest.mark.parametrize("protection", [1, 2])
+def test_recoloring_after_smoothing_coalesces_only_generic_same_color_details(protection):
+    colors = np.zeros((20, 20), dtype=np.uint8)
+    colors[5:15, 5:15] = 2
+    colors[7:8, 7:9] = 0
+    colors[6, 3:8] = 1
+    mask = np.zeros_like(colors)
+    mask[7:8, 7:9] = protection
+    source = replace(
+        source_for(colors),
+        palette=((0, 0, 0), (20, 20, 20), (220, 0, 0)),
+        prefilled_mask=mask.tobytes(),
+    )
+    processor = RasterRegionProcessor()
+    result = SmoothGeometryProcessor(processor).process(
+        source, GeometrySettings(image_width_mm=20, min_area_mm2=5, smoothing_mm=0.6)
+    )
+    labels = np.frombuffer(result.raster_region_ids, dtype="<u4").reshape(colors.shape)
+    detail_id = labels[7, 7]
+    assert result.cleanup_rounds > 1
+    assert result.color_indices[detail_id] == 0
+    assert (detail_id in result.prefilled_ids) == (protection == 2)
+    assert (detail_id == labels[6, 7] == labels[0, 0]) == (protection == 1)
+
+
 def test_long_thin_shape_above_area_threshold_is_allowed():
     colors = np.zeros((14, 14), dtype=np.uint8)
     colors[7, 3:11] = 1  # Ширина 1 мм; ограничение относится к площади.
@@ -78,6 +105,60 @@ def test_long_thin_shape_above_area_threshold_is_allowed():
     assert len(result.areas_mm2) == 2
     assert min(result.areas_mm2) >= 5
     assert sum(result.areas_mm2) == pytest.approx(196)
+
+
+def test_refined_outline_keeps_analytic_arc_and_sharp_rectangle_corners():
+    colors = np.zeros((180, 180), dtype=np.uint8)
+    y, x = np.ogrid[:180, :180]
+    colors[(x + 0.5 - 51.3) ** 2 + (y + 0.5 - 81.4) ** 2 <= 32**2] = 1
+    colors[45:124, 107:158] = 2
+    result = SmoothGeometryProcessor(RasterRegionProcessor()).process(
+        source_for(colors), GeometrySettings(image_width_mm=90)
+    )
+    circle, square = (
+        item for item in result.boundaries if min(item.source.left, item.source.right) >= 0
+    )
+    if 1 not in (circle.source.left, circle.source.right):
+        circle, square = square, circle
+    assert len(circle.curves) == 4
+    circle_outline = LineString(sample_curves(circle.curves, error=0.005))
+    reference = Point(51.3, 81.4).buffer(32, quad_segs=128).boundary
+    assert circle_outline.hausdorff_distance(reference) < 0.16
+    assert {curve.start for curve in square.curves} == {
+        (107, 45),
+        (158, 45),
+        (158, 124),
+        (107, 124),
+    }
+    assert sum(result.areas_mm2) == pytest.approx(8100)
+
+
+def test_refinement_preserves_protected_thin_stroke_curves():
+    colors = np.zeros((88, 120), dtype=np.uint8)
+    colors[12:76, 61:99] = 2
+    mask = np.zeros_like(colors)
+    cv2.line(mask, (14, 48), (52, 34), 2, 2)
+    colors[mask == 2] = 1
+    source = replace(source_for(colors), prefilled_mask=mask.tobytes())
+    result = SmoothGeometryProcessor(RasterRegionProcessor()).process(
+        source, GeometrySettings(image_width_mm=60)
+    )
+    assert len(result.prefilled_ids) == 1
+    baseline, _, _ = smooth_boundaries(
+        tuple(item.source for item in result.boundaries),
+        120,
+        88,
+        len(result.areas_mm2),
+        1.2,
+        result.prefilled_ids,
+    )
+    for item, original in zip(result.boundaries, baseline, strict=True):
+        if {item.source.left, item.source.right} & result.prefilled_ids:
+            assert item.curves == original.curves
+    assert any(
+        item.curves != original.curves
+        for item, original in zip(result.boundaries, baseline, strict=True)
+    )
 
 
 def test_holes_are_subtracted_and_shared_areas_cover_page():

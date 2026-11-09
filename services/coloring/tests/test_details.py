@@ -54,6 +54,23 @@ def test_white_highlight_inside_dark_surround_is_detected():
     assert result.colors[mask[100, 100] - 1] == (255, 255, 255)
 
 
+def test_small_blue_and_red_islands_are_detected_without_face_landmarks():
+    rgb = np.full((180, 240, 3), (15, 8, 24), np.uint8)
+    rgb[90:] = (243, 222, 207)
+    for center, color in (
+        ((81, 65), (32, 95, 138)),
+        ((148, 68), (32, 95, 138)),
+        ((115, 108), (228, 98, 76)),
+    ):
+        cv2.ellipse(rgb, center, (5, 4), 0, 0, 360, color, -1)
+    result = ContrastDetailDetector().detect(image(rgb), DetailSettings(0.1, 3.5))
+    mask = np.frombuffer(result.region_ids, "<u4").reshape(180, 240)
+    for x, y in ((81, 65), (148, 68), (115, 108)):
+        identifier = mask[y, x]
+        assert identifier and identifier not in result.locked_ids
+        assert result.colors[identifier - 1] == tuple(rgb[y, x])
+
+
 def test_rare_accent_stays_in_palette_with_requested_limit():
     rgb = np.full((100, 100, 3), (160, 110, 70), np.uint8)
     rgb[:50] = (40, 110, 45)

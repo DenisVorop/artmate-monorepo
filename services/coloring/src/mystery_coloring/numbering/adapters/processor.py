@@ -10,7 +10,7 @@ from shapely.affinity import scale as scale_shape
 from shapely.errors import GEOSException
 
 from mystery_coloring.domain import StageError
-from mystery_coloring.numbering.adapters.merging import join_cells
+from mystery_coloring.numbering.adapters.merging import join_cells, same_color_details
 from mystery_coloring.numbering.adapters.placement import SymbolPlacer, validate_labels
 from mystery_coloring.numbering.domain import MergeRecord, NumberingResult
 from mystery_coloring.subdivision.adapters.shapes import FLATNESS, Shapes, validate_mesh
@@ -75,86 +75,160 @@ class AutomaticNumberingProcessor:
         lab = cv2.cvtColor(rgb, cv2.COLOR_RGB2LAB).reshape(-1, 3)
         distances = np.linalg.norm(lab[:, None] - lab[None, :], axis=2)
         next_id = max(cells) + 1
-        while missing := unplaced():
-            bad = min(missing, key=lambda i: (areas[i], i))
+        has_mergeable_details = any(c.mergeable_prefilled for c in cells.values())
+        has_prefilled_details = any(c.prefilled for c in cells.values())
+
+        def printable_detail_merge(uses, *, include_locked):
+            for target, cell in sorted(cells.items()):
+                if cell.prefilled:
+                    continue
+                symbol = symbols[cell.color_index]
+                details = same_color_details(
+                    (target,),
+                    cell.color_index,
+                    cells,
+                    uses,
+                    include_locked=include_locked and symbol is not None,
+                )
+                if not details:
+                    continue
+                members = (details[0], target, *details[1:])
+                try:
+                    merged, removed = join_cells(
+                        tuple(cells[i] for i in members), edges, next_id, shapes
+                    )
+                    if cell_area(merged, edges, scale) < settings.min_area_mm2:
+                        continue
+                    polygon = scale_shape(
+                        shapes.polygon(merged, edges), xfact=scale, yfact=scale, origin=(0, 0)
+                    )
+                    hint = (
+                        labels[target].center_mm
+                        if labels[target] is not None
+                        else hints.get(target)
+                    )
+                    label = (
+                        placer.fit(polygon, next_id, symbol, hint) if symbol is not None else None
+                    )
+                    if symbol is None or label is not None:
+                        return members, merged, removed, polygon, label
+                except (StageError, ValueError, GEOSException):
+                    continue
+            return None
+
+        while True:
+            missing = unplaced()
+            if not missing and not has_prefilled_details:
+                break
             uses = defaultdict(list)
             for c in cells.values():
                 for ring in c.rings:
                     for ref in ring:
                         uses[abs(ref)].append(c.id)
-            neighbors = defaultdict(list)
-            for ring in cells[bad].rings:
-                for ref in ring:
-                    for other in uses[abs(ref)]:
-                        if other != bad:
-                            neighbors[other].append(abs(ref))
-            candidates = []
-            for other, common in sorted(neighbors.items()):
-                if cells[other].prefilled:
-                    continue
-                try:
-                    merged, removed = join_cells(cells[bad], cells[other], edges, next_id, shapes)
-                    polygon = scale_shape(
-                        shapes.polygon(merged, edges), xfact=scale, yfact=scale, origin=(0, 0)
-                    )
+            proposal = None
+            if missing:
+                bad = min(missing, key=lambda i: (areas[i], i))
+                neighbors = defaultdict(list)
+                for ring in cells[bad].rings:
+                    for ref in ring:
+                        for other in uses[abs(ref)]:
+                            if other != bad:
+                                neighbors[other].append(abs(ref))
+                candidates = []
+                for other, common in sorted(neighbors.items()):
+                    if cells[other].prefilled:
+                        continue
                     border = sum(
                         sum(np.linalg.norm(np.subtract(c.end, c.start)) for c in edges[e].curves)
                         for e in common
                     )
+                    joined = {}
                     for color in sorted({cells[bad].color_index, cells[other].color_index}):
-                        candidate = replace(merged, color_index=color)
-                        label = (
-                            placer.fit(polygon, next_id, symbols[color])
-                            if symbols[color] is not None
-                            else None
+                        details = (
+                            same_color_details((bad, other), color, cells, uses)
+                            if has_mergeable_details
+                            else ()
                         )
-                        # Ошибка цвета учитывает все исходные области в цепочке слияний.
-                        cost = fsum(
-                            original_areas[i] * float(distances[originals[i].color_index, color])
-                            for i in (*lineage[bad], *lineage[other])
-                        )
-                        candidates.append(
-                            (
-                                (
-                                    symbols[color] is not None and label is None,
-                                    cost,
-                                    -border,
-                                    other,
-                                    color,
-                                ),
-                                other,
-                                candidate,
-                                removed,
-                                polygon,
-                                label,
-                            )
-                        )
-                except (StageError, ValueError, GEOSException):
-                    continue
-            if not candidates:
+                        for detail_group in (details, ()) if details else ((),):
+                            members = (bad, other, *detail_group)
+                            try:
+                                if detail_group not in joined:
+                                    merged, removed = join_cells(
+                                        tuple(cells[i] for i in members), edges, next_id, shapes
+                                    )
+                                    polygon = scale_shape(
+                                        shapes.polygon(merged, edges),
+                                        xfact=scale,
+                                        yfact=scale,
+                                        origin=(0, 0),
+                                    )
+                                    joined[detail_group] = merged, removed, polygon
+                                merged, removed, polygon = joined[detail_group]
+                                candidate = replace(merged, color_index=color)
+                                label = (
+                                    placer.fit(polygon, next_id, symbols[color])
+                                    if symbols[color] is not None
+                                    else None
+                                )
+                                if detail_group and symbols[color] is not None and label is None:
+                                    continue
+                                # Ошибка цвета учитывает все исходные области в цепочке слияний.
+                                cost = fsum(
+                                    original_areas[i]
+                                    * float(distances[originals[i].color_index, color])
+                                    for member in members
+                                    for i in lineage[member]
+                                )
+                                candidates.append(
+                                    (
+                                        (
+                                            symbols[color] is not None and label is None,
+                                            cost,
+                                            -border,
+                                            other,
+                                            color,
+                                        ),
+                                        members,
+                                        candidate,
+                                        removed,
+                                        polygon,
+                                        label,
+                                    )
+                                )
+                                break
+                            except (StageError, ValueError, GEOSException):
+                                continue
+                if candidates:
+                    _, *proposal = min(candidates, key=lambda c: c[0])
+            if proposal is None and (
+                has_mergeable_details or (not missing and has_prefilled_details)
+            ):
+                # Цветовая коррекция завершена, поэтому модельную деталь уже не перекрасят.
+                proposal = printable_detail_merge(uses, include_locked=not missing)
+            if proposal is None:
+                if not missing:
+                    break
                 raise StageError(
                     "Символ не помещается после доступных объединений. "
                     "Увеличьте весь рисунок или уменьшите единый --font-size-pt."
                 )
-            _, other, merged, removed, polygon, label = min(candidates, key=lambda c: c[0])
+            members, merged, removed, polygon, label = proposal
+            bad = members[0]
             records.append(
                 MergeRecord(
                     bad,
-                    other,
+                    members[1],
                     next_id,
                     merged.color_index,
-                    sum(
-                        areas[i] for i in (bad, other) if cells[i].color_index != merged.color_index
-                    ),
+                    sum(areas[i] for i in members if cells[i].color_index != merged.color_index),
                     max(
-                        float(distances[cells[i].color_index, merged.color_index])
-                        for i in (bad, other)
+                        float(distances[cells[i].color_index, merged.color_index]) for i in members
                     ),
                     removed,
                 )
             )
-            lineage[next_id] = tuple(sorted((*lineage.pop(bad), *lineage.pop(other))))
-            for i in (bad, other):
+            lineage[next_id] = tuple(sorted(old for i in members for old in lineage.pop(i)))
+            for i in members:
                 del cells[i], polygons[i], labels[i], areas[i]
             cells[next_id] = merged
             polygons[next_id] = polygon
@@ -163,6 +237,14 @@ class AutomaticNumberingProcessor:
             for e in removed:
                 del edges[e]
             next_id += 1
+        for i, cell in cells.items():
+            symbol = symbols[cell.color_index]
+            if not cell.mergeable_prefilled or symbol is None or areas[i] < settings.min_area_mm2:
+                continue
+            label = placer.fit(polygons[i], i, symbol)
+            if label is not None:
+                cells[i] = replace(cell, prefilled=False, mergeable_prefilled=False)
+                labels[i] = label
         mesh = Mesh(
             tuple(sorted(edges.values(), key=lambda e: e.id)),
             tuple(sorted(cells.values(), key=lambda c: c.id)),
