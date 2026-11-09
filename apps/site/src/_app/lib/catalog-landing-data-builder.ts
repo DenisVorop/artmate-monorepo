@@ -1,11 +1,11 @@
 import {
   catalogLandingsQuery,
   type CatalogLandingPageResult,
-  type CatalogLandingPagesResult,
+  type CatalogLandingLinksResult,
 } from "@/entities/catalog-landings";
 import {
   getCatalogLandingPage,
-  getCatalogLandingPages,
+  getCatalogLandingLinks,
 } from "@/shared/actions/catalog-landings";
 
 import type { TaskFn } from "../types/data-builder";
@@ -14,7 +14,7 @@ import { BaseDataBuilder } from "./base-data-builder";
 
 type Fields = {
   landing?: CatalogLandingPageResult;
-  catalogLandings?: CatalogLandingPagesResult;
+  catalogLandings?: CatalogLandingLinksResult;
 };
 
 export class CatalogLandingDataBuilder<TData, TFields extends Fields> extends BaseDataBuilder<
@@ -44,8 +44,8 @@ export class CatalogLandingDataBuilder<TData, TFields extends Fields> extends Ba
 
     return this.add("catalogLandings", async function () {
       return setApiResultQueryData(
-        catalogLandingsQuery.getList().queryKey,
-        await getCatalogLandingPages(),
+        catalogLandingsQuery.getLinks().queryKey,
+        await getCatalogLandingLinks(),
       );
     });
   }

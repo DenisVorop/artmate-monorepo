@@ -16,14 +16,14 @@ import { RootStructuredData } from "@/shared/lib/seo";
 import { AppProviders } from "../providers/app-providers";
 
 const comfortaa = Comfortaa({
-  subsets: ["latin", "cyrillic"],
+  subsets: ["cyrillic"],
   weight: "variable",
   display: "swap",
   variable: "--font-comfortaa",
 });
 
 const nunito = Nunito({
-  subsets: ["latin", "cyrillic"],
+  subsets: ["cyrillic"],
   weight: "variable",
   display: "swap",
   variable: "--font-nunito",

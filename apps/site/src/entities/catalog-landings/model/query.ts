@@ -2,14 +2,15 @@ import { queryOptions } from "@tanstack/react-query";
 
 import {
   getCatalogLandingPage,
-  getCatalogLandingPages,
+  getCatalogLandingLinks,
+  type CatalogLandingLink,
 } from "@/shared/actions/catalog-landings";
 import { ApiResult } from "@/shared/lib/api-result";
 
 import type { CatalogLandingPage } from "./types";
 
 export type CatalogLandingPageResult = CatalogLandingPage | null;
-export type CatalogLandingPagesResult = CatalogLandingPage[] | null;
+export type CatalogLandingLinksResult = CatalogLandingLink[] | null;
 
 const baseKey = "catalog-landings";
 
@@ -22,10 +23,10 @@ export const catalogLandingsQuery = {
       staleTime: Infinity,
       retryOnMount: false,
     }),
-  getList: () =>
+  getLinks: () =>
     queryOptions({
-      queryKey: [baseKey, "list"] as const,
-      queryFn: async () => ApiResult.fromDTO(await getCatalogLandingPages()).unwrap() ?? null,
+      queryKey: [baseKey, "links"] as const,
+      queryFn: async () => ApiResult.fromDTO(await getCatalogLandingLinks()).unwrap() ?? null,
       staleTime: Infinity,
       retryOnMount: false,
     }),

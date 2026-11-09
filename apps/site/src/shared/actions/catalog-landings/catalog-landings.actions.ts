@@ -2,7 +2,7 @@
 
 import { ApiResult, type ApiResultDTO } from "@/shared/lib/api-result";
 
-import type { ApiCatalogLandingPageDTO, CatalogLandingPage } from "./catalog-landings.types";
+import type { ApiCatalogLandingPageDTO, CatalogLandingLink, CatalogLandingPage } from "./catalog-landings.types";
 
 const DEFAULT_API_BASE_URL = "http://localhost:3002";
 
@@ -14,6 +14,16 @@ export async function getCatalogLandingPages(): Promise<ApiResultDTO<CatalogLand
   })();
 
   return result.toDTO() as ApiResultDTO<CatalogLandingPage[]>;
+}
+
+export async function getCatalogLandingLinks(): Promise<ApiResultDTO<CatalogLandingLink[]>> {
+  const result = await ApiResult.prepareApi(async () => {
+    const landings = await requestCatalogApi<ApiCatalogLandingPageDTO[]>("/catalog/landings");
+
+    return landings.map(({ id, slug, h1 }) => ({ id, slug, h1 }));
+  })();
+
+  return result.toDTO() as ApiResultDTO<CatalogLandingLink[]>;
 }
 
 export async function getCatalogLandingPage(

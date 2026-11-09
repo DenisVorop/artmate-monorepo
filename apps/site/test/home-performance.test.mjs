@@ -143,6 +143,12 @@ test("a cold home preview keeps the page and work cards visible inside the app s
       useFeaturedCollectionWorks: () => ({ works: [work] }),
       CommunityWorkCard: () => React.createElement("button", null, "Открыть изображение: Котик"),
     },
+    "@/shared/lib/schedule-idle-preload": { scheduleIdlePreload() {} },
+    "../lib/constants": { homeCommunityCollectionSlugs: ["cats"] },
+    "../lib/use-image-preview": { useImagePreview: () => preview },
+    "./preview-loading": loading,
+  });
+  const { HomeCommunitySection } = await load("features/home-community/ui/community-section.tsx", {
     "@/shared/ui/typography": {
       // eslint-disable-next-line react/prop-types -- Presentation stub for isolated component tests.
       SectionTitle: ({ children }) => React.createElement("h2", null, children),
@@ -155,16 +161,21 @@ test("a cold home preview keeps the page and work cards visible inside the app s
     },
     "@/shared/constants": { routes: { gallery: "/gallery" } },
     "@/shared/lib": { cn: (...values) => values.filter(Boolean).join(" ") },
-    "@/shared/lib/schedule-idle-preload": { scheduleIdlePreload() {} },
-    "../lib/constants": { homeCommunityCollectionSlugs: ["cats"] },
-    "../lib/use-image-preview": { useImagePreview: () => preview },
-    "./preview-loading": loading,
   });
+  const shell = renderToString(
+    React.createElement(
+      HomeCommunitySection,
+      null,
+      React.createElement(React.Suspense, { fallback: null }, React.createElement(PendingPreview)),
+    ),
+  );
+  assert.match(shell, /Работы участников/);
+  assert.match(shell, /<a href="\/gallery">Все работы<\/a>/);
   const html = renderToString(
     React.createElement(
       React.Suspense,
       { fallback: React.createElement("p", { "data-app-fallback": true }, "Страница скрыта") },
-      React.createElement(HomeCommunity),
+      React.createElement(HomeCommunitySection, null, React.createElement(HomeCommunity)),
     ),
   );
   assert.match(html, /Работы участников/);

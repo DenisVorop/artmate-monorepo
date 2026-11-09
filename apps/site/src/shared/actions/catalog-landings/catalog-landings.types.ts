@@ -29,6 +29,8 @@ export type CatalogLandingPage = {
   updatedAt: string;
 };
 
+export type CatalogLandingLink = Pick<CatalogLandingPage, "id" | "slug" | "h1">;
+
 export type ApiCatalogLandingFaqItemDTO = {
   id: string;
   question: string;

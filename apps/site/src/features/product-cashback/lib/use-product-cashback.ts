@@ -2,19 +2,16 @@
 
 import { useLoyaltyDashboard, useLoyaltyData } from "@/entities/loyalty";
 import type { Product } from "@/entities/products";
-import { useSession } from "@/entities/session";
 
-export function useProductCashback(product: Product) {
-  const { user, isPending } = useSession();
-  const overview = useLoyaltyData(user?.id ?? "guest", !!user);
+export function useSignedInProductCashback(product: Product, userId: string) {
+  const overview = useLoyaltyData(userId, true);
   const member = overview.data?.member;
   const ready = member?.status === "active" && member.historyState === "ready";
-  const dashboard = useLoyaltyDashboard(user?.id ?? "guest", !!user && ready);
+  const dashboard = useLoyaltyDashboard(userId, ready);
 
   if (
-    product.isOutOfStock ||
-    isPending ||
-    (user && (overview.isPending || overview.isError)) ||
+    overview.isPending ||
+    overview.isError ||
     (member && (!ready || dashboard.isPending || dashboard.isError))
   ) {
     return undefined;
@@ -24,5 +21,5 @@ export function useProductCashback(product: Product) {
     ? product.loyaltyRewards?.find((item) => item.ratePercent === dashboard.data?.tier?.ratePercent)
     : product.loyaltyRewards?.[0];
 
-  return reward && reward.points > 0 ? { ...reward, enrolled: !!member } : undefined;
+  return reward?.points;
 }

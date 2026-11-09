@@ -284,6 +284,46 @@ test("product view hook ignores pending data and stays StrictMode-safe", async (
   );
 });
 
+test("a fresh visitor's cart is created on first add", async (t) => {
+  const cart = { id: "guest-cart", items: [{ id: "album", quantity: 1 }], itemsCount: 1 };
+  const request = t.mock.method(globalThis, "fetch", async () => Response.json(cart));
+  let cartId;
+  const setCookie = t.mock.fn((_name, value) => {
+    cartId = value;
+  });
+  const { getCart, addCartItem } = evaluateTypeScript(
+    await readSource("src/shared/actions/cart/cart.actions.ts"),
+    {
+      "@/shared/lib/api-result": {
+        ApiResult: {
+          prepareApi: (read) => async () => {
+            const data = await read();
+            return { toDTO: () => ({ data }) };
+          },
+        },
+      },
+      "@/shared/lib/api-security": { apiCsrfHeader: {} },
+      "next/headers": {
+        cookies: async () => ({
+          get: (name) => (name === "cart_id" && cartId ? { value: cartId } : undefined),
+          set: setCookie,
+        }),
+      },
+    },
+  );
+
+  assert.equal((await getCart()).data, undefined);
+  assert.equal(request.mock.callCount(), 0);
+  assert.equal(setCookie.mock.callCount(), 0);
+
+  assert.deepEqual((await addCartItem({ productId: "album", quantity: 1 })).data, cart);
+  assert.equal(request.mock.calls[0].arguments[1].method, "POST");
+  assert.deepEqual(setCookie.mock.calls[0].arguments.slice(0, 2), ["cart_id", cart.id]);
+
+  assert.deepEqual((await getCart()).data, cart);
+  assert.equal(request.mock.calls[1].arguments[1].headers.cookie, `cart_id=${cart.id}`);
+});
+
 test("cart add uses confirmed delta and skips unknown cache, saturation, and missing response", async () => {
   const sharedAnalytics = await loadAnalytics();
   const { useAnalytics } = await loadCartAnalytics(sharedAnalytics);

@@ -4,17 +4,48 @@ import { useState } from "react";
 
 import { LoyaltyPoints } from "@/entities/loyalty";
 import type { Product } from "@/entities/products";
+import { useSession } from "@/entities/session";
 import { decline, cn } from "@/shared/lib";
 import { Button, Tooltip, TooltipContent, TooltipProvider, TooltipTrigger } from "@/shared/ui";
 
-import { useProductCashback } from "../lib/use-product-cashback";
+import { useSignedInProductCashback } from "../lib/use-product-cashback";
 
-export function ProductCashback({ product, className }: { product: Product; className?: string }) {
-  const reward = useProductCashback(product);
+type ProductCashbackProps = { product: Product; className?: string };
+
+export function ProductCashback({ product, className }: ProductCashbackProps) {
+  const { user, isPending } = useSession();
+
+  if (product.isOutOfStock || isPending) return null;
+  if (user)
+    return <SignedInProductCashback product={product} className={className} userId={user.id} />;
+
+  return (
+    <ProductCashbackBadge
+      product={product}
+      className={className}
+      points={product.loyaltyRewards?.[0]?.points}
+    />
+  );
+}
+
+function SignedInProductCashback({
+  product,
+  className,
+  userId,
+}: ProductCashbackProps & { userId: string }) {
+  const points = useSignedInProductCashback(product, userId);
+  return <ProductCashbackBadge product={product} className={className} points={points} />;
+}
+
+function ProductCashbackBadge({
+  product,
+  className,
+  points,
+}: ProductCashbackProps & { points?: number }) {
   const [open, setOpen] = useState(false);
-  if (!reward) return null;
+  if (points === undefined || !(points > 0)) return null;
 
-  const pointsLabel = `${reward.points.toLocaleString("ru-RU")} ${decline(reward.points, "балл", "балла", "баллов")}`;
+  const pointsLabel = `${points.toLocaleString("ru-RU")} ${decline(points, "балл", "балла", "баллов")}`;
 
   return (
     <TooltipProvider>
@@ -34,7 +65,7 @@ export function ProductCashback({ product, className }: { product: Product; clas
             }}
           >
             <LoyaltyPoints
-              points={reward.points}
+              points={points}
               prefix="+"
               className="flex-row-reverse"
               iconClassName="size-4"
