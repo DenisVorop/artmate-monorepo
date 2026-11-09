@@ -17,7 +17,7 @@ const CART_COOKIE_MAX_AGE_SECONDS = 60 * 60 * 24 * 30;
 const DEFAULT_API_BASE_URL = "http://localhost:3002";
 
 export async function getCart(): Promise<ApiResultDTO<CartDTO>> {
-  const result = await ApiResult.prepareApi(async () => requestCart("/cart"))();
+  const result = await ApiResult.prepareApi(async () => requestCart("/cart", { method: "GET" }))();
 
   return result.toDTO() as ApiResultDTO<CartDTO>;
 }
@@ -71,9 +71,13 @@ export async function clearCart(): Promise<ApiResultDTO<CartDTO>> {
   return result.toDTO() as ApiResultDTO<CartDTO>;
 }
 
-async function requestCart(path: string, init: RequestInit = {}) {
+async function requestCart(path: string, init: RequestInit) {
   const cookieStore = await cookies();
   const cartId = cookieStore.get(CART_COOKIE_NAME)?.value;
+  if (init.method === "GET" && !cartId) {
+    return undefined;
+  }
+
   const response = await fetch(`${getApiBaseUrl()}${path}`, {
     ...init,
     cache: "no-store",

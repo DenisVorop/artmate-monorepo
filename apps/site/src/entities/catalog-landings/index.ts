@@ -5,7 +5,7 @@ export {
   type CatalogLandingFaqItem,
   type CatalogLandingPage,
   type CatalogLandingPageResult,
-  type CatalogLandingPagesResult,
+  type CatalogLandingLinksResult,
   type CatalogLandingProductSource,
   type CatalogLandingStatus,
 } from "./model";

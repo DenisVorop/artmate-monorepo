@@ -273,6 +273,68 @@ test("Yandex attribution is SSR-safe and retains identifiers when browser storag
   );
 });
 
+test("Google Analytics queues the initial and SPA page views before the SDK loads", async () => {
+  const analyticsWindow = {
+    dataLayer: [{ ecommerce: null }],
+    location: { href: "https://artmate.ru/?utm_source=search&token=secret" },
+  };
+  const document = {
+    referrer: "https://search.example/?email=person%40example.com",
+    title: "Artmate",
+  };
+  const currentUrlRef = { current: null };
+  const { GoogleAnalyticsPageView } = evaluateTypeScript(
+    await readSource("src/shared/lib/analytics/google-analytics-page-view.tsx"),
+    {
+      "../is-sensitive-path": { isSensitivePath: () => false },
+      "./sanitize-analytics-url": await loadSanitizer(),
+      "./virtual-page-view": { isSilentVirtualPageView: (url) => url.endsWith("/blog/restore") },
+      "next/navigation": {
+        usePathname: () => new URL(analyticsWindow.location.href).pathname,
+        useSearchParams: () => new URL(analyticsWindow.location.href).searchParams,
+      },
+      react: { useEffect: (effect) => effect(), useRef: () => currentUrlRef },
+    },
+  );
+
+  withBrowserGlobals({ analyticsWindow, document }, () => {
+    const render = () => GoogleAnalyticsPageView({ measurementId: "G-TEST" });
+    render();
+    render();
+    analyticsWindow.location.href = "https://artmate.ru/blog/restore";
+    render();
+    analyticsWindow.location.href = "https://artmate.ru/catalog?q=flowers";
+    document.title = "Каталог Artmate";
+    render();
+  });
+
+  const [ecommerce, started, initialView, nextView, ...duplicates] = analyticsWindow.dataLayer;
+  assert.deepEqual(ecommerce, { ecommerce: null });
+  assert.equal(started[0], "js");
+  assert.ok(started[1] instanceof Date);
+  assert.deepEqual(Array.from(initialView), [
+    "config",
+    "G-TEST",
+    {
+      page_location: "https://artmate.ru/?utm_source=search",
+      page_path: "/?utm_source=search",
+      page_referrer: "https://search.example/",
+      page_title: "Artmate",
+    },
+  ]);
+  assert.deepEqual(Array.from(nextView), [
+    "config",
+    "G-TEST",
+    {
+      page_location: "https://artmate.ru/catalog?q=flowers",
+      page_path: "/catalog?q=flowers",
+      page_referrer: "https://artmate.ru/blog/restore",
+      page_title: "Каталог Artmate",
+    },
+  ]);
+  assert.deepEqual(duplicates, []);
+});
+
 test("Yandex Metrika initializes once with sanitized URL and referrer", async () => {
   const sanitizer = await loadSanitizer();
   const initializer = evaluateTypeScript(

@@ -25,9 +25,10 @@ export async function getAuthProviders(): Promise<ApiResultDTO<AuthProvidersDTO>
 }
 
 export async function getAuthSession(): Promise<ApiResultDTO<AuthSessionDTO>> {
-  const result = await ApiResult.prepareApi(async () =>
-    _requestAuth<AuthSessionDTO>("/auth/session"),
-  )();
+  const result = await ApiResult.prepareApi(async () => {
+    const accessToken = (await cookies()).get(authAccessTokenCookieName)?.value;
+    return accessToken ? _requestAuth<AuthSessionDTO>("/auth/session") : { user: null };
+  })();
 
   return result.toDTO() as ApiResultDTO<AuthSessionDTO>;
 }

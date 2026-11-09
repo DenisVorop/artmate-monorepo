@@ -1,12 +1,12 @@
 import {
   catalogLandingsQuery,
-  type CatalogLandingPagesResult,
+  type CatalogLandingLinksResult,
 } from "@/entities/catalog-landings";
 import { getProductCategoryBySlug, getProductBySlug, getRelatedProducts } from "@/entities/products";
 import type { Product, ProductCategory } from "@/entities/products";
 import { productsQuery, type ProductsDataResult } from "@/entities/products";
 import { reviewsQuery, type ReviewsDataResult } from "@/entities/reviews";
-import { getCatalogLandingPages } from "@/shared/actions/catalog-landings";
+import { getCatalogLandingLinks } from "@/shared/actions/catalog-landings";
 import { getProductsData } from "@/shared/actions/products";
 import { getReviewsData } from "@/shared/actions/reviews";
 
@@ -16,7 +16,7 @@ import { BaseDataBuilder } from "./base-data-builder";
 
 type Fields = {
   productsData?: ProductsDataResult;
-  catalogLandings?: CatalogLandingPagesResult;
+  catalogLandings?: CatalogLandingLinksResult;
   reviewsData?: ReviewsDataResult;
   category?: ProductCategory;
   product?: Product;
@@ -47,8 +47,8 @@ export class CatalogDataBuilder<TData, TFields extends Fields> extends BaseDataB
 
     return this.add("catalogLandings", async function () {
       return setApiResultQueryData(
-        catalogLandingsQuery.getList().queryKey,
-        await getCatalogLandingPages(),
+        catalogLandingsQuery.getLinks().queryKey,
+        await getCatalogLandingLinks(),
       );
     });
   }

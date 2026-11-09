@@ -3,11 +3,6 @@
 import { lazy, Suspense, useCallback, useEffect, useState, type ComponentType } from "react";
 import { CommunityWorkCard, useFeaturedCollectionWorks } from "@/entities/community-work";
 import { LikeButton } from "@/features/likes";
-import { SectionTitle } from "@/shared/ui/typography";
-import { Button } from "@/shared/ui";
-import { Link } from "@/shared/ui/link";
-import { routes } from "@/shared/constants";
-import { cn } from "@/shared/lib";
 import { scheduleIdlePreload } from "@/shared/lib/schedule-idle-preload";
 import { homeCommunityCollectionSlugs } from "../lib/constants";
 import { useImagePreview } from "../lib/use-image-preview";
@@ -18,7 +13,7 @@ const loadImagePreview = () =>
 const ImagePreview = lazy(loadImagePreview);
 type PreviewComponent = ComponentType<{ preview: ReturnType<typeof useImagePreview> }>;
 
-export function HomeCommunity({ className }: { className?: string }) {
+export function HomeCommunity() {
   const { works } = useFeaturedCollectionWorks(homeCommunityCollectionSlugs);
   const preview = useImagePreview();
   const [LoadedPreview, setLoadedPreview] = useState<PreviewComponent | null>(null);
@@ -37,18 +32,7 @@ export function HomeCommunity({ className }: { className?: string }) {
   if (!featuredWorks.length) return null;
 
   return (
-    <section className={cn("container", className)} aria-labelledby="home-community-title">
-      <div className="mb-5 flex items-center justify-between gap-4 md:mb-6">
-        <SectionTitle
-          id="home-community-title"
-          style={{ fontSize: "clamp(1.25rem, 3vw, 1.75rem)" }}
-        >
-          Работы участников
-        </SectionTitle>
-        <Button asChild variant="link" className="min-h-11 shrink-0 text-rose-600">
-          <Link href={routes.gallery}>Все работы</Link>
-        </Button>
-      </div>
+    <>
       <ul className="flex snap-x snap-mandatory gap-3 overflow-x-auto pb-1 sm:gap-5 md:grid md:grid-cols-4">
         {featuredWorks.map((work) => (
           <li
@@ -75,6 +59,6 @@ export function HomeCommunity({ className }: { className?: string }) {
           <Preview preview={preview} />
         </Suspense>
       )}
-    </section>
+    </>
   );
 }

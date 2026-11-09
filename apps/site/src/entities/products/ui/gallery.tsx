@@ -12,6 +12,9 @@ type GalleryProps = {
   title: string;
 };
 
+const thumbnailSizes = "(min-width: 768px) 72px, 60px";
+const mainImageSizes = "(min-width: 1024px) 48vw, 100vw";
+
 function getPreviousIndex(index: number, length: number) {
   return (index - 1 + length) % length;
 }
@@ -202,7 +205,7 @@ export function Gallery({ images, title }: GalleryProps) {
                 src={image}
                 alt=""
                 unoptimized={shouldBypassNextImageOptimization(image)}
-                sizes="72px"
+                sizes={thumbnailSizes}
                 className="object-cover"
                 draggable={false}
               />
@@ -237,7 +240,7 @@ export function Gallery({ images, title }: GalleryProps) {
                   unoptimized={shouldBypassNextImageOptimization(image)}
                   loading={index === 0 ? "eager" : "lazy"}
                   fetchPriority={index === 0 ? "high" : undefined}
-                  sizes="(min-width: 1024px) 48vw, 100vw"
+                  sizes={index === 0 || index === activeIndex ? mainImageSizes : thumbnailSizes}
                   className="object-cover"
                   draggable={false}
                 />
@@ -295,7 +298,7 @@ export function Gallery({ images, title }: GalleryProps) {
                   src={image}
                   alt=""
                   unoptimized={shouldBypassNextImageOptimization(image)}
-                  sizes="60px"
+                  sizes={thumbnailSizes}
                   className="object-cover"
                   draggable={false}
                 />

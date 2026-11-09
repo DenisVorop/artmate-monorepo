@@ -38,6 +38,38 @@ function evaluateTypeScript(source, mocks) {
   return testModule.exports;
 }
 
+test("catalog landing links return only the fields used by the link list", async (t) => {
+  const request = t.mock.method(globalThis, "fetch", async () =>
+    Response.json([
+      {
+        id: "landing-1",
+        slug: "animals",
+        h1: "Раскраски с животными",
+        seoHtml: "<p>Описание подборки</p>",
+        products: [{ id: "product-1" }],
+      },
+    ]),
+  );
+  const { getCatalogLandingLinks } = evaluateTypeScript(
+    await readSource("src/shared/actions/catalog-landings/catalog-landings.actions.ts"),
+    {
+      "@/shared/lib/api-result": {
+        ApiResult: {
+          prepareApi: (read) => async () => {
+            const data = await read();
+            return { toDTO: () => ({ data }) };
+          },
+        },
+      },
+    },
+  );
+
+  assert.deepEqual((await getCatalogLandingLinks()).data, [
+    { id: "landing-1", slug: "animals", h1: "Раскраски с животными" },
+  ]);
+  assert.match(request.mock.calls[0].arguments[0], /\/catalog\/landings$/);
+});
+
 const siteUrl = "https://artmate.example";
 const { routes } = evaluateTypeScript(await readSource("src/shared/constants/routes.ts"), {});
 const coloring = {

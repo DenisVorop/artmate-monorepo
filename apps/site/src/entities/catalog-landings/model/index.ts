@@ -2,7 +2,7 @@ export { catalogLandingsQuery } from "./query";
 export { useCatalogLandings } from "./use-catalog-landings";
 export type {
   CatalogLandingPageResult,
-  CatalogLandingPagesResult,
+  CatalogLandingLinksResult,
 } from "./query";
 export type {
   CatalogLandingFaqItem,

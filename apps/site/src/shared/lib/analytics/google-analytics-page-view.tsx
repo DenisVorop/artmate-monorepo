@@ -5,15 +5,18 @@ import { usePathname, useSearchParams } from "next/navigation";
 
 import { isSensitivePath } from "../is-sensitive-path";
 import { sanitizeAnalyticsUrl } from "./sanitize-analytics-url";
+import type { AnalyticsWindow } from "./types";
 import { isSilentVirtualPageView } from "./virtual-page-view";
 
 type GoogleAnalyticsPageViewProps = {
   readonly measurementId: string;
 };
 
-type GtagArguments = [command: string, targetId: string, config?: Record<string, string>];
+type GtagArguments =
+  | [command: "js", startedAt: Date]
+  | [command: "config", targetId: string, config: Record<string, string>];
 
-type GoogleAnalyticsWindow = Window & {
+type GoogleAnalyticsWindow = AnalyticsWindow & {
   gtag?: (..._args: GtagArguments) => void;
 };
 
@@ -27,22 +30,29 @@ export function GoogleAnalyticsPageView({ measurementId }: GoogleAnalyticsPageVi
     const currentUrl = sanitizeAnalyticsUrl(window.location.href);
     if (!currentUrl) return;
 
-    if (currentUrlRef.current === null) {
-      currentUrlRef.current = currentUrl;
-      return;
-    }
-
     if (currentUrlRef.current === currentUrl) {
       return;
     }
 
+    const previousUrl = currentUrlRef.current;
     currentUrlRef.current = currentUrl;
-    if (isSilentVirtualPageView(currentUrl)) return;
+    if (previousUrl !== null && isSilentVirtualPageView(currentUrl)) return;
     const safeUrl = new URL(currentUrl);
+    const analyticsWindow = window as GoogleAnalyticsWindow;
+    if (!analyticsWindow.gtag) {
+      const dataLayer = (analyticsWindow.dataLayer ??= []);
+      analyticsWindow.gtag = function gtag(..._args: GtagArguments) {
+        // eslint-disable-next-line prefer-rest-params -- Keep the queue format from the Google tag snippet.
+        dataLayer.push(arguments);
+      };
+      analyticsWindow.gtag("js", new Date());
+    }
 
-    (window as GoogleAnalyticsWindow).gtag?.("config", measurementId, {
+    analyticsWindow.gtag("config", measurementId, {
       page_location: currentUrl,
       page_path: `${safeUrl.pathname}${safeUrl.search}`,
+      page_referrer: previousUrl ?? sanitizeAnalyticsUrl(document.referrer),
+      page_title: document.title,
     });
   }, [measurementId, pathname, searchParams]);
 
