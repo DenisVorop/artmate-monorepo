@@ -21,6 +21,15 @@ class Cell:
     color_index: int
     rings: tuple[tuple[int, ...], ...]
     prefilled: bool = False
+    mergeable_prefilled: bool = False
+
+    def __post_init__(self):
+        if (
+            type(self.prefilled) is not bool
+            or type(self.mergeable_prefilled) is not bool
+            or (self.mergeable_prefilled and not self.prefilled)
+        ):
+            raise StageError("Некорректная защита готовой детали.")
 
 
 @dataclass(frozen=True)

@@ -5,7 +5,7 @@ from math import isfinite
 
 from mystery_coloring.domain import StageError
 
-DETAIL_POLICY_VERSION = "thin-strokes-v6-provenance"
+DETAIL_POLICY_VERSION = "thin-strokes-v7-printable-details"
 
 
 @dataclass(frozen=True)
@@ -38,6 +38,7 @@ class DetailMap:
     face_details: int = 0
     # IDs established as strokes or model-guided features, not generic contrast flecks.
     locked_ids: frozenset[int] = frozenset()
+    stroke_ids: frozenset[int] = frozenset()
 
 
 @dataclass(frozen=True)

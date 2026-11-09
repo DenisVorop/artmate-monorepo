@@ -112,16 +112,23 @@ class NumberingResult:
             i for ids in self.source_cell_ids for i in ids
         ) != sorted(c.id for c in source.geometry.mesh.cells):
             raise StageError("Нарушено происхождение объединённых областей.")
-        protected_sources = {c.id: c for c in source.geometry.mesh.cells if c.prefilled}
-        retained = {
-            ids[0]: c
-            for c, ids in zip(self.mesh.cells, self.source_cell_ids, strict=True)
-            if c.prefilled and len(ids) == 1
-        }
-        if set(retained) != set(protected_sources) or any(
-            retained[i].color_index != c.color_index for i, c in protected_sources.items()
-        ):
-            raise StageError("Защищённая деталь была объединена или перекрашена.")
+        originals = {c.id: c for c in source.geometry.mesh.cells}
+        for cell, ids in zip(self.mesh.cells, self.source_cell_ids, strict=True):
+            members = tuple(originals[i] for i in ids)
+            if cell.prefilled:
+                if members != (cell,):
+                    raise StageError("Готовая деталь изменилась при нумерации.")
+            elif any(
+                original.prefilled
+                and not original.mergeable_prefilled
+                and (
+                    original.color_index != cell.color_index
+                    or symbols[cell.color_index] is None
+                    or all(member.prefilled for member in members)
+                )
+                for original in members
+            ):
+                raise StageError("Защищённая деталь должна войти в обычную область того же цвета.")
 
     def paper_white_cell_ids(self, source: NumberingInput) -> tuple[int, ...]:
         symbols = palette_symbols(source.geometry.palette)

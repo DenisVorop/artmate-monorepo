@@ -124,6 +124,7 @@ class OpenCVImageSimplifier:
             color_map[selected] = lookup[detail_ids[selected]]
             protection = selected.astype(np.uint8)
             protection[np.isin(detail_ids, tuple(detail_map.locked_ids))] = 2
+            protection[np.isin(detail_ids, tuple(detail_map.stroke_ids))] = 3
             prefilled = protection.tobytes()
         counts = np.bincount(color_map, minlength=len(palette))
         used = np.flatnonzero(counts)

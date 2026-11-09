@@ -74,12 +74,14 @@ class GeometryResult:
     reduced_smoothing_boundaries: int
     max_sampled_deviation_mm: float
     prefilled_ids: frozenset[int] = frozenset()
+    mergeable_detail_ids: frozenset[int] = frozenset()
 
     def validate_min_area(self, minimum: float) -> None:
         if (
             not self.areas_mm2
             or len(self.areas_mm2) != len(self.color_indices)
             or not self.prefilled_ids <= set(range(len(self.areas_mm2)))
+            or not self.mergeable_detail_ids <= self.prefilled_ids
             or any(
                 not isfinite(area) or area <= 0 or (i not in self.prefilled_ids and area < minimum)
                 for i, area in enumerate(self.areas_mm2)

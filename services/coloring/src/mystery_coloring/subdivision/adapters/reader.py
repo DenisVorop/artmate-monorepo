@@ -80,6 +80,8 @@ class GeometryReader:
                     item["id"],
                     item["color_index"],
                     separate_touching_rings(rings[item["id"]], edge_map),
+                    item.get("prefilled", False),
+                    item.get("mergeable_prefilled", False),
                 )
                 for item in geometry["regions"]
             )
