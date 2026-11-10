@@ -1,3 +1,6 @@
+"use client";
+
+import { useAnalytics } from "../lib/analytics";
 import { CheckCircle2, Headphones, ShoppingBag } from "lucide-react";
 
 import { routes } from "@/shared/constants";
@@ -5,6 +8,7 @@ import { Button, Card, CardContent, CardDescription, CardHeader, CardTitle } fro
 import { Link } from "@/shared/ui/link";
 
 export function GuestCheckoutSuccess() {
+  const analytics = useAnalytics();
   return (
     <section className="container py-10 md:py-14">
       <Card className="mx-auto max-w-3xl">
@@ -21,13 +25,13 @@ export function GuestCheckoutSuccess() {
         </CardHeader>
         <CardContent className="flex flex-col gap-2 sm:flex-row">
           <Button asChild size="lg">
-            <Link href={routes.catalog}>
+            <Link href={routes.catalog} onClick={analytics.successCatalogOpened}>
               <ShoppingBag data-icon="inline-start" />
               Вернуться в каталог
             </Link>
           </Button>
           <Button asChild size="lg" variant="outline">
-            <Link href={routes.contacts}>
+            <Link href={routes.contacts} onClick={analytics.successSupportOpened}>
               <Headphones data-icon="inline-start" />
               Связаться с поддержкой
             </Link>

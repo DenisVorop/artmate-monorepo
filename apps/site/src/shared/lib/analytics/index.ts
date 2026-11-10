@@ -3,6 +3,7 @@ export {
   createDiagnosticCommand,
   createEcommerceCommand,
   createGoalCommand,
+  createInteractionCommand,
   diagnosticEventNames,
   ecommerceActions,
   mapAnalyticsProduct,
@@ -22,9 +23,11 @@ export {
   type EcommerceCommand,
   type EcommercePayloads,
   type GoalCommand,
+  type InteractionEventParams,
   type YandexGoalEventId,
   type YandexGoalParams,
 } from "./create-analytics";
+export { siteActions, siteAreas, siteSections } from "./types";
 export { GoogleAnalytics } from "./google-analytics";
 export {
   isSensitiveAnalyticsParamName,

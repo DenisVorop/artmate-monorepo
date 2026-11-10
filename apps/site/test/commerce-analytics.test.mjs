@@ -212,6 +212,26 @@ test("home shelves keep their own product list and position in ecommerce clicks"
   ]);
 });
 
+test("product impressions use the same placement as clicks and the Yandex impressions shape", async () => {
+  const sharedAnalytics = await loadAnalytics();
+  const { useAnalytics } = await loadCartAnalytics(sharedAnalytics);
+  const product = createProduct({ email: "buyer@example.com" });
+  const analyticsWindow = createAnalyticsWindow();
+  const placement = { list: "catalog_landing", position: 2 };
+
+  withWindow(analyticsWindow, () => {
+    useAnalytics().productShown(product, placement);
+    useAnalytics().productShown({ ...product, price: Infinity }, placement);
+    useAnalytics().productClicked(product, placement);
+  });
+
+  const expectedProduct = analyticsProduct(product, placement);
+  assert.deepEqual(analyticsWindow.dataLayer, [
+    { ecommerce: { currencyCode: "RUB", impressions: [expectedProduct] } },
+    ecommerce("click", [expectedProduct]),
+  ]);
+});
+
 test("product detail emits detail and product_view once per memory view key", async () => {
   const sharedAnalytics = await loadAnalytics();
   const { useAnalytics } = await loadProductDetailsAnalytics(sharedAnalytics);
@@ -416,7 +436,9 @@ test("cart PATCH sends only the confirmed positive or negative quantity delta", 
 
   assert.deepEqual(analyticsWindow.dataLayer, [
     ecommerce("add", [analyticsProduct(increasedItem, { quantity: 3 })]),
+    { event: "cart_quantity_increase", product_id: previousItem.id },
     ecommerce("remove", [analyticsProduct(decreasedItem, { quantity: 1 })]),
+    { event: "cart_quantity_decrease", product_id: previousItem.id },
   ]);
 });
 
@@ -453,6 +475,7 @@ test("remove and clear cart report confirmed removed quantities and skip no-ops"
 
   assert.deepEqual(analyticsWindow.dataLayer, [
     ecommerce("remove", [analyticsProduct(first, { quantity: 3 })]),
+    { event: "cart_item_remove", product_id: first.id },
     ecommerce("remove", [
       analyticsProduct(first, { quantity: 3 }),
       analyticsProduct(second, { quantity: 2 }),
@@ -574,6 +597,8 @@ async function createAddMutationHarness({ actionResult, ensuredCart, previousCar
     },
   };
   const analytics = {
+    addFailed() {},
+    toastCartOpened() {},
     cartItemAdded(...args) {
       analyticsCalls.push(args);
     },

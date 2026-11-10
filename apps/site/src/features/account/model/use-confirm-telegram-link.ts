@@ -1,5 +1,6 @@
 "use client";
 
+import { useAnalytics } from "../lib/analytics";
 import { useMutation, useQueryClient } from "@tanstack/react-query";
 
 import { sessionQuery, telegramLinkStatusQueryKey } from "@/entities/session";
@@ -20,11 +21,14 @@ type UseConfirmTelegramLinkOptions = {
 };
 
 export function useConfirmTelegramLink(options: UseConfirmTelegramLinkOptions = {}) {
+  const analytics = useAnalytics();
   const queryClient = useQueryClient();
   const { mutateAsync: mutate, isPending } = useMutation({
     mutationFn: async (input: ConfirmTelegramLinkInputDTO) =>
       ApiResult.fromDTO(await confirmTelegramLink(input)).unwrap(),
+    onError: () => analytics.telegramLinkFailed(),
     onSuccess: (response) => {
+      if (response?.linked) analytics.telegramLinked();
       void queryClient.cancelQueries({ queryKey: featureBannersQueryKey });
       void queryClient.cancelQueries({ queryKey: welcomeOfferQueryKey });
       void queryClient.resetQueries({ queryKey: featureBannersQueryKey });

@@ -1,10 +1,12 @@
 "use client";
 
+import { useAnalytics } from "../lib/analytics";
 import { X } from "lucide-react";
 import { Button } from "@/shared/ui";
 import { useCatalog } from "../lib/catalog-provider";
 
 export function Summary() {
+  const analytics = useAnalytics();
   const {
     onlyBestsellers,
     onlyAvailable,
@@ -22,6 +24,7 @@ export function Summary() {
       ? [
           {
             label: `От ${minPrice.toLocaleString("ru-RU")} ₽`,
+            kind: "minimum_price" as const,
             remove: () => updateFilters({ minPrice: undefined }),
           },
         ]
@@ -30,17 +33,34 @@ export function Summary() {
       ? [
           {
             label: `До ${maxPrice.toLocaleString("ru-RU")} ₽`,
+            kind: "maximum_price" as const,
             remove: () => updateFilters({ maxPrice: undefined }),
           },
         ]
       : []),
     ...(onlyAvailable
-      ? [{ label: "В наличии", remove: () => updateFilters({ onlyAvailable: false }) }]
+      ? [
+          {
+            label: "В наличии",
+            kind: "availability" as const,
+            remove: () => updateFilters({ onlyAvailable: false }),
+          },
+        ]
       : []),
     ...(onlyBestsellers
-      ? [{ label: "Хиты", remove: () => updateFilters({ onlyBestsellers: false }) }]
+      ? [
+          {
+            label: "Хиты",
+            kind: "bestsellers" as const,
+            remove: () => updateFilters({ onlyBestsellers: false }),
+          },
+        ]
       : []),
-    ...selectedTags.map((tag) => ({ label: tag.title, remove: () => toggleTag(tag.slug) })),
+    ...selectedTags.map((tag) => ({
+      label: tag.title,
+      kind: "tag" as const,
+      remove: () => toggleTag(tag.slug),
+    })),
   ];
   return (
     <div className="mb-5 space-y-3">
@@ -55,7 +75,10 @@ export function Summary() {
               type="button"
               variant="secondary"
               size="sm"
-              onClick={chip.remove}
+              onClick={() => {
+                analytics.filterRemoved(chip.kind);
+                chip.remove();
+              }}
               aria-label={`Убрать фильтр: ${chip.label}`}
               className="h-auto min-h-8 max-w-full gap-2 py-1.5 text-left whitespace-normal"
             >
@@ -67,7 +90,10 @@ export function Summary() {
             type="button"
             variant="link"
             size="sm"
-            onClick={clearFilters}
+            onClick={() => {
+              analytics.filtersReset();
+              clearFilters();
+            }}
             className="text-muted-foreground"
           >
             Сбросить фильтры

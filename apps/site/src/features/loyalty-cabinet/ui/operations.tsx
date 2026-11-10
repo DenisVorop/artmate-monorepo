@@ -1,5 +1,6 @@
 "use client";
 
+import { useAnalytics } from "../lib/analytics";
 import { useState } from "react";
 import { ArrowLeft, ArrowRight } from "lucide-react";
 
@@ -14,6 +15,7 @@ import { Button, Card, CardContent, DataState } from "@/shared/ui";
 import { SectionTitle } from "@/shared/ui/typography";
 
 export function Operations({ userId }: { userId: string }) {
+  const analytics = useAnalytics();
   const [cursors, setCursors] = useState<Array<string | undefined>>([undefined]);
   const { data, isError, isPending } = useLoyaltyOperations(userId, true, cursors.at(-1));
 
@@ -97,7 +99,10 @@ export function Operations({ userId }: { userId: string }) {
             variant="outline"
             className="min-h-11"
             disabled={cursors.length <= 1 || isPending}
-            onClick={() => setCursors((current) => current.slice(0, -1))}
+            onClick={() => {
+              analytics.operationsPrevious();
+              setCursors((current) => current.slice(0, -1));
+            }}
           >
             <ArrowLeft className="size-4" />
             Назад
@@ -108,8 +113,9 @@ export function Operations({ userId }: { userId: string }) {
             className="min-h-11"
             disabled={!data?.nextCursor || isPending || isError}
             onClick={() => {
-              if (data?.nextCursor)
-                setCursors((current) => [...current, data.nextCursor ?? undefined]);
+              if (!data?.nextCursor) return;
+              analytics.operationsNext();
+              setCursors((current) => [...current, data.nextCursor ?? undefined]);
             }}
           >
             Далее

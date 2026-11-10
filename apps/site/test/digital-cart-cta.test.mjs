@@ -124,6 +124,7 @@ test("coloring detail always renders its physical album link and treats product 
     },
     "@/shared/ui": { Button: "Button", DataState: "DataState" },
     "../lib/use-track-open": { useTrackOpen() {} },
+    "../lib/analytics": { useViewerAnalytics: () => ({}) },
     "./comparison-viewer": { ComparisonViewer: "ComparisonViewer" },
     "./hero": { Hero: "Hero" },
     "./palette-section": { PaletteSection: "PaletteSection" },

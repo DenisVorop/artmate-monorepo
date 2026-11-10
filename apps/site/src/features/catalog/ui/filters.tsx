@@ -1,6 +1,7 @@
 "use client";
 
-import { useId } from "react";
+import { useAnalytics } from "../lib/analytics";
+import { useId, useState } from "react";
 import { SlidersHorizontal, ChevronDown } from "lucide-react";
 import {
   Accordion,
@@ -27,10 +28,10 @@ import { Checkbox } from "@/shared/ui/checkbox";
 import { cn } from "@/shared/lib";
 import { Link } from "@/shared/ui/link";
 import { useCatalog } from "../lib/catalog-provider";
-import type { CatalogCategoryValue } from "../lib/catalog-state";
 import { PriceFilter } from "./price-filter";
 
 export function Filters() {
+  const analytics = useAnalytics();
   const {
     activeCategory,
     categories,
@@ -50,7 +51,7 @@ export function Filters() {
       >
         <nav className="mb-8 space-y-1" aria-label="Категории товаров">
           <h2 className="mb-3 text-base font-semibold">Категории</h2>
-          {[{ id: "", title: "Все товары", count: products.length }, ...categories].map(
+          {[{ id: "" as const, title: "Все товары", count: products.length }, ...categories].map(
             (category) => (
               <Button
                 key={category.id}
@@ -63,9 +64,8 @@ export function Filters() {
                 )}
               >
                 <Link
-                  href={getCategoryHref(
-                    (category.id || undefined) as CatalogCategoryValue | undefined,
-                  )}
+                  href={getCategoryHref(category.id || undefined)}
+                  onClick={() => analytics.categoryChanged(category.id || "all")}
                   scroll={false}
                   aria-current={(activeCategory?.id ?? "") === category.id ? "page" : undefined}
                 >
@@ -83,7 +83,10 @@ export function Filters() {
               type="button"
               variant="link"
               size="sm"
-              onClick={clearFilters}
+              onClick={() => {
+                analytics.filtersReset();
+                clearFilters();
+              }}
               className="px-0 text-muted-foreground"
             >
               Сбросить
@@ -93,7 +96,11 @@ export function Filters() {
         <FilterFields />
       </aside>
       <div className="flex min-w-0 gap-2 lg:hidden">
-        <DropdownMenu>
+        <DropdownMenu
+          onOpenChange={(open) =>
+            open ? analytics.categoriesOpened() : analytics.categoriesClosed()
+          }
+        >
           <DropdownMenuTrigger asChild>
             <Button
               type="button"
@@ -107,9 +114,11 @@ export function Filters() {
           <DropdownMenuContent className="max-h-80 max-w-[calc(100vw-2rem)] overflow-y-auto">
             <DropdownMenuRadioGroup
               value={activeCategory?.id ?? ""}
-              onValueChange={(value) =>
-                setCategory((value || undefined) as CatalogCategoryValue | undefined)
-              }
+              onValueChange={(value) => {
+                const category = categories.find((category) => category.id === value)?.id;
+                analytics.categoryChanged(category ?? "all");
+                setCategory(category);
+              }}
             >
               <DropdownMenuRadioItem value="">Все товары</DropdownMenuRadioItem>
               {categories.map((category) => (
@@ -120,7 +129,9 @@ export function Filters() {
             </DropdownMenuRadioGroup>
           </DropdownMenuContent>
         </DropdownMenu>
-        <Drawer>
+        <Drawer
+          onOpenChange={(open) => (open ? analytics.filtersOpened() : analytics.filtersClosed())}
+        >
           <DrawerTrigger asChild>
             <Button type="button" variant="outline" className="h-10">
               <SlidersHorizontal />
@@ -140,12 +151,19 @@ export function Filters() {
             </div>
             <DrawerFooter>
               <DrawerClose asChild>
-                <Button type="button" size="lg">
+                <Button type="button" size="lg" onClick={analytics.filtersApplied}>
                   Показать: {countLabel}
                 </Button>
               </DrawerClose>
               {hasFilters && (
-                <Button type="button" variant="ghost" onClick={clearFilters}>
+                <Button
+                  type="button"
+                  variant="ghost"
+                  onClick={() => {
+                    analytics.filtersReset();
+                    clearFilters();
+                  }}
+                >
                   Сбросить фильтры
                 </Button>
               )}
@@ -158,11 +176,21 @@ export function Filters() {
 }
 
 function FilterFields() {
+  const analytics = useAnalytics();
   const id = useId();
+  const [openGroups, setOpenGroups] = useState(["price", "format", "availability"]);
   const { facets, tagSlugs, toggleTag, onlyAvailable, onlyBestsellers, updateFilters } =
     useCatalog();
   return (
-    <Accordion type="multiple" defaultValue={["price", "format", "availability"]}>
+    <Accordion
+      type="multiple"
+      value={openGroups}
+      onValueChange={(next) => {
+        if (next.some((group) => !openGroups.includes(group))) analytics.filterGroupOpened();
+        if (openGroups.some((group) => !next.includes(group))) analytics.filterGroupClosed();
+        setOpenGroups(next);
+      }}
+    >
       <AccordionItem value="price">
         <AccordionTrigger className="py-4">Цена, ₽</AccordionTrigger>
         <AccordionContent className="pb-4">
@@ -189,7 +217,11 @@ function FilterFields() {
                       id={`${id}-${option.id}`}
                       checked={selected}
                       disabled={!option.count && !selected}
-                      onCheckedChange={() => toggleTag(option.slug)}
+                      onCheckedChange={() => {
+                        if (selected) analytics.tagRemoved();
+                        else analytics.tagAdded();
+                        toggleTag(option.slug);
+                      }}
                     />
                     <span className="leading-5">{option.title}</span>
                   </span>
@@ -207,7 +239,11 @@ function FilterFields() {
             <Checkbox
               id={`${id}-available`}
               checked={onlyAvailable}
-              onCheckedChange={(value) => updateFilters({ onlyAvailable: value === true })}
+              onCheckedChange={(value) => {
+                if (value === true) analytics.availabilityEnabled();
+                else analytics.availabilityDisabled();
+                updateFilters({ onlyAvailable: value === true });
+              }}
             />
             Только в наличии
           </Label>
@@ -215,7 +251,11 @@ function FilterFields() {
             <Checkbox
               id={`${id}-hits`}
               checked={onlyBestsellers}
-              onCheckedChange={(value) => updateFilters({ onlyBestsellers: value === true })}
+              onCheckedChange={(value) => {
+                if (value === true) analytics.bestsellersEnabled();
+                else analytics.bestsellersDisabled();
+                updateFilters({ onlyBestsellers: value === true });
+              }}
             />
             Хиты
           </Label>

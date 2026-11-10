@@ -1,6 +1,7 @@
 "use client";
 
-import { useId } from "react";
+import { useAnalytics } from "../lib/analytics";
+import { useEffect, useId, useRef } from "react";
 import { useForm } from "react-hook-form";
 import { zodResolver } from "@hookform/resolvers/zod";
 import { Input, Label } from "@/shared/ui";
@@ -9,6 +10,7 @@ import { matchesCatalogCategory } from "../lib/catalog-state";
 import { priceFilterSchema, type PriceFilterValues } from "../lib/price-filter-form";
 
 export function PriceFilter() {
+  const analytics = useAnalytics();
   const id = useId();
   const { minPrice, maxPrice, products, categoryId, category, updateFilters } = useCatalog();
   const prices = products
@@ -25,12 +27,24 @@ export function PriceFilter() {
       max: maxPrice === undefined ? "" : String(maxPrice),
     },
   });
-  const submit = handleSubmit(({ min, max }) =>
-    updateFilters({
+  const appliedPrice = useRef({ minPrice, maxPrice });
+  useEffect(() => {
+    appliedPrice.current = { minPrice, maxPrice };
+  }, [minPrice, maxPrice]);
+  const submit = handleSubmit(({ min, max }) => {
+    const next = {
       minPrice: min.trim() ? Number(min) : undefined,
       maxPrice: max.trim() ? Number(max) : undefined,
-    }),
-  );
+    };
+    if (
+      appliedPrice.current.minPrice === next.minPrice &&
+      appliedPrice.current.maxPrice === next.maxPrice
+    )
+      return;
+    appliedPrice.current = next;
+    updateFilters(next);
+    analytics.priceChanged();
+  });
   const error = errors.min?.message || errors.max?.message;
   return (
     <form

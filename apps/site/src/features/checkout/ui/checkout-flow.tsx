@@ -1,5 +1,6 @@
 "use client";
 
+import { useAnalytics } from "../lib/analytics";
 import { RefreshCw } from "lucide-react";
 import type { ReactNode } from "react";
 
@@ -29,6 +30,7 @@ type CheckoutFlowProps = {
 };
 
 function BaseCheckoutFlow({ cart, createOrderError }: CheckoutFlowProps) {
+  const analytics = useAnalytics();
   const { checkoutCalculation, isSubmitting, submitLabel, submitOrder } = useCheckout();
   const promoPricing = getPromoPricingState(usePromocode());
   const pricing = getCheckoutPriceSummary(cart, checkoutCalculation, promoPricing.preview);
@@ -65,7 +67,10 @@ function BaseCheckoutFlow({ cart, createOrderError }: CheckoutFlowProps) {
                     type="button"
                     variant="outline"
                     className="min-h-11"
-                    onClick={calculationFeedback.retry}
+                    onClick={() => {
+                      analytics.calculationRetried();
+                      calculationFeedback.retry();
+                    }}
                   >
                     <RefreshCw data-icon="inline-start" />
                     Повторить расчет

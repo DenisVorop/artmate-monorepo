@@ -1,5 +1,6 @@
 "use client";
 
+import { useAnalytics } from "../lib/analytics";
 import { useEffect, useState } from "react";
 import { zodResolver } from "@hookform/resolvers/zod";
 import {
@@ -56,6 +57,7 @@ import { editorSteps, EditorStepper } from "./stepper";
 import { PhotoPreview } from "./photo-preview";
 
 export function WorkEditor({ slug, number }: { slug: string; number: number }) {
+  const analytics = useAnalytics();
   const router = useRouter();
   const query = useWorkshopColoringData(slug, number);
 
@@ -74,7 +76,14 @@ export function WorkEditor({ slug, number }: { slug: string; number: number }) {
           description="Проверьте соединение и попробуйте ещё раз."
         />
         <div className="flex justify-center">
-          <Button type="button" className="min-h-11" onClick={() => void query.refetch()}>
+          <Button
+            type="button"
+            className="min-h-11"
+            onClick={() => {
+              analytics.retried();
+              void query.refetch();
+            }}
+          >
             Повторить
           </Button>
         </div>
@@ -104,6 +113,7 @@ function EditorForm({
   data: NonNullable<ReturnType<typeof useWorkshopColoringData>["data"]>;
   onSuccess: () => void;
 }) {
+  const analytics = useAnalytics();
   const [currentStep, setCurrentStep] = useState(0);
   const [isMaterialsEditorOpen, setIsMaterialsEditorOpen] = useState(
     Boolean(
@@ -183,6 +193,7 @@ function EditorForm({
       return;
     }
 
+    analytics.savedMaterialAdded();
     appendMaterial({ type: tool.type, brand: tool.brand, line: tool.line });
   }
 
@@ -191,6 +202,7 @@ function EditorForm({
       return;
     }
 
+    analytics.customMaterialAdded();
     appendMaterial({ type: "CUSTOM", brand: "", line: "" });
   }
 
@@ -201,6 +213,7 @@ function EditorForm({
       return;
     }
 
+    analytics.materialTypeChanged();
     setValue(`materials.${index}.type`, type, { shouldDirty: true, shouldValidate: true });
     setValue(`materials.${index}.brand`, type === "ARTMATE_168" ? "Artmate" : "", {
       shouldDirty: true,
@@ -230,12 +243,15 @@ function EditorForm({
       shouldValidate: true,
     });
     removeMaterial(index);
+    analytics.materialRemoved();
   }
 
   function changeMappingMaterial(mappingIndex: number, materialIndex: number | null) {
     const material = materialIndex === null ? undefined : getValues(`materials.${materialIndex}`);
     const color = data.coloring.officialRevision.palette.colors[mappingIndex];
     const mapping = getValues(`mappings.${mappingIndex}`);
+    if (materialIndex === null) analytics.mappingCleared();
+    else analytics.mappingAssigned();
 
     setValue(
       `mappings.${mappingIndex}`,
@@ -245,6 +261,7 @@ function EditorForm({
   }
 
   async function onSubmit(formValues: WorkEditorFormValues) {
+    analytics.saveRequested();
     setServerError(undefined);
 
     if (!formValues.photo && needsNewPhoto) {
@@ -303,6 +320,7 @@ function EditorForm({
   }
 
   function onInvalid(formErrors: FieldErrors<WorkEditorFormValues>) {
+    analytics.validationFailed();
     if (formErrors.materials || formErrors.mappings) {
       setIsMaterialsEditorOpen(true);
     }
@@ -331,8 +349,8 @@ function EditorForm({
         <PageTitle>{data.work ? "Обновить работу" : "Добавить работу"}</PageTitle>
         {data.work?.currentRevision?.status === "PENDING" ? (
           <p className="max-w-3xl text-stone-600">
-            Работа на проверке. Вы можете заменить фото, изменить подпись или материалы.
-            После отправки модератор проверит обновлённую версию.
+            Работа на проверке. Вы можете заменить фото, изменить подпись или материалы. После
+            отправки модератор проверит обновлённую версию.
           </p>
         ) : null}
         <p className="max-w-3xl text-stone-600">
@@ -346,7 +364,14 @@ function EditorForm({
         ) : null}
       </header>
 
-      <EditorStepper currentStep={currentStep} onStepChange={setCurrentStep} />
+      <EditorStepper
+        currentStep={currentStep}
+        onStepChange={(step) => {
+          if (step === currentStep) return;
+          analytics.stepSelected();
+          setCurrentStep(step);
+        }}
+      />
 
       <form
         onSubmit={(event) => {
@@ -371,7 +396,11 @@ function EditorForm({
                           accept={acceptedWorkshopPhotoTypes.join(",")}
                           className="min-h-11 file:mr-3 file:font-bold"
                           aria-invalid={Boolean(errors.photo)}
-                          onChange={(event) => onChange(event.target.files?.[0])}
+                          onChange={(event) => {
+                            const photo = event.target.files?.[0];
+                            if (photo) analytics.photoSelected();
+                            onChange(photo);
+                          }}
                         />
                       )}
                     />
@@ -427,6 +456,7 @@ function EditorForm({
                     max={3}
                     step={0.05}
                     disabled={!canAdjustCrop}
+                    onCommit={analytics.zoomAdjusted}
                     onChange={(value) => setValue("crop.zoom", value, { shouldDirty: true })}
                   />
                   <CropSlider
@@ -436,6 +466,7 @@ function EditorForm({
                     max={1}
                     step={0.01}
                     disabled={!canAdjustCrop}
+                    onCommit={analytics.horizontalAdjusted}
                     onChange={(value) => setValue("crop.x", value, { shouldDirty: true })}
                   />
                   <CropSlider
@@ -445,6 +476,7 @@ function EditorForm({
                     max={1}
                     step={0.01}
                     disabled={!canAdjustCrop}
+                    onCommit={analytics.verticalAdjusted}
                     onChange={(value) => setValue("crop.y", value, { shouldDirty: true })}
                   />
                   <Button
@@ -452,15 +484,16 @@ function EditorForm({
                     variant="outline"
                     className="min-h-11"
                     disabled={!canAdjustCrop}
-                    onClick={() =>
+                    onClick={() => {
+                      analytics.rotated();
                       setValue(
                         "crop.rotation",
                         ((crop.rotation + 90) % 360) as 0 | 90 | 180 | 270,
                         {
                           shouldDirty: true,
                         },
-                      )
-                    }
+                      );
+                    }}
                   >
                     <RotateCw data-icon="inline-start" />
                     Повернуть на 90°
@@ -499,7 +532,11 @@ function EditorForm({
                   className="min-h-11"
                   aria-expanded={isMaterialsEditorOpen}
                   aria-controls="workshop-materials"
-                  onClick={() => setIsMaterialsEditorOpen((isOpen) => !isOpen)}
+                  onClick={() => {
+                    if (isMaterialsEditorOpen) analytics.materialsClosed();
+                    else analytics.materialsOpened();
+                    setIsMaterialsEditorOpen(!isMaterialsEditorOpen);
+                  }}
                 >
                   {isMaterialsEditorOpen ? "Скрыть материалы" : "Добавить материалы"}
                 </Button>
@@ -646,7 +683,11 @@ function EditorForm({
                   className="min-h-11"
                   aria-expanded={isMappingEditorOpen}
                   aria-controls="workshop-symbol-mappings"
-                  onClick={() => setIsMappingEditorOpen((isOpen) => !isOpen)}
+                  onClick={() => {
+                    if (isMappingEditorOpen) analytics.mappingClosed();
+                    else analytics.mappingOpened();
+                    setIsMappingEditorOpen(!isMappingEditorOpen);
+                  }}
                 >
                   {isMappingEditorOpen
                     ? "Скрыть соответствия маркеров"
@@ -758,9 +799,11 @@ function EditorForm({
                             render={({ field }) => (
                               <Select
                                 value={field.value || "__none__"}
-                                onValueChange={(value) =>
-                                  field.onChange(value === "__none__" ? "" : value)
-                                }
+                                onValueChange={(value) => {
+                                  if (value === "__none__") analytics.markerCleared();
+                                  else analytics.markerSelected();
+                                  field.onChange(value === "__none__" ? "" : value);
+                                }}
                                 disabled={officialMarkerOptions.length === 0}
                               >
                                 <SelectTrigger
@@ -834,7 +877,12 @@ function EditorForm({
                   <input
                     type="checkbox"
                     className="mt-0.5 size-5 accent-emerald-600"
-                    {...register("publicationConsent")}
+                    {...register("publicationConsent", {
+                      onChange: (event) =>
+                        event.target.checked
+                          ? analytics.publicationChecked()
+                          : analytics.publicationUnchecked(),
+                    })}
                   />
                   <span>
                     <strong className="block">Опубликовать работу после модерации</strong>
@@ -846,7 +894,12 @@ function EditorForm({
                   <input
                     type="checkbox"
                     className="mt-0.5 size-5 accent-rose-500"
-                    {...register("advertisingConsent")}
+                    {...register("advertisingConsent", {
+                      onChange: (event) =>
+                        event.target.checked
+                          ? analytics.advertisingChecked()
+                          : analytics.advertisingUnchecked(),
+                    })}
                   />
                   <span>
                     Хочу, чтобы моя работа вдохновляла других. Разрешаю Artmate использовать это
@@ -934,7 +987,10 @@ function EditorForm({
               variant="outline"
               className="min-h-11"
               disabled={currentStep === 0 || isSaving}
-              onClick={() => setCurrentStep((step) => Math.max(0, step - 1))}
+              onClick={() => {
+                analytics.stepPrevious();
+                setCurrentStep((step) => Math.max(0, step - 1));
+              }}
             >
               <ChevronLeft data-icon="inline-start" />
               Назад
@@ -946,7 +1002,10 @@ function EditorForm({
               type="button"
               className="min-h-11"
               disabled={currentStep === editorSteps.length - 1 || isSaving}
-              onClick={() => setCurrentStep((step) => Math.min(editorSteps.length - 1, step + 1))}
+              onClick={() => {
+                analytics.stepNext();
+                setCurrentStep((step) => Math.min(editorSteps.length - 1, step + 1));
+              }}
             >
               Далее
               <ChevronRight data-icon="inline-end" />
@@ -966,6 +1025,7 @@ function CropSlider({
   step,
   disabled,
   onChange,
+  onCommit,
 }: {
   label: string;
   value: number;
@@ -974,6 +1034,7 @@ function CropSlider({
   step: number;
   disabled?: boolean;
   onChange: (_value: number) => void;
+  onCommit: () => void;
 }) {
   return (
     <div className="space-y-3">
@@ -991,6 +1052,7 @@ function CropSlider({
         className="min-h-11"
         thumbClassName="size-5 after:-inset-3"
         onValueChange={(nextValue) => onChange(nextValue[0] ?? value)}
+        onValueCommit={onCommit}
       />
     </div>
   );

@@ -34,7 +34,7 @@ export function List({ sections }: ListProps) {
               <Accordion type="multiple">
                 {section.items.map((item) => (
                   <AccordionItem key={item.question} value={item.question}>
-                    <AccordionTrigger className="py-4 text-base">{item.question}</AccordionTrigger>
+                    <AccordionTrigger className="py-4 text-base" data-site-action="faq_answer_open">{item.question}</AccordionTrigger>
                     <AccordionContent className="text-muted-foreground">
                       <div className="space-y-3">
                         {item.answer.split("\n\n").map((paragraph) => {

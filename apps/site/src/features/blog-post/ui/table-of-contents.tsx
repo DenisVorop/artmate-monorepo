@@ -39,6 +39,7 @@ export function TableOfContents({ items, onNavigate }: TableOfContentsProps) {
                 scrollToSection(item.id);
               }
             }}
+            data-site-action="blog_contents_open"
           >
             <span>{item.label}</span>
           </a>

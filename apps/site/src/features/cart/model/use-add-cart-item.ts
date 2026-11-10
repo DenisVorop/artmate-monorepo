@@ -42,12 +42,16 @@ export function useAddCartItemMutation() {
           description: addedItem.title,
           action: {
             label: "Открыть корзину",
-            onClick: () => router.push(routes.cart),
+            onClick: () => {
+              analytics.toastCartOpened();
+              router.push(routes.cart);
+            },
           },
         });
       }
     },
     onError: (_error, input) => {
+      analytics.addFailed();
       toast.error("Не удалось добавить товар", {
         id: `cart-add-${input.productId}`,
         description: "Попробуйте ещё раз.",

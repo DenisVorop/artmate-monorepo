@@ -12,10 +12,12 @@ import type { Order } from "../model";
 export function OrderItemsPreview({
   items,
   onOpenDetails,
+  onProductOpen,
   className,
 }: {
   items: Order["items"];
   onOpenDetails: MouseEventHandler<HTMLButtonElement>;
+  onProductOpen?: () => void;
   className?: string;
 }) {
   const rowRef = useRef<HTMLDivElement>(null);
@@ -44,6 +46,7 @@ export function OrderItemsPreview({
           <Link
             key={item.id}
             href={routes.product(item.categorySlug, item.slug)}
+            onClick={onProductOpen}
             className="relative h-20 w-15 shrink-0 overflow-hidden rounded-lg bg-muted ring-1 ring-foreground/5 focus-visible:ring-2 focus-visible:ring-ring"
           >
             <Image

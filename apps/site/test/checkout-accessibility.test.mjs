@@ -1,3 +1,4 @@
+import { noopFeatureAnalytics } from "./helpers/noop-feature-analytics.mjs";
 import assert from "node:assert/strict";
 import { createRequire } from "node:module";
 import { readFile } from "node:fs/promises";
@@ -26,6 +27,7 @@ function evaluateComponent(source, mocks) {
   new Function("require", "module", "exports", output)(
     (specifier) => {
       if (Object.hasOwn(mocks, specifier)) return mocks[specifier];
+      if (specifier === "../lib/analytics") return noopFeatureAnalytics;
       throw new Error(`Unexpected test module import: ${specifier}`);
     },
     loadedModule,
@@ -220,6 +222,7 @@ test("checkout return navigation keeps a 44px target", async () => {
         }),
       },
       "../lib/use-track-checkout-start": { useTrackCheckoutStart: () => undefined },
+      "../lib/analytics": { useAnalytics: () => ({ step() {} }) },
       "./checkout-flow": { CheckoutFlow: component("CheckoutFlow") },
       "react/jsx-runtime": jsxRuntime,
     },

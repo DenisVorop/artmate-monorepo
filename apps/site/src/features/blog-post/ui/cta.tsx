@@ -16,7 +16,7 @@ export function Cta({ cta }: { cta: BlogCtaBlock }) {
             asChild
             className="h-auto min-h-10 w-full border-0 bg-gradient-to-r from-rose-500 via-rose-400 to-orange-400 py-2.5 font-semibold whitespace-normal text-white shadow-sm shadow-rose-500/20 hover:from-rose-500/90 hover:via-rose-400/90 hover:to-orange-400/90"
           >
-            <Link href={cta.href}>
+            <Link href={cta.href} data-site-action="blog_catalog_open">
               {cta.label}
               <ArrowRight />
             </Link>

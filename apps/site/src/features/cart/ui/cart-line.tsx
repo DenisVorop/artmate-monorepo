@@ -1,5 +1,6 @@
 "use client";
 
+import { useAnalytics } from "../lib/analytics";
 import { Minus, Plus, Trash2 } from "lucide-react";
 import Image from "next/image";
 
@@ -20,6 +21,7 @@ type CartLineProps = {
 };
 
 export function CartLine({ item, disabled, onUpdateQuantity, onRemove }: CartLineProps) {
+  const analytics = useAnalytics();
   const productHref = routes.product(item.categorySlug, item.slug);
   const canDecrease = item.quantity > 1 && !disabled;
 
@@ -28,6 +30,7 @@ export function CartLine({ item, disabled, onUpdateQuantity, onRemove }: CartLin
       <div className="grid grid-cols-[4.5rem_minmax(0,1fr)] gap-3 sm:grid-cols-[5rem_minmax(0,1fr)_auto] sm:items-center sm:gap-4">
         <Link
           href={productHref}
+          onClick={() => analytics.productOpened(item.id)}
           className="relative block aspect-square overflow-hidden rounded-md bg-muted"
         >
           <Image
@@ -48,6 +51,7 @@ export function CartLine({ item, disabled, onUpdateQuantity, onRemove }: CartLin
           )}
           <Link
             href={productHref}
+            onClick={() => analytics.productOpened(item.id)}
             className="mt-1 line-clamp-2 font-semibold text-foreground hover:text-rose-500"
           >
             {item.title}

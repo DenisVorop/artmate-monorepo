@@ -1,3 +1,4 @@
+import { noopFeatureAnalytics } from "./helpers/noop-feature-analytics.mjs";
 import assert from "node:assert/strict";
 import { readFile } from "node:fs/promises";
 import { createRequire } from "node:module";
@@ -103,6 +104,7 @@ for (const [path, name] of [
     globalThis.window = { location: { replace: (url) => events.push(["replace", url]) } };
     let options;
     const ui = evaluate(await read(path), {
+      "../lib/analytics": noopFeatureAnalytics,
       "next/navigation": {
         useRouter: () => ({
           replace: (url) => events.push(["replace", url]),

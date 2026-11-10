@@ -82,7 +82,7 @@ export function Article({ articleId, post, content, preload = true }: ArticlePro
             </CardDescription>
           </CardHeader>
           <CardContent>
-            <ShareActions title={post.title} url={shareUrl} />
+            <ShareActions articleSlug={post.slug} title={post.title} url={shareUrl} />
           </CardContent>
         </Card>
       </div>
@@ -131,7 +131,7 @@ function BlockRenderer({
     }
 
     return (
-      <ArticleImage src={src} alt={block.alt} caption={block.caption} preload={preloadImage} />
+      <ArticleImage articleSlug={slug} imageId={block.id} src={src} alt={block.alt} caption={block.caption} preload={preloadImage} />
     );
   }
 

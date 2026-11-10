@@ -1,5 +1,6 @@
 "use client";
 
+import { useAnalytics } from "../lib/analytics";
 import { useState } from "react";
 import { ArrowRight, ChevronLeft, ChevronRight } from "lucide-react";
 import { OrderCard, useOrdersData } from "@/entities/orders";
@@ -17,6 +18,7 @@ export function AccountOrders({ preview = false }: { preview?: boolean }) {
 }
 
 function Orders({ userId, preview }: { userId: string; preview: boolean }) {
+  const analytics = useAnalytics();
   const [page, setPage] = useState(0);
   const pageSize = preview ? 3 : 10;
   const { data, isPending, isError } = useOrdersData({
@@ -31,7 +33,7 @@ function Orders({ userId, preview }: { userId: string; preview: boolean }) {
         <div className="flex flex-wrap items-center justify-between gap-3">
           <SectionTitle id="recent-orders">Последние заказы</SectionTitle>
           <Button asChild variant="ghost" className="min-h-11">
-            <Link href={routes.accountOrders}>
+            <Link href={routes.accountOrders} onClick={analytics.ordersOpened}>
               Все заказы
               <ArrowRight className="size-4" />
             </Link>
@@ -54,7 +56,7 @@ function Orders({ userId, preview }: { userId: string; preview: boolean }) {
         ) : data.length ? (
           <div className="space-y-4">
             {data.slice(0, pageSize).map((order) => (
-              <OrderCard key={order.id} order={order} />
+              <OrderCard key={order.id} order={order} interactions={analytics} />
             ))}
           </div>
         ) : (
@@ -78,7 +80,10 @@ function Orders({ userId, preview }: { userId: string; preview: boolean }) {
             variant="outline"
             className="min-h-11"
             disabled={page === 0 || isPending}
-            onClick={() => setPage((value) => Math.max(0, value - 1))}
+            onClick={() => {
+              analytics.ordersPrevious();
+              setPage((value) => Math.max(0, value - 1));
+            }}
           >
             <ChevronLeft className="size-4" />
             Назад
@@ -88,7 +93,10 @@ function Orders({ userId, preview }: { userId: string; preview: boolean }) {
             variant="outline"
             className="min-h-11"
             disabled={!hasNextPage || isPending || isError}
-            onClick={() => setPage((value) => value + 1)}
+            onClick={() => {
+              analytics.ordersNext();
+              setPage((value) => value + 1);
+            }}
           >
             Далее
             <ChevronRight className="size-4" />

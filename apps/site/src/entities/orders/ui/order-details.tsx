@@ -29,6 +29,7 @@ type OrderDetailsProps = {
   statusLabel: string;
   open: boolean;
   onOpenChange: (_open: boolean) => void;
+  onProductOpen?: () => void;
   contentId: string;
   returnFocusRef: RefObject<HTMLButtonElement | null>;
 };
@@ -40,6 +41,7 @@ export function OrderDetails({
   statusLabel,
   open,
   onOpenChange,
+  onProductOpen,
   contentId,
   returnFocusRef,
 }: OrderDetailsProps) {
@@ -76,7 +78,7 @@ export function OrderDetails({
             </DrawerClose>
           </DrawerHeader>
           <div className="min-h-0 overflow-y-auto overscroll-contain px-5 pt-3 pb-[max(1.5rem,env(safe-area-inset-bottom))]">
-            <DetailsContent order={order} />
+            <DetailsContent order={order} onProductOpen={onProductOpen} />
           </div>
         </DrawerContent>
       </Drawer>
@@ -95,14 +97,14 @@ export function OrderDetails({
           <DialogDescription className="break-words">{description}</DialogDescription>
         </DialogHeader>
         <div className="min-h-0 overflow-y-auto overscroll-contain px-6 pb-6">
-          <DetailsContent order={order} />
+          <DetailsContent order={order} onProductOpen={onProductOpen} />
         </div>
       </DialogContent>
     </Dialog>
   );
 }
 
-function DetailsContent({ order }: { order: Order }) {
+function DetailsContent({ order, onProductOpen }: { order: Order; onProductOpen?: () => void }) {
   const deliveryProvider = order.delivery.provider === "cdek" ? "СДЭК" : "Ozon";
   return (
     <div className="space-y-5">
@@ -112,6 +114,7 @@ function DetailsContent({ order }: { order: Order }) {
             <div className="min-w-0">
               <Link
                 href={routes.product(item.categorySlug, item.slug)}
+                onClick={onProductOpen}
                 className="font-medium break-words focus-visible:underline"
               >
                 {item.title}

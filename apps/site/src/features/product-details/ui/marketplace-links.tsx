@@ -1,3 +1,6 @@
+"use client";
+
+import { useAnalytics } from "../lib/analytics";
 import { ExternalLink, MessageSquareText } from "lucide-react";
 
 import { externalLinks } from "@/shared/constants";
@@ -20,6 +23,7 @@ const marketplaceLinks = [
 ] as const;
 
 export function MarketplaceLinks() {
+  const analytics = useAnalytics();
   return (
     <div className="space-y-4">
       <div className="flex gap-3">
@@ -39,6 +43,11 @@ export function MarketplaceLinks() {
           <a
             key={marketplace.id}
             href={marketplace.href}
+            onClick={
+              marketplace.id === "ozon"
+                ? analytics.ozonReviewsOpened
+                : analytics.wildberriesReviewsOpened
+            }
             target="_blank"
             rel="noreferrer"
             aria-label={`Открыть отзывы Artmate на ${marketplace.title}`}

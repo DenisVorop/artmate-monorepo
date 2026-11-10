@@ -22,6 +22,7 @@ export function Header() {
 
   return (
     <header
+      data-site-area="header"
       className={cn(
         "sticky top-0 z-11 border-b border-stone-200 bg-white",
         hasDevelopmentBanner

@@ -1,5 +1,6 @@
 "use client";
 
+import { useAnalytics } from "../analytics";
 import { zodResolver } from "@hookform/resolvers/zod";
 import { useQueryClient } from "@tanstack/react-query";
 import {
@@ -68,6 +69,7 @@ export function CheckoutProvider({
   isSubmitting,
   onSubmit,
 }: CheckoutProviderProps) {
+  const analytics = useAnalytics();
   const user = useUser();
   const queryClient = useQueryClient();
   const promoCode = usePromocode();
@@ -261,13 +263,16 @@ export function CheckoutProvider({
 
   const submitOrder = useCallback<FormEventHandler<HTMLFormElement>>(
     (event) => {
+      analytics.orderSubmitClicked();
       if (!selectedDelivery) {
         event.preventDefault();
+        analytics.pickupPickerOpened();
         setDeliveryPickerOpen(true);
         return;
       }
       if (checkoutCalculation.status === "error" || checkoutCalculation.status === "offline") {
         event.preventDefault();
+        analytics.calculationRetried();
         checkoutCalculation.retry();
         return;
       }
@@ -293,9 +298,10 @@ export function CheckoutProvider({
         await onSubmit({
           input: checkoutAttempt.input,
         });
-      })(event);
+      }, analytics.orderFormInvalid)(event);
     },
     [
+      analytics,
       checkoutCalculation,
       cart.id,
       form,

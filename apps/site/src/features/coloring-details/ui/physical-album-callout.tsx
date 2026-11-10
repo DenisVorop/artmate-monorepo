@@ -8,10 +8,11 @@ import { Link } from "@/shared/ui/link";
 
 type PhysicalAlbumCalloutProps = {
   coverImage?: string;
+  onAlbumClick?: () => void;
   product: Coloring["collection"]["product"];
 };
 
-export function PhysicalAlbumCallout({ coverImage, product }: PhysicalAlbumCalloutProps) {
+export function PhysicalAlbumCallout({ coverImage, product, onAlbumClick }: PhysicalAlbumCalloutProps) {
   return (
     <aside className="flex max-w-3xl items-center gap-4 rounded-2xl border border-stone-200 bg-white/75 p-3 shadow-sm sm:gap-5 sm:p-4">
       {coverImage ? (
@@ -34,6 +35,7 @@ export function PhysicalAlbumCallout({ coverImage, product }: PhysicalAlbumCallo
           {product.title}
         </h2>
         <Link
+          onClick={onAlbumClick}
           href={routes.product(product.category?.slug, product.slug)}
           className="inline-flex min-h-11 items-center gap-1.5 text-sm font-semibold text-rose-700 underline-offset-4 hover:underline"
         >

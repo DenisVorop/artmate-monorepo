@@ -1,3 +1,4 @@
+import { noopFeatureAnalytics } from "./helpers/noop-feature-analytics.mjs";
 import assert from "node:assert/strict";
 import { readFile } from "node:fs/promises";
 import { createRequire } from "node:module";
@@ -23,7 +24,11 @@ function evaluate(source, mocks = {}) {
   }).outputText;
   const loaded = { exports: {} };
   new Function("require", "module", "exports", output)(
-    (name) => (Object.hasOwn(mocks, name) ? mocks[name] : require(name)),
+    (name) => {
+      if (Object.hasOwn(mocks, name)) return mocks[name];
+      if (name === "../lib/analytics") return noopFeatureAnalytics;
+      return require(name);
+    },
     loaded,
     loaded.exports,
   );

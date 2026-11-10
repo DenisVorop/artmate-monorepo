@@ -32,7 +32,7 @@ function evaluateTypeScript(source, mocks = {}) {
   return loadedModule.exports;
 }
 
-async function loadAnalytics() {
+async function loadAnalytics({ consent = true } = {}) {
   const types = evaluateTypeScript(await readSource("src/shared/lib/analytics/types.ts"));
   const product = evaluateTypeScript(await readSource("src/shared/lib/analytics/product.ts"));
   const dedupe = evaluateTypeScript(await readSource("src/shared/lib/analytics/dedupe.ts"));
@@ -42,7 +42,7 @@ async function loadAnalytics() {
   const factory = evaluateTypeScript(
     await readSource("src/shared/lib/analytics/create-analytics.ts"),
     {
-      "@/shared/lib/cookie-consent": { getCookieConsentSnapshot: () => true },
+      "@/shared/lib/cookie-consent": { getCookieConsentSnapshot: () => consent },
       "./dedupe": dedupe,
       "./product": product,
       "./sanitize-analytics-url": sanitizer,
@@ -127,6 +127,129 @@ function withoutCounterEnv(callback) {
     }
   }
 }
+
+test("site behavior sends only approved dimensions after consent", async () => {
+  const ymCalls = [];
+  const analyticsWindow = createAnalyticsWindow({
+    counterId: "109148727",
+    ym: (...args) => ymCalls.push(args),
+  });
+
+  for (const consent of [false, true]) {
+    const { createAnalytics, createGoalCommand, createInteractionCommand } = await loadAnalytics({
+      consent,
+    });
+    const analytics = createAnalytics({
+      navigation: (params) => createGoalCommand("site_navigation", params),
+      scroll: (params) => createGoalCommand("site_scroll_depth", params),
+      interaction: (params) => createGoalCommand("site_interaction", params),
+      feedback: (params) => createGoalCommand("feedback_submit_success", params),
+      paymentReturn: (params) => createInteractionCommand("payment_return_guest", params),
+      sort: (params) => createInteractionCommand("catalog_sort", params),
+      unregistered: () => createInteractionCommand("unregistered_action", {}),
+    });
+
+    withWindow(analyticsWindow, () => {
+      analytics.send("navigation", {
+        from_section: "home",
+        to_section: "catalog",
+        placement: "header",
+        href: "/catalog?q=buyer@example.com",
+      });
+      analytics.send("navigation", {
+        from_section: "home",
+        to_section: "/account/unknown",
+        placement: "header",
+      });
+      analytics.send("scroll", { section: "catalog", percent: 51 });
+      analytics.send("interaction", { section: "checkout", action: "payment_return_guest" });
+      analytics.send("paymentReturn", { order_id: "PRIVATE-ORDER" });
+      analytics.send("sort", { sort: "price-asc", query: "buyer@example.com" });
+      analytics.send("sort", { sort: "not-a-sort" });
+      analytics.send("unregistered");
+      analytics.send("feedback", { form: "checkout" });
+      analytics.send("feedback", { form: "contact", email: "buyer@example.com" });
+    });
+
+    if (!consent) assert.deepEqual(ymCalls, []);
+  }
+
+  assert.deepEqual(ymCalls, [
+    [
+      109148727,
+      "reachGoal",
+      "site_navigation",
+      {
+        from_section: "home",
+        to_section: "catalog",
+        placement: "header",
+      },
+    ],
+    [109148727, "params", { artmate_action: "payment_return_guest" }],
+    [
+      109148727,
+      "params",
+      {
+        artmate_action: "catalog_sort",
+        artmate_action_context: { catalog_sort: { sort: "price-asc" } },
+      },
+    ],
+    [109148727, "reachGoal", "feedback_submit_success", { form: "contact" }],
+  ]);
+  assert.deepEqual(
+    analyticsWindow.dataLayer.filter(
+      ({ event }) => event === "catalog_sort" || event === "payment_return_guest",
+    ),
+    [{ event: "payment_return_guest" }, { event: "catalog_sort", sort: "price-asc" }],
+  );
+  assert.doesNotMatch(
+    JSON.stringify(analyticsWindow.dataLayer),
+    /buyer@example\.com|PRIVATE-ORDER/u,
+  );
+});
+
+test("site navigation classifies destinations without emitting private paths or search values", async () => {
+  const routes = evaluateTypeScript(await readSource("src/shared/constants/routes.ts"));
+  const sensitivePaths = evaluateTypeScript(
+    await readSource("src/shared/lib/is-sensitive-path.ts"),
+    {
+      "@/shared/constants": routes,
+    },
+  );
+  const sharedAnalytics = await loadAnalytics();
+  const { getSiteSection, getNavigationDestination } = evaluateTypeScript(
+    await readSource("src/_app/lib/site-analytics.ts"),
+    {
+      "@/shared/constants": routes,
+      "@/shared/lib/analytics": sharedAnalytics,
+      "@/shared/lib/is-sensitive-path": sensitivePaths,
+    },
+  );
+  const location = new URL("https://artmate.ru/catalog");
+  assert.equal(getSiteSection("/auth/reset-password"), undefined);
+  assert.equal(getSiteSection("/catalog/raskraski/flowers/album"), "product");
+  assert.equal(getSiteSection("/blog/article"), "article");
+  assert.equal(
+    getNavigationDestination("https://artmate.ru/auth/oauth/yandex/callback", location, false),
+    undefined,
+  );
+  assert.equal(
+    getNavigationDestination("https://artmate.ru/catalog?query=buyer@example.com", location, false),
+    "catalog",
+  );
+  assert.equal(
+    getNavigationDestination("https://artmate.ru/catalog#list", location, false),
+    undefined,
+  );
+  assert.equal(
+    getNavigationDestination("https://ozon.ru/product/example", location, false),
+    "marketplace_ozon",
+  );
+  assert.equal(
+    getNavigationDestination("https://fake-ozon.ru/product/example", location, false),
+    undefined,
+  );
+});
 
 test("analytics is an SSR-safe no-op and does not execute builders without window", async () => {
   const { createAnalytics, createGoalCommand } = await loadAnalytics();

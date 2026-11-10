@@ -86,9 +86,19 @@ test("mutation confirms success only when the server reports sent", async () => 
     { error: new Error("Unavailable") },
   ]) {
     const requests = [];
+    const tracked = [];
     const { useSubmitApplication: createMutation } = await load("model/use-submit-application.ts", {
       "../lib/application-payload": mapper,
-      "@tanstack/react-query": { useMutation: ({ mutationFn }) => ({ mutateAsync: mutationFn }) },
+      "../lib/analytics": { wholesaleApplicationAnalytics: { send: (event) => tracked.push(event) } },
+      "@tanstack/react-query": {
+        useMutation: ({ mutationFn, onSuccess }) => ({
+          mutateAsync: async (values) => {
+            const result = await mutationFn(values);
+            onSuccess();
+            return result;
+          },
+        }),
+      },
       "@/shared/actions/contact-form": {
         submitContactMessage: async (payload) => {
           requests.push(payload);
@@ -111,6 +121,7 @@ test("mutation confirms success only when the server reports sent", async () => 
     else await assert.rejects(() => submitApplication(application));
     assert.equal(requests.length, 1);
     assert.equal(requests[0].topic, "Оптовый заказ");
+    assert.deepEqual(tracked, response.data?.sent ? ["sent"] : []);
   }
 });
 

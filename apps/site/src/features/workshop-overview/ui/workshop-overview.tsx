@@ -1,5 +1,6 @@
 "use client";
 
+import { useAnalytics } from "../lib/analytics";
 import { Palette } from "lucide-react";
 
 import { WorkshopCollectionCard, useWorkshopData } from "@/entities/workshop";
@@ -10,6 +11,7 @@ import { AddCollectionDialog } from "./add-collection-dialog";
 import { WorkshopVisibilityCard } from "./visibility-card";
 
 export function WorkshopOverview() {
+  const analytics = useAnalytics();
   const { workshop, isError, isPending, refetch } = useWorkshopData();
 
   if (isPending) {
@@ -27,7 +29,14 @@ export function WorkshopOverview() {
           description="Проверьте соединение и попробуйте ещё раз."
         />
         <div className="flex justify-center">
-          <Button type="button" className="min-h-11" onClick={() => void refetch()}>
+          <Button
+            type="button"
+            className="min-h-11"
+            onClick={() => {
+              analytics.retried();
+              void refetch();
+            }}
+          >
             Повторить
           </Button>
         </div>
@@ -62,7 +71,10 @@ export function WorkshopOverview() {
           <ul className="grid gap-4 sm:grid-cols-2 lg:grid-cols-4">
             {workshop.collections.map((collection) => (
               <li key={collection.id}>
-                <WorkshopCollectionCard collection={collection} />
+                <WorkshopCollectionCard
+                  collection={collection}
+                  onOpen={analytics.collectionOpened}
+                />
               </li>
             ))}
           </ul>

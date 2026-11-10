@@ -21,6 +21,7 @@ import { Button, DataState, Separator } from "@/shared/ui";
 
 import { useTrackProductView } from "../lib/use-track-product-view";
 import { Breadcrumbs } from "./breadcrumbs";
+import { useAnalytics, useGalleryAnalytics } from "../lib/analytics";
 import { CommunityWorks } from "./community-works";
 import { MarketplaceLinks } from "./marketplace-links";
 
@@ -29,7 +30,9 @@ type ProductDetailsProps = {
 };
 
 export function ProductDetails({ productId }: ProductDetailsProps) {
+  const analytics = useAnalytics();
   const products = useProductsData();
+  const galleryAnalytics = useGalleryAnalytics(productId);
   const reviews = useReviewsData();
   const addProductToCart = useAddProductToCart();
   const product =
@@ -82,12 +85,12 @@ export function ProductDetails({ productId }: ProductDetailsProps) {
   const reviewsStats = !reviews.isError && reviews.data ? reviews.data.stats : undefined;
 
   return (
-    <main className="min-w-0 bg-background">
+    <main className="min-w-0 bg-background" data-site-product-page="">
       <div className="container min-w-0 space-y-3 py-4 md:space-y-5 md:py-8">
         <Breadcrumbs product={product} />
 
         <section className="grid min-w-0 gap-8 lg:grid-cols-[minmax(0,1fr)_minmax(360px,0.86fr)] lg:gap-12">
-          <Gallery images={product.images} title={product.title} />
+          <Gallery images={product.images} title={product.title} analytics={galleryAnalytics} />
 
           <div className="min-w-0 space-y-6">
             {reviewsStats && <ReviewRatingSummary stats={reviewsStats} className="justify-start" />}
@@ -98,16 +101,24 @@ export function ProductDetails({ productId }: ProductDetailsProps) {
               key={product.id}
               usageInstructions={product.usageInstructions}
               reviews={<MarketplaceLinks />}
+              onTabChange={(tab) => {
+                if (tab === "process") analytics.instructionsOpened();
+                else analytics.reviewsOpened();
+              }}
               navigation={
                 <>
                   {communityWorks.works.length > 0 && (
                     <Button asChild variant="ghost" className="h-9 px-2 text-sm">
-                      <a href="#product-community-works">Работы пользователей</a>
+                      <a href="#product-community-works" onClick={analytics.communityJumped}>
+                        Работы пользователей
+                      </a>
                     </Button>
                   )}
                   {product.characteristics.length > 0 && (
                     <Button asChild variant="ghost" className="h-9 px-2 text-sm">
-                      <a href="#product-characteristics">Все характеристики</a>
+                      <a href="#product-characteristics" onClick={analytics.characteristicsJumped}>
+                        Все характеристики
+                      </a>
                     </Button>
                   )}
                 </>

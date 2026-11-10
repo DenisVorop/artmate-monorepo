@@ -14,6 +14,7 @@ import { getQueryOwner } from "@/shared/lib/query-keys";
 import { RootStructuredData } from "@/shared/lib/seo";
 
 import { AppProviders } from "../providers/app-providers";
+import { SiteAnalytics } from "./site-analytics";
 
 const comfortaa = Comfortaa({
   subsets: ["cyrillic"],
@@ -51,6 +52,7 @@ export async function RootLayout({ children }: RootLayoutProps) {
           <>
             <GoogleAnalytics />
             <YandexMetrika />
+            <SiteAnalytics />
           </>
         )}
         <AppProviders

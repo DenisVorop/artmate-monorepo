@@ -1,5 +1,6 @@
 "use client";
 
+import { useAnalytics } from "../lib/analytics";
 import { MapPin } from "lucide-react";
 import { useEffect, useRef, useState } from "react";
 
@@ -30,6 +31,7 @@ export function DeliveryMethodField({
   isOzonDeliveryAvailable,
   minimumDeliveryPrices,
 }: DeliveryMethodFieldProps) {
+  const analytics = useAnalytics();
   const {
     checkoutCalculation,
     confirmDelivery,
@@ -85,12 +87,15 @@ export function DeliveryMethodField({
     invalidatePendingConfirmation();
     setPickerCompany(company);
     setConfirmationError(undefined);
+    analytics.deliverySelected(company);
+    if (!isPickerOpen) analytics.pickupPickerOpened();
     setIsPickerOpen(true);
   };
 
   const confirmCandidate = async () => {
     if (!candidate) return;
 
+    analytics.pickupConfirmRequested();
     const requestId = ++confirmationRequestRef.current;
     setConfirmationError(undefined);
     setIsConfirming(true);
@@ -101,9 +106,11 @@ export function DeliveryMethodField({
     setIsConfirming(false);
 
     if (result.status === "confirmed") {
+      analytics.pickupConfirmed(candidate.provider);
       setDrafts((current) => seedDeliveryPickerDrafts(current, candidate, result.calculation));
       changePickerOpen(false);
     } else if (result.status === "error") {
+      analytics.pickupConfirmFailed();
       setConfirmationError(result.message);
     }
   };
@@ -198,7 +205,10 @@ export function DeliveryMethodField({
           setConfirmationError(undefined);
           setDrafts(updateDrafts);
         }}
-        onOpenChange={changePickerOpen}
+        onOpenChange={(open) => {
+          if (!open) analytics.pickupPickerDismissed();
+          changePickerOpen(open);
+        }}
       />
     </div>
   );

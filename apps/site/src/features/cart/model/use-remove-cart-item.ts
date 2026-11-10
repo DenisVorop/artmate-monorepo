@@ -21,6 +21,7 @@ export function useRemoveCartItemMutation() {
       executeCartMutation(queryClient, async () =>
         ApiResult.fromDTO(await removeCartItem(input)).unwrap(),
       ),
+    onError: () => analytics.removeFailed(),
     onSuccess: ({ cart, previousCart }, input) => {
       analytics.cartItemRemoved(cart, input, previousCart);
 

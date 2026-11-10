@@ -1,5 +1,6 @@
 "use client";
 
+import { useAnalytics } from "../lib/analytics";
 import { useId, useState, type ReactNode } from "react";
 import { Button } from "@/shared/ui";
 
@@ -22,6 +23,7 @@ export function CatalogLandingsLinks({
   maxItems = 18,
   title = "Популярные подборки",
 }: CatalogLandingsLinksProps) {
+  const analytics = useAnalytics();
   const titleId = useId();
   const [showAll, setShowAll] = useState(false);
   const { isError, isPending, landings } = useCatalogLandings();
@@ -54,6 +56,7 @@ export function CatalogLandingsLinks({
                 <Link
                   className="inline-flex min-h-8 items-center text-muted-foreground underline-offset-4 hover:text-rose-500 hover:underline pointer-coarse:min-h-11"
                   href={getCatalogLandingHref(landing.slug)}
+                  onClick={() => analytics.landingOpened(landing.slug)}
                 >
                   {landing.h1}
                 </Link>
@@ -71,7 +74,11 @@ export function CatalogLandingsLinks({
               variant="link"
               className="mt-3 px-0"
               aria-expanded={showAll}
-              onClick={() => setShowAll((value) => !value)}
+              onClick={() => {
+                if (showAll) analytics.listCollapsed();
+                else analytics.listExpanded();
+                setShowAll(!showAll);
+              }}
             >
               {showAll ? "Свернуть" : "Все подборки"}
             </Button>

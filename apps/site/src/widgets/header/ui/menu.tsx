@@ -2,6 +2,7 @@
 
 import { usePathname } from "next/navigation";
 import { ChevronDown } from "lucide-react";
+import { routes } from "@/shared/constants";
 
 import { cn } from "@/shared/lib/utils";
 import {
@@ -14,9 +15,11 @@ import {
 import { Link } from "@/shared/ui/link";
 
 import { desktopHelpItems, desktopNavItems, isRouteActive } from "../lib/navigation";
+import { useAnalytics } from "../lib/analytics";
 
 export function Menu() {
   const pathname = usePathname();
+  const analytics = useAnalytics("header");
   const isHelpActive = desktopHelpItems.some((item) => isRouteActive(pathname, item.href));
 
   return (
@@ -28,6 +31,7 @@ export function Menu() {
           <li key={item.href}>
             <Link
               href={item.href}
+              onClick={item.href === routes.colorings ? analytics.digitalCatalogClicked : undefined}
               aria-current={isActive ? "page" : undefined}
               className={cn(
                 "relative inline-flex h-11 items-center whitespace-nowrap transition-colors hover:text-stone-950 focus-visible:ring-2 focus-visible:ring-stone-300",

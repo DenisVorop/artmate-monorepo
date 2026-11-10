@@ -1,5 +1,6 @@
 "use client";
 
+import { useAnalytics } from "../lib/analytics";
 import { useState } from "react";
 import { Check, Copy, Gift } from "lucide-react";
 
@@ -12,6 +13,7 @@ type WelcomePromoCardProps = {
 };
 
 export function WelcomePromoCard({ isTelegramLinked, userId }: WelcomePromoCardProps) {
+  const analytics = useAnalytics();
   const welcomePromo = useWelcomePromo({
     enabled: Boolean(userId) && isTelegramLinked,
     userId,
@@ -33,6 +35,7 @@ export function WelcomePromoCard({ isTelegramLinked, userId }: WelcomePromoCardP
   async function handleCopy() {
     try {
       await navigator.clipboard.writeText(promoCode);
+      analytics.welcomeCodeCopied();
       setCopyState("copied");
     } catch {
       setCopyState("error");
@@ -53,7 +56,7 @@ export function WelcomePromoCard({ isTelegramLinked, userId }: WelcomePromoCardP
           Используйте промокод при оформлении заказа. Доступен один раз на аккаунт.
         </p>
         <div className="grid min-w-0 gap-2">
-          <code className="min-w-0 break-all rounded-lg border bg-background px-3 py-2 text-center font-semibold tracking-wide">
+          <code className="min-w-0 rounded-lg border bg-background px-3 py-2 text-center font-semibold tracking-wide break-all">
             {promoCode}
           </code>
           <Button

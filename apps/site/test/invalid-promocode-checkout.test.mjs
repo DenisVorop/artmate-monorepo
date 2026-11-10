@@ -1,3 +1,4 @@
+import { noopFeatureAnalytics } from "./helpers/noop-feature-analytics.mjs";
 import assert from "node:assert/strict";
 import { createRequire } from "node:module";
 import { readFile } from "node:fs/promises";
@@ -31,6 +32,7 @@ function evaluateTypeScript(source, mocks) {
     if (Object.hasOwn(mocks, specifier)) {
       return mocks[specifier];
     }
+    if (specifier === "../lib/analytics") return noopFeatureAnalytics;
 
     return require(specifier);
   };
@@ -222,6 +224,7 @@ async function createCheckoutHarness({
   const { CheckoutProvider } = evaluateTypeScript(
     await readSource("src/features/checkout/lib/checkout-provider/checkout-provider.tsx"),
     {
+      "../analytics": noopFeatureAnalytics,
       "../../model": {
         checkoutCalculationQueryKey: (candidate, identity) => [candidate, identity],
         checkoutCalculationQueryOptions: (candidate, identity) => ({

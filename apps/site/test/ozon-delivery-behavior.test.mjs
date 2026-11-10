@@ -1,3 +1,4 @@
+import { noopFeatureAnalytics } from "./helpers/noop-feature-analytics.mjs";
 import assert from "node:assert/strict";
 import { readFile } from "node:fs/promises";
 import { createRequire } from "node:module";
@@ -24,6 +25,7 @@ function evaluateTypeScript(source, mocks) {
   new Function("require", "module", "exports", output)(
     (specifier) => {
       if (Object.hasOwn(mocks, specifier)) return mocks[specifier];
+      if (specifier === "../../lib/analytics") return noopFeatureAnalytics;
       throw new Error(`Unexpected test module import: ${specifier}`);
     },
     testModule,

@@ -1,5 +1,6 @@
 "use client";
 
+import { useAnalytics } from "../lib/analytics";
 import { useState } from "react";
 import { ArrowUpRight } from "lucide-react";
 import {
@@ -27,6 +28,7 @@ export function AchievementGallery({ preview = false }: { preview?: boolean }) {
 }
 
 function UserGallery({ userId, preview }: { userId: string; preview: boolean }) {
+  const analytics = useAnalytics();
   const [filter, setFilter] = useState<AchievementFilter>("all");
   const achievements = useAchievementsData(userId);
   const items = achievements.data?.achievements ?? [];
@@ -37,7 +39,7 @@ function UserGallery({ userId, preview }: { userId: string; preview: boolean }) 
         <div className="flex flex-wrap items-center justify-between gap-3">
           <SectionTitle>Достижения</SectionTitle>
           <Button asChild variant="ghost" className="min-h-11">
-            <Link href={routes.accountAchievements}>
+            <Link href={routes.accountAchievements} onClick={analytics.allOpened}>
               Все достижения
               <ArrowUpRight className="size-4" />
             </Link>
@@ -66,7 +68,11 @@ function UserGallery({ userId, preview }: { userId: string; preview: boolean }) 
       ) : (
         <Tabs
           value={filter}
-          onValueChange={(value) => setFilter(value as AchievementFilter)}
+          onValueChange={(value) => {
+            if (value === filter) return;
+            analytics.filterChanged();
+            setFilter(value as AchievementFilter);
+          }}
           className="gap-6"
         >
           <TabsList

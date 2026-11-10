@@ -1,5 +1,6 @@
 "use client";
 
+import { useAnalytics } from "../lib/analytics";
 import { zodResolver } from "@hookform/resolvers/zod";
 import { Coins, LoaderCircle } from "lucide-react";
 import { useState } from "react";
@@ -26,6 +27,7 @@ import { useCheckoutAuth } from "../lib/use-checkout-auth";
 import { createLoyaltyFormSchema, type LoyaltyFormValues } from "../lib/loyalty-form";
 
 export function LoyaltyField() {
+  const analytics = useAnalytics();
   const { user, isPending: isSessionPending } = useSession();
   const { onLoginRequested, isPending: isAuthPending } = useCheckoutAuth();
   const overview = useLoyaltyData(user?.id ?? "guest", !!user);
@@ -33,6 +35,7 @@ export function LoyaltyField() {
   return (
     <BaseLoyaltyField
       onLoginRequested={() => {
+        analytics.loyaltyLogin();
         void onLoginRequested();
       }}
       isAuthPending={isAuthPending}
@@ -68,6 +71,7 @@ export function BaseLoyaltyField({
   hasDelivery: boolean;
   checkoutCalculation: ReturnType<typeof useCheckout>["checkoutCalculation"];
 }) {
+  const analytics = useAnalytics();
   const [isEditing, setIsEditing] = useState(false);
   const member = overview.data?.member;
   const isReady =
@@ -84,7 +88,12 @@ export function BaseLoyaltyField({
   const spendingPoints = hasSpending ? loyalty.pointsToSpend : preview?.maxPoints;
 
   return (
-    <Accordion type="single" collapsible className="border-t">
+    <Accordion
+      type="single"
+      collapsible
+      className="border-t"
+      onValueChange={(value) => (value ? analytics.loyaltyOpened() : analytics.loyaltyClosed())}
+    >
       <AccordionItem value="loyalty" className="border-0">
         <AccordionTrigger className="min-h-12 items-center gap-2 py-2 hover:no-underline">
           <Coins className="size-4 shrink-0 text-muted-foreground" aria-hidden="true" />
@@ -121,6 +130,7 @@ export function BaseLoyaltyField({
               <p>
                 <Link
                   href={routes.loyalty}
+                  onClick={analytics.loyaltyClubOpened}
                   className="font-medium text-foreground underline underline-offset-4"
                 >
                   Вступить в клуб Artmate
@@ -150,7 +160,11 @@ export function BaseLoyaltyField({
                       variant="ghost"
                       className="min-h-11 shrink-0 px-1 text-xs text-foreground"
                       disabled={isSubmitting || loyalty.isPending}
-                      onClick={() => setIsEditing(!isEditing)}
+                      onClick={() => {
+                        if (isEditing) analytics.loyaltyEditClosed();
+                        else analytics.loyaltyEditOpened();
+                        setIsEditing(!isEditing);
+                      }}
                     >
                       {isEditing ? "Свернуть" : "Изменить"}
                     </Button>
@@ -162,6 +176,8 @@ export function BaseLoyaltyField({
                     aria-describedby="checkout-points-status"
                     className="size-5 shrink-0 border-foreground/25 data-[state=checked]:border-rose-500 data-[state=checked]:bg-rose-500"
                     onCheckedChange={(checked) => {
+                      if (checked === true) analytics.loyaltyEnabled();
+                      else analytics.loyaltyDisabled();
                       loyalty.setPoints(checked === true ? (preview?.maxPoints ?? 0) : 0);
                       setIsEditing(false);
                     }}
@@ -221,6 +237,7 @@ function LoyaltyForm({
   isDisabled: boolean;
   onApply: (_points: number) => void;
 }) {
+  const analytics = useAnalytics();
   const {
     formState: { errors },
     handleSubmit,
@@ -234,7 +251,10 @@ function LoyaltyForm({
     <form
       className="space-y-2 pt-2 text-foreground"
       noValidate
-      onSubmit={handleSubmit(({ points }) => onApply(points))}
+      onSubmit={handleSubmit(({ points }) => {
+        analytics.loyaltyAmountSelected();
+        onApply(points);
+      })}
     >
       <Label htmlFor="loyalty-points">Сколько баллов списать</Label>
       <div className="flex min-w-0 gap-2">
@@ -272,7 +292,10 @@ function LoyaltyForm({
         variant="ghost"
         className="min-h-11 px-0 text-xs"
         disabled={isDisabled}
-        onClick={() => onApply(maxPoints)}
+        onClick={() => {
+          analytics.loyaltyMaximumSelected();
+          onApply(maxPoints);
+        }}
       >
         Списать максимум · <LoyaltyPoints points={maxPoints} />
       </Button>

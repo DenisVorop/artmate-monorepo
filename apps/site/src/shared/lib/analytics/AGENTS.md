@@ -86,6 +86,37 @@ analytics.checkoutStarted(cart, attemptKey);
   - `partner_cta_click`, `partner_form_start`, `partner_form_success`, `partner_form_error` (только при cookie consent);
   - `digital_versions_opened`;
   - `digital_coloring_open`.
+  - `site_navigation`, `site_scroll_depth`, `site_interaction` и
+    `feedback_submit_success` (только после cookie consent).
+- Для детальной разметки сценария используйте отдельное имя в
+  `interactionEventParamKeys` и метод локального `useAnalytics` по образцу
+  `msb-loans-v2-frontend`. Вызывайте его в конкретном обработчике, после показа
+  изображения или после подтверждённой мутации. Не классифицируйте произвольные
+  клики по DOM, текстам кнопок или общему типу элемента.
+- `createInteractionCommand` после согласия отправляет отдельное имя события в
+  `dataLayer` и в Метрику через `params`. В отчёте «Параметры визитов» используйте
+  `artmate_action` для имени действия и `artmate_action_context` для разрешённых
+  параметров. Регистрация отдельной цели на каждое действие не нужна.
+  Именованные цели из `namedSiteGoalParamKeys` по-прежнему используют `reachGoal`.
+  Не смешивайте подтверждённый результат с кликом, начавшим действие: например,
+  `pickup_point_confirm_request` — запрос, `pickup_point_confirm` — подтверждение.
+- Клик в цифровой каталог, тематику или картину, загрузка страницы и показ
+  изображения — разные события. Для показов используйте `useVisibleImage`:
+  видимая вкладка, загруженное изображение и не менее четверти в viewport.
+  При сравнении фиксируйте выбранный край или завершённое движение, а при выборе
+  палитры — её технический ID. Имена пользователей, подписи и URL изображений не
+  передаются. Новые именованные события отправляются после cookie consent.
+- Для сквозной навигации и глубины прокрутки используйте один наблюдатель в
+  `_app/layouts/site-analytics.tsx`. Он отправляет только фиксированные категории
+  раздела, места перехода и действия. Интерактивные элементы подключайте явными
+  атрибутами с допустимыми значениями. Текст элемента, содержимое ввода и URL
+  назначения в события поведения не передаются.
+- `feedback_submit_success` отправляют контакты и оптовая заявка после ответа
+  `sent: true`, с параметром `form`. Для отчёта по обратной связи используйте эту
+  цель, поскольку общая автоцель отправки формы может включать другие формы.
+  Оформление заказа отдельно измеряется серверным `order_created`. Шаги
+  `checkout_submit`, `payment_redirect` и `payment_return_*` диагностические и
+  сами по себе не подтверждают создание или оплату.
 - `order_created` и `order_paid` не входят в browser goal registry: canonical события
   создаются API в транзакциях создания заказа / verified paid transition и доставляются
   offline outbox worker. Приём файла Яндексом ещё не подтверждает обработку конверсии;
@@ -104,6 +135,9 @@ analytics.checkoutStarted(cart, attemptKey);
 
 - `currencyCode: "RUB"` находится в объекте `ecommerce`;
 - `click`, `detail`, `add`, `remove` передают `products`;
+- `impressions` передаёт массив товаров непосредственно в объекте `ecommerce`.
+  В витринах `CartProductCard` отправляет показ, когда в видимой вкладке
+  пересекается не менее четверти карточки. `list` и `position` совпадают с кликом.
 - `promoView`, `promoClick` передают `promotions`;
 - `purchase` передаёт `actionField` и `products`;
 - товар проходит через единый mapper: непустые `id`/`name`, цена в рублях, optional `category`, положительное целое `quantity`;

@@ -1,3 +1,4 @@
+import { noopFeatureAnalytics } from "./helpers/noop-feature-analytics.mjs";
 import assert from "node:assert/strict";
 import { readFile } from "node:fs/promises";
 import { createRequire } from "node:module";
@@ -115,6 +116,7 @@ async function mutationHarness(action) {
   const errors = [];
   const schemas = await load("entities/likes/model/schemas.ts");
   const { useSetLike } = await load("features/likes/model/use-set-like.ts", {
+    "../lib/analytics": noopFeatureAnalytics,
     "@tanstack/react-query": {
       useQueryClient: () => client,
       useIsMutating: (options) => client.isMutating(options),

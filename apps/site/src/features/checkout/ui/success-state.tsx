@@ -1,5 +1,6 @@
 "use client";
 
+import { useAnalytics } from "../lib/analytics";
 import { routes } from "@/shared/constants";
 import { Button, Card, CardContent, CardDescription, CardTitle } from "@/shared/ui";
 import { Link } from "@/shared/ui/link";
@@ -10,11 +11,8 @@ type CheckoutSuccessStateProps = {
   description: string;
 };
 
-export function CheckoutSuccessState({
-  variant,
-  title,
-  description,
-}: CheckoutSuccessStateProps) {
+export function CheckoutSuccessState({ variant, title, description }: CheckoutSuccessStateProps) {
+  const analytics = useAnalytics();
   return (
     <section className="container py-10">
       <div className="mx-auto max-w-3xl">
@@ -29,7 +27,9 @@ export function CheckoutSuccessState({
 
             {variant === "error" && (
               <Button asChild>
-                <Link href={routes.cart}>Вернуться в корзину</Link>
+                <Link href={routes.cart} onClick={analytics.cartOpened}>
+                  Вернуться в корзину
+                </Link>
               </Button>
             )}
           </CardContent>

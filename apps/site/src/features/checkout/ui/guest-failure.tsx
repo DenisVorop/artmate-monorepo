@@ -1,5 +1,6 @@
 "use client";
 
+import { useAnalytics } from "../lib/analytics";
 import { AlertCircle, Headphones, RefreshCw, ShoppingBag } from "lucide-react";
 
 import { routes } from "@/shared/constants";
@@ -13,9 +14,11 @@ type GuestCheckoutFailureProps = {
 };
 
 export function GuestCheckoutFailure({ orderId }: GuestCheckoutFailureProps) {
+  const analytics = useAnalytics();
   const { error, hasResult, isPending, recoverPayment, redirectUrl } = usePaymentRecovery({
     onSuccess: (nextUrl) => {
       if (nextUrl && isSafeRecoveryRedirect(nextUrl)) {
+        analytics.paymentRetryRedirected();
         window.location.assign(nextUrl);
       }
     },
@@ -35,18 +38,15 @@ export function GuestCheckoutFailure({ orderId }: GuestCheckoutFailureProps) {
           </span>
           <div className="space-y-2">
             <CardTitle className="text-2xl">Проверьте оплату</CardTitle>
-            <CardDescription className="text-base leading-6">
-              {description}
-            </CardDescription>
+            <CardDescription className="text-base leading-6">{description}</CardDescription>
           </div>
         </CardHeader>
         <CardContent className="flex flex-col gap-2 sm:flex-row">
-          <Button
-            disabled={!canRetry}
-            onClick={() => orderId && recoverPayment(orderId)}
-            size="lg"
-          >
-            <RefreshCw className={isPending ? "animate-spin" : undefined} data-icon="inline-start" />
+          <Button disabled={!canRetry} onClick={() => orderId && recoverPayment(orderId)} size="lg">
+            <RefreshCw
+              className={isPending ? "animate-spin" : undefined}
+              data-icon="inline-start"
+            />
             {isPending
               ? "Проверяем оплату..."
               : hasResult && redirectUrl
@@ -54,13 +54,13 @@ export function GuestCheckoutFailure({ orderId }: GuestCheckoutFailureProps) {
                 : "Проверить оплату"}
           </Button>
           <Button asChild size="lg" variant="outline">
-            <Link href={routes.catalog}>
+            <Link href={routes.catalog} onClick={analytics.failureCatalogOpened}>
               <ShoppingBag data-icon="inline-start" />
               Вернуться в каталог
             </Link>
           </Button>
           <Button asChild size="lg" variant="ghost">
-            <Link href={routes.contacts}>
+            <Link href={routes.contacts} onClick={analytics.failureSupportOpened}>
               <Headphones data-icon="inline-start" />
               Связаться с поддержкой
             </Link>

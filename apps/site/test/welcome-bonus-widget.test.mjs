@@ -1,3 +1,4 @@
+import { noopFeatureAnalytics } from "./helpers/noop-feature-analytics.mjs";
 import assert from "node:assert/strict";
 import { createRequire } from "node:module";
 import { readFile } from "node:fs/promises";
@@ -21,7 +22,11 @@ function evaluateTypeScript(source, mocks = {}) {
   }).outputText;
   const loadedModule = { exports: {} };
   const localRequire = (specifier) =>
-    Object.hasOwn(mocks, specifier) ? mocks[specifier] : require(specifier);
+    Object.hasOwn(mocks, specifier)
+      ? mocks[specifier]
+      : specifier === "../lib/analytics"
+        ? noopFeatureAnalytics
+        : require(specifier);
 
   new Function("require", "module", "exports", output)(
     localRequire,

@@ -1,5 +1,6 @@
 "use client";
 
+import { useAnalytics } from "../lib/analytics";
 import { LoaderCircle, LogOut, Palette, UserRound } from "lucide-react";
 
 import { useSession } from "@/entities/session";
@@ -10,9 +11,11 @@ import { Link } from "@/shared/ui/link";
 import { useLogoutMutation } from "../model";
 
 export function SessionLinks({ onNavigate }: { onNavigate: () => void }) {
+  const analytics = useAnalytics();
   const { user, isPending } = useSession();
   const { mutate: logout, isPending: isLogoutPending } = useLogoutMutation({
     onSuccess: () => {
+      analytics.loggedOut();
       onNavigate();
       window.location.replace(routes.home);
     },
@@ -39,7 +42,14 @@ export function SessionLinks({ onNavigate }: { onNavigate: () => void }) {
         variant="secondary"
         className="h-12 w-full gap-2 rounded-full bg-stone-900 text-white hover:bg-stone-700 hover:text-white focus-visible:text-white focus-visible:ring-stone-400"
       >
-        <Link href={user ? routes.account : routes.auth} onClick={onNavigate}>
+        <Link
+          href={user ? routes.account : routes.auth}
+          onClick={() => {
+            if (user) analytics.accountOpened();
+            else analytics.loginOpened();
+            onNavigate();
+          }}
+        >
           <UserRound aria-hidden="true" className="size-4" strokeWidth={1.5} />
           {user ? "Личный кабинет" : "Войти"}
         </Link>
@@ -51,7 +61,13 @@ export function SessionLinks({ onNavigate }: { onNavigate: () => void }) {
             variant="ghost"
             className="h-11 w-full gap-2 rounded-full text-stone-600 hover:bg-stone-100"
           >
-            <Link href={routes.workshop} onClick={onNavigate}>
+            <Link
+              href={routes.workshop}
+              onClick={() => {
+                analytics.workshopOpened();
+                onNavigate();
+              }}
+            >
               <Palette aria-hidden="true" />
               Моя мастерская
             </Link>
@@ -61,7 +77,10 @@ export function SessionLinks({ onNavigate }: { onNavigate: () => void }) {
             variant="ghost"
             className="h-11 w-full gap-2 rounded-full text-stone-500 hover:bg-stone-100"
             disabled={isLogoutPending}
-            onClick={() => logout()}
+            onClick={() => {
+              analytics.logoutRequested();
+              logout();
+            }}
           >
             {isLogoutPending ? (
               <LoaderCircle aria-hidden="true" className="animate-spin" />

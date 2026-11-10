@@ -4,8 +4,10 @@ import { useState } from "react";
 import { Share2 } from "lucide-react";
 
 import { Button } from "@/shared/ui";
+import { useAnalytics } from "../lib/analytics";
 
-export function ShareWorkButton({ title }: { title: string }) {
+export function ShareWorkButton({ title, workId }: { title: string; workId: string }) {
+  const analytics = useAnalytics();
   const [message, setMessage] = useState<string>();
 
   async function share() {
@@ -14,9 +16,11 @@ export function ShareWorkButton({ title }: { title: string }) {
     try {
       if (navigator.share) {
         await navigator.share({ title, url });
+        analytics.workShared(workId);
         setMessage("Ссылка отправлена");
       } else {
         await navigator.clipboard.writeText(url);
+        analytics.linkCopied(workId);
         setMessage("Ссылка скопирована");
       }
     } catch (error) {

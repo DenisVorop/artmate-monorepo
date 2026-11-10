@@ -108,7 +108,9 @@ export function PromocodeProvider({ cart, children, onLoginRequested }: Promocod
             preview: confirmedPreview,
           });
         } catch {
-          // Query state owns the user-facing error. A failed preview is not a conversion.
+          if (activeApplyAttemptKeyRef.current === attempt.attemptKey) {
+            analytics.applyFailed();
+          }
         } finally {
           if (activeApplyAttemptKeyRef.current === attempt.attemptKey) {
             activeApplyAttemptKeyRef.current = undefined;
@@ -116,7 +118,7 @@ export function PromocodeProvider({ cart, children, onLoginRequested }: Promocod
         }
       })();
     },
-    [accountIdentity, cart.id, cartSignature, queryClient],
+    [accountIdentity, analytics, cart.id, cartSignature, queryClient],
   );
 
   const applyCode = useCallback(

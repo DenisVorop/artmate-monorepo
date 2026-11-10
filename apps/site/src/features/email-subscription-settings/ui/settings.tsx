@@ -1,5 +1,6 @@
 "use client";
 
+import { useAnalytics } from "../lib/analytics";
 import { useId } from "react";
 import { Bell } from "lucide-react";
 import { Button, Card, CardContent, CardHeader, CardTitle, DataState, Label } from "@/shared/ui";
@@ -8,6 +9,7 @@ import { Switch } from "@/shared/ui/switch";
 import { useSettingsState } from "../lib/use-settings-state";
 
 export function EmailSubscriptionSettings() {
+  const analytics = useAnalytics();
   const switchId = useId();
   const {
     email,
@@ -54,7 +56,15 @@ export function EmailSubscriptionSettings() {
                 aria-describedby={`${switchId}-description`}
                 checked={subscription.data!.subscribed}
                 disabled={isPending || subscription.isFetching}
-                onCheckedChange={(checked) => void (checked ? subscribe() : revoke())}
+                onCheckedChange={(checked) => {
+                  if (checked) {
+                    analytics.grantRequested();
+                    void subscribe();
+                  } else {
+                    analytics.revokeRequested();
+                    void revoke();
+                  }
+                }}
                 className="mt-1 after:-inset-y-3.5 data-checked:bg-rose-500"
               />
             )}
@@ -73,7 +83,10 @@ export function EmailSubscriptionSettings() {
               type="button"
               variant="outline"
               className="min-h-11"
-              onClick={() => void subscription.retry()}
+              onClick={() => {
+                analytics.retried();
+                void subscription.retry();
+              }}
             >
               Повторить
             </Button>

@@ -23,18 +23,23 @@ export function ProductLinks({
   album,
   material,
   materialKind,
+  onAlbumClick,
+  onMaterialClick,
 }: {
   album: Product;
   material?: Product;
   materialKind?: MaterialKind;
+  onAlbumClick?: () => void;
+  onMaterialClick?: (_productId: string) => void;
 }) {
   const products = useProductsData();
   const links = [
-    { product: album, label: "Печатный альбом", action: "Перейти к альбому" },
+    { product: album, onClick: onAlbumClick, label: "Печатный альбом", action: "Перейти к альбому" },
     ...(material
       ? [
           {
             product: material,
+            onClick: () => onMaterialClick?.(material.id),
             label: "Выбранная палитра",
             action: materialActions[materialKind ?? "OTHER"],
           },
@@ -44,7 +49,7 @@ export function ProductLinks({
 
   return (
     <section aria-label="Альбом и материалы" className="grid gap-4 md:grid-cols-2">
-      {links.map(({ product, label, action }) => {
+      {links.map(({ product, label, action, onClick }) => {
         const image =
           !products.isError && products.data
             ? getProductById(products.data.products, product.id)?.image
@@ -63,6 +68,7 @@ export function ProductLinks({
                   {product.title}
                 </h2>
                 <Link
+                  onClick={onClick}
                   href={routes.product(product.category?.slug, product.slug)}
                   className="mt-3 inline-flex min-h-11 items-center gap-1 text-sm font-semibold text-rose-700 underline-offset-4 hover:underline"
                 >

@@ -1,5 +1,6 @@
 "use client";
 
+import { useAnalytics } from "../lib/analytics";
 import { ArrowLeft } from "lucide-react";
 import { withAuth } from "@/features/auth";
 
@@ -55,6 +56,7 @@ function BaseCart() {
 }
 
 function BaseLoadedCart({ cart }: { cart: CartModel }) {
+  const analytics = useAnalytics();
   const { mutate: updateCartItemQuantity, isPending: isUpdatingItemQuantity } =
     useUpdateCartItemQuantityMutation();
   const { mutate: removeCartItem, isPending: isRemovingItem } = useRemoveCartItemMutation();
@@ -70,7 +72,7 @@ function BaseLoadedCart({ cart }: { cart: CartModel }) {
         </div>
 
         <Button asChild variant="outline">
-          <Link href={routes.catalog}>
+          <Link href={routes.catalog} onClick={analytics.continueShopping}>
             <ArrowLeft data-icon="inline-start" />
             Продолжить покупки
           </Link>

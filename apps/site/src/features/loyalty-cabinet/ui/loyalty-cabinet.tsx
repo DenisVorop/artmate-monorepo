@@ -1,5 +1,6 @@
 "use client";
 
+import { useAnalytics } from "../lib/analytics";
 import { useEffect, useRef } from "react";
 import { useQueryClient } from "@tanstack/react-query";
 import { ArrowLeft, Palette } from "lucide-react";
@@ -16,6 +17,7 @@ import { Enrollment } from "./enrollment";
 import { Operations } from "./operations";
 
 export function LoyaltyCabinet() {
+  const analytics = useAnalytics();
   const { user, isPending } = useSession();
   if (isPending)
     return (
@@ -32,7 +34,12 @@ export function LoyaltyCabinet() {
         />
         <div className="flex justify-center">
           <Button asChild className="min-h-11">
-            <Link href={`${routes.auth}?next=${encodeURIComponent(routes.loyalty)}`}>Войти</Link>
+            <Link
+              href={`${routes.auth}?next=${encodeURIComponent(routes.loyalty)}`}
+              onClick={analytics.loginRequested}
+            >
+              Войти
+            </Link>
           </Button>
         </div>
       </section>
@@ -41,6 +48,7 @@ export function LoyaltyCabinet() {
 }
 
 function MemberCabinet({ userId }: { userId: string }) {
+  const analytics = useAnalytics();
   const queryClient = useQueryClient();
   const overview = useLoyaltyData(userId, true);
   const member = overview.data?.member;
@@ -75,7 +83,7 @@ function MemberCabinet({ userId }: { userId: string }) {
     <section className="container space-y-8 py-8 md:space-y-10 md:py-12">
       <div className="space-y-5">
         <Button asChild variant="ghost" className="-ml-3 min-h-11">
-          <Link href={routes.account}>
+          <Link href={routes.account} onClick={analytics.accountOpened}>
             <ArrowLeft className="size-4" />В аккаунт
           </Link>
         </Button>
@@ -90,7 +98,7 @@ function MemberCabinet({ userId }: { userId: string }) {
             </p>
           </div>
           <Button asChild variant="outline" className="min-h-11">
-            <Link href={routes.workshop}>
+            <Link href={routes.workshop} onClick={analytics.workshopOpened}>
               <Palette className="size-4" />В мастерскую
             </Link>
           </Button>

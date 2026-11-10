@@ -12,9 +12,11 @@ import {
   Input,
 } from "@/shared/ui";
 import { useCatalog } from "../lib/catalog-provider";
-import { sortOptions, type SortValue } from "../lib/catalog-state";
+import { sortOptions } from "../lib/catalog-state";
+import { useAnalytics } from "../lib/analytics";
 
 export function Toolbar() {
+  const analytics = useAnalytics();
   const { activeCategory, query, setQuery, sortBy, updateFilters } = useCatalog();
   const inputRef = useRef<HTMLInputElement>(null);
   const sortLabel = sortOptions.find((option) => option.value === sortBy)?.label;
@@ -26,7 +28,12 @@ export function Toolbar() {
           ref={inputRef}
           type="search"
           value={query}
-          onChange={(event) => setQuery(event.target.value)}
+          onChange={(event) => {
+            const value = event.target.value;
+            if (!query.trim() && value.trim()) analytics.searchStarted();
+            if (query && !value) analytics.searchCleared();
+            setQuery(value);
+          }}
           placeholder={activeCategory ? "Поиск в категории" : "Найти товар"}
           aria-label={
             activeCategory ? `Поиск в категории «${activeCategory.title}»` : "Поиск по каталогу"
@@ -40,6 +47,7 @@ export function Toolbar() {
             size="icon-sm"
             aria-label="Очистить поиск"
             onClick={() => {
+              analytics.searchCleared();
               setQuery("");
               inputRef.current?.focus();
             }}
@@ -49,7 +57,9 @@ export function Toolbar() {
           </Button>
         )}
       </div>
-      <DropdownMenu>
+      <DropdownMenu
+        onOpenChange={(open) => (open ? analytics.sortOpened() : analytics.sortClosed())}
+      >
         <DropdownMenuTrigger asChild>
           <Button
             type="button"
@@ -64,7 +74,12 @@ export function Toolbar() {
         <DropdownMenuContent align="end" className="min-w-52">
           <DropdownMenuRadioGroup
             value={sortBy}
-            onValueChange={(value) => updateFilters({ sortBy: value as SortValue })}
+            onValueChange={(value) => {
+              const nextSort = sortOptions.find((option) => option.value === value)?.value;
+              if (!nextSort || nextSort === sortBy) return;
+              analytics.sortChanged(nextSort);
+              updateFilters({ sortBy: nextSort });
+            }}
           >
             {sortOptions.map((option) => (
               <DropdownMenuRadioItem key={option.value} value={option.value}>

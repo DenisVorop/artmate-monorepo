@@ -68,7 +68,7 @@ export function Faq() {
         <Accordion type="single" collapsible className="rounded-lg border bg-background px-4">
           {faqItems.map((item) => (
             <AccordionItem key={item.question} value={item.question}>
-              <AccordionTrigger className="py-4 text-base">{item.question}</AccordionTrigger>
+              <AccordionTrigger className="py-4 text-base" data-site-action="faq_answer_open">{item.question}</AccordionTrigger>
               <AccordionContent className="text-muted-foreground">{item.answer}</AccordionContent>
             </AccordionItem>
           ))}

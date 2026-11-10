@@ -7,6 +7,7 @@ import { getProductById, useProductsData } from "@/entities/products";
 import { Button, DataState } from "@/shared/ui";
 
 import { useTrackOpen } from "../lib/use-track-open";
+import { useViewerAnalytics } from "../lib/analytics";
 import { ComparisonViewer } from "./comparison-viewer";
 import { Hero } from "./hero";
 import { PaletteSection } from "./palette-section";
@@ -31,6 +32,7 @@ export function ColoringDetails({
     publishedRevisionId,
   );
   const products = useProductsData();
+  const analytics = useViewerAnalytics(collectionSlug, number);
   useTrackOpen(
     !isPending && !isError ? coloring?.collection.slug : undefined,
     !isPending && !isError ? coloring?.number : undefined,
@@ -56,7 +58,10 @@ export function ColoringDetails({
           description="Проверьте соединение и попробуйте ещё раз."
         />
         <div className="mt-4 flex justify-center">
-          <Button type="button" className="min-h-11" onClick={() => void refetch()}>
+          <Button type="button" className="min-h-11" onClick={() => {
+            analytics.pictureRetried();
+            void refetch();
+          }}>
             Повторить
           </Button>
         </div>
@@ -76,6 +81,7 @@ export function ColoringDetails({
         collection={coloring.collection}
         description={coloring.description}
         title={coloringTitle}
+        onAlbumClick={() => analytics.printAlbumClicked(coloring.collection.product.id)}
       />
 
       <section
@@ -89,6 +95,7 @@ export function ColoringDetails({
             outline={coloring.outline}
             width={coloring.width}
             height={coloring.height}
+            analytics={analytics}
           />
         </div>
       </section>
@@ -99,6 +106,7 @@ export function ColoringDetails({
         <PhysicalAlbumCallout
           coverImage={productEnrichment?.image}
           product={coloring.collection.product}
+          onAlbumClick={() => analytics.printAlbumClicked(coloring.collection.product.id)}
         />
 
         {communityWorks}

@@ -4,13 +4,16 @@ import { useEffect, useRef, useState } from "react";
 import { Copy, Send } from "lucide-react";
 
 import { Button } from "@/shared/ui";
+import { useAnalytics } from "../lib/analytics";
 
 type ShareActionsProps = {
+  articleSlug: string;
   title: string;
   url: string;
 };
 
-export function ShareActions({ title, url }: ShareActionsProps) {
+export function ShareActions({ articleSlug, title, url }: ShareActionsProps) {
+  const analytics = useAnalytics(articleSlug);
   const [copied, setCopied] = useState(false);
   const timeoutRef = useRef<number | null>(null);
 
@@ -25,6 +28,7 @@ export function ShareActions({ title, url }: ShareActionsProps) {
   async function handleCopy() {
     try {
       await navigator.clipboard.writeText(url);
+      analytics.linkCopied();
       setCopied(true);
 
       if (timeoutRef.current) {
@@ -48,7 +52,7 @@ export function ShareActions({ title, url }: ShareActionsProps) {
         {copied ? "Ссылка скопирована" : "Копировать ссылку"}
       </Button>
       <Button asChild variant="secondary">
-        <a href={telegramUrl} target="_blank" rel="noreferrer">
+        <a href={telegramUrl} target="_blank" rel="noreferrer" onClick={analytics.telegramShareClicked}>
           <Send />
           Telegram
         </a>

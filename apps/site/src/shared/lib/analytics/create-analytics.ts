@@ -8,7 +8,16 @@ import {
 } from "./sanitize-analytics-url";
 import {
   diagnosticEventNames,
+  namedSiteGoalParamKeys,
+  interactionEventParamKeys,
+  type InteractionCommand,
+  type InteractionEventId,
+  type InteractionEventParams,
+  type NamedSiteGoalId,
   ecommerceActions,
+  siteActions,
+  siteAreas,
+  siteSections,
   yandexGoalEventIds,
   type AnalyticsBuilderResult,
   type AnalyticsCommand,
@@ -29,11 +38,7 @@ import {
 } from "./types";
 
 export { mapAnalyticsProduct } from "./product";
-export {
-  diagnosticEventNames,
-  ecommerceActions,
-  yandexGoalEventIds,
-} from "./types";
+export { diagnosticEventNames, ecommerceActions, yandexGoalEventIds } from "./types";
 export type {
   AnalyticsBuilderResult,
   AnalyticsCommand,
@@ -50,6 +55,9 @@ export type {
   EcommerceCommand,
   EcommercePayloads,
   GoalCommand,
+  InteractionCommand,
+  InteractionEventId,
+  InteractionEventParams,
   YandexGoalEventId,
   YandexGoalParams,
 } from "./types";
@@ -64,6 +72,11 @@ const diagnosticEvents = new Set<string>(diagnosticEventNames);
 const ecommerceEventActions = new Set<string>(ecommerceActions);
 const reservedParamKeys = new Set(["event", "ecommerce"]);
 const goalParamKeys = {
+  ...namedSiteGoalParamKeys,
+  site_navigation: ["from_section", "to_section", "placement"],
+  site_scroll_depth: ["section", "percent"],
+  site_interaction: ["section", "action"],
+  feedback_submit_success: ["form"],
   product_view: ["product_id", "category", "price", "currency"],
   add_to_cart: ["product_id", "category", "price", "quantity", "currency"],
   begin_checkout: ["cart_id", "items_count", "value", "currency"],
@@ -88,9 +101,7 @@ const diagnosticParamKeys = {
   [EventName in DiagnosticEventName]: readonly (keyof DiagnosticEventParams[EventName])[];
 };
 
-export function createAnalytics<const Builders extends AnalyticsEventBuilders>(
-  builders: Builders,
-) {
+export function createAnalytics<const Builders extends AnalyticsEventBuilders>(builders: Builders) {
   return {
     send<Alias extends keyof Builders>(
       eventAlias: Alias,
@@ -111,9 +122,7 @@ export function createAnalytics<const Builders extends AnalyticsEventBuilders>(
         return;
       }
 
-      const commands = (
-        Array.isArray(result) ? result : [result]
-      ) as readonly AnalyticsCommand[];
+      const commands = (Array.isArray(result) ? result : [result]) as readonly AnalyticsCommand[];
 
       for (const command of commands) {
         try {
@@ -139,6 +148,19 @@ export function createGoalCommand<EventId extends YandexGoalEventId>(
     params,
     ...(dedupe ? { dedupe } : {}),
   } as GoalCommand<EventId>;
+}
+
+export function createInteractionCommand<EventId extends InteractionEventId>(
+  eventId: EventId,
+  params: InteractionEventParams[EventId],
+  dedupe?: AnalyticsDedupe,
+): InteractionCommand<EventId> {
+  return {
+    kind: "interaction",
+    eventId,
+    params,
+    ...(dedupe ? { dedupe } : {}),
+  } as InteractionCommand<EventId>;
 }
 
 export function createDiagnosticCommand<EventName extends DiagnosticEventName>(
@@ -167,10 +189,7 @@ export function createEcommerceCommand<Action extends EcommerceAction>(
   } as EcommerceCommand<Action>;
 }
 
-function sanitizeAnalyticsParams(
-  params: unknown,
-  allowedKeys: readonly string[],
-): SafeParams {
+function sanitizeAnalyticsParams(params: unknown, allowedKeys: readonly string[]): SafeParams {
   if (!isRecord(params)) {
     return {};
   }
@@ -179,11 +198,7 @@ function sanitizeAnalyticsParams(
   const allowedParamKeys = new Set(allowedKeys);
 
   for (const [key, value] of Object.entries(params)) {
-    if (
-      !allowedParamKeys.has(key) ||
-      !isSafeParamKey(key) ||
-      !isSafeParamValue(value)
-    ) {
+    if (!allowedParamKeys.has(key) || !isSafeParamKey(key) || !isSafeParamValue(value)) {
       continue;
     }
 
@@ -201,6 +216,12 @@ function sendCommand(command: AnalyticsCommand) {
   switch (command.kind) {
     case "goal": {
       if (sendGoal(command)) {
+        markAnalyticsCommandSent(command);
+      }
+      return;
+    }
+    case "interaction": {
+      if (sendInteraction(command)) {
         markAnalyticsCommandSent(command);
       }
       return;
@@ -224,7 +245,12 @@ function sendCommand(command: AnalyticsCommand) {
 
 function sendGoal(command: GoalCommand) {
   const isPartnerEvent = command.eventId.startsWith("partner_");
-  if (isPartnerEvent && !getCookieConsentSnapshot()) return false;
+  const requiresConsent =
+    isPartnerEvent ||
+    command.eventId.startsWith("site_") ||
+    isNamedSiteGoal(command.eventId) ||
+    command.eventId === "feedback_submit_success";
+  if (requiresConsent && !getCookieConsentSnapshot()) return false;
   const params = normalizeGoalParams(command);
 
   if (!params) {
@@ -234,9 +260,7 @@ function sendGoal(command: GoalCommand) {
   let googleSent = false;
   if (isPartnerEvent) {
     try {
-      const googleAnalytics = (
-        window as Window & { gtag?: (..._args: unknown[]) => void }
-      ).gtag;
+      const googleAnalytics = (window as Window & { gtag?: (..._args: unknown[]) => void }).gtag;
       if (googleAnalytics) {
         googleAnalytics("event", command.eventId, {
           event_category: "partner_program",
@@ -268,6 +292,30 @@ function sendGoal(command: GoalCommand) {
   }
 }
 
+function sendInteraction(command: InteractionCommand) {
+  if (!getCookieConsentSnapshot()) return false;
+
+  const keys = interactionEventParamKeys[command.eventId];
+  const params = sanitizeAnalyticsParams(command.params, keys);
+  if (!keys.every((key) => isNamedSiteParam(key, params))) return false;
+
+  const pushedToDataLayer = pushToDataLayer({ event: command.eventId, ...params });
+  const counterId = getCounterId();
+  const ym = (window as AnalyticsWindow).ym;
+
+  if (!counterId || !ym) return pushedToDataLayer;
+
+  try {
+    ym(counterId, "params", {
+      artmate_action: command.eventId,
+      ...(keys.length ? { artmate_action_context: { [command.eventId]: params } } : {}),
+    });
+    return true;
+  } catch {
+    return pushedToDataLayer;
+  }
+}
+
 function sendDiagnostic(command: DiagnosticCommand) {
   const params = normalizeDiagnosticParams(command);
 
@@ -282,17 +330,37 @@ function sendDiagnostic(command: DiagnosticCommand) {
 }
 
 function normalizeGoalParams(command: GoalCommand): SafeParams | null {
-  const params = sanitizeAnalyticsParams(
-    command.params,
-    goalParamKeys[command.eventId],
-  );
+  const params = sanitizeAnalyticsParams(command.params, goalParamKeys[command.eventId]);
+
+  if (isNamedSiteGoal(command.eventId)) {
+    return namedSiteGoalParamKeys[command.eventId].every((key) => isNamedSiteParam(key, params))
+      ? params
+      : null;
+  }
 
   switch (command.eventId) {
+    case "feedback_submit_success":
+      return params.form === "contact" || params.form === "wholesale" ? params : null;
+    case "site_navigation":
+      return includesParam(siteSections, params.from_section) &&
+        includesParam(siteSections, params.to_section) &&
+        includesParam(siteAreas, params.placement)
+        ? params
+        : null;
+    case "site_scroll_depth":
+      return includesParam(siteSections, params.section) &&
+        [25, 50, 75, 100].some((percent) => percent === params.percent)
+        ? params
+        : null;
+    case "site_interaction":
+      return includesParam(siteSections, params.section) &&
+        includesParam(siteActions, params.action)
+        ? params
+        : null;
     case "product_view":
       return hasRequiredProductViewParams(params) ? params : null;
     case "add_to_cart":
-      return hasRequiredProductViewParams(params) &&
-        isPositiveIntegerParam(params, "quantity")
+      return hasRequiredProductViewParams(params) && isPositiveIntegerParam(params, "quantity")
         ? params
         : null;
     case "begin_checkout":
@@ -303,9 +371,7 @@ function normalizeGoalParams(command: GoalCommand): SafeParams | null {
         ? params
         : null;
     case "promo_apply_success":
-      return isPositiveNumberParam(params, "discount") && hasRubCurrency(params)
-        ? params
-        : null;
+      return isPositiveNumberParam(params, "discount") && hasRubCurrency(params) ? params : null;
     case "welcome_promo_click":
     case "sign_up":
     case "partner_cta_click":
@@ -314,9 +380,7 @@ function normalizeGoalParams(command: GoalCommand): SafeParams | null {
     case "partner_form_error":
       return params;
     case "digital_versions_opened":
-      return isOptionalNonEmptyStringParam(params, "collection_slug")
-        ? params
-        : null;
+      return isOptionalNonEmptyStringParam(params, "collection_slug") ? params : null;
     case "digital_coloring_open":
       return isNonEmptyStringParam(params, "collection_slug") &&
         isPositiveIntegerParam(params, "coloring_number")
@@ -325,13 +389,8 @@ function normalizeGoalParams(command: GoalCommand): SafeParams | null {
   }
 }
 
-function normalizeDiagnosticParams(
-  command: DiagnosticCommand,
-): SafeParams | null {
-  const params = sanitizeAnalyticsParams(
-    command.params,
-    diagnosticParamKeys[command.event],
-  );
+function normalizeDiagnosticParams(command: DiagnosticCommand): SafeParams | null {
+  const params = sanitizeAnalyticsParams(command.params, diagnosticParamKeys[command.event]);
 
   switch (command.event) {
     case "welcome_promo_dismiss":
@@ -361,6 +420,57 @@ function hasRequiredProductViewParams(params: SafeParams) {
   );
 }
 
+function includesParam(values: readonly string[], value: SafeParamValue | undefined) {
+  return typeof value === "string" && values.includes(value);
+}
+
+function isNamedSiteGoal(value: YandexGoalEventId): value is NamedSiteGoalId {
+  return Object.hasOwn(namedSiteGoalParamKeys, value);
+}
+
+function isNamedSiteParam(
+  key:
+    | (typeof namedSiteGoalParamKeys)[NamedSiteGoalId][number]
+    | (typeof interactionEventParamKeys)[InteractionEventId][number],
+  params: SafeParams,
+) {
+  switch (key) {
+    case "sort":
+      return includesParam(["featured", "newest", "price-asc", "price-desc"], params.sort);
+    case "catalog_category":
+      return includesParam(["all", "colorings", "markers"], params.catalog_category);
+    case "filter_kind":
+      return includesParam(
+        ["minimum_price", "maximum_price", "availability", "bestsellers", "tag"],
+        params.filter_kind,
+      );
+    case "delivery_provider":
+      return includesParam(["ozon", "cdek"], params.delivery_provider);
+    case "payment_method":
+      return includesParam(["tbank_acquiring", "ozon_acquiring"], params.payment_method);
+    case "source":
+      return includesParam(
+        ["header", "mobile_menu", "footer", "home", "product", "gallery", "digital"],
+        params.source,
+      );
+    case "position":
+    case "coloring_number":
+      return isPositiveIntegerParam(params, key);
+    case "percent":
+      return isNonNegativeNumberParam(params, key) && Number(params.percent) <= 100;
+    case "mode":
+      return params.mode === "carousel" || params.mode === "lightbox";
+    case "subject_type":
+      return params.subject_type === "community-work" || params.subject_type === "blog-post";
+    default:
+      return isPublicMediaKey(params[key]);
+  }
+}
+
+function isPublicMediaKey(value: SafeParamValue | undefined) {
+  return typeof value === "string" && /^[a-z0-9_-]{1,96}$/i.test(value);
+}
+
 function hasRubCurrency(params: SafeParams) {
   return params.currency === "RUB";
 }
@@ -374,19 +484,11 @@ function isOptionalNonEmptyStringParam(params: SafeParams, key: string) {
 }
 
 function isNonNegativeNumberParam(params: SafeParams, key: string) {
-  return (
-    typeof params[key] === "number" &&
-    Number.isFinite(params[key]) &&
-    params[key] >= 0
-  );
+  return typeof params[key] === "number" && Number.isFinite(params[key]) && params[key] >= 0;
 }
 
 function isPositiveNumberParam(params: SafeParams, key: string) {
-  return (
-    typeof params[key] === "number" &&
-    Number.isFinite(params[key]) &&
-    params[key] > 0
-  );
+  return typeof params[key] === "number" && Number.isFinite(params[key]) && params[key] > 0;
 }
 
 function isPositiveIntegerParam(params: SafeParams, key: string) {
@@ -405,10 +507,12 @@ function pushToDataLayer(payload: unknown) {
   }
 }
 
-function createEcommercePayload(
-  command: EcommerceCommand,
-): Record<string, unknown> | null {
+function createEcommercePayload(command: EcommerceCommand): Record<string, unknown> | null {
   switch (command.action) {
+    case "impressions": {
+      const products = normalizeProducts(command.payload.products);
+      return products.length > 0 ? { currencyCode: "RUB", impressions: products } : null;
+    }
     case "click":
     case "detail":
     case "add":
@@ -439,9 +543,7 @@ function createEcommercePayload(
     }
     case "purchase": {
       const products = normalizeProducts(command.payload.products);
-      const actionField = normalizePurchaseActionField(
-        command.payload.actionField,
-      );
+      const actionField = normalizePurchaseActionField(command.payload.actionField);
 
       if (products.length === 0 || !actionField) {
         return null;
@@ -504,12 +606,7 @@ function normalizePurchaseActionField(value: unknown) {
   const id = normalizeText(value.id);
   const revenue = value.revenue;
 
-  if (
-    !id ||
-    typeof revenue !== "number" ||
-    !Number.isFinite(revenue) ||
-    revenue < 0
-  ) {
+  if (!id || typeof revenue !== "number" || !Number.isFinite(revenue) || revenue < 0) {
     return null;
   }
 
@@ -552,15 +649,18 @@ function isKnownCommand(command: unknown): command is AnalyticsCommand {
   }
 
   if (command.kind === "goal") {
+    return typeof command.eventId === "string" && goalEventIds.has(command.eventId);
+  }
+
+  if (command.kind === "interaction") {
     return (
-      typeof command.eventId === "string" && goalEventIds.has(command.eventId)
+      typeof command.eventId === "string" &&
+      Object.hasOwn(interactionEventParamKeys, command.eventId)
     );
   }
 
   if (command.kind === "diagnostic") {
-    return (
-      typeof command.event === "string" && diagnosticEvents.has(command.event)
-    );
+    return typeof command.event === "string" && diagnosticEvents.has(command.event);
   }
 
   return (
@@ -573,11 +673,7 @@ function isKnownCommand(command: unknown): command is AnalyticsCommand {
 function isSafeParamKey(key: string) {
   const normalized = normalizeParamKey(key);
 
-  if (
-    !normalized ||
-    reservedParamKeys.has(normalized) ||
-    isSensitiveAnalyticsParamName(key)
-  ) {
+  if (!normalized || reservedParamKeys.has(normalized) || isSensitiveAnalyticsParamName(key)) {
     return false;
   }
 
@@ -590,11 +686,7 @@ function isSafeParamValue(value: unknown): value is SafeParamValue {
   }
 
   if (typeof value === "string") {
-    return (
-      value.trim().length > 0 &&
-      value.length <= 512 &&
-      !isSensitiveAnalyticsParamValue(value)
-    );
+    return value.trim().length > 0 && value.length <= 512 && !isSensitiveAnalyticsParamValue(value);
   }
 
   return typeof value === "boolean";

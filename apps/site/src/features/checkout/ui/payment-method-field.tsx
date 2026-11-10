@@ -1,5 +1,6 @@
 "use client";
 
+import { useAnalytics } from "../lib/analytics";
 import { useFormContext } from "react-hook-form";
 
 import { cn } from "@/shared/lib";
@@ -31,6 +32,7 @@ const paymentOptions: {
 ];
 
 export function PaymentMethodField() {
+  const analytics = useAnalytics();
   const {
     formState: { errors },
     setValue,
@@ -49,13 +51,16 @@ export function PaymentMethodField() {
         aria-describedby={hasError ? "checkout-payment-error" : undefined}
         aria-invalid={hasError}
         value={selectedPaymentMethod}
-        onValueChange={(value) =>
-          setValue("paymentMethod", value as CheckoutPaymentMethod, {
+        onValueChange={(value) => {
+          const method = paymentOptions.find((option) => option.value === value)?.value;
+          if (!method || method === selectedPaymentMethod) return;
+          analytics.paymentSelected(method);
+          setValue("paymentMethod", method, {
             shouldDirty: true,
             shouldTouch: true,
             shouldValidate: true,
-          })
-        }
+          });
+        }}
         className="gap-2"
       >
         {paymentOptions.map((option) => (

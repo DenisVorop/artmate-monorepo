@@ -5,6 +5,7 @@ import { usePathname } from "next/navigation";
 import { ArrowUpRight, MenuIcon, X } from "lucide-react";
 
 import { SessionLinks } from "@/features/auth";
+import { routes } from "@/shared/constants";
 import { cn } from "@/shared/lib/utils";
 import {
   Button,
@@ -19,10 +20,12 @@ import {
 import { Link } from "@/shared/ui/link";
 
 import { helpNavItems, isRouteActive, mainNavItems } from "../lib/navigation";
+import { useAnalytics } from "../lib/analytics";
 import { Logo } from "./logo";
 
 export function MobileMenu() {
   const pathname = usePathname();
+  const analytics = useAnalytics("mobile_menu");
   const [isOpen, setIsOpen] = useState(false);
 
   useEffect(() => {
@@ -53,6 +56,7 @@ export function MobileMenu() {
         </Button>
       </SheetTrigger>
       <SheetContent
+        data-site-area="mobile_menu"
         side="right"
         showCloseButton={false}
         aria-describedby={undefined}
@@ -85,6 +89,7 @@ export function MobileMenu() {
                     <SheetClose asChild>
                       <Link
                         href={item.href}
+                        onClick={item.href === routes.colorings ? analytics.digitalCatalogClicked : undefined}
                         aria-current={isActive ? "page" : undefined}
                         className={cn(
                           "group flex min-h-16 items-center justify-between gap-3 py-3 text-2xl font-medium tracking-tight hover:text-rose-600 focus-visible:ring-2 focus-visible:ring-stone-300",

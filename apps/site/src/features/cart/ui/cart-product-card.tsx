@@ -15,6 +15,7 @@ import {
   useUpdateCartItemQuantityMutation,
 } from "../model";
 import { useAnalytics, type ProductListPlacement } from "../lib/analytics";
+import { useProductImpression } from "../lib/use-product-impression";
 
 const maxCartItemQuantity = 99;
 
@@ -51,6 +52,7 @@ export function CartProductCard({
   const [addErrorLabel, setAddErrorLabel] = useState<string>();
   const cart = useCartData();
   const analytics = useAnalytics();
+  const cardRef = useProductImpression(product, list, position);
   const { mutate: addCartItem, isPending: isAdding } = useAddCartItemMutation();
   const { mutate: updateCartItemQuantity, isPending: isUpdatingQuantity } =
     useUpdateCartItemQuantityMutation();
@@ -148,6 +150,7 @@ export function CartProductCard({
 
   return (
     <ProductCard
+      cardRef={cardRef}
       eagerImage={eagerImage}
       imageSizes={imageSizes}
       mediaAspectRatio={mediaAspectRatio}

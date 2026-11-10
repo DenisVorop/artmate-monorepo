@@ -1,5 +1,6 @@
 "use client";
 
+import { useAnalytics } from "../lib/analytics";
 import { useMutation, useQueryClient } from "@tanstack/react-query";
 
 import { loyaltyOverviewSchema, loyaltyQuery } from "@/entities/loyalty";
@@ -10,17 +11,22 @@ import { ApiResult } from "@/shared/lib/api-result";
 import { toEnrollmentInput, type EnrollmentFormValues } from "../lib/enrollment-form";
 
 export function useEnroll(userId: string, termsVersion: string) {
+  const analytics = useAnalytics();
   const queryClient = useQueryClient();
   const { mutate, isPending, isError } = useMutation({
-    mutationFn: async (values: EnrollmentFormValues) =>
-      loyaltyOverviewSchema.parse(
+    mutationFn: async (values: EnrollmentFormValues) => {
+      analytics.enrollRequested();
+      return loyaltyOverviewSchema.parse(
         ApiResult.fromDTO(
           await enrollInLoyalty(userId, toEnrollmentInput(values, termsVersion)),
         ).unwrap(),
-      ),
+      );
+    },
+    onError: () => analytics.enrollFailed(),
     onSuccess: async (overview) => {
       const session = queryClient.getQueryData(sessionQuery.getSession().queryKey);
       if (session?.user?.id !== userId) return;
+      if (overview.enrolled) analytics.enrolled();
       queryClient.setQueryData(loyaltyQuery.overview(userId).queryKey, overview);
       await queryClient.invalidateQueries({ queryKey: loyaltyQuery.userKey(userId) });
     },

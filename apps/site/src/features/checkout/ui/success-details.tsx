@@ -1,5 +1,6 @@
 "use client";
 
+import { useAnalytics } from "../lib/analytics";
 import { AlertCircle, CheckCircle2, Clock3, ShoppingBag, type LucideIcon } from "lucide-react";
 
 import {
@@ -74,6 +75,7 @@ export function CheckoutSuccessDetails({
   order,
   paymentStatus,
 }: CheckoutSuccessDetailsProps) {
+  const analytics = useAnalytics();
   const status = paymentStatusMeta[paymentStatus];
   const StatusIcon = status.Icon;
   const cdekShipment = getCdekShipment(order);
@@ -115,7 +117,13 @@ export function CheckoutSuccessDetails({
               {order.delivery.provider === "cdek" && (
                 <p>{cdekShipmentStatus ?? getPendingCdekShipmentStatus(order)}</p>
               )}
-              {cdekShipmentNumber && <ShipmentTrackingNumber number={cdekShipmentNumber} />}
+              {cdekShipmentNumber && (
+                <ShipmentTrackingNumber
+                  onCopy={analytics.shipmentTrackingCopied}
+                  onTrack={analytics.shipmentTrackingOpened}
+                  number={cdekShipmentNumber}
+                />
+              )}
               <p>{order.delivery.pickupPoint.address}</p>
               <p>{order.delivery.pickupPoint.workHours}</p>
             </InfoBlock>
@@ -146,13 +154,15 @@ export function CheckoutSuccessDetails({
 
           <div className="flex flex-col gap-2 sm:flex-row">
             <Button asChild size="lg">
-              <Link href={routes.catalog}>
+              <Link href={routes.catalog} onClick={analytics.successCatalogOpened}>
                 <ShoppingBag data-icon="inline-start" />
                 Вернуться в каталог
               </Link>
             </Button>
             <Button asChild size="lg" variant="outline">
-              <Link href={routes.contacts}>Связаться с нами</Link>
+              <Link href={routes.contacts} onClick={analytics.successSupportOpened}>
+                Связаться с нами
+              </Link>
             </Button>
           </div>
         </CardContent>

@@ -8,9 +8,10 @@ type HeroProps = {
   collection: Coloring["collection"];
   description: Coloring["description"];
   title: string;
+  onAlbumClick?: () => void;
 };
 
-export function Hero({ collection, description, title }: HeroProps) {
+export function Hero({ collection, description, title, onAlbumClick }: HeroProps) {
   const collectionHref = routes.digitalCollection(collection.slug);
 
   return (
@@ -39,6 +40,8 @@ export function Hero({ collection, description, title }: HeroProps) {
             <CtaGradientLink
               href={routes.product(collection.product.category?.slug, collection.product.slug)}
               aria-label={`Посмотреть альбом: ${collection.product.title}`}
+              onClick={onAlbumClick}
+              data-site-product-link=""
             >
               Посмотреть альбом
               <ArrowUpRight />
