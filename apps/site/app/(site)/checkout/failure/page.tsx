@@ -29,6 +29,6 @@ export default async function Page({ searchParams }: CheckoutFailureRouteProps) 
   }
 
   return (
-    <CheckoutFailurePage hasOwnerOrder={hasOwnerOrder} orderId={normalizedOrderId} />
+    <CheckoutFailurePage hasOwnerOrder={hasOwnerOrder} isFailureRoute orderId={normalizedOrderId} />
   );
 }

@@ -21,6 +21,7 @@ export function useUpdateCartItemQuantityMutation() {
       executeCartMutation(queryClient, async () =>
         ApiResult.fromDTO(await updateCartItemQuantity(input)).unwrap(),
       ),
+    onError: () => analytics.quantityFailed(),
     onSuccess: ({ cart, previousCart }, input) => {
       analytics.cartItemQuantityUpdated(cart, input, previousCart);
 

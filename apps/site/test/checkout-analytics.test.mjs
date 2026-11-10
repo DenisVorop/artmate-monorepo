@@ -461,6 +461,7 @@ test("checkout surfaces first fresh failure and latches a verified cart across b
     await readSource("src/features/checkout/ui/checkout.tsx"),
     {
       "../lib/use-track-checkout-start": checkoutStartTracker,
+      "../lib/analytics": checkoutAnalytics,
       "../model": {
         useCreateOrderMutation: () => ({ createOrder() {}, error: null, isPending: false }),
       },
@@ -650,6 +651,7 @@ async function createOrderMutationHarness({
   const cacheWrites = [];
   const createOrderCalls = [];
   const invalidations = [];
+  const steps = [];
   let mutationOptions;
   const queryClient = {
     invalidateQueries(options) {
@@ -694,6 +696,12 @@ async function createOrderMutationHarness({
         },
       },
       "@/shared/lib/query-keys": { cartPricingQueryKey: ["cart-pricing"] },
+      "../lib/analytics": {
+        useAnalytics: () => ({
+          orderSubmitted: () => steps.push("checkout_submit"),
+          orderCreateFailed: () => steps.push("checkout_create_error"),
+        }),
+      },
       "@tanstack/react-query": {
         useMutation(options) {
           mutationOptions = options;
@@ -728,10 +736,11 @@ async function createOrderMutationHarness({
     createOrderCalls,
     invalidations,
     mutationOptions,
+    steps,
   };
 }
 
-test("order creation passes resolved attribution and cleans up before redirect without a browser goal", async () => {
+test("order creation passes resolved attribution and cleans up before redirect without a browser order conversion", async () => {
   const response = {
     itemsCount: 3,
     orderId: "AM-ORDER-1",
@@ -756,6 +765,7 @@ test("order creation passes resolved attribution and cleans up before redirect w
 
   assert.equal(await success.createOrder(order), response);
   assert.deepEqual(success.createOrderCalls, [[order.input, attribution]]);
+  assert.deepEqual(success.steps, ["checkout_submit"]);
   assert.deepEqual(effects, [
     ["cart-cache-cleanup"],
     ["loyalty-cleanup"],
@@ -775,6 +785,7 @@ test("order creation passes resolved attribution and cleans up before redirect w
     attribution,
   });
   await assert.rejects(() => failed.createOrder(order), /order creation rejected/);
+  assert.deepEqual(failed.steps, ["checkout_submit", "checkout_create_error"]);
 
   const pendingEffects = [];
   const pending = await createOrderMutationHarness({

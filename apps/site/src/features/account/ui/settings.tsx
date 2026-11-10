@@ -1,4 +1,5 @@
 "use client";
+import { useAnalytics } from "../lib/analytics";
 import { useState } from "react";
 import { zodResolver } from "@hookform/resolvers/zod";
 import {
@@ -86,6 +87,7 @@ type TelegramLinkCardProps = {
 };
 
 function TelegramLinkCard({ telegramLink }: TelegramLinkCardProps) {
+  const analytics = useAnalytics();
   const [formError, setFormError] = useState<string>();
   const [successMessage, setSuccessMessage] = useState<string>();
   const [isUnlinkDialogOpen, setIsUnlinkDialogOpen] = useState(false);
@@ -121,6 +123,7 @@ function TelegramLinkCard({ telegramLink }: TelegramLinkCardProps) {
     setFormError(undefined);
     setSuccessMessage(undefined);
 
+    analytics.telegramLinkRequested();
     try {
       await confirmTelegramLink.mutate(toConfirmTelegramLinkInput(values));
     } catch (error) {
@@ -132,6 +135,7 @@ function TelegramLinkCard({ telegramLink }: TelegramLinkCardProps) {
     setFormError(undefined);
     setSuccessMessage(undefined);
 
+    analytics.telegramUnlinkRequested();
     try {
       await unlinkTelegram.mutate();
     } catch (error) {
@@ -185,7 +189,14 @@ function TelegramLinkCard({ telegramLink }: TelegramLinkCardProps) {
               />
               {formError ? <p className="text-sm text-destructive">{formError}</p> : null}
               {successMessage ? <p className="text-sm text-emerald-600">{successMessage}</p> : null}
-              <Dialog open={isUnlinkDialogOpen} onOpenChange={setIsUnlinkDialogOpen}>
+              <Dialog
+                open={isUnlinkDialogOpen}
+                onOpenChange={(open) => {
+                  if (open) analytics.telegramUnlinkOpened();
+                  else analytics.telegramUnlinkDismissed();
+                  setIsUnlinkDialogOpen(open);
+                }}
+              >
                 <DialogTrigger asChild>
                   <Button
                     type="button"
@@ -229,7 +240,12 @@ function TelegramLinkCard({ telegramLink }: TelegramLinkCardProps) {
             <div className="space-y-4">
               {telegramLink.data?.botUrl ? (
                 <Button asChild className="w-full">
-                  <a href={telegramLink.data.botUrl} target="_blank" rel="noreferrer">
+                  <a
+                    href={telegramLink.data.botUrl}
+                    onClick={analytics.telegramBotOpened}
+                    target="_blank"
+                    rel="noreferrer"
+                  >
                     <ExternalLink data-icon="inline-start" />
                     Открыть бота
                   </a>

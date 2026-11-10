@@ -1,5 +1,6 @@
 "use client";
 
+import { useAnalytics } from "../lib/analytics";
 import { useState } from "react";
 
 import {
@@ -36,6 +37,7 @@ type PendingAction = {
 };
 
 export function WorkshopCollection({ slug }: { slug: string }) {
+  const analytics = useAnalytics();
   const { collection, isError, isPending, refetch } = useWorkshopCollectionData(slug);
   const [pendingAction, setPendingAction] = useState<PendingAction>();
   const [actionError, setActionError] = useState<string>();
@@ -60,7 +62,14 @@ export function WorkshopCollection({ slug }: { slug: string }) {
           description="Проверьте соединение и попробуйте ещё раз."
         />
         <div className="flex justify-center">
-          <Button type="button" className="min-h-11" onClick={() => void refetch()}>
+          <Button
+            type="button"
+            className="min-h-11"
+            onClick={() => {
+              analytics.retried();
+              void refetch();
+            }}
+          >
             Повторить
           </Button>
         </div>
@@ -73,9 +82,18 @@ export function WorkshopCollection({ slug }: { slug: string }) {
     setActionError(undefined);
 
     try {
-      if (pendingAction.kind === "publish") await publishWork.mutate(pendingAction.work.id);
-      if (pendingAction.kind === "unpublish") await unpublishWork.mutate(pendingAction.work.id);
-      if (pendingAction.kind === "delete") await deleteWork.mutate(pendingAction.work.id);
+      if (pendingAction.kind === "publish") {
+        analytics.publishRequested();
+        await publishWork.mutate(pendingAction.work.id);
+      }
+      if (pendingAction.kind === "unpublish") {
+        analytics.unpublishRequested();
+        await unpublishWork.mutate(pendingAction.work.id);
+      }
+      if (pendingAction.kind === "delete") {
+        analytics.deleteRequested();
+        await deleteWork.mutate(pendingAction.work.id);
+      }
     } catch (error) {
       setActionError(error instanceof Error ? error.message : "Не удалось выполнить действие");
     }
@@ -88,7 +106,9 @@ export function WorkshopCollection({ slug }: { slug: string }) {
           <BreadcrumbList>
             <BreadcrumbItem>
               <BreadcrumbLink asChild>
-                <Link href={routes.workshop}>Моя мастерская</Link>
+                <Link href={routes.workshop} onClick={analytics.backOpened}>
+                  Моя мастерская
+                </Link>
               </BreadcrumbLink>
             </BreadcrumbItem>
             <BreadcrumbSeparator />
@@ -113,9 +133,20 @@ export function WorkshopCollection({ slug }: { slug: string }) {
               collectionSlug={collection.slug}
               coloring={coloring}
               isMutating={isMutating}
-              onPublish={(work) => setPendingAction({ kind: "publish", work })}
-              onUnpublish={(work) => setPendingAction({ kind: "unpublish", work })}
-              onDelete={(work) => setPendingAction({ kind: "delete", work })}
+              onOpenEditor={analytics.editorOpened}
+              onOpenPublicWork={analytics.publicWorkOpened}
+              onPublish={(work) => {
+                analytics.publishOpened();
+                setPendingAction({ kind: "publish", work });
+              }}
+              onUnpublish={(work) => {
+                analytics.unpublishOpened();
+                setPendingAction({ kind: "unpublish", work });
+              }}
+              onDelete={(work) => {
+                analytics.deleteOpened();
+                setPendingAction({ kind: "delete", work });
+              }}
             />
           </li>
         ))}
@@ -124,7 +155,11 @@ export function WorkshopCollection({ slug }: { slug: string }) {
       <Dialog
         open={Boolean(pendingAction)}
         onOpenChange={(open) => {
-          if (!open && !isMutating) closeDialog();
+          if (open || isMutating || !pendingAction) return;
+          if (pendingAction.kind === "publish") analytics.publishDismissed();
+          if (pendingAction.kind === "unpublish") analytics.unpublishDismissed();
+          if (pendingAction.kind === "delete") analytics.deleteDismissed();
+          closeDialog();
         }}
       >
         <DialogContent>
@@ -186,9 +221,9 @@ function getActionDescription(action: PendingAction | undefined) {
 function isPendingAutomaticPublication(action: PendingAction | undefined) {
   return Boolean(
     action?.kind === "unpublish" &&
-      action.work.isPublicationEnabled &&
-      action.work.currentRevision?.status === "PENDING" &&
-      action.work.currentRevision.publicationConsent,
+    action.work.isPublicationEnabled &&
+    action.work.currentRevision?.status === "PENDING" &&
+    action.work.currentRevision.publicationConsent,
   );
 }
 
@@ -199,9 +234,9 @@ function isAwaitingWorkshopPublication(action: PendingAction | undefined) {
 
   return Boolean(
     work.isPublicationEnabled &&
-      work.currentRevision?.status === "APPROVED" &&
-      work.currentRevision.publicationConsent &&
-      work.publishedRevision?.id === work.currentRevision.id &&
-      !work.publishedAt,
+    work.currentRevision?.status === "APPROVED" &&
+    work.currentRevision.publicationConsent &&
+    work.publishedRevision?.id === work.currentRevision.id &&
+    !work.publishedAt,
   );
 }

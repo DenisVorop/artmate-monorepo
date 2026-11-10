@@ -8,7 +8,7 @@ async function readSource(path) {
 
 test("cart links directly to checkout", async () => {
   const source = await readSource("src/features/cart/ui/cart-summary.tsx");
-  assert.match(source, /<CtaGradientLink\s+href=\{routes\.checkout\}>/u);
+  assert.match(source, /<CtaGradientLink\s+href=\{routes\.checkout\}/u);
 });
 
 test("checkout offers both declared delivery companies", async () => {

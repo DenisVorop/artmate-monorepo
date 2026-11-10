@@ -1,17 +1,20 @@
 "use client";
 
 import Image from "next/image";
+import { useRef } from "react";
 
 import {
   type ColoringCollectionSummary,
   useColoringCollectionsData,
 } from "@/entities/coloring-collection";
 import { routes } from "@/shared/constants";
+import { useVisibleImage } from "@/shared/lib/hooks/use-visible-image";
 import { cn } from "@/shared/lib/utils";
 import { AspectRatio, Button, DataState } from "@/shared/ui";
 import { Link } from "@/shared/ui/link";
 
 import { useTrackOpen } from "../lib/use-track-open";
+import { useAnalytics } from "../lib/analytics";
 
 // Account for the capped container, grid gaps and the space around each cover.
 const coverSizes =
@@ -21,6 +24,7 @@ const bindingClassName =
 
 export function ColoringCollectionsCatalog() {
   const { collections, isError, isPending, refetch } = useColoringCollectionsData();
+  const analytics = useAnalytics();
   useTrackOpen(!isPending && !isError && Boolean(collections));
 
   if (isPending) {
@@ -43,7 +47,10 @@ export function ColoringCollectionsCatalog() {
           description="Проверьте соединение и попробуйте ещё раз."
         />
         <div className="mt-4 flex justify-center">
-          <Button type="button" className="min-h-11" onClick={() => void refetch()}>
+          <Button type="button" className="min-h-11" onClick={() => {
+            analytics.retried();
+            void refetch();
+          }}>
             Повторить
           </Button>
         </div>
@@ -82,9 +89,14 @@ function CollectionCover({
   collection: ColoringCollectionSummary;
   eager: boolean;
 }) {
+  const analytics = useAnalytics();
+  const image = useRef<HTMLImageElement>(null);
+  useVisibleImage(image, collection.slug, () => analytics.coverViewed(collection.slug));
+
   return (
     <Link
       href={routes.coloringCollection(collection.slug)}
+      onClick={() => analytics.collectionClicked(collection.slug)}
       aria-label={`Открыть тематику «${collection.title}»`}
       className="group relative block pt-0.5 pr-1.5 pb-2 pl-2.5 focus-visible:ring-3 focus-visible:ring-rose-400 sm:pl-3"
     >
@@ -112,6 +124,7 @@ function CollectionCover({
         </svg>
         <span className="absolute inset-0 z-10 overflow-hidden bg-white shadow-sm ring-1 ring-stone-200 transition-shadow duration-300 group-hover:shadow-lg">
           <Image
+            ref={image}
             fill
             src={collection.cover.url}
             alt={collection.cover.alt}

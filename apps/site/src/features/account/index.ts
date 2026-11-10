@@ -3,3 +3,4 @@ export { AccountSettings } from "./ui/settings";
 export { AccountClubPreview } from "./ui/club-preview";
 export { AccountOrders } from "./ui/orders";
 export { AccountWorkshopPreview } from "./ui/workshop-preview";
+export { AccountBackLink } from "./ui/back-link";

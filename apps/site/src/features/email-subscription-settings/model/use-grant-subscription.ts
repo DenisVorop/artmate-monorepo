@@ -1,5 +1,6 @@
 "use client";
 
+import { useAnalytics } from "../lib/analytics";
 import { useMutation, useQueryClient } from "@tanstack/react-query";
 import {
   emailSubscriptionQuery,
@@ -18,6 +19,7 @@ interface GrantSubscriptionInput {
 }
 
 export function useGrantSubscription() {
+  const analytics = useAnalytics();
   const queryClient = useQueryClient();
   const { mutateAsync, isPending } = useMutation({
     mutationFn: async ({
@@ -43,12 +45,14 @@ export function useGrantSubscription() {
         exact: true,
       });
     },
+    onError: () => analytics.grantFailed(),
     onSuccess: async (state: EmailSubscription, input: GrantSubscriptionInput) => {
       const ownerId = input.ownerId;
       const key = emailSubscriptionQuery.status(ownerId).queryKey;
       await queryClient.cancelQueries({ queryKey: key, exact: true });
       const session = queryClient.getQueryData<AuthSession>(sessionQuery.getSession().queryKey);
       if (session?.user?.id !== ownerId) return;
+      analytics.granted();
       queryClient.setQueryData<EmailSubscription>(key, (previous) =>
         previous &&
         (previous.version > state.version ||

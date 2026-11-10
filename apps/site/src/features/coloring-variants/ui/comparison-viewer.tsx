@@ -13,6 +13,8 @@ import {
 
 import type { Coloring } from "@/entities/coloring-variants";
 import { Button } from "@/shared/ui";
+import { useVisibleImage } from "@/shared/lib/hooks/use-visible-image";
+import type { useViewerAnalytics } from "../lib/analytics";
 
 import {
   areComparisonImagesReady,
@@ -29,6 +31,7 @@ type ComparisonViewerProps = Pick<Coloring, "height" | "width"> & {
   rightLabel: string;
   split: number;
   setSplit: (_value: number) => void;
+  analytics?: ReturnType<typeof useViewerAnalytics>;
 };
 
 export function ComparisonViewer({
@@ -40,6 +43,7 @@ export function ComparisonViewer({
   rightLabel,
   split,
   setSplit,
+  analytics,
 }: ComparisonViewerProps) {
   const viewerStatusRef = useRef<HTMLDivElement>(null);
   const mainRetryButtonRef = useRef<HTMLButtonElement>(null);
@@ -50,6 +54,7 @@ export function ComparisonViewer({
     createComparisonImageState,
   );
   const isComparisonReady = areComparisonImagesReady(imageState);
+  useVisibleImage(viewerStatusRef, 1, () => analytics?.pictureViewed(), isComparisonReady);
   const handleMainImageError = useCallback(() => {
     dispatchImage({ type: "failed", attempt: imageState.attempt });
   }, [imageState.attempt]);
@@ -57,9 +62,15 @@ export function ComparisonViewer({
   const commit = (value: number) => {
     setCommittedText(getComparisonLiveText(value, leftLabel, rightLabel));
   };
+  const adjust = (value: number) => {
+    commit(value);
+    analytics?.comparisonMoved(value);
+  };
   const selectExtreme = (value: number) => {
     setSplit(value);
     commit(value);
+    if (value === 100) analytics?.leftShown();
+    else analytics?.rightShown();
   };
   const retryImages = (event: MouseEvent<HTMLButtonElement>) => {
     if (event.detail === 0 && document.activeElement === mainRetryButtonRef.current) {
@@ -67,6 +78,7 @@ export function ComparisonViewer({
     }
 
     dispatchImage({ type: "retry" });
+    analytics?.imageRetried();
   };
 
   return (
@@ -174,7 +186,7 @@ export function ComparisonViewer({
           value={split}
           disabled={!isComparisonReady}
           onValueChange={setSplit}
-          onValueCommit={commit}
+          onValueCommit={adjust}
         />
       </div>
 
@@ -186,7 +198,7 @@ export function ComparisonViewer({
           value={split}
           disabled={!isComparisonReady}
           onValueChange={setSplit}
-          onValueCommit={commit}
+          onValueCommit={adjust}
         />
       </div>
 

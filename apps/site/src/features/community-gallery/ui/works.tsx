@@ -113,7 +113,8 @@ export function GalleryWorks({
               <p role="status" className="text-sm text-stone-600">
                 Не удалось загрузить следующие работы.
               </p>
-              <Button variant="outline" className="min-h-11" onClick={() => void fetchNextPage()}>
+              <Button variant="outline" className="min-h-11" onClick={() => void fetchNextPage()}
+                data-site-action="gallery_load_more">
                 Повторить
               </Button>
             </>
@@ -127,6 +128,7 @@ export function GalleryWorks({
                 className="sr-only min-h-11 focus:not-sr-only"
                 disabled={isFetchingNextPage}
                 onClick={() => void fetchNextPage()}
+                data-site-action="gallery_load_more"
               >
                 Загрузить следующие работы
               </Button>

@@ -8,6 +8,8 @@ import {
 } from "@/shared/actions/contact-form";
 import { ApiResult } from "@/shared/lib/api-result";
 
+import { contactFormAnalytics } from "../lib/analytics";
+
 export function useSubmitContactMessageMutation() {
   const { mutateAsync, isPending, error, reset } = useMutation({
     mutationFn: async (input: SubmitContactMessageInputDTO) => {
@@ -17,6 +19,7 @@ export function useSubmitContactMessageMutation() {
       }
       return response.data;
     },
+    onSuccess: () => contactFormAnalytics.send("sent"),
   });
 
   return { submitContactMessage: mutateAsync, isPending, error, reset };

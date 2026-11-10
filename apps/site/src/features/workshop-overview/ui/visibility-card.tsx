@@ -1,5 +1,6 @@
 "use client";
 
+import { useAnalytics } from "../lib/analytics";
 import { useState } from "react";
 import { ExternalLink, Globe2, Lock } from "lucide-react";
 
@@ -25,6 +26,7 @@ import { Link } from "@/shared/ui/link";
 import { useUpdateWorkshopVisibility } from "../model";
 
 export function WorkshopVisibilityCard({ workshop }: { workshop: OwnerWorkshop }) {
+  const analytics = useAnalytics();
   const [isConfirmOpen, setIsConfirmOpen] = useState(false);
   const [error, setError] = useState<string>();
   const isPublic = workshop.isPublic;
@@ -33,6 +35,7 @@ export function WorkshopVisibilityCard({ workshop }: { workshop: OwnerWorkshop }
   });
 
   async function toggleVisibility() {
+    analytics.visibilityRequested();
     setError(undefined);
 
     try {
@@ -67,7 +70,10 @@ export function WorkshopVisibilityCard({ workshop }: { workshop: OwnerWorkshop }
       <CardContent className="flex flex-col gap-3 sm:flex-row sm:items-center">
         {isPublic && workshop.handle ? (
           <Button asChild variant="outline" className="min-h-11">
-            <Link href={routes.publicWorkshop(workshop.handle)}>
+            <Link
+              href={routes.publicWorkshop(workshop.handle)}
+              onClick={analytics.publicWorkshopOpened}
+            >
               <ExternalLink data-icon="inline-start" />
               Публичная ссылка
             </Link>
@@ -77,13 +83,22 @@ export function WorkshopVisibilityCard({ workshop }: { workshop: OwnerWorkshop }
           type="button"
           variant={isPublic ? "outline" : "default"}
           className="min-h-11"
-          onClick={() => setIsConfirmOpen(true)}
+          onClick={() => {
+            analytics.visibilityOpened();
+            setIsConfirmOpen(true);
+          }}
         >
           {isPublic ? "Закрыть мастерскую" : "Открыть мастерскую"}
         </Button>
       </CardContent>
 
-      <Dialog open={isConfirmOpen} onOpenChange={setIsConfirmOpen}>
+      <Dialog
+        open={isConfirmOpen}
+        onOpenChange={(open) => {
+          if (!open) analytics.visibilityDismissed();
+          setIsConfirmOpen(open);
+        }}
+      >
         <DialogContent>
           <DialogHeader>
             <DialogTitle>{isPublic ? "Закрыть мастерскую?" : "Открыть мастерскую?"}</DialogTitle>

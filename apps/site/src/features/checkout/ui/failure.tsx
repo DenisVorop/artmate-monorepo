@@ -1,5 +1,6 @@
 "use client";
 
+import { useAnalytics } from "../lib/analytics";
 import { AlertCircle, Headphones, ShoppingBag } from "lucide-react";
 
 import { useOrderData } from "@/entities/orders";
@@ -14,6 +15,7 @@ type CheckoutFailureProps = {
 };
 
 export function CheckoutFailure({ orderId }: CheckoutFailureProps) {
+  const analytics = useAnalytics();
   const { data: order, error, isError, isPending } = useOrderData({ orderId });
   const orderLabel = order?.id ?? orderId;
 
@@ -61,13 +63,13 @@ export function CheckoutFailure({ orderId }: CheckoutFailureProps) {
 
           <div className="flex flex-col gap-2 sm:flex-row">
             <Button asChild size="lg">
-              <Link href={routes.catalog}>
+              <Link href={routes.catalog} onClick={analytics.failureCatalogOpened}>
                 <ShoppingBag data-icon="inline-start" />
                 Вернуться в каталог
               </Link>
             </Button>
             <Button asChild size="lg" variant="outline">
-              <Link href={routes.contacts}>
+              <Link href={routes.contacts} onClick={analytics.failureSupportOpened}>
                 <Headphones data-icon="inline-start" />
                 Связаться с нами
               </Link>

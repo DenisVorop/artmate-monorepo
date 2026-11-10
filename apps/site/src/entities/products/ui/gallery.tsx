@@ -2,14 +2,23 @@
 
 import { ChevronLeft, ChevronRight } from "lucide-react";
 import Image from "next/image";
-import { useCallback, useEffect, useRef, useState, type MouseEvent, type UIEvent } from "react";
+import { useCallback, useEffect, useRef, useState, type ComponentProps, type MouseEvent, type UIEvent } from "react";
 
 import { AspectRatio, Button, MediaExpandButton, ResponsiveMediaViewer } from "@/shared/ui";
 import { cn, shouldBypassNextImageOptimization } from "@/shared/lib";
 
+import { useVisibleImage } from "@/shared/lib/hooks/use-visible-image";
+
+type GalleryMode = "carousel" | "lightbox";
 type GalleryProps = {
   images: string[];
   title: string;
+  analytics?: {
+    photoViewed: (_position: number, _mode: GalleryMode) => void;
+    photoSelected: (_position: number, _mode: GalleryMode) => void;
+    galleryOpened: (_position: number) => void;
+    galleryClosed: (_position: number) => void;
+  };
 };
 
 const thumbnailSizes = "(min-width: 768px) 72px, 60px";
@@ -44,7 +53,7 @@ function scrollTrackToIndex(
   });
 }
 
-export function Gallery({ images, title }: GalleryProps) {
+export function Gallery({ images, title, analytics }: GalleryProps) {
   const [activeIndex, setActiveIndex] = useState(0);
   const [lightboxIndex, setLightboxIndex] = useState(0);
   const [isLightboxOpen, setIsLightboxOpen] = useState(false);
@@ -60,16 +69,18 @@ export function Gallery({ images, title }: GalleryProps) {
   const lightboxImage = images[lightboxIndex] ?? activeImage;
 
   const selectMainImage = useCallback((index: number, behavior?: ScrollBehavior) => {
+    if (index !== activeIndex) analytics?.photoSelected(index + 1, "carousel");
     mainScrollTargetIndexRef.current = index;
     setActiveIndex(index);
     scrollTrackToIndex(mainTrackRef.current, index, behavior);
-  }, []);
+  }, [activeIndex, analytics]);
 
   const selectLightboxImage = useCallback((index: number, behavior?: ScrollBehavior) => {
+    if (index !== lightboxIndex) analytics?.photoSelected(index + 1, "lightbox");
     lightboxScrollTargetIndexRef.current = index;
     setLightboxIndex(index);
     scrollTrackToIndex(lightboxTrackRef.current, index, behavior);
-  }, []);
+  }, [lightboxIndex, analytics]);
 
   const showPrevious = useCallback(() => {
     selectMainImage(getPreviousIndex(activeIndex, images.length));
@@ -128,6 +139,7 @@ export function Gallery({ images, title }: GalleryProps) {
     initialLightboxIndexRef.current = activeIndex;
     setLightboxIndex(activeIndex);
     setIsLightboxOpen(true);
+    analytics?.galleryOpened(activeIndex + 1);
   };
 
   const handleMainScroll = (event: UIEvent<HTMLDivElement>) => {
@@ -233,7 +245,8 @@ export function Gallery({ images, title }: GalleryProps) {
                 onClick={openLightbox}
                 className="relative h-full w-full flex-none cursor-zoom-in snap-center"
               >
-                <Image
+                <GalleryPhoto
+                  onView={analytics ? () => analytics.photoViewed(index + 1, "carousel") : undefined}
                   fill
                   src={image}
                   alt={`${title}, фото ${index + 1}`}
@@ -310,7 +323,10 @@ export function Gallery({ images, title }: GalleryProps) {
 
       <ResponsiveMediaViewer
         open={isLightboxOpen}
-        onOpenChange={setIsLightboxOpen}
+        onOpenChange={(open) => {
+          if (!open && isLightboxOpen) analytics?.galleryClosed(lightboxIndex + 1);
+          setIsLightboxOpen(open);
+        }}
         title={title}
         description="Просмотр фотографий товара"
         returnFocusRef={lightboxTriggerRef}
@@ -335,7 +351,8 @@ export function Gallery({ images, title }: GalleryProps) {
               className="flex h-full w-full flex-none snap-center items-center justify-center p-3 sm:p-6"
             >
               <div className="relative aspect-[3/4] w-[min(78vw,calc((min(92dvh,64rem)-12rem)*0.75),42rem)] overflow-hidden rounded-xl bg-white shadow-xl ring-1 shadow-stone-900/10 ring-stone-200 max-md:w-[min(92vw,calc((100dvh-12rem)*0.75))]">
-                <Image
+                <GalleryPhoto
+                  onView={analytics ? () => analytics.photoViewed(index + 1, "lightbox") : undefined}
                   fill
                   src={image}
                   alt={`${title}, фото ${index + 1}`}
@@ -405,4 +422,11 @@ export function Gallery({ images, title }: GalleryProps) {
       </ResponsiveMediaViewer>
     </div>
   );
+}
+
+
+function GalleryPhoto({ onView, ...props }: ComponentProps<typeof Image> & { onView?: () => void }) {
+  const photo = useRef<HTMLImageElement>(null);
+  useVisibleImage(photo, 1, () => onView?.(), Boolean(onView));
+  return <Image {...props} ref={photo} />;
 }

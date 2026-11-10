@@ -1,5 +1,6 @@
 "use client";
 
+import { useAnalytics } from "../lib/analytics";
 import { LoaderCircle, LogOut, Palette, UserRound } from "lucide-react";
 
 import { getSessionUserDisplayName, useSession } from "@/entities/session";
@@ -18,8 +19,12 @@ import { Link } from "@/shared/ui/link";
 import { useLogoutMutation } from "../model";
 
 export function SessionMenu() {
+  const analytics = useAnalytics();
   const { mutate: logout, isPending: isLogoutPending } = useLogoutMutation({
-    onSuccess: () => window.location.replace(routes.home),
+    onSuccess: () => {
+      analytics.loggedOut();
+      window.location.replace(routes.home);
+    },
   });
   const { user, isPending: isSessionPending } = useSession();
 
@@ -46,7 +51,7 @@ export function SessionMenu() {
         size="icon-lg"
         className="size-11 rounded-full text-stone-900 hover:bg-stone-100 aria-expanded:bg-stone-100"
       >
-        <Link href={routes.auth} aria-label="Войти">
+        <Link href={routes.auth} onClick={analytics.loginOpened} aria-label="Войти">
           <UserRound aria-hidden="true" className="size-5" strokeWidth={1.5} />
         </Link>
       </Button>
@@ -56,7 +61,10 @@ export function SessionMenu() {
   const title = getSessionUserDisplayName(user);
 
   return (
-    <DropdownMenu modal={false}>
+    <DropdownMenu
+      modal={false}
+      onOpenChange={(open) => (open ? analytics.menuOpened() : analytics.menuClosed())}
+    >
       <DropdownMenuTrigger asChild>
         <Button
           type="button"
@@ -81,13 +89,13 @@ export function SessionMenu() {
         </DropdownMenuLabel>
         <DropdownMenuSeparator />
         <DropdownMenuItem asChild>
-          <Link href={routes.account}>
+          <Link href={routes.account} onClick={analytics.accountOpened}>
             <UserRound data-icon="inline-start" />
             Личный кабинет
           </Link>
         </DropdownMenuItem>
         <DropdownMenuItem asChild>
-          <Link href={routes.workshop}>
+          <Link href={routes.workshop} onClick={analytics.workshopOpened}>
             <Palette data-icon="inline-start" />
             Моя мастерская
           </Link>
@@ -96,6 +104,7 @@ export function SessionMenu() {
           disabled={isLogoutPending}
           onSelect={(event) => {
             event.preventDefault();
+            analytics.logoutRequested();
             logout();
           }}
         >

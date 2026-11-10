@@ -1,5 +1,6 @@
 "use client";
 
+import { useAnalytics } from "../lib/analytics";
 import { ArrowUpRight, Images } from "lucide-react";
 import {
   CommunityWorkCard,
@@ -20,6 +21,7 @@ type CommunityWorksProps = ReturnType<typeof useCollectionCommunityWorks> & {
 };
 
 export function CommunityWorks(props: CommunityWorksProps) {
+  const analytics = useAnalytics();
   const { works, hasNextPage, isFetchingNextPage, isFetchNextPageError, fetchNextPage } = props;
   const { trackRef, endRef } = useWorksScroll({ ...props, count: works.length });
   if (!works.length) return null;
@@ -67,7 +69,13 @@ export function CommunityWorks(props: CommunityWorksProps) {
             {isFetchNextPageError ? (
               <div className="w-48 space-y-3 p-4 text-sm">
                 <p>Не удалось загрузить следующие работы.</p>
-                <Button variant="outline" onClick={() => void fetchNextPage()}>
+                <Button
+                  variant="outline"
+                  onClick={() => {
+                    analytics.worksRetried();
+                    void fetchNextPage();
+                  }}
+                >
                   Повторить
                 </Button>
               </div>
@@ -82,6 +90,7 @@ export function CommunityWorks(props: CommunityWorksProps) {
           </div>
         )}
         <Link
+          onClick={analytics.galleryOpenedFromWorks}
           href={routes.galleryCollection(getGalleryCollectionSlug(props.collectionSlug))}
           className="group w-[70vw] max-w-80 shrink-0 snap-start rounded-2xl focus-visible:ring-3 focus-visible:ring-rose-400 sm:w-64 lg:w-72"
         >

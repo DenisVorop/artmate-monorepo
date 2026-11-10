@@ -10,17 +10,17 @@ import { routes } from "@/shared/constants";
 import { cn } from "@/shared/lib";
 import { Button } from "@/shared/ui";
 import { SectionTitle } from "@/shared/ui/typography";
+import { useAnalytics } from "../lib/analytics";
 
 export function HomeCompanion({ className }: { className?: string }) {
   const { data, isError } = useProductsData();
+  const analytics = useAnalytics();
   const album = data?.products.find((product) => product.slug === "raskraska-po-nomeram-kotiki-2");
   const markers = data?.products.find(
     (product) => product.slug === "akrilovye-markery-artmate-168-cvetov",
   );
   if (isError || !album || !markers) return null;
-  const digitalHref = album.digitalCollection
-    ? routes.digitalCollection(album.digitalCollection.slug)
-    : undefined;
+  const digitalSlug = album.digitalCollection?.slug;
 
   return (
     <section className={cn("container", className)} aria-labelledby="companion-title">
@@ -53,7 +53,7 @@ export function HomeCompanion({ className }: { className?: string }) {
               <Plus className="size-6" strokeWidth={3} />
             </span>
           </div>
-          {digitalHref && (
+          {digitalSlug && (
             <div className="flex min-w-0 flex-col overflow-hidden rounded-xl bg-white p-4 sm:p-6">
               <div className="relative flex h-64 items-center justify-center overflow-hidden rounded-lg bg-rose-50 p-6 pb-14 sm:h-72">
                 <Image
@@ -83,7 +83,7 @@ export function HomeCompanion({ className }: { className?: string }) {
                 номером. Раскрашивайте на бумаге.
               </p>
               <Button asChild variant="outline" className="mt-5 min-h-11 w-full bg-white">
-                <Link href={digitalHref}>
+                <Link href={routes.digitalCollection(digitalSlug)} onClick={() => analytics.digitalCollectionClicked(digitalSlug)}>
                   Открыть цифровую версию <ArrowUpRight className="size-4" aria-hidden="true" />
                 </Link>
               </Button>

@@ -1,5 +1,6 @@
 "use client";
 
+import { useAnalytics } from "../lib/analytics";
 import { zodResolver } from "@hookform/resolvers/zod";
 import { Check, LoaderCircle, LogIn, Tag, Trash2 } from "lucide-react";
 import { useEffect, useState } from "react";
@@ -23,6 +24,7 @@ import {
 } from "../lib";
 
 export function PromoCodeForm() {
+  const analytics = useAnalytics();
   const {
     applyCode,
     clearCode,
@@ -68,6 +70,7 @@ export function PromoCodeForm() {
   }, [reset, selectedCode]);
 
   const removeCode = () => {
+    analytics.removed();
     clearCode();
     reset({ code: "" });
     setIsEditing(false);
@@ -78,7 +81,11 @@ export function PromoCodeForm() {
       type="single"
       collapsible
       value={isOpen ? "promo" : ""}
-      onValueChange={(value) => setIsOpen(value === "promo")}
+      onValueChange={(value) => {
+        if (value === "promo") analytics.opened();
+        else analytics.closed();
+        setIsOpen(value === "promo");
+      }}
     >
       <AccordionItem value="promo" className="border-0">
         <AccordionTrigger className="min-h-12 items-center gap-2 py-2 hover:no-underline">
@@ -96,7 +103,10 @@ export function PromoCodeForm() {
                 type="button"
                 variant="ghost"
                 className="min-h-11 px-2 text-xs"
-                onClick={() => setIsEditing(true)}
+                onClick={() => {
+                  analytics.edited();
+                  setIsEditing(true);
+                }}
               >
                 Изменить
               </Button>
@@ -118,6 +128,8 @@ export function PromoCodeForm() {
               onSubmit={handleSubmit((values) => {
                 const code = normalizePromoCode(values.code);
                 if (!code) return;
+                if (selectedCode && selectedCode !== code) analytics.replaced();
+                else analytics.submitted();
                 applyCode(code);
                 setIsEditing(false);
               })}
@@ -143,7 +155,10 @@ export function PromoCodeForm() {
                     codeField.onChange(event);
                     if (!event.target.value.trim()) {
                       clearErrors("code");
-                      if (selectedCode) clearCode();
+                      if (selectedCode) {
+                        analytics.removed();
+                        clearCode();
+                      }
                     }
                   }}
                 />
@@ -188,7 +203,10 @@ export function PromoCodeForm() {
                     size="sm"
                     variant="outline"
                     className="min-h-11"
-                    onClick={onLoginRequested}
+                    onClick={() => {
+                      analytics.loginRequested();
+                      onLoginRequested();
+                    }}
                   >
                     <LogIn data-icon="inline-start" />
                     Войти и применить

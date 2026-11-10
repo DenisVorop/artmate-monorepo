@@ -1,5 +1,6 @@
 "use client";
 
+import { useAnalytics } from "../lib/analytics";
 import { useMutation } from "@tanstack/react-query";
 
 import { recoverOrderPayment } from "@/shared/actions/orders";
@@ -10,15 +11,16 @@ type UsePaymentRecoveryOptions = {
 };
 
 export function usePaymentRecovery(options: UsePaymentRecoveryOptions = {}) {
+  const analytics = useAnalytics();
   const { data, error, isPending, mutate } = useMutation({
     mutationFn: async (orderId: string) => {
-      const response = ApiResult.fromDTO(
-        await recoverOrderPayment(orderId),
-      ).unwrap();
+      analytics.paymentRecoveryRequested();
+      const response = ApiResult.fromDTO(await recoverOrderPayment(orderId)).unwrap();
       if (!response) throw new Error("Не удалось проверить оплату");
       return response;
     },
     onSuccess: (response) => options.onSuccess?.(response.redirectUrl),
+    onError: () => analytics.paymentRecoveryFailed(),
   });
 
   return {

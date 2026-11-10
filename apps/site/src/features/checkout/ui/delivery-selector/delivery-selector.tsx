@@ -1,5 +1,6 @@
 "use client";
 
+import { useAnalytics } from "../../lib/analytics";
 import { CheckCircle2, CircleAlert, LoaderCircle, MapPin } from "lucide-react";
 import { useEffect, useState } from "react";
 
@@ -40,6 +41,7 @@ export function DeliverySelector({
   onDraftChange,
   selectedCompany = defaultDeliveryCompany,
 }: DeliverySelectorProps) {
+  const analytics = useAnalytics();
   const [cityQuery, setCityQuery] = useState("");
   const [pickupPointQuery, setPickupPointQuery] = useState("");
   const [isCityOpen, setIsCityOpen] = useState(false);
@@ -87,6 +89,7 @@ export function DeliverySelector({
       return;
     }
 
+    analytics.pickupProviderChanged(company);
     onCompanyChange(company);
     setCityQuery("");
     setPickupPointQuery("");
@@ -95,6 +98,7 @@ export function DeliverySelector({
   };
 
   const selectCdekCity = (city: DeliveryCityDTO) => {
+    analytics.pickupCitySelected();
     setCityQuery(city.name);
     setIsCityOpen(false);
     setPickupPointQuery("");
@@ -103,6 +107,7 @@ export function DeliverySelector({
   };
 
   const selectOzonCity = (city: DeliveryCityDTO) => {
+    analytics.pickupCitySelected();
     setCityQuery(city.name);
     setIsCityOpen(false);
     setPickupPointQuery("");
@@ -110,20 +115,24 @@ export function DeliverySelector({
     onDraftChange((current) => selectOzonDraftCity(current, city));
   };
 
-  const selectCdekPickupPoint = (point: DeliveryPickupPointDTO) => {
+  const selectCdekPickupPoint = (point: DeliveryPickupPointDTO, source: "list" | "map") => {
     if (!cdekCityCode) {
       return;
     }
 
     setPickupPointQuery("");
     setIsPickupPointOpen(false);
+    if (source === "list") analytics.pickupPointSelectedFromList();
+    else analytics.pickupPointSelectedFromMap();
     onDraftChange((current) => selectDraftPickupPoint(current, "cdek", point));
   };
 
-  const selectOzonPickupPoint = (point: DeliveryPickupPointDTO) => {
+  const selectOzonPickupPoint = (point: DeliveryPickupPointDTO, source: "list" | "map") => {
     if (!ozonCityCode || ozonCityDetails.city?.code !== ozonCityCode) return;
     setPickupPointQuery("");
     setIsPickupPointOpen(false);
+    if (source === "list") analytics.pickupPointSelectedFromList();
+    else analytics.pickupPointSelectedFromMap();
     onDraftChange((current) => selectDraftPickupPoint(current, "ozon", point));
   };
 
@@ -156,7 +165,11 @@ export function DeliverySelector({
                 setIsPickupPointOpen(false);
                 onDraftChange(clearCdekDraftCity);
               }}
-              onOpenChange={setIsCityOpen}
+              onOpenChange={(open) => {
+                if (open) analytics.pickupCityOpened();
+                else analytics.pickupCityClosed();
+                setIsCityOpen(open);
+              }}
               placeholder="Начните вводить город"
               selectedLabel={selectedCity?.name ?? (cdekCityCode ? "Город выбран" : undefined)}
               triggerLabel={
@@ -189,9 +202,13 @@ export function DeliverySelector({
               isOpen={isPickupPointOpen}
               isPending={areCdekPickupPointsPending}
               label="Пункт выдачи"
-              onOpenChange={setIsPickupPointOpen}
+              onOpenChange={(open) => {
+                if (open) analytics.pickupListOpened();
+                else analytics.pickupListClosed();
+                setIsPickupPointOpen(open);
+              }}
               onQueryChange={setPickupPointQuery}
-              onSelect={selectCdekPickupPoint}
+              onSelect={(point) => selectCdekPickupPoint(point, "list")}
               pickupPoints={cdekPickupPoints}
               placeholder="Адрес или название ПВЗ"
               query={pickupPointQuery}
@@ -235,7 +252,7 @@ export function DeliverySelector({
               <PickupPointsMap
                 key="cdek-pickup-points-map"
                 ariaLabel="Карта пунктов выдачи СДЭК"
-                onSelect={selectCdekPickupPoint}
+                onSelect={(point) => selectCdekPickupPoint(point, "map")}
                 pickupPoints={cdekPickupPoints}
                 selectedPickupPointId={selectedCdekPoint?.id}
               />
@@ -267,7 +284,11 @@ export function DeliverySelector({
                 setIsPickupPointOpen(false);
                 onDraftChange(clearOzonDraftCity);
               }}
-              onOpenChange={setIsCityOpen}
+              onOpenChange={(open) => {
+                if (open) analytics.pickupCityOpened();
+                else analytics.pickupCityClosed();
+                setIsCityOpen(open);
+              }}
               placeholder="Начните вводить город"
               selectedLabel={selectedOzonCity?.name ?? (ozonCityCode ? "Город выбран" : undefined)}
               triggerLabel={
@@ -291,7 +312,10 @@ export function DeliverySelector({
                 variant="outline"
                 size="sm"
                 disabled={areCitiesFetching}
-                onClick={() => void retryCities()}
+                onClick={() => {
+                  analytics.pickupCitiesRetried();
+                  void retryCities();
+                }}
               >
                 {areCitiesFetching ? <LoaderCircle className="size-4 animate-spin" /> : null}
                 {areCitiesFetching ? "Загружаем города" : "Повторить поиск города"}
@@ -313,9 +337,13 @@ export function DeliverySelector({
               isOpen={isPickupPointOpen}
               isPending={ozonPickupPointsState.isPending}
               label="Пункт выдачи"
-              onOpenChange={setIsPickupPointOpen}
+              onOpenChange={(open) => {
+                if (open) analytics.pickupListOpened();
+                else analytics.pickupListClosed();
+                setIsPickupPointOpen(open);
+              }}
               onQueryChange={setPickupPointQuery}
-              onSelect={selectOzonPickupPoint}
+              onSelect={(point) => selectOzonPickupPoint(point, "list")}
               pickupPoints={ozonPickupPointsState.pickupPoints}
               placeholder="Адрес или название ПВЗ"
               query={pickupPointQuery}
@@ -357,7 +385,10 @@ export function DeliverySelector({
                 variant="outline"
                 size="sm"
                 disabled={ozonPickupPointsState.isFetching}
-                onClick={() => void ozonPickupPointsState.retry()}
+                onClick={() => {
+                  analytics.pickupPointsRetried();
+                  void ozonPickupPointsState.retry();
+                }}
               >
                 {ozonPickupPointsState.isFetching ? (
                   <LoaderCircle className="size-4 animate-spin" />
@@ -374,7 +405,10 @@ export function DeliverySelector({
                 variant="outline"
                 size="sm"
                 disabled={ozonCityDetails.isFetching}
-                onClick={() => void ozonCityDetails.retry()}
+                onClick={() => {
+                  analytics.pickupCityRetried();
+                  void ozonCityDetails.retry();
+                }}
               >
                 {ozonCityDetails.isFetching ? (
                   <LoaderCircle className="size-4 animate-spin" />
@@ -409,7 +443,7 @@ export function DeliverySelector({
                   long: ozonCityDetails.city.longitude,
                 }}
                 initialZoom={12}
-                onSelect={selectOzonPickupPoint}
+                onSelect={(point) => selectOzonPickupPoint(point, "map")}
                 pickupPoints={ozonPickupPointsState.pickupPoints}
                 selectedPickupPointId={selectedOzonPoint?.id}
               />

@@ -1,5 +1,6 @@
 "use client";
 
+import { useAnalytics } from "../lib/analytics";
 import { ArrowUpRight } from "lucide-react";
 import { useSession } from "@/entities/session";
 import { WorkshopCollectionCard, useWorkshopPreview } from "@/entities/workshop";
@@ -17,13 +18,14 @@ export function AccountWorkshopPreview() {
 }
 
 function WorkshopPreview({ userId }: { userId: string }) {
+  const analytics = useAnalytics();
   const { data, isPending, isError } = useWorkshopPreview(userId);
   return (
     <section className="min-w-0 space-y-5" aria-labelledby="account-workshop">
       <div className="flex flex-wrap items-center justify-between gap-3">
         <SectionTitle id="account-workshop">Моя мастерская</SectionTitle>
         <Button asChild variant="ghost" className="min-h-11">
-          <Link href={routes.workshop}>
+          <Link href={routes.workshop} onClick={analytics.workshopOpened}>
             Вся мастерская
             <ArrowUpRight className="size-4" />
           </Link>
@@ -54,7 +56,9 @@ function WorkshopPreview({ userId }: { userId: string }) {
             Выберите раскраску и добавьте свою первую работу. Здесь появятся ваши коллекции.
           </p>
           <Button asChild variant="outline" className="min-h-11">
-            <Link href={routes.colorings}>Выбрать раскраску</Link>
+            <Link href={routes.colorings} onClick={analytics.coloringCatalogOpened}>
+              Выбрать раскраску
+            </Link>
           </Button>
         </div>
       )}

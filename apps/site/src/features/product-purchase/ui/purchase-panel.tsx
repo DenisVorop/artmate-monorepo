@@ -92,7 +92,11 @@ export function ProductPurchase({ product, onAddToCart }: PurchasePanelProps) {
               size="icon"
               aria-label="Уменьшить количество"
               disabled={isOutOfStock}
-              onClick={() => setQuantity((value) => Math.max(1, value - 1))}
+              onClick={() => {
+                if (quantity <= 1) return;
+                setQuantity((value) => Math.max(1, value - 1));
+                analytics.quantityDecreased(product.id);
+              }}
             >
               <Minus />
             </Button>
@@ -105,7 +109,10 @@ export function ProductPurchase({ product, onAddToCart }: PurchasePanelProps) {
               size="icon"
               aria-label="Увеличить количество"
               disabled={isOutOfStock}
-              onClick={() => setQuantity((value) => value + 1)}
+              onClick={() => {
+                setQuantity((value) => value + 1);
+                analytics.quantityIncreased(product.id);
+              }}
             >
               <Plus />
             </Button>
@@ -144,7 +151,9 @@ export function ProductPurchase({ product, onAddToCart }: PurchasePanelProps) {
           </Button>
 
           <Button asChild variant="outline" size="lg" className="h-11">
-            <Link href={routes.cart}>Перейти в корзину</Link>
+            <Link href={routes.cart} onClick={() => analytics.cartOpened(product.id)}>
+              Перейти в корзину
+            </Link>
           </Button>
         </div>
 

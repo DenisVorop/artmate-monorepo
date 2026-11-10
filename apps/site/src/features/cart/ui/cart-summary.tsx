@@ -1,5 +1,6 @@
 "use client";
 
+import { useAnalytics } from "../lib/analytics";
 import { ArrowRight } from "lucide-react";
 
 import { getCartPriceBreakdown, type Cart } from "@/entities/cart";
@@ -76,6 +77,7 @@ export function CartSummary({ cart, itemsLabel, isMutating }: CartSummaryProps) 
 }
 
 function CheckoutButton({ disabled }: { disabled: boolean }) {
+  const analytics = useAnalytics();
   if (disabled) {
     return (
       <Button type="button" size="lg" disabled className="min-h-12 w-full rounded-xl">
@@ -91,7 +93,7 @@ function CheckoutButton({ disabled }: { disabled: boolean }) {
       size="lg"
       className="min-h-12 w-full rounded-xl border-0 bg-gradient-to-r from-rose-500 to-orange-400 font-semibold text-white shadow-sm shadow-rose-500/20 hover:from-rose-600 hover:to-orange-500"
     >
-      <CtaGradientLink href={routes.checkout}>
+      <CtaGradientLink href={routes.checkout} onClick={analytics.checkoutOpened}>
         К оформлению
         <ArrowRight data-icon="inline-end" />
       </CtaGradientLink>

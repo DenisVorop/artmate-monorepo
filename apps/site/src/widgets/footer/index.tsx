@@ -8,7 +8,7 @@ import { Marketplaces } from "./ui/marketplaces";
 
 export function Footer() {
   return (
-    <footer className="overflow-hidden bg-stone-900 text-stone-300">
+    <footer data-site-area="footer" className="overflow-hidden bg-stone-900 text-stone-300">
       <div className="relative pt-12 pb-10 md:pt-16 md:pb-14">
         {/* Декоративные блюры */}
         <div className="pointer-events-none absolute top-0 left-0 h-72 w-72 rounded-full bg-rose-500/10 blur-3xl" />

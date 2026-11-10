@@ -1,6 +1,7 @@
 "use client";
 
 import { ArrowUpRight } from "lucide-react";
+import { useRef } from "react";
 
 import { getCommunityCollectionTitle, PublicAssetImage } from "@/entities/community-work";
 import { getProductBySlug, useProductsData } from "@/entities/products";
@@ -9,11 +10,18 @@ import { routes } from "@/shared/constants";
 import { Avatar, AvatarFallback, AvatarImage, ResponsiveMediaViewer } from "@/shared/ui";
 import { Link } from "@/shared/ui/link";
 
+import { useVisibleImage } from "@/shared/lib/hooks/use-visible-image";
+import { useAnalytics } from "../lib/analytics";
 import type { useImagePreview } from "../lib/use-image-preview";
 import { AlbumCard } from "./album-card";
 
 export function ImagePreview({ preview }: { preview: ReturnType<typeof useImagePreview> }) {
   const work = preview.selectedWork;
+  const analytics = useAnalytics();
+  const photo = useRef<HTMLDivElement>(null);
+  useVisibleImage(photo, work?.publicId ?? "", () => {
+    if (work) analytics.photoViewed(work.publicId);
+  }, preview.isOpen && Boolean(work));
   const { data: productsData } = useProductsData();
   const product = work
     ? getProductBySlug(productsData?.products ?? [], work.relatedProduct.slug)
@@ -32,7 +40,7 @@ export function ImagePreview({ preview }: { preview: ReturnType<typeof useImageP
     >
       {work && (
         <div className="flex min-h-0 flex-1 flex-col overflow-y-auto overscroll-contain md:grid md:grid-cols-[minmax(0,1.5fr)_minmax(18rem,1fr)] md:items-start">
-          <div className="relative h-[52dvh] min-h-64 shrink-0 bg-stone-100 md:sticky md:top-0 md:h-[min(calc(92dvh-3.5rem),60.5rem)] md:min-h-0">
+          <div ref={photo} className="relative h-[52dvh] min-h-64 shrink-0 bg-stone-100 md:sticky md:top-0 md:h-[min(calc(92dvh-3.5rem),60.5rem)] md:min-h-0">
             <PublicAssetImage
               key={work.revisionId}
               src={work.submission.assets.web}
@@ -99,7 +107,10 @@ export function ImagePreview({ preview }: { preview: ReturnType<typeof useImageP
               <Link
                 href={routes.coloring(work.official.collection.slug, work.official.coloring.number)}
                 className="flex min-h-11 w-fit items-center gap-2 text-sm text-stone-600 underline-offset-4 hover:underline focus-visible:underline"
-                onClick={() => preview.onOpenChange(false)}
+                onClick={() => {
+                  analytics.digitalPictureClicked(work.official.collection.slug, work.official.coloring.number);
+                  preview.onOpenChange(false);
+                }}
               >
                 Цифровая версия картинки <ArrowUpRight className="size-4" />
               </Link>

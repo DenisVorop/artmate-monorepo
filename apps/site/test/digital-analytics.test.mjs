@@ -125,7 +125,7 @@ test("digital pages emit exact goals once per view and reject invalid data", asy
   });
 });
 
-test("product CTA emits the safe diagnostic event on every real click", async () => {
+test("product CTA emits the diagnostic and the named digital collection goal on each click", async () => {
   const sharedAnalytics = await loadSharedAnalytics();
   const purchase = await loadAdapter(
     "src/features/product-purchase/lib/analytics.ts",
@@ -143,13 +143,110 @@ test("product CTA emits the safe diagnostic event on every real click", async ()
         product_id: "product-1",
         collection_slug: "flowers",
       },
+      { event: "digital_collection_link_click", source: "product", collection_slug: "flowers" },
       {
         event: "digital_open_from_product",
         product_id: "product-1",
         collection_slug: "flowers",
       },
+      { event: "digital_collection_link_click", source: "product", collection_slug: "flowers" },
     ]);
   });
+});
+
+test("digital picture actions have separate names and keep only public picture context", async () => {
+  const sharedAnalytics = await loadSharedAnalytics();
+  const { useViewerAnalytics } = evaluateTypeScript(
+    await readSource("src/features/coloring-variants/lib/analytics.ts"),
+    { "@/shared/lib/analytics": sharedAnalytics },
+  );
+
+  await withWindow((analyticsWindow) => {
+    const analytics = useViewerAnalytics("forest", 7);
+    analytics.pictureViewed();
+    analytics.paletteSelected("original");
+    analytics.comparisonOpened();
+    analytics.comparisonMoved(56.8);
+    analytics.comparisonClosed();
+    analytics.leftShown();
+    analytics.rightShown();
+    analytics.imageRetried();
+    analytics.paletteSelected("buyer@example.test");
+    analytics.comparisonMoved(101);
+    useViewerAnalytics("https://example.test/private", 7).pictureViewed();
+
+    const picture = { collection_slug: "forest", coloring_number: 7 };
+    assert.deepEqual(analyticsWindow.dataLayer, [
+      { event: "digital_picture_image_view", ...picture },
+      { event: "digital_palette_selected", ...picture, palette_id: "original" },
+      { event: "digital_compare_open", ...picture },
+      { event: "digital_compare_moved", ...picture, percent: 57 },
+      { event: "digital_compare_close", ...picture },
+      { event: "digital_show_left", ...picture },
+      { event: "digital_show_right", ...picture },
+      { event: "digital_image_retry", ...picture },
+    ]);
+  });
+});
+
+test("an image view waits for the viewport, image bytes and a visible tab", async () => {
+  const cleanups = [];
+  let intersection;
+  class TestImage extends EventTarget {
+    complete = false;
+    naturalWidth = 0;
+  }
+  const image = new TestImage();
+  const document = Object.assign(new EventTarget(), { visibilityState: "hidden" });
+  const original = {};
+  const globals = {
+    document,
+    HTMLImageElement: TestImage,
+    IntersectionObserver: class {
+      constructor(callback) {
+        intersection = callback;
+      }
+      observe() {}
+      unobserve() {}
+      disconnect() {}
+    },
+  };
+  for (const [key, value] of Object.entries(globals)) {
+    original[key] = Object.getOwnPropertyDescriptor(globalThis, key);
+    Object.defineProperty(globalThis, key, { configurable: true, writable: true, value });
+  }
+
+  try {
+    const { useVisibleImage } = evaluateTypeScript(
+      await readSource("src/shared/lib/hooks/use-visible-image.ts"),
+      {
+        "@/shared/lib/cookie-consent": { useCookieConsent: () => ({ isAccepted: true }) },
+        react: {
+          useEffect: (run) => cleanups.push(run()),
+          useRef: (current) => ({ current }),
+        },
+      },
+    );
+    let views = 0;
+    useVisibleImage({ current: image }, "picture-7", () => views++);
+    intersection([{ target: image, isIntersecting: true, intersectionRatio: 0.5 }]);
+    assert.equal(views, 0);
+    image.complete = true;
+    image.naturalWidth = 320;
+    image.dispatchEvent(new Event("load"));
+    assert.equal(views, 0);
+    document.visibilityState = "visible";
+    document.dispatchEvent(new Event("visibilitychange"));
+    document.dispatchEvent(new Event("visibilitychange"));
+    intersection([{ target: image, isIntersecting: true, intersectionRatio: 0.75 }]);
+    assert.equal(views, 1);
+  } finally {
+    for (const cleanup of cleanups) cleanup?.();
+    for (const [key, descriptor] of Object.entries(original)) {
+      if (descriptor) Object.defineProperty(globalThis, key, descriptor);
+      else delete globalThis[key];
+    }
+  }
 });
 
 test("materials viewer goal preserves exact payload, SSR safety and per-visit deduplication", async () => {
@@ -216,6 +313,7 @@ test("materials viewer tracks only ready data and a fresh mount creates a new vi
       "@/entities/coloring-variants": { useColoringVariantsData: () => state },
       "@/shared/ui": { Button: "Button", DataState: "DataState" },
       "../lib/use-track-open": hook,
+      "../lib/analytics": adapter,
       "./palette-viewer": { PaletteViewer: "PaletteViewer" },
     },
   );

@@ -161,6 +161,7 @@ test("viewer changes contour and colored sample together and compares only again
       (name) => [name, name],
     ),
   );
+  const events = [];
   const { PaletteViewer } = evaluate(
     await readSource("src/features/coloring-variants/ui/palette-viewer.tsx"),
     {
@@ -168,6 +169,13 @@ test("viewer changes contour and colored sample together and compares only again
       "lucide-react": { ArrowLeftRight: "ArrowLeftRight" },
       "@/shared/ui": controls,
       "../lib/use-palette-state": state,
+      "../lib/analytics": {
+        useViewerAnalytics: () => ({
+          paletteSelected: (id) => events.push(["palette", id]),
+          comparisonOpened: () => events.push(["comparison", true]),
+          comparisonClosed: () => events.push(["comparison", false]),
+        }),
+      },
       "./comparison-viewer": { ComparisonViewer: "ComparisonViewer" },
       "./hero": { Hero: "Hero" },
       "./palette-section": { PaletteSection: "PaletteSection" },
@@ -237,4 +245,8 @@ test("viewer changes contour and colored sample together and compares only again
   tree = render();
   compare(tree);
   check(render(), artmate.outline, artmate.image);
+  assert.deepEqual(events, [
+    ["palette", "artmate"], ["palette", "original"], ["palette", "artmate"],
+    ["comparison", true], ["palette", "original"], ["palette", "artmate"], ["comparison", false],
+  ]);
 });

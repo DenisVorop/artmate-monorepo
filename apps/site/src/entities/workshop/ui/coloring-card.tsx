@@ -13,6 +13,8 @@ import type { OwnerWorkshopCollection, WorkshopWork } from "../model";
 type WorkshopColoring = OwnerWorkshopCollection["colorings"][number];
 
 type WorkshopColoringCardProps = {
+  onOpenEditor?: () => void;
+  onOpenPublicWork?: () => void;
   collectionSlug: string;
   coloring: WorkshopColoring;
   onDelete?: (_work: WorkshopWork) => void;
@@ -22,6 +24,8 @@ type WorkshopColoringCardProps = {
 };
 
 export function WorkshopColoringCard({
+  onOpenEditor,
+  onOpenPublicWork,
   collectionSlug,
   coloring,
   onDelete,
@@ -73,6 +77,7 @@ export function WorkshopColoringCard({
       {cardHref ? (
         <Link
           href={cardHref}
+          onClick={cardHref === publicHref ? onOpenPublicWork : onOpenEditor}
           className="block focus-visible:ring-3 focus-visible:ring-rose-400 focus-visible:outline-none"
           aria-label={getCardLabel(work, coloring.number)}
         >
@@ -123,7 +128,7 @@ export function WorkshopColoringCard({
       <CardFooter className="mt-auto flex flex-wrap gap-2 border-t bg-stone-50/70 px-4 py-3">
         {!work ? (
           <Button asChild className="min-h-11 flex-1">
-            <Link href={editorHref}>
+            <Link href={editorHref} onClick={onOpenEditor}>
               <Plus data-icon="inline-start" />
               Добавить работу
             </Link>
@@ -132,7 +137,7 @@ export function WorkshopColoringCard({
           <>
             {(currentStatus === "CHANGES_REQUESTED" || currentStatus === "HIDDEN") && (
               <Button asChild className="min-h-11 flex-1">
-                <Link href={editorHref}>
+                <Link href={editorHref} onClick={onOpenEditor}>
                   <Pencil data-icon="inline-start" />
                   Исправить
                 </Link>
@@ -140,7 +145,7 @@ export function WorkshopColoringCard({
             )}
             {currentStatus === "APPROVED" ? (
               <Button asChild variant="outline" className="min-h-11 flex-1">
-                <Link href={editorHref}>
+                <Link href={editorHref} onClick={onOpenEditor}>
                   <Camera data-icon="inline-start" />
                   Заменить фото
                 </Link>
@@ -148,7 +153,7 @@ export function WorkshopColoringCard({
             ) : null}
             {currentStatus === "PENDING" ? (
               <Button asChild variant="outline" className="min-h-11 flex-1">
-                <Link href={editorHref}>
+                <Link href={editorHref} onClick={onOpenEditor}>
                   <Pencil data-icon="inline-start" />
                   Редактировать
                 </Link>
@@ -191,7 +196,7 @@ export function WorkshopColoringCard({
             ) : null}
             {state === "PUBLISHED" && publicHref ? (
               <Button asChild variant="outline" className="min-h-11 flex-1">
-                <Link href={publicHref}>
+                <Link href={publicHref} onClick={onOpenPublicWork}>
                   <ExternalLink data-icon="inline-start" />
                   Открыть
                 </Link>

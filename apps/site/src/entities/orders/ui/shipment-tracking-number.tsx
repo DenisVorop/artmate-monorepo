@@ -11,9 +11,16 @@ import { cdekTrackingUrl } from "../lib";
 type ShipmentTrackingNumberProps = {
   readonly className?: string;
   readonly number: string;
+  onCopy?: () => void;
+  onTrack?: () => void;
 };
 
-export function ShipmentTrackingNumber({ className, number }: ShipmentTrackingNumberProps) {
+export function ShipmentTrackingNumber({
+  className,
+  number,
+  onCopy,
+  onTrack,
+}: ShipmentTrackingNumberProps) {
   const [isCopied, setIsCopied] = useState(false);
   const timeoutRef = useRef<number | null>(null);
 
@@ -28,6 +35,7 @@ export function ShipmentTrackingNumber({ className, number }: ShipmentTrackingNu
   async function handleCopy() {
     try {
       await navigator.clipboard.writeText(number);
+      onCopy?.();
       setIsCopied(true);
 
       if (timeoutRef.current) {
@@ -83,6 +91,7 @@ export function ShipmentTrackingNumber({ className, number }: ShipmentTrackingNu
         <a
           aria-label="Отследить отправление СДЭК"
           href={cdekTrackingUrl}
+          onClick={onTrack}
           rel="noreferrer"
           target="_blank"
           title="Отследить"

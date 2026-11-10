@@ -1,5 +1,6 @@
 "use client";
 
+import { useAnalytics } from "../lib/analytics";
 import { Settings2 } from "lucide-react";
 import { getSessionUserDisplayName, useSession, useTelegramLinkStatus } from "@/entities/session";
 import { routes } from "@/shared/constants";
@@ -9,6 +10,7 @@ import { PageTitle } from "@/shared/ui/typography";
 import { WelcomePromoCard } from "./welcome-promo-card";
 
 export function Account() {
+  const analytics = useAnalytics();
   const { user } = useSession();
   return (
     <header className="flex flex-col justify-between gap-5 sm:flex-row sm:items-end">
@@ -22,7 +24,7 @@ export function Account() {
         </p>
       </div>
       <Button asChild variant="outline" className="min-h-11 shrink-0 self-start sm:self-auto">
-        <Link href={routes.accountSettings}>
+        <Link href={routes.accountSettings} onClick={analytics.settingsOpened}>
           <Settings2 className="size-4" />
           Настройки
         </Link>

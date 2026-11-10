@@ -20,11 +20,13 @@ import type {
   CheckoutProviderSubmitVariables,
 } from "../lib";
 import { useTrackCheckoutStart } from "../lib/use-track-checkout-start";
+import { useAnalytics } from "../lib/analytics";
 import { useCheckoutAuth } from "../lib/use-checkout-auth";
 
 import { CheckoutFlow } from "./checkout-flow";
 
 export function Checkout() {
+  const analytics = useAnalytics();
   const cart = useCartData({ refreshOnMount: true });
   const [verifiedCart, setVerifiedCart] = useState<CartResult | undefined>(undefined);
 
@@ -66,7 +68,7 @@ export function Checkout() {
         />
         <div className="mt-5 flex justify-center">
           <Button asChild size="lg">
-            <Link href={routes.catalog}>
+            <Link href={routes.catalog} onClick={analytics.emptyCatalogOpened}>
               <ShoppingBag data-icon="inline-start" />
               Перейти в каталог
             </Link>
@@ -94,6 +96,7 @@ function BasePromocodeCheckout({ cart }: { cart: Cart }) {
 const PromocodeCheckout = withPromocode(BasePromocodeCheckout);
 
 function CheckoutScenario({ cart }: { cart: Cart }) {
+  const analytics = useAnalytics();
   const user = useUser();
   const { clearCode } = usePromocode();
   const customerDefaults: CheckoutCustomerDefaults = {
@@ -105,6 +108,7 @@ function CheckoutScenario({ cart }: { cart: Cart }) {
     clearCode();
 
     if (response?.redirectUrl) {
+      analytics.paymentRedirected();
       window.location.assign(response.redirectUrl);
     }
   };
@@ -127,7 +131,7 @@ function CheckoutScenario({ cart }: { cart: Cart }) {
         </div>
 
         <Button asChild variant="outline" className="min-h-11">
-          <Link href={routes.cart}>
+          <Link href={routes.cart} onClick={analytics.cartOpened}>
             <ArrowLeft data-icon="inline-start" />
             Вернуться в корзину
           </Link>

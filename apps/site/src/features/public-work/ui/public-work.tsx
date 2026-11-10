@@ -1,6 +1,6 @@
 "use client";
 
-import type { ReactNode } from "react";
+import { useRef, type ReactNode } from "react";
 import { AlertTriangle, CalendarDays, ShoppingBag } from "lucide-react";
 
 import {
@@ -29,6 +29,8 @@ import {
 import { Link } from "@/shared/ui/link";
 import { PageTitle } from "@/shared/ui/typography";
 
+import { useVisibleImage } from "@/shared/lib/hooks/use-visible-image";
+import { useAnalytics } from "../lib/analytics";
 import { ShareWorkButton } from "./share-button";
 
 export function PublicWorkView({
@@ -73,6 +75,9 @@ function PublicWorkContent({
   work: NonNullable<ReturnType<typeof usePublicCommunityWork>["work"]>;
   renderReportAction?: (_revisionId: string) => ReactNode;
 }) {
+  const analytics = useAnalytics();
+  const photo = useRef<HTMLElement>(null);
+  useVisibleImage(photo, work.publicId, () => analytics.photoViewed(work.publicId));
   const related = useCommunityWorks(work.official.collection.slug, work.official.coloring.number);
   const otherWorks = related.works.filter((item) => item.publicId !== work.publicId);
   const hasAuthorMaterialDetails =
@@ -146,6 +151,7 @@ function PublicWorkContent({
       </header>
 
       <section
+        ref={photo}
         aria-label="Фотография работы"
         className="relative mx-auto aspect-[4/5] w-full max-w-4xl overflow-hidden rounded-3xl bg-stone-100 shadow-sm ring-1 ring-stone-200"
       >
@@ -183,6 +189,7 @@ function PublicWorkContent({
           <Button asChild variant="outline" className="mt-4 min-h-11">
             <Link
               href={routes.coloring(work.official.collection.slug, work.official.coloring.number)}
+              onClick={() => analytics.digitalPictureClicked(work.official.collection.slug, work.official.coloring.number)}
             >
               Открыть картину
             </Link>
@@ -243,7 +250,7 @@ function PublicWorkContent({
       </section>
 
       <footer className="flex flex-col justify-between gap-3 border-t pt-6 sm:flex-row sm:items-center">
-        <ShareWorkButton title={`${work.official.coloring.title} · ${work.author.name}`} />
+        <ShareWorkButton workId={work.publicId} title={`${work.official.coloring.title} · ${work.author.name}`} />
         {renderReportAction?.(work.revisionId)}
       </footer>
     </article>

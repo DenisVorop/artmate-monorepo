@@ -1,5 +1,6 @@
 "use client";
 
+import { useAnalytics } from "../lib/analytics";
 import { zodResolver } from "@hookform/resolvers/zod";
 import { Gift, Palette, Sparkles } from "lucide-react";
 import { Controller, useForm } from "react-hook-form";
@@ -13,6 +14,7 @@ import { enrollmentFormSchema, type EnrollmentFormValues } from "../lib/enrollme
 import { useEnroll } from "../model/use-enroll";
 
 export function Enrollment({ userId, termsVersion }: { userId: string; termsVersion: string }) {
+  const analytics = useAnalytics();
   const {
     control,
     handleSubmit,
@@ -93,6 +95,7 @@ export function Enrollment({ userId, termsVersion }: { userId: string; termsVers
                 Я принимаю{" "}
                 <a
                   href={routes.legal.loyaltyRules}
+                  onClick={analytics.termsOpened}
                   target="_blank"
                   rel="noopener noreferrer"
                   className="rounded-sm text-rose-700 underline underline-offset-4 hover:text-rose-800 focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-rose-500"

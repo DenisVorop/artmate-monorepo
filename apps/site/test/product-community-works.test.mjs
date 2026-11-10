@@ -1,3 +1,4 @@
+import { noopFeatureAnalytics } from "./helpers/noop-feature-analytics.mjs";
 import assert from "node:assert/strict";
 import { readFile } from "node:fs/promises";
 import { createRequire } from "node:module";
@@ -29,6 +30,7 @@ const element = (type, props) => ({ type, props });
 const { routes } = await load("shared/constants/routes.ts", {});
 const { getGalleryCollectionSlug } = await load("entities/community-work/lib/selectors.ts", {});
 const { CommunityWorks } = await load("features/product-details/ui/community-works.tsx", {
+  "../lib/analytics": noopFeatureAnalytics,
   "react/jsx-runtime": { jsx: element, jsxs: element },
   "@/entities/community-work": { CommunityWorkCard: "CommunityWorkCard", getGalleryCollectionSlug },
   "@/features/likes": { LikeButton: "LikeButton" },
@@ -115,6 +117,7 @@ test("product renders without requesting works on the server or waiting for a pe
     "@/entities/reviews": { useReviewsData: () => ({}), ReviewRatingSummary: empty },
     "@/shared/ui": { Button: empty, DataState: empty, Separator: empty },
     "../lib/use-track-product-view": { useTrackProductView: empty },
+    "../lib/analytics": { ...noopFeatureAnalytics, useGalleryAnalytics: () => ({}) },
     "./breadcrumbs": { Breadcrumbs: empty },
     "./marketplace-links": { MarketplaceLinks: empty },
     "./community-works": {

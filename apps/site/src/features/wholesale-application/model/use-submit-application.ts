@@ -6,6 +6,7 @@ import { submitContactMessage } from "@/shared/actions/contact-form";
 import { ApiResult } from "@/shared/lib/api-result";
 
 import { buildWholesaleApplicationPayload } from "../lib/application-payload";
+import { wholesaleApplicationAnalytics } from "../lib/analytics";
 import type { WholesaleApplicationValues } from "../lib/form-values";
 
 export function useSubmitApplication() {
@@ -21,6 +22,7 @@ export function useSubmitApplication() {
 
       return result;
     },
+    onSuccess: () => wholesaleApplicationAnalytics.send("sent"),
   });
 
   return { submitApplication: mutateAsync, isPending, error, reset };

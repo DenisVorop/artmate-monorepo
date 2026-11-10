@@ -7,6 +7,7 @@ import type { Coloring } from "@/entities/coloring-variants";
 import { Button, Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@/shared/ui";
 
 import { usePaletteState } from "../lib/use-palette-state";
+import { useViewerAnalytics } from "../lib/analytics";
 import { ComparisonViewer } from "./comparison-viewer";
 import { Hero } from "./hero";
 import { PaletteSection } from "./palette-section";
@@ -20,6 +21,7 @@ export function PaletteViewer({
   communityWorks?: ReactNode;
 }) {
   const state = usePaletteState(coloring);
+  const analytics = useViewerAnalytics(coloring.collection.slug, coloring.number);
   const left = state.isComparing ? coloring.original.image : state.palette.outline;
   const right = state.palette.image;
 
@@ -29,6 +31,7 @@ export function PaletteViewer({
         collection={coloring.collection}
         description={coloring.description}
         title={`Картина ${coloring.number}`}
+        onAlbumClick={() => analytics.printAlbumClicked(coloring.collection.product.id)}
       />
       <div className="container pb-12 md:pb-16">
         <div className="mb-7 flex flex-wrap items-center justify-between gap-x-6 gap-y-3 border-y border-stone-200/80 py-4">
@@ -36,7 +39,11 @@ export function PaletteViewer({
             <label htmlFor="coloring-palette" className="text-sm font-semibold">
               Палитра
             </label>
-            <Select value={state.palette.id} onValueChange={state.selectPalette}>
+            <Select value={state.palette.id} onValueChange={(id) => {
+              if (id === state.palette.id) return;
+              state.selectPalette(id);
+              analytics.paletteSelected(id);
+            }}>
               <SelectTrigger
                 id="coloring-palette"
                 size="lg"
@@ -56,7 +63,11 @@ export function PaletteViewer({
           <Button
             type="button"
             variant="ghost"
-            onClick={state.toggleComparison}
+            onClick={() => {
+              state.toggleComparison();
+              if (state.isComparing) analytics.comparisonClosed();
+              else analytics.comparisonOpened();
+            }}
             aria-pressed={state.isComparing}
             aria-controls="palette-viewer"
             className="h-11 rounded-xl px-3 text-[#52664e] hover:bg-[#e9ede4] aria-pressed:bg-[#e9ede4]"
@@ -76,6 +87,7 @@ export function PaletteViewer({
             rightLabel={state.isComparing ? state.palette.label : "В цвете"}
             split={state.split}
             setSplit={state.setSplit}
+            analytics={analytics}
           />
           <PaletteSection
             palette={state.palette}
@@ -87,6 +99,8 @@ export function PaletteViewer({
         <div className="mt-8 space-y-6 md:space-y-8">
           <ProductLinks
             album={coloring.collection.product}
+            onAlbumClick={() => analytics.printAlbumClicked(coloring.collection.product.id)}
+            onMaterialClick={analytics.materialProductClicked}
             material={"product" in state.palette ? state.palette.product : undefined}
             materialKind={"kind" in state.palette ? state.palette.kind : undefined}
           />

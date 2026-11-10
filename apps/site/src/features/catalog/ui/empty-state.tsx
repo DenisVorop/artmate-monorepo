@@ -1,10 +1,12 @@
 "use client";
 
+import { useAnalytics } from "../lib/analytics";
 import { Palette } from "lucide-react";
 import { Button, Card, CardDescription, CardTitle } from "@/shared/ui";
 import { useCatalog } from "../lib/catalog-provider";
 
 export function EmptyState() {
+  const analytics = useAnalytics();
   const { clearAll } = useCatalog();
 
   return (
@@ -20,7 +22,13 @@ export function EmptyState() {
         </CardDescription>
       </div>
 
-      <Button type="button" onClick={clearAll}>
+      <Button
+        type="button"
+        onClick={() => {
+          analytics.filtersReset();
+          clearAll();
+        }}
+      >
         Очистить поиск и фильтры
       </Button>
     </Card>

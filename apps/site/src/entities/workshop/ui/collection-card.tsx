@@ -8,15 +8,17 @@ import { Link } from "@/shared/ui/link";
 import type { OwnerWorkshop } from "../model";
 
 type WorkshopCollectionCardProps = {
+  onOpen?: () => void;
   collection: OwnerWorkshop["collections"][number];
 };
 
-export function WorkshopCollectionCard({ collection }: WorkshopCollectionCardProps) {
+export function WorkshopCollectionCard({ collection, onOpen }: WorkshopCollectionCardProps) {
   const progress = Math.min(100, (collection.workCount / collection.expectedColoringCount) * 100);
 
   return (
     <Link
       href={routes.workshopCollection(collection.slug)}
+      onClick={onOpen}
       className="group block rounded-2xl focus-visible:ring-3 focus-visible:ring-rose-400 focus-visible:outline-none"
     >
       <Card className="h-full gap-0 overflow-hidden py-0 transition-shadow group-hover:shadow-md">

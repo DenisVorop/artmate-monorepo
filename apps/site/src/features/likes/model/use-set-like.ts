@@ -6,10 +6,12 @@ import { likesQuery, likeStateSchema, type LikeSubject, type LikeState } from "@
 import { sessionQuery, type AuthSession } from "@/entities/session";
 import { setLike } from "@/shared/actions/likes";
 import { ApiResult } from "@/shared/lib/api-result";
+import { useAnalytics } from "../lib/analytics";
 
 type Input = { actorId: string; liked: boolean };
 
 export function useSetLike(subject: LikeSubject) {
+  const analytics = useAnalytics(subject.subjectType);
   const client = useQueryClient();
   const mutationKey = [...likesQuery.baseKey, "mutation", subject.subjectType, subject.subjectId];
   const pending = useIsMutating({ mutationKey, exact: true }) > 0;
@@ -38,7 +40,12 @@ export function useSetLike(subject: LikeSubject) {
       return { queryKey, previous };
     },
     onSuccess: (state, { actorId }, context) => {
-      if (context && sameActor(actorId)) client.setQueryData(context.queryKey, state);
+      if (!context || !sameActor(actorId)) return;
+      client.setQueryData(context.queryKey, state);
+      if (context.previous && context.previous.viewerHasLiked !== state.viewerHasLiked) {
+        if (state.viewerHasLiked) analytics.likeAdded();
+        else analytics.likeRemoved();
+      }
     },
     onError: async (error, { actorId }, context) => {
       if (!context || !sameActor(actorId)) return;

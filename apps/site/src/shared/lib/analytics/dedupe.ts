@@ -75,6 +75,7 @@ function getDedupeKey(command: AnalyticsCommand) {
 function getCommandName(command: AnalyticsCommand) {
   switch (command.kind) {
     case "goal":
+    case "interaction":
       return command.eventId;
     case "diagnostic":
       return command.event;

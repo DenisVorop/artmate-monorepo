@@ -1,5 +1,6 @@
 "use client";
 
+import { useAnalytics } from "../lib/analytics";
 import { ArrowUpRight, Sparkles } from "lucide-react";
 import {
   formatLoyaltyMoney,
@@ -21,6 +22,7 @@ export function AccountClubPreview() {
 }
 
 function MemberPreview({ userId }: { userId: string }) {
+  const analytics = useAnalytics();
   const overview = useLoyaltyData(userId, true);
   const member = overview.data?.member;
   const ready = !overview.isError && member?.status === "active" && member.historyState === "ready";
@@ -45,6 +47,7 @@ function MemberPreview({ userId }: { userId: string }) {
         <div className="max-w-md space-y-4">
           <Link
             href={routes.loyalty}
+            onClick={analytics.clubOpened}
             aria-label={overview.data?.enrolled ? "Мой клуб" : "Познакомиться с клубом"}
             className="group block rounded-3xl focus-visible:ring-3 focus-visible:ring-rose-400 focus-visible:ring-offset-4"
           >

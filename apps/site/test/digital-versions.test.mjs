@@ -310,7 +310,7 @@ test("digital catalog UI keeps covers clean, uses light card derivatives, and ha
   assert.doesNotMatch(gallery, /group-hover:-translate-y/);
   assert.match(gallery, /const displayNumber = coloring\.number/);
   assert.match(gallery, /\{displayNumber\}/);
-  assert.match(gallery, /routes\.coloring\(collection\.slug, displayNumber\)/);
+  assert.match(gallery, /routes\.coloring\(slug, displayNumber\)/);
   assert.doesNotMatch(gallery, /displayPosition|index \+ 1/);
   assert.doesNotMatch(gallery, /productAction|price|isOutOfStock|В корзину/);
   assert.doesNotMatch(productCard, /Смотреть цифровую версию/);

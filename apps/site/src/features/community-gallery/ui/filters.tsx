@@ -69,6 +69,7 @@ export function Filters({
           <Button
             variant="ghost"
             onClick={onReset}
+            data-site-action="gallery_filters_reset"
             className="min-h-11 self-start text-stone-500 md:ml-auto md:self-center"
           >
             <X />

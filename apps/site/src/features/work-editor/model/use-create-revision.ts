@@ -1,5 +1,6 @@
 "use client";
 
+import { useAnalytics } from "../lib/analytics";
 import { useMutation, useQueryClient } from "@tanstack/react-query";
 
 import { workshopQuery, workshopWorkSchema } from "@/entities/workshop";
@@ -14,13 +15,16 @@ export function useCreateWorkshopRevision(
   number: number,
   options: { onSuccess?: () => void } = {},
 ) {
+  const analytics = useAnalytics();
   const queryClient = useQueryClient();
   const { mutateAsync: mutate, isPending } = useMutation({
     mutationFn: async (input: CreateWorkshopRevisionInput) =>
       workshopWorkSchema.parse(
         ApiResult.fromDTO(await createMyWorkshopRevision(slug, number, input)).unwrap(),
       ),
+    onError: () => analytics.saveFailed(),
     onSuccess: async () => {
+      analytics.saved();
       await queryClient.invalidateQueries({ queryKey: workshopQuery.baseKey });
       options.onSuccess?.();
     },

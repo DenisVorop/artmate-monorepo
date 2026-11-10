@@ -1,12 +1,16 @@
 "use client";
 
-import { useCallback, useState, type SyntheticEvent } from "react";
+import { useCallback, useRef, useState, type SyntheticEvent } from "react";
 import Image from "next/image";
 
 import { cn } from "@/shared/lib/utils";
 import { AspectRatio, Card } from "@/shared/ui";
+import { useVisibleImage } from "@/shared/lib/hooks/use-visible-image";
+import { useAnalytics } from "../lib/analytics";
 
 type ArticleImageProps = {
+  articleSlug: string;
+  imageId: string;
   src: string;
   alt: string;
   caption?: string;
@@ -23,7 +27,10 @@ type ImageMetrics = {
 
 const fallbackRatio = 16 / 9;
 
-export function ArticleImage({ src, alt, caption, preload = false }: ArticleImageProps) {
+export function ArticleImage({ articleSlug, imageId, src, alt, caption, preload = false }: ArticleImageProps) {
+  const analytics = useAnalytics(articleSlug);
+  const image = useRef<HTMLImageElement>(null);
+  useVisibleImage(image, imageId, () => analytics.imageViewed(imageId));
   const [metrics, setMetrics] = useState<ImageMetrics | null>(null);
   const activeMetrics = metrics?.src === src ? metrics : null;
   const orientation = activeMetrics?.orientation ?? "landscape";
@@ -70,6 +77,7 @@ export function ArticleImage({ src, alt, caption, preload = false }: ArticleImag
       <figure>
         <AspectRatio ratio={ratio} className="relative bg-muted">
           <Image
+            ref={image}
             fill
             preload={preload}
             src={src}

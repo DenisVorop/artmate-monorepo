@@ -1,5 +1,5 @@
 import Image from "next/image";
-import type { MouseEventHandler, ReactNode } from "react";
+import type { MouseEventHandler, ReactNode, Ref } from "react";
 
 import { Badge } from "@/shared/ui";
 import { routes } from "@/shared/constants";
@@ -22,6 +22,7 @@ interface ProductCardProps {
   mediaActionViewport?: "all" | "desktop";
   mediaActionVisibility?: "always" | "hover";
   onOpen?: MouseEventHandler<HTMLAnchorElement>;
+  cardRef?: Ref<HTMLDivElement>;
 }
 
 export function ProductCard({
@@ -36,12 +37,14 @@ export function ProductCard({
   mediaActionViewport = "all",
   mediaActionVisibility = "hover",
   onOpen,
+  cardRef,
 }: ProductCardProps) {
   const productHref = routes.product(product.categorySlug, product.slug);
   const showMediaActionAlways = mediaActionVisibility === "always";
 
   return (
     <Card
+      ref={cardRef}
       className={cn(
         "group/product h-full gap-0 py-0 transition-shadow duration-300 hover:shadow-md",
         variant === "plain" && "rounded-none bg-transparent ring-0 hover:shadow-none",
@@ -49,6 +52,7 @@ export function ProductCard({
     >
       <div className="relative">
         <Link
+          data-site-product-link=""
           href={productHref}
           className={cn(
             "block overflow-hidden bg-muted",
@@ -105,6 +109,7 @@ export function ProductCard({
         )}
         <CardTitle role="heading" aria-level={3} className="font-display leading-snug font-bold">
           <Link
+            data-site-product-link=""
             href={productHref}
             className="line-clamp-3 text-stone-900 transition-colors hover:text-rose-500"
             onClick={onOpen}

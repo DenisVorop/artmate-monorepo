@@ -309,7 +309,7 @@ test("image and below sliders share the same value, readiness and commit state",
     assert.equal(getJsxAttribute(control, "value"), "outlinePercent");
     assert.equal(getJsxAttribute(control, "disabled"), "!isComparisonReady");
     assert.equal(getJsxAttribute(control, "onValueChange"), "setOutlinePercent");
-    assert.equal(getJsxAttribute(control, "onValueCommit"), "commit");
+    assert.equal(getJsxAttribute(control, "onValueCommit"), "adjust");
   }
 
   assert.match(source, /const \[outlinePercent, setOutlinePercent\] = useState\(50\)/);

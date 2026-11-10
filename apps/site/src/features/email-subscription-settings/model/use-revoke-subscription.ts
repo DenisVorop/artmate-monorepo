@@ -1,5 +1,6 @@
 "use client";
 
+import { useAnalytics } from "../lib/analytics";
 import { useMutation, useQueryClient } from "@tanstack/react-query";
 import {
   emailSubscriptionQuery,
@@ -11,6 +12,7 @@ import { revokeEmailSubscription } from "@/shared/actions/consents";
 import { ApiResult } from "@/shared/lib/api-result";
 
 export function useRevokeSubscription() {
+  const analytics = useAnalytics();
   const queryClient = useQueryClient();
   const { mutateAsync, isPending } = useMutation({
     mutationFn: async (ownerId: string) => {
@@ -25,11 +27,13 @@ export function useRevokeSubscription() {
         exact: true,
       });
     },
+    onError: () => analytics.revokeFailed(),
     onSuccess: async (state, ownerId) => {
       const key = emailSubscriptionQuery.status(ownerId).queryKey;
       await queryClient.cancelQueries({ queryKey: key, exact: true });
       const session = queryClient.getQueryData<AuthSession>(sessionQuery.getSession().queryKey);
       if (session?.user?.id !== ownerId) return;
+      analytics.revoked();
       queryClient.setQueryData<EmailSubscription>(key, (previous) =>
         previous &&
         (previous.version > state.version ||

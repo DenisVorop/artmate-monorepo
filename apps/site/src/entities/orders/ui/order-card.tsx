@@ -15,7 +15,17 @@ import { OrderDetails } from "./order-details";
 import { OrderItemsPreview } from "./order-items-preview";
 import { ShipmentTrackingNumber } from "./shipment-tracking-number";
 
-type OrderCardProps = { order: Order };
+type OrderCardProps = {
+  order: Order;
+  interactions?: {
+    orderDetailsOpened: () => void;
+    orderDetailsClosed: () => void;
+    orderPaymentOpened: () => void;
+    orderProductOpened: () => void;
+    trackingCopied: () => void;
+    trackingOpened: () => void;
+  };
+};
 
 const orderStatusMeta = {
   new: { label: "В обработке", className: "bg-stone-100 text-stone-700" },
@@ -27,7 +37,7 @@ const orderStatusMeta = {
   cancelled: { label: "Отменён", className: "bg-stone-100 text-stone-600" },
 } satisfies Record<Order["status"], { label: string; className: string }>;
 
-export function OrderCard({ order }: OrderCardProps) {
+export function OrderCard({ order, interactions }: OrderCardProps) {
   const [isDetailsOpen, setIsDetailsOpen] = useState(false);
   const detailsId = useId();
   const returnFocusRef = useRef<HTMLButtonElement | null>(null);
@@ -41,6 +51,7 @@ export function OrderCard({ order }: OrderCardProps) {
   const singleItem = order.items.length === 1 ? order.items[0] : undefined;
   function openDetails(event: MouseEvent<HTMLButtonElement>) {
     returnFocusRef.current = event.currentTarget;
+    interactions?.orderDetailsOpened();
     setIsDetailsOpen(true);
   }
 
@@ -72,12 +83,14 @@ export function OrderCard({ order }: OrderCardProps) {
           <OrderItemsPreview
             items={order.items}
             onOpenDetails={openDetails}
+            onProductOpen={interactions?.orderProductOpened}
             className={singleItem ? "w-15 shrink-0" : "w-full"}
           />
           <div className="min-w-0 flex-1 basis-36">
             {singleItem && (
               <Link
                 href={routes.product(singleItem.categorySlug, singleItem.slug)}
+                onClick={interactions?.orderProductOpened}
                 className="mb-1 block text-sm font-medium break-words focus-visible:underline"
               >
                 {singleItem.title}
@@ -108,13 +121,19 @@ export function OrderCard({ order }: OrderCardProps) {
               asChild
               className="min-h-11 bg-rose-600 px-4 text-white hover:bg-rose-700 hover:text-white focus-visible:ring-rose-500/30 sm:min-h-9"
             >
-              <Link href={paymentUrl}>Оплатить заказ</Link>
+              <Link href={paymentUrl} onClick={interactions?.orderPaymentOpened}>
+                Оплатить заказ
+              </Link>
             </Button>
           ) : null}
           {trackingNumber ? (
             <div className="flex flex-wrap items-center gap-x-2 text-xs text-muted-foreground">
               <span>СДЭК</span>
-              <ShipmentTrackingNumber number={trackingNumber} />
+              <ShipmentTrackingNumber
+                number={trackingNumber}
+                onCopy={interactions?.trackingCopied}
+                onTrack={interactions?.trackingOpened}
+              />
             </div>
           ) : null}
         </div>
@@ -123,7 +142,11 @@ export function OrderCard({ order }: OrderCardProps) {
         order={order}
         statusLabel={deliveryMilestone ?? status.label}
         open={isDetailsOpen}
-        onOpenChange={setIsDetailsOpen}
+        onProductOpen={interactions?.orderProductOpened}
+        onOpenChange={(open) => {
+          if (!open) interactions?.orderDetailsClosed();
+          setIsDetailsOpen(open);
+        }}
         contentId={detailsId}
         returnFocusRef={returnFocusRef}
       />

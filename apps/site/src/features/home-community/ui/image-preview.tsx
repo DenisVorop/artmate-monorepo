@@ -2,13 +2,22 @@
 
 import Link from "next/link";
 import { ArrowUpRight } from "lucide-react";
+import { useRef } from "react";
 import { PublicAssetImage } from "@/entities/community-work";
 import { LikeButton } from "@/features/likes";
 import { Button, ResponsiveMediaViewer } from "@/shared/ui";
 import { routes } from "@/shared/constants";
+import { useVisibleImage } from "@/shared/lib/hooks/use-visible-image";
+import { useAnalytics } from "../lib/analytics";
 import type { useImagePreview } from "../lib/use-image-preview";
 
 export function ImagePreview({ preview }: { preview: ReturnType<typeof useImagePreview> }) {
+  const analytics = useAnalytics();
+  const photo = useRef<HTMLDivElement>(null);
+  const publicId = preview.selectedWork?.publicId;
+  useVisibleImage(photo, publicId ?? "", () => {
+    if (publicId) analytics.photoViewed(publicId);
+  }, preview.isOpen && Boolean(publicId));
   return (
     <ResponsiveMediaViewer
       open={preview.isOpen}
@@ -23,7 +32,7 @@ export function ImagePreview({ preview }: { preview: ReturnType<typeof useImageP
     >
       {preview.selectedWork && (
         <div className="flex min-h-0 flex-1 flex-col p-3 pb-[max(0.75rem,env(safe-area-inset-bottom))]">
-          <div className="relative min-h-0 flex-1">
+          <div ref={photo} className="relative min-h-0 flex-1">
             <PublicAssetImage
               src={preview.selectedWork.submission.assets.web}
               alt={`Работа ${preview.selectedWork.author.name}: ${preview.selectedWork.official.coloring.title}`}
@@ -57,6 +66,8 @@ export function ImagePreview({ preview }: { preview: ReturnType<typeof useImageP
                   preview.selectedWork.relatedProduct.slug,
                 )}
                 aria-label={`Посмотреть альбом: ${preview.selectedWork.relatedProduct.title}`}
+                data-site-action="gallery_album_open"
+                data-site-product-link=""
                 onClick={() => preview.onOpenChange(false)}
               >
                 Посмотреть альбом <ArrowUpRight className="size-4" aria-hidden="true" />

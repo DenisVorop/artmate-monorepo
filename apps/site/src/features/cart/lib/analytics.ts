@@ -9,6 +9,8 @@ import {
   createAnalytics,
   createEcommerceCommand,
   createGoalCommand,
+  createInteractionCommand,
+  type InteractionEventParams,
   mapAnalyticsProduct,
   type AnalyticsProduct,
 } from "@/shared/lib/analytics";
@@ -26,6 +28,17 @@ type CartSnapshot = Cart | null | undefined;
 type TrackableProduct = Pick<Product, "category" | "id" | "price" | "title">;
 
 const analytics = createAnalytics({
+  continueShopping: () => createInteractionCommand("cart_continue_shopping", {}),
+  emptyCatalogOpened: () => createInteractionCommand("cart_empty_catalog_open", {}),
+  checkoutOpened: () => createInteractionCommand("cart_checkout_click", {}),
+  productOpened: (value: InteractionEventParams["cart_product_open"]["product_id"]) =>
+    createInteractionCommand("cart_product_open", { product_id: value }),
+  toastCartOpened: () => createInteractionCommand("cart_toast_open", {}),
+  addFailed: () => createInteractionCommand("cart_add_error", {}),
+  quantityFailed: () => createInteractionCommand("cart_quantity_error", {}),
+  removeFailed: () => createInteractionCommand("cart_remove_error", {}),
+  productShown: (product: AnalyticsProduct) =>
+    createEcommerceCommand("impressions", { products: [product] }),
   productClicked: (product: AnalyticsProduct) =>
     createEcommerceCommand("click", { products: [product] }),
   cartItemAdded: (product: AnalyticsProduct) => [
@@ -38,15 +51,36 @@ const analytics = createAnalytics({
       currency: "RUB",
     }),
   ],
-  cartQuantityIncreased: (product: AnalyticsProduct) =>
+  cartQuantityIncreased: (product: AnalyticsProduct) => [
     createEcommerceCommand("add", { products: [product] }),
-  cartQuantityDecreased: (product: AnalyticsProduct) =>
+    createInteractionCommand("cart_quantity_increase", { product_id: product.id }),
+  ],
+  cartQuantityDecreased: (product: AnalyticsProduct) => [
     createEcommerceCommand("remove", { products: [product] }),
+    createInteractionCommand("cart_quantity_decrease", { product_id: product.id }),
+  ],
+  cartItemRemoved: (product: AnalyticsProduct) => [
+    createEcommerceCommand("remove", { products: [product] }),
+    createInteractionCommand("cart_item_remove", { product_id: product.id }),
+  ],
   cartCleared: (products: readonly AnalyticsProduct[]) =>
     createEcommerceCommand("remove", { products }),
 });
 
 const cartAnalytics = {
+  continueShopping: () => analytics.send("continueShopping"),
+  emptyCatalogOpened: () => analytics.send("emptyCatalogOpened"),
+  checkoutOpened: () => analytics.send("checkoutOpened"),
+  productOpened: (value: InteractionEventParams["cart_product_open"]["product_id"]) =>
+    analytics.send("productOpened", value),
+  toastCartOpened: () => analytics.send("toastCartOpened"),
+  addFailed: () => analytics.send("addFailed"),
+  quantityFailed: () => analytics.send("quantityFailed"),
+  removeFailed: () => analytics.send("removeFailed"),
+  productShown(product: Product, placement: { list: ProductListPlacement; position?: number }) {
+    const analyticsProduct = toAnalyticsProduct(product, { ...placement, quantity: 1 });
+    if (analyticsProduct) analytics.send("productShown", analyticsProduct);
+  },
   productClicked(product: Product, placement: { list: ProductListPlacement; position?: number }) {
     const analyticsProduct = toAnalyticsProduct(product, {
       list: placement.list,
@@ -116,7 +150,7 @@ const cartAnalytics = {
     const analyticsProduct = toAnalyticsProduct(previousItem, { quantity: removedQuantity });
 
     if (analyticsProduct) {
-      analytics.send("cartQuantityDecreased", analyticsProduct);
+      analytics.send("cartItemRemoved", analyticsProduct);
     }
   },
 

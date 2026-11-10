@@ -10,6 +10,7 @@ import { resolveYandexAttribution } from "@/shared/lib/analytics";
 import { cartPricingQueryKey } from "@/shared/lib/query-keys";
 
 import type { CheckoutProviderSubmitVariables } from "../lib/checkout-provider";
+import { useAnalytics } from "../lib/analytics";
 
 type UseCreateOrderMutationOptions = {
   onSuccess?: (_response: CreateOrderResponseDTO | undefined) => void;
@@ -17,12 +18,14 @@ type UseCreateOrderMutationOptions = {
 
 export function useCreateOrderMutation(options: UseCreateOrderMutationOptions = {}) {
   const queryClient = useQueryClient();
+  const analytics = useAnalytics();
   const {
     mutateAsync: createOrderMutationAsync,
     isPending,
     error,
   } = useMutation({
     mutationFn: async ({ input }: CheckoutProviderSubmitVariables) => {
+      analytics.orderSubmitted();
       const attribution = await resolveYandexAttribution();
       return ApiResult.fromDTO(await createOrder(input, attribution)).unwrap();
     },
@@ -39,6 +42,7 @@ export function useCreateOrderMutation(options: UseCreateOrderMutationOptions = 
       options.onSuccess?.(response);
     },
     onError: () => {
+      analytics.orderCreateFailed();
       void queryClient.invalidateQueries({ queryKey: loyaltyQuery.baseKey });
       void queryClient.invalidateQueries({ queryKey: cartPricingQueryKey });
     },

@@ -1,5 +1,6 @@
 "use client";
 
+import { useAnalytics } from "../lib/analytics";
 import { useState } from "react";
 import { zodResolver } from "@hookform/resolvers/zod";
 import { Plus } from "lucide-react";
@@ -28,6 +29,7 @@ import { addCollectionFormSchema, type AddCollectionFormValues } from "../lib";
 import { useAddWorkshopCollection } from "../model";
 
 export function AddCollectionDialog({ workshop }: { workshop: OwnerWorkshop }) {
+  const analytics = useAnalytics();
   const [isOpen, setIsOpen] = useState(false);
   const [serverError, setServerError] = useState<string>();
   const { collections = [], isError, isPending } = useColoringCollectionsData();
@@ -51,6 +53,7 @@ export function AddCollectionDialog({ workshop }: { workshop: OwnerWorkshop }) {
   });
 
   async function onSubmit(values: AddCollectionFormValues) {
+    analytics.addRequested();
     setServerError(undefined);
 
     try {
@@ -61,7 +64,14 @@ export function AddCollectionDialog({ workshop }: { workshop: OwnerWorkshop }) {
   }
 
   return (
-    <Dialog open={isOpen} onOpenChange={setIsOpen}>
+    <Dialog
+      open={isOpen}
+      onOpenChange={(open) => {
+        if (open) analytics.addOpened();
+        else analytics.addDismissed();
+        setIsOpen(open);
+      }}
+    >
       <DialogTrigger asChild>
         <Button type="button" className="min-h-11">
           <Plus data-icon="inline-start" />
@@ -87,7 +97,14 @@ export function AddCollectionDialog({ workshop }: { workshop: OwnerWorkshop }) {
               name="collectionSlug"
               control={control}
               render={({ field }) => (
-                <Select value={field.value} onValueChange={field.onChange} disabled={isPending}>
+                <Select
+                  value={field.value}
+                  onValueChange={(value) => {
+                    analytics.collectionSelected();
+                    field.onChange(value);
+                  }}
+                  disabled={isPending}
+                >
                   <SelectTrigger
                     id="workshop-collection"
                     size="lg"

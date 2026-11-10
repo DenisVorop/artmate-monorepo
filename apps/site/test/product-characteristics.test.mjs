@@ -1,3 +1,4 @@
+import { noopFeatureAnalytics } from "./helpers/noop-feature-analytics.mjs";
 import assert from "node:assert/strict";
 import { createHash } from "node:crypto";
 import { readFile } from "node:fs/promises";
@@ -506,6 +507,7 @@ test("product navigation groups conditional anchors beside reviews, and works fo
     "@/entities/reviews": { ReviewRatingSummary: box, useReviewsData: () => ({}) },
     "@/shared/ui": { ...ui, DataState: box, Separator: box },
     "../lib/use-track-product-view": { useTrackProductView: () => {} },
+    "../lib/analytics": { ...noopFeatureAnalytics, useGalleryAnalytics: () => ({}) },
     "./breadcrumbs": { Breadcrumbs: box },
     "./marketplace-links": { MarketplaceLinks: box },
     "./community-works": { CommunityWorks },

@@ -467,7 +467,7 @@ test("provider attributes only its explicit post-click fetch to the current manu
     componentHarness.flushEffects({ strict: true });
     assert.deepEqual(
       analyticsWindow.dataLayer,
-      [promoSuccessEvent(549), promoSuccessEvent(575)],
+      [promoSuccessEvent(549), { event: "promo_apply_error" }, promoSuccessEvent(575)],
       "an explicit retry becomes a new manual attempt after fresh success",
     );
 
@@ -483,6 +483,7 @@ test("provider attributes only its explicit post-click fetch to the current manu
     componentHarness.flushEffects({ strict: true });
     assert.deepEqual(analyticsWindow.dataLayer, [
       promoSuccessEvent(549),
+      { event: "promo_apply_error" },
       promoSuccessEvent(575),
       promoSuccessEvent(600),
     ]);
@@ -538,7 +539,12 @@ test("sign-in promo retry uses the fresh account and preserves the original cart
           isPaused: false,
         }),
       },
-      "../analytics": { useAnalytics: () => ({ promoApplied: (...args) => events.push(args) }) },
+      "../analytics": {
+        useAnalytics: () => ({
+          applyFailed: () => {},
+          promoApplied: (...args) => events.push(args),
+        }),
+      },
       "../promo-code": promoCode,
       "../promo-code-storage": {
         readCartPromoCode: () => storedCode,

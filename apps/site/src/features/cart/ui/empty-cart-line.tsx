@@ -1,3 +1,6 @@
+"use client";
+
+import { useAnalytics } from "../lib/analytics";
 import { ShoppingBag } from "lucide-react";
 
 import { routes } from "@/shared/constants";
@@ -11,6 +14,7 @@ import {
 } from "@/shared/ui";
 
 export function EmptyCartLine() {
+  const analytics = useAnalytics();
   return (
     <Card className="overflow-hidden py-0">
       <CardContent className="flex flex-col items-start gap-4 p-6 sm:flex-row sm:items-center sm:justify-between">
@@ -25,7 +29,7 @@ export function EmptyCartLine() {
           asChild
           className="border-0 bg-gradient-to-r from-rose-500 via-rose-400 to-orange-400 font-semibold text-white shadow-sm shadow-rose-500/20 hover:from-rose-500/95 hover:via-rose-400/95 hover:to-orange-400/95"
         >
-          <CtaGradientLink href={routes.catalog}>
+          <CtaGradientLink href={routes.catalog} onClick={analytics.emptyCatalogOpened}>
             <ShoppingBag data-icon="inline-start" />
             Перейти в каталог
           </CtaGradientLink>

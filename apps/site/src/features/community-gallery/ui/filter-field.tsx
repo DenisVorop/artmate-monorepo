@@ -12,6 +12,7 @@ export function FilterField({
   return (
     <Button
       {...props}
+      data-site-action="gallery_filters_open"
       type="button"
       variant="outline"
       aria-label={`${label}: ${value}`}

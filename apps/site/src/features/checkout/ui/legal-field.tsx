@@ -1,5 +1,6 @@
 "use client";
 
+import { useAnalytics } from "../lib/analytics";
 import { useId } from "react";
 import { useFormContext } from "react-hook-form";
 
@@ -12,6 +13,7 @@ import { checkoutOrderFormId, type CheckoutFormValues } from "../lib";
 import { FieldError } from "./field-error";
 
 export function LegalField() {
+  const analytics = useAnalytics();
   const {
     register,
     formState: { errors },
@@ -33,7 +35,10 @@ export function LegalField() {
             className="size-4 shrink-0 rounded border-border accent-rose-500"
             aria-invalid={Boolean(errors.acceptedLegal)}
             aria-describedby={errors.acceptedLegal ? "checkout-legal-error" : undefined}
-            {...register("acceptedLegal")}
+            {...register("acceptedLegal", {
+              onChange: (event) =>
+                event.target.checked ? analytics.offerAccepted() : analytics.offerUnchecked(),
+            })}
           />
         </label>
         <span className="text-muted-foreground">
@@ -42,6 +47,7 @@ export function LegalField() {
           </label>
           <Link
             href={routes.legal.publicOffer}
+            onClick={analytics.offerOpened}
             target="_blank"
             rel="noreferrer"
             aria-label="Публичная оферта (откроется в новой вкладке)"
@@ -68,7 +74,12 @@ export function LegalField() {
           aria-describedby={
             errors.acceptedPersonalDataConsent ? "checkout-personal-data-consent-error" : undefined
           }
-          {...register("acceptedPersonalDataConsent")}
+          {...register("acceptedPersonalDataConsent", {
+            onChange: (event) =>
+              event.target.checked
+                ? analytics.dataConsentChecked()
+                : analytics.dataConsentUnchecked(),
+          })}
         />
         <FieldError
           id="checkout-personal-data-consent-error"
