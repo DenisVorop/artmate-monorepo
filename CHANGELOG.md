@@ -1,5 +1,20 @@
 # Changelog
 
+## [0.61.0](https://github.com/DenisVorop/artmate-monorepo/compare/v0.60.0...v0.61.0) (2026-11-10)
+
+
+### Features
+
+* **site:** track storefront interactions ([7e5c560](https://github.com/DenisVorop/artmate-monorepo/commit/7e5c560971678e399eea7ecaa4b11a53fd52ad66))
+
+
+### Bug Fixes
+
+* **site:** center mobile gallery likes ([826a0d3](https://github.com/DenisVorop/artmate-monorepo/commit/826a0d3bc583e04816d756469ec094a50d39db57))
+* **site:** raise desktop gallery captions ([aff93ce](https://github.com/DenisVorop/artmate-monorepo/commit/aff93cef3476e0e7803ad290ea40747809018c82))
+* **site:** restore desktop gallery like spacing ([002a587](https://github.com/DenisVorop/artmate-monorepo/commit/002a587eb0a8151fe27a264730b13b6e2a3c8b6c))
+* **site:** widen mobile gallery like button ([63cfc19](https://github.com/DenisVorop/artmate-monorepo/commit/63cfc19030d65189a0fa56a9e34193f91ff9ccab))
+
 ## [0.60.0](https://github.com/DenisVorop/artmate-monorepo/compare/v0.59.0...v0.60.0) (2026-11-10)
 
 
