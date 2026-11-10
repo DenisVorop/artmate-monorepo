@@ -1,5 +1,34 @@
 # Changelog
 
+## [0.60.0](https://github.com/DenisVorop/artmate-monorepo/compare/v0.59.0...v0.60.0) (2026-11-10)
+
+
+### Features
+
+* **coloring:** create smaller paint cells ([b48f53d](https://github.com/DenisVorop/artmate-monorepo/commit/b48f53d3f5c3f6419af631e87fd58d047a2ce410))
+* **coloring:** smooth and protect detail edges ([b47ce2c](https://github.com/DenisVorop/artmate-monorepo/commit/b47ce2c11c668396427f718a8570827f07333746))
+* **site:** add stable mosaic autoload ([8420f5d](https://github.com/DenisVorop/artmate-monorepo/commit/8420f5d319df89f99ac8e4e6e71214f7139ed9d7))
+* **studio:** add image preparation prompt ([66b165d](https://github.com/DenisVorop/artmate-monorepo/commit/66b165d82443d7346414b30f1a874d4378439570))
+
+
+### Bug Fixes
+
+* **site:** align visible like content to caption ([fbf9b27](https://github.com/DenisVorop/artmate-monorepo/commit/fbf9b27b3e5d4280acae234ef3a49042e66f908d))
+* **site:** anchor captions to card bottom ([f8e49d4](https://github.com/DenisVorop/artmate-monorepo/commit/f8e49d43d40413d0b04429b28f913f4a85b4a295))
+* **site:** bottom-align card text and likes ([ff24692](https://github.com/DenisVorop/artmate-monorepo/commit/ff24692e6e6a5a591ce05f0166f859b97fe17e5f))
+* **site:** center heart and count in like group ([1542c8e](https://github.com/DenisVorop/artmate-monorepo/commit/1542c8e2395f9561a847543f7e3273bb0e5fe4ce))
+* **site:** give card titles full width ([75c52ec](https://github.com/DenisVorop/artmate-monorepo/commit/75c52ec8726fd42662291921f01b17ec519e0f25))
+* **site:** minimize caption bottom spacing ([27306e5](https://github.com/DenisVorop/artmate-monorepo/commit/27306e599c4b7c3394d32690e94cd74af5ba221f))
+* **site:** restore cards and compact mobile likes ([948fc18](https://github.com/DenisVorop/artmate-monorepo/commit/948fc18cd7d5a88207a3842793b953cc9b31edb4))
+* **site:** tighten card caption gap ([9a4996c](https://github.com/DenisVorop/artmate-monorepo/commit/9a4996cad5230f46d6a0f2d0ba53831405ac9cb6))
+* **site:** tighten mobile like right inset ([d5e6ccd](https://github.com/DenisVorop/artmate-monorepo/commit/d5e6ccde551b9ad42de728b87f1281e0a4095cfb))
+
+
+### Performance Improvements
+
+* **site:** improve mobile page loading ([1709674](https://github.com/DenisVorop/artmate-monorepo/commit/1709674e672551f8103872f94a9aa44a1371ac0f))
+* **site:** load gallery viewer on intent ([337367f](https://github.com/DenisVorop/artmate-monorepo/commit/337367f2eeed9e89538584433fae219ea73d0ef2))
+
 ## [0.59.0](https://github.com/DenisVorop/artmate-monorepo/compare/v0.58.1...v0.59.0) (2026-11-08)
 
 
