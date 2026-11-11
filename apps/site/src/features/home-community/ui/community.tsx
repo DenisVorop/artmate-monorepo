@@ -3,7 +3,11 @@
 import { lazy, Suspense, useCallback, useState, type ComponentType } from "react";
 import { CommunityWorkCard, useFeaturedCollectionWorks } from "@/entities/community-work";
 import { LikeButton } from "@/features/likes";
-import { homeCommunityCollectionSlugs } from "../lib/constants";
+import {
+  homeCommunityCollectionSlugs,
+  homeCommunityItemClassName,
+  homeCommunityListClassName,
+} from "../lib/constants";
 import { useImagePreview } from "../lib/use-image-preview";
 import { PreviewLoading } from "./preview-loading";
 
@@ -31,12 +35,9 @@ export function HomeCommunity() {
 
   return (
     <>
-      <ul className="flex snap-x snap-mandatory gap-3 overflow-x-auto pb-1 sm:gap-5 md:grid md:grid-cols-4">
+      <ul className={homeCommunityListClassName}>
         {featuredWorks.map((work) => (
-          <li
-            key={work.publicId}
-            className="min-w-0 shrink-0 basis-[46%] snap-start sm:basis-[32%] md:basis-auto"
-          >
+          <li key={work.publicId} className={homeCommunityItemClassName}>
             <CommunityWorkCard
               work={work}
               onPreviewIntent={preloadImagePreview}

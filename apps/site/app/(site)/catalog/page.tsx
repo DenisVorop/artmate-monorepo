@@ -1,5 +1,6 @@
+import { Suspense } from "react";
 import { CatalogDataBuilder } from "@/app/lib/catalog-data-builder";
-import { CatalogPage } from "@/pages/catalog";
+import { CatalogPage, CatalogPageBody, CatalogPageLoading } from "@/pages/catalog";
 import { routes } from "@/shared/constants";
 import { dehydrateQueryClient } from "@/shared/lib/dehydrate-query-client";
 import { createPageMetadata, Seo } from "@/shared/lib/seo";
@@ -12,7 +13,17 @@ export function generateMetadata() {
   });
 }
 
-export default async function Page() {
+export default function Page() {
+  return (
+    <CatalogPage>
+      <Suspense fallback={<CatalogPageLoading />}>
+        <CatalogData />
+      </Suspense>
+    </CatalogPage>
+  );
+}
+
+async function CatalogData() {
   const { queryClient } = await new CatalogDataBuilder()
     .withProducts()
     .withCatalogLandings()
@@ -20,7 +31,7 @@ export default async function Page() {
 
   return (
     <HydrationBoundary state={dehydrateQueryClient(queryClient)}>
-      <CatalogPage />
+      <CatalogPageBody />
     </HydrationBoundary>
   );
 }
