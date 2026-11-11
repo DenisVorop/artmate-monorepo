@@ -1,5 +1,12 @@
 # Changelog
 
+## [0.61.1](https://github.com/DenisVorop/artmate-monorepo/compare/v0.61.0...v0.61.1) (2026-11-11)
+
+
+### Performance Improvements
+
+* **site:** stream catalog and reserve card space ([a97ece9](https://github.com/DenisVorop/artmate-monorepo/commit/a97ece94fdf96948a101a70b7e86d21b49f74ef7))
+
 ## [0.61.0](https://github.com/DenisVorop/artmate-monorepo/compare/v0.60.0...v0.61.0) (2026-11-10)
 
 
