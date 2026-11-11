@@ -1,4 +1,4 @@
-import { Suspense, type ReactNode } from "react";
+import type { ReactNode } from "react";
 
 import type { DehydratedState } from "@tanstack/react-query";
 import { HydrationBoundary } from "@tanstack/react-query";
@@ -39,11 +39,9 @@ export function AppProviders({
       <HydrationBoundary state={dehydratedState}>
         <DeviceProvider initialDeviceInfo={initialDeviceInfo}>
           <UserProvider initialSession={initialSession}>
-            <Suspense fallback={null}>
-              <QueryStateProvider>
-                <AuthRoot>{children}</AuthRoot>
-              </QueryStateProvider>
-            </Suspense>
+            <QueryStateProvider>
+              <AuthRoot>{children}</AuthRoot>
+            </QueryStateProvider>
           </UserProvider>
         </DeviceProvider>
       </HydrationBoundary>

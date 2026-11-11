@@ -1,6 +1,10 @@
 import { HomeDataBuilder } from "@/app/lib/home-data-builder";
 import { HomePage } from "@/pages/home";
-import { HomeCommunity, homeCommunityCollectionSlugs } from "@/features/home-community";
+import {
+  HomeCommunity,
+  HomeCommunitySkeleton,
+  homeCommunityCollectionSlugs,
+} from "@/features/home-community";
 import { routes } from "@/shared/constants";
 import { dehydrateQueryClient } from "@/shared/lib/dehydrate-query-client";
 import { createPageMetadata, Seo } from "@/shared/lib/seo";
@@ -21,7 +25,7 @@ export default async function Page() {
     <HydrationBoundary state={dehydrateQueryClient(queryClient)}>
       <HomePage
         communityWorks={
-          <Suspense fallback={null}>
+          <Suspense fallback={<HomeCommunitySkeleton />}>
             <HomeCommunityData />
           </Suspense>
         }
