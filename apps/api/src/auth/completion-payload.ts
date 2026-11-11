@@ -1,5 +1,8 @@
 import crypto from "node:crypto";
-import type { ConsentDecisionV1 } from "../consents/contracts/consent-decision.contract";
+import type {
+  AdvertisingConsentDevice,
+  ConsentDecisionV1,
+} from "../consents/contracts/consent-decision.contract";
 
 export interface AuthCompletionInput {
   readonly operationKey: string;
@@ -7,6 +10,7 @@ export interface AuthCompletionInput {
   readonly expectedAdvertisingVersion: number;
   readonly decisions: readonly ConsentDecisionV1[];
   readonly source?: string;
+  readonly advertisingDevice?: AdvertisingConsentDevice;
 }
 
 /** Recoverable values live in the durable Consents command. The Auth hash also

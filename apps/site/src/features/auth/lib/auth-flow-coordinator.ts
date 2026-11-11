@@ -19,6 +19,7 @@ import type {
 } from "./auth-flow-state";
 
 import { toConsentDecision } from "./to-consent-decision";
+import { readAdvertisingConsentDevice } from "./read-advertising-consent-device";
 
 type Request = {
   owner: symbol;
@@ -238,14 +239,24 @@ export class AuthFlowCoordinator {
   }
   public submitConsents(values: { personalData: boolean; advertising: boolean }): Promise<void> {
     const flow = this._snapshot.flow;
-    if (flow?.status !== "PENDING" || flow.nextStep !== "consents") return Promise.resolve();
+    const request = this._active;
+    if (!request || flow?.status !== "PENDING" || flow.nextStep !== "consents") {
+      return Promise.resolve();
+    }
     if (!values.personalData) {
       this._set({ error: "Нужно согласие на обработку данных." });
       return Promise.resolve();
     }
-    const source = this._active?.config.source;
+    const epoch = this._epoch;
     return this._run(
-      () => this._ports.complete(toConsentDecision(flow, values, source)),
+      async () => {
+        const input = toConsentDecision(flow, values, request.config.source);
+        if (values.advertising) {
+          input.advertisingDevice = await readAdvertisingConsentDevice();
+          if (!this._owns(request, epoch)) return;
+        }
+        return this._ports.complete(input);
+      },
       "completion",
     );
   }

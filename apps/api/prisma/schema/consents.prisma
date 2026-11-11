@@ -77,6 +77,7 @@ model ApplyConsentDecisionCommand {
   source                     String?                 @db.VarChar(255)
   requestId                  String                  @map("request_id") @db.VarChar(128)
   requestContext             Json                    @map("request_context")
+  advertisingDevice          Json?                   @map("advertising_device")
   status                     ConsentCommandStatus    @default(PENDING)
   attempts                   Int                     @default(0)
   leaseToken                 String?                 @map("lease_token") @db.Uuid
@@ -159,6 +160,13 @@ model EmailAdvertisingConsentEvent {
   requestId           String                            @map("request_id") @db.VarChar(128)
   requestContext      Json                              @map("request_context")
   occurredAt          DateTime                          @default(now()) @map("occurred_at")
+  clientIpAddress     String?                           @map("client_ip_address") @db.VarChar(45)
+  clientTimeZone      String?                           @map("client_time_zone") @db.VarChar(64)
+  clientUtcOffsetMinutes Int?                         @map("client_utc_offset_minutes")
+  browserName         String?                           @map("browser_name") @db.VarChar(64)
+  browserVersion      String?                           @map("browser_version") @db.VarChar(64)
+  osName              String?                           @map("os_name") @db.VarChar(64)
+  osVersion           String?                           @map("os_version") @db.VarChar(64)
   deliveryAttempts    EmailAdvertisingDeliveryAttempt[]
   subscription        EmailAdvertisingSubscription      @relation("AdvertisingHistory", fields: [subscriptionId], references: [id], onDelete: Restrict)
   activeFor           EmailAdvertisingSubscription?     @relation("AdvertisingActiveGrant")

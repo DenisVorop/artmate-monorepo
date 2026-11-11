@@ -60,6 +60,7 @@ export type {
   AuthCompletionStateDTO,
   AuthReadinessDTO,
   CompleteAuthFlowInputDTO,
+  AdvertisingConsentDeviceDTO,
 } from "./flow.types";
 
 export { startAuthFlow } from "./start-flow.actions";

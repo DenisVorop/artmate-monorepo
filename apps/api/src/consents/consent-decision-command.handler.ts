@@ -7,7 +7,10 @@ import type {
 } from "../generated/prisma/client";
 import type { RequestEvidenceV1 } from "../common/request-evidence";
 import { ConsentCommandPayload } from "./contracts/consent-command-payload";
-import type { ConsentDecisionV1 } from "./contracts/consent-decision.contract";
+import type {
+  AdvertisingConsentDevice,
+  ConsentDecisionV1,
+} from "./contracts/consent-decision.contract";
 import { EmailAdvertisingGrant } from "./email-advertising-grant";
 import { ConsentReadModel } from "./contracts/consent-read-model";
 
@@ -51,6 +54,10 @@ export class ConsentDecisionCommandHandler {
     command: ApplyConsentDecisionCommand,
   ): Promise<{ errorCode?: string; revision?: number }> {
     const decisions = this._decisions(command.decisions);
+    const requestContext = command.requestContext as unknown as RequestEvidenceV1;
+    const advertisingDevice = (command.advertisingDevice ?? undefined) as
+      | AdvertisingConsentDevice
+      | undefined;
     if (
       !decisions ||
       command.contractVersion !== 1 ||
@@ -60,8 +67,8 @@ export class ConsentDecisionCommandHandler {
           contractVersion: 1,
           decisions,
           source: command.source ?? undefined,
-          requestContext:
-            command.requestContext as unknown as RequestEvidenceV1,
+          requestContext,
+          advertisingDevice,
         })
     )
       return { errorCode: "INVALID_PAYLOAD" };
@@ -165,7 +172,8 @@ export class ConsentDecisionCommandHandler {
     if (grantAdvertising) {
       await EmailAdvertisingGrant.apply(tx, {
         ...evidence,
-        requestContext: command.requestContext as unknown as RequestEvidenceV1,
+        requestContext,
+        advertisingDevice,
         authOperationId: command.operationId,
         revisionId: current.emailAdvertising.revisionId,
         operationKey: crypto
