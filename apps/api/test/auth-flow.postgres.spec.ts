@@ -2350,7 +2350,10 @@ describe("auth pipeline isolated PostgreSQL + HTTP", { skip: !url }, () => {
       email: user.email,
       password: "existing-password",
     });
-    const input = await _consentInput(login.cookie, revisions, false);
+    const input = {
+      ...(await _consentInput(login.cookie, revisions, false)),
+      advertisingDevice: { timeZone: "Europe/Moscow", utcOffsetMinutes: 180 },
+    };
     const submitted = await _completionPost(input, login.cookie);
     assert.equal(submitted.response.status, 201);
     assert.equal(submitted.state.status, "PENDING");
@@ -2362,6 +2365,10 @@ describe("auth pipeline isolated PostgreSQL + HTTP", { skip: !url }, () => {
     assert.equal(await db.requiredConsentAcceptance.count(), 1);
     assert.equal(await db.emailAdvertisingSubscription.count(), 0);
     assert.equal(await db.emailAdvertisingConsentEvent.count(), 0);
+    assert.equal(
+      (await db.applyConsentDecisionCommand.findFirstOrThrow()).advertisingDevice,
+      null,
+    );
     const acceptance = await db.requiredConsentAcceptance.findFirstOrThrow();
     assert.equal(acceptance.email, user.email);
     assert.equal(acceptance.revisionId, revisions.personal.id);
@@ -2393,6 +2400,7 @@ describe("auth pipeline isolated PostgreSQL + HTTP", { skip: !url }, () => {
       login.cookie,
       {
         "user-agent": "Artmate integration test " + "long-agent/".repeat(200),
+        "x-real-ip": "203.0.113.99",
         "x-request-id": "stage5-request-context",
         "x-test-context": "kept as supplied",
         authorization: "Bearer private-credential",
@@ -2414,6 +2422,8 @@ describe("auth pipeline isolated PostgreSQL + HTTP", { skip: !url }, () => {
     assert.equal(event.identityFactId, proof.id);
     assert.equal(event.revisionId, revisions.advertising.id);
     assert.equal(event.source, "checkout:gift");
+    assert.equal(event.clientIpAddress, null);
+    assert.equal(event.clientTimeZone, null);
     assert.equal(subscription.state, "ACTIVE");
     assert.equal(subscription.version, 1);
     assert.equal(subscription.activeGrantId, event.id);
@@ -2448,10 +2458,57 @@ describe("auth pipeline isolated PostgreSQL + HTTP", { skip: !url }, () => {
     await _confirm(requested);
     const draft = _draft();
     await _post("/auth/flow/registration", draft, requested.cookie);
-    const input = await _consentInput(requested.cookie, revisions, true);
+    const advertisingDevice = {
+      timeZone: "Europe/Moscow",
+      utcOffsetMinutes: 180,
+      platformVersion: "15.0.0",
+      browserVersions: [{ brand: "Google Chrome", version: "131.0.6778.85" }],
+    };
+    const input = {
+      ...(await _consentInput(requested.cookie, revisions, true)),
+      advertisingDevice,
+    };
     assert.equal(input.operationKey, draft.operationKey);
-    const submitted = await _completionPost(input, requested.cookie);
-    assert.equal(submitted.state.status, "PENDING");
+    const capturedAt = new Date().toISOString();
+    const ipAddress = "203.0.113.44";
+    const client = {
+      ipAddress,
+      forwardedFor: [ipAddress],
+      forwardedHeadersTrusted: true,
+    };
+    const context = {
+      version: 1,
+      capturedAt,
+      source: "next_server_action",
+      headers: {
+        "user-agent": [
+          "Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/131.0.0.0 Safari/537.36",
+        ],
+      },
+      client,
+      http: { method: null, url: null, version: null },
+      connection: null,
+    };
+    const envelope = Buffer.from(
+      JSON.stringify({
+        issuedAt: Date.now(),
+        method: "POST",
+        path: "/auth/flow/complete",
+        bodySha256: crypto
+          .createHash("sha256")
+          .update(JSON.stringify(input))
+          .digest("hex"),
+        context,
+      }),
+    ).toString("base64url");
+    const submitted = await _completionPost(input, requested.cookie, {
+      "x-artmate-auth-context": envelope,
+      "x-artmate-auth-signature": crypto
+        .createHmac("sha256", process.env.AUTH_FLOW_PROXY_SECRET!)
+        .update(envelope)
+        .digest("hex"),
+    });
+    assert.equal(submitted.state.status, "PENDING", JSON.stringify(submitted.state));
     assert.equal(await db.user.count(), 0);
     assert.equal(await db.ensureCustomerProfileCommand.count(), 0);
     assert.equal(await db.authCredential.count(), 0);
@@ -2486,6 +2543,30 @@ describe("auth pipeline isolated PostgreSQL + HTTP", { skip: !url }, () => {
     assert.equal(await db.ensureCustomerProfileCommand.count(), 1);
     assert.equal(await db.requiredConsentAcceptance.count(), 1);
     assert.equal(await db.emailAdvertisingConsentEvent.count(), 1);
+    const event = await db.emailAdvertisingConsentEvent.findFirstOrThrow();
+    const evidence = event.requestContext as unknown as RequestEvidenceV1;
+    assert.equal(event.action, "GRANTED");
+    assert.equal(event.email, beforeFinal.state.user?.email);
+    assert.equal(event.authOperationId, submitted.state.operationId);
+    assert.equal(event.identityFactId, consent.identityFactId);
+    assert.equal(event.revisionId, revisions.advertising.id);
+    assert.equal(evidence.upstream?.capturedAt, capturedAt);
+    assert.ok(event.occurredAt.getTime() >= Date.parse(evidence.capturedAt));
+    assert.equal(event.clientIpAddress, ipAddress);
+    assert.equal(event.clientTimeZone, advertisingDevice.timeZone);
+    assert.equal(
+      event.clientUtcOffsetMinutes,
+      advertisingDevice.utcOffsetMinutes,
+    );
+    assert.equal(event.browserName, "Chrome");
+    assert.equal(event.browserVersion, "131.0.6778.85");
+    assert.equal(event.osName, "Windows");
+    assert.equal(event.osVersion, "11+");
+    const acceptance = await db.requiredConsentAcceptance.findFirstOrThrow();
+    assert.equal(
+      JSON.stringify(acceptance.requestContext).includes("Europe/Moscow"),
+      false,
+    );
     assert.deepEqual(await db.authCredential.findFirstOrThrow(), credential);
     const flow = await _pendingRecord(requested.cookie);
     assert.equal(flow.status, "COMPLETED");

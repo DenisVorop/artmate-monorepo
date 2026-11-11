@@ -19,12 +19,19 @@ export type AuthConsentStateDTO = {
   personalData: ConsentDocumentDTO;
   emailAdvertising: ConsentDocumentDTO;
 };
+export type AdvertisingConsentDeviceDTO = {
+  timeZone?: string;
+  utcOffsetMinutes?: number;
+  platformVersion?: string;
+  browserVersions?: { brand: string; version: string }[];
+};
 export type CompleteAuthFlowInputDTO = {
   operationKey: string;
   expectedStateRevision: number;
   expectedAdvertisingVersion: number;
   decisions: { revisionId: string; accepted: boolean }[];
   source?: string;
+  advertisingDevice?: AdvertisingConsentDeviceDTO;
 };
 export type AuthCompletionStateDTO =
   | {

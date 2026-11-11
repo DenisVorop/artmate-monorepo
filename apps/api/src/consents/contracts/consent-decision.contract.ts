@@ -43,6 +43,13 @@ export interface ConsentDecisionV1 {
   readonly accepted: boolean;
 }
 
+export interface AdvertisingConsentDevice {
+  readonly timeZone?: string;
+  readonly utcOffsetMinutes?: number;
+  readonly platformVersion?: string;
+  readonly browserVersions?: readonly { brand: string; version: string }[];
+}
+
 export interface ApplyConsentDecisionIntentV1 {
   readonly contractVersion: 1;
   readonly operationId: string;
@@ -54,6 +61,7 @@ export interface ApplyConsentDecisionIntentV1 {
   readonly source?: string;
   readonly requestId: string;
   readonly requestContext: RequestEvidenceV1;
+  readonly advertisingDevice?: AdvertisingConsentDevice;
 }
 
 export type ApplyConsentDecisionResultV1 =

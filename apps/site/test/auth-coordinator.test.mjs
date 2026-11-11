@@ -34,7 +34,15 @@ const mapper = load(
     "utf8",
   ),
 );
-const loaded = { exports: load(source, { "./to-consent-decision": mapper }) };
+const advertisingDevice = { timeZone: "Europe/Moscow", utcOffsetMinutes: 180 };
+const loaded = {
+  exports: load(source, {
+    "./to-consent-decision": mapper,
+    "./read-advertising-consent-device": {
+      readAdvertisingConsentDevice: async () => advertisingDevice,
+    },
+  }),
+};
 const { AuthFlowCoordinator } = loaded.exports;
 const user = {
   id: "user-1",
@@ -779,7 +787,8 @@ test("double consent submit while server is pending writes one decision", async 
   let writes = 0;
   const { coordinator } = setup({
     start: async () => consents(),
-    complete: async () => {
+    complete: async (input) => {
+      assert.deepEqual(input.advertisingDevice, advertisingDevice);
       writes++;
       return response.promise;
     },

@@ -366,6 +366,17 @@ export class AuthCompletionService {
         purpose: flow.purpose,
       },
     });
+    const grantsAdvertising =
+      !consent.advertisingAccepted &&
+      input.decisions.some(
+        (decision) =>
+          decision.revisionId === consent.emailAdvertising.revisionId &&
+          decision.accepted,
+      );
+    // Snapshot device metadata once, with the first accepted completion request.
+    const advertisingDevice = grantsAdvertising
+      ? input.advertisingDevice
+      : undefined;
     const intent = {
       contractVersion: 1 as const,
       operationId: operation.id,
@@ -376,12 +387,16 @@ export class AuthCompletionService {
       source: input.source,
       requestId: crypto.randomUUID(),
       requestContext: context,
+      ...(advertisingDevice ? { advertisingDevice } : {}),
     };
     await tx.applyConsentDecisionCommand.create({
       data: {
         ...intent,
         decisions: [...intent.decisions] as unknown as Prisma.InputJsonValue,
         requestContext: context as unknown as Prisma.InputJsonValue,
+        advertisingDevice: advertisingDevice as
+          | Prisma.InputJsonValue
+          | undefined,
         payloadHash: ConsentCommandPayload.hash(intent),
       },
     });

@@ -2,6 +2,8 @@ import { ServiceUnavailableException } from "@nestjs/common";
 import crypto from "node:crypto";
 import type { Prisma } from "../generated/prisma/client";
 import type { RequestEvidenceV1 } from "../common/request-evidence";
+import { advertisingTechnicalEvidence } from "./advertising-technical-evidence";
+import type { AdvertisingConsentDevice } from "./contracts/consent-decision.contract";
 
 type GrantInput = {
   email: string;
@@ -18,11 +20,13 @@ type GrantInput = {
       authOperationId: string;
       identityFactId: string;
       emailVerifiedAtSnapshot?: never;
+      advertisingDevice?: AdvertisingConsentDevice;
     }
   | {
       authOperationId?: never;
       identityFactId?: never;
       emailVerifiedAtSnapshot: Date;
+      advertisingDevice?: never;
     }
 );
 
@@ -30,6 +34,7 @@ type GrantInput = {
  * same append-only history and authoritative permission in their transaction. */
 export class EmailAdvertisingGrant {
   public static async apply(tx: Prisma.TransactionClient, input: GrantInput) {
+    const { advertisingDevice, ...grant } = input;
     const recipientKey = this._recipientKey(input.email);
     const subscription =
       (await tx.emailAdvertisingSubscription.findUnique({
@@ -40,7 +45,10 @@ export class EmailAdvertisingGrant {
       }));
     const event = await tx.emailAdvertisingConsentEvent.create({
       data: {
-        ...input,
+        ...grant,
+        ...(grant.authOperationId
+          ? advertisingTechnicalEvidence(grant.requestContext, advertisingDevice)
+          : {}),
         requestContext:
           input.requestContext as unknown as Prisma.InputJsonValue,
         subscriptionId: subscription.id,

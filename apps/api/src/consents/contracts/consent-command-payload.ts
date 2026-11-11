@@ -22,6 +22,9 @@ export class ConsentCommandPayload {
             source: input.source ?? null,
             requestId: input.requestId,
             requestContext: input.requestContext,
+            ...(input.advertisingDevice
+              ? { advertisingDevice: input.advertisingDevice }
+              : {}),
           }),
         ),
       )
