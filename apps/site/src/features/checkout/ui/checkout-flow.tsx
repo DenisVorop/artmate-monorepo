@@ -34,7 +34,8 @@ function BaseCheckoutFlow({ cart, createOrderError }: CheckoutFlowProps) {
   const { checkoutCalculation, isSubmitting, submitLabel, submitOrder } = useCheckout();
   const promoPricing = getPromoPricingState(usePromocode());
   const pricing = getCheckoutPriceSummary(cart, checkoutCalculation, promoPricing.preview);
-  const isSubmitDisabled = isSubmitting || checkoutCalculation.status === "pending";
+  const isSubmitDisabled =
+    !cart.isOzonDeliveryAvailable || isSubmitting || checkoutCalculation.status === "pending";
   const calculationFeedback = getCalculationFeedback(checkoutCalculation);
 
   return (

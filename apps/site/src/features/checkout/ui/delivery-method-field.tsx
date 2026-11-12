@@ -40,9 +40,7 @@ export function DeliveryMethodField({
     isDeliveryPickerOpen: isPickerOpen,
     setDeliveryPickerOpen: setIsPickerOpen,
   } = useCheckout();
-  const [pickerCompany, setPickerCompany] = useState<DeliveryCompanyCode>(
-    selectedDelivery?.provider ?? (isOzonDeliveryAvailable ? "ozon" : "cdek"),
-  );
+  const [pickerCompany, setPickerCompany] = useState<DeliveryCompanyCode>("ozon");
   const [drafts, setDrafts] = useState(() => createDeliveryPickerDrafts(selectedDelivery));
   const [confirmationError, setConfirmationError] = useState<string>();
   const [isConfirming, setIsConfirming] = useState(false);

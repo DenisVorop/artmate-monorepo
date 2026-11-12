@@ -1,4 +1,4 @@
-import { Package, Truck } from "lucide-react";
+import { Package } from "lucide-react";
 import type { LucideIcon } from "lucide-react";
 
 export type DeliveryCompanyCode = "cdek" | "ozon";
@@ -17,12 +17,14 @@ export const deliveryCompanies: DeliveryCompanyOption[] = [
     icon: Package,
     label: "Ozon",
   },
+  /*
   {
     accentClassName: "bg-emerald-50 text-emerald-700 ring-emerald-200",
     code: "cdek",
     icon: Truck,
     label: "СДЭК",
   },
+  */
 ];
 
 export const defaultDeliveryCompany: DeliveryCompanyCode = "ozon";

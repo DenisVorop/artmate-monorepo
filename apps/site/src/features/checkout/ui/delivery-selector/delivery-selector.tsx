@@ -2,7 +2,7 @@
 
 import { useAnalytics } from "../../lib/analytics";
 import { CheckCircle2, CircleAlert, LoaderCircle, MapPin } from "lucide-react";
-import { useEffect, useState } from "react";
+import { useState } from "react";
 
 import type { DeliveryCityDTO, DeliveryPickupPointDTO } from "@/shared/actions/delivery";
 import { Button } from "@/shared/ui/button";
@@ -75,14 +75,6 @@ export function DeliverySelector({
   const selectedOzonPoint =
     drafts.ozon.pickupPoint ??
     ozonPickupPointsState.pickupPoints.find((point) => point.id === drafts.ozon.pickupPointId);
-
-  useEffect(() => {
-    if (isOzonDeliveryAvailable || selectedCompany !== "ozon") {
-      return;
-    }
-
-    onCompanyChange("cdek");
-  }, [isOzonDeliveryAvailable, onCompanyChange, selectedCompany]);
 
   const selectCompany = (company: DeliveryCompanyCode) => {
     if (company === selectedCompany || (company === "ozon" && !isOzonDeliveryAvailable)) {
