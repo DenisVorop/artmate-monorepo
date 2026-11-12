@@ -201,7 +201,10 @@ export function CheckoutProvider({
   useEffect(() => {
     const persistedSelection = readPersistedPickupSelection(cart.id);
 
-    if (persistedSelection?.provider === "ozon" && !cart.isOzonDeliveryAvailable) {
+    if (
+      persistedSelection &&
+      (persistedSelection.provider !== "ozon" || !cart.isOzonDeliveryAvailable)
+    ) {
       clearPersistedPickupSelection(cart.id);
       setSelectedDeliveryState(undefined);
       return;
@@ -224,7 +227,8 @@ export function CheckoutProvider({
     async (delivery: CheckoutDeliverySelection): Promise<DeliveryConfirmationResult> => {
       if (
         !promoPricing.isReady ||
-        (delivery.provider === "ozon" && !cart.isOzonDeliveryAvailable) ||
+        delivery.provider !== "ozon" ||
+        !cart.isOzonDeliveryAvailable ||
         (typeof navigator !== "undefined" && navigator.onLine === false)
       ) {
         return {
@@ -264,6 +268,10 @@ export function CheckoutProvider({
   const submitOrder = useCallback<FormEventHandler<HTMLFormElement>>(
     (event) => {
       analytics.orderSubmitClicked();
+      if (!cart.isOzonDeliveryAvailable) {
+        event.preventDefault();
+        return;
+      }
       if (!selectedDelivery) {
         event.preventDefault();
         analytics.pickupPickerOpened();
@@ -304,6 +312,7 @@ export function CheckoutProvider({
       analytics,
       checkoutCalculation,
       cart.id,
+      cart.isOzonDeliveryAvailable,
       form,
       onSubmit,
       promoPricing.code,

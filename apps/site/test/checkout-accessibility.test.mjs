@@ -107,7 +107,9 @@ test("checkout fields describe only their stable helper and error nodes", async 
       useCheckout: () => ({ isEmailLocked: false }),
     },
     "./field-error": { FieldError: fieldError },
+    "./contact-fields.module.css": { phoneHint: "phoneHint" },
     "@/shared/ui": sharedUi,
+    "lucide-react": { Plus: component("Plus") },
     "react-hook-form": { useFormContext: () => formContext },
     "react/jsx-runtime": jsxRuntime,
   };
@@ -124,7 +126,14 @@ test("checkout fields describe only their stable helper and error nodes", async 
   );
 
   assert.equal(inputById["checkout-name"].props["aria-describedby"], "checkout-name-error");
-  assert.equal(inputById["checkout-phone"].props["aria-describedby"], "checkout-phone-error");
+  assert.equal(
+    inputById["checkout-phone"].props["aria-describedby"],
+    "checkout-phone-error checkout-phone-helper",
+  );
+  assert.equal(
+    findNodes(contactTree, (node) => node.props?.id === "checkout-phone-helper").length,
+    1,
+  );
   assert.equal(
     inputById["checkout-email"].props["aria-describedby"],
     "checkout-email-helper checkout-email-error",
@@ -147,7 +156,11 @@ test("checkout fields describe only their stable helper and error nodes", async 
   assert.equal(inputById["checkout-phone"].props.placeholder, "+7 (999) 999-99-99");
   assert.equal(inputById["checkout-phone"].props.maxLength, 18);
   assert.equal(inputById["checkout-email"].props.maxLength, 254);
-  assert.match(inputById["checkout-comment"].props.className, /min-h-24/u);
+  const [commentDisclosure] = findNodes(contactTree, (node) => node.type === "details");
+  assert.ok(findNodes(commentDisclosure, (node) => node === inputById["checkout-comment"]).length);
+  const details = { open: false };
+  commentDisclosure.props.ref(details);
+  assert.equal(details.open, true);
   assert.equal(
     findNodes(contactTree, (node) => node.props?.id === "checkout-email-helper").length,
     1,
@@ -322,8 +335,6 @@ test("delivery choices open their picker even when already selected", async (t) 
   const cases = [
     { provider: undefined, clicked: "ozon", available: true },
     { provider: "ozon", clicked: "ozon", available: true },
-    { provider: "cdek", clicked: "cdek", available: true },
-    { provider: "ozon", clicked: "cdek", available: true },
     { provider: undefined, clicked: "ozon", available: false },
   ];
 
@@ -378,10 +389,7 @@ test("delivery choices open their picker even when already selected", async (t) 
         },
         "./delivery-picker": { DeliveryPicker: component("DeliveryPicker") },
         "./delivery-selector/delivery-options": {
-          deliveryCompanies: [
-            { code: "ozon", label: "Ozon" },
-            { code: "cdek", label: "СДЭК" },
-          ],
+          deliveryCompanies: [{ code: "ozon", label: "Ozon" }],
         },
         "react/jsx-runtime": jsxRuntime,
       });
