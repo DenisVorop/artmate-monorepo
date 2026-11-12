@@ -1,5 +1,17 @@
 # Changelog
 
+## [0.62.0](https://github.com/DenisVorop/artmate-monorepo/compare/v0.61.1...v0.62.0) (2026-11-12)
+
+
+### Features
+
+* **auth:** record ad consent metadata ([688a017](https://github.com/DenisVorop/artmate-monorepo/commit/688a0175064caf353758597b375000a889c51049))
+
+
+### Bug Fixes
+
+* **checkout:** offer Ozon pickup only ([78eb0f7](https://github.com/DenisVorop/artmate-monorepo/commit/78eb0f7cfc2ddbd45f27746479473da0805b5918))
+
 ## [0.61.1](https://github.com/DenisVorop/artmate-monorepo/compare/v0.61.0...v0.61.1) (2026-11-11)
 
 
