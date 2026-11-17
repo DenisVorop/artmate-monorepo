@@ -617,6 +617,7 @@ async function _grant(
     credentials,
   );
   const started = await passwordFlow.start({ email, password }, context);
+  assert.ok(started.credentials);
   const state = await db.userConsentState.findUnique({ where: { email } });
   const subscription = await db.emailAdvertisingSubscription.findUnique({
     where: { email },

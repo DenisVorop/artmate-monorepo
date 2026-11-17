@@ -105,6 +105,7 @@ export class AuthFlowCoordinator {
       pending: true,
       error: null,
       email: config.initialEmail ?? "",
+      emailConfirmation: undefined,
       recoverySent: false,
       canRetry: false,
       flow: undefined,
@@ -186,7 +187,7 @@ export class AuthFlowCoordinator {
     if (this._snapshot.step !== "login") return Promise.resolve();
     const request = this._active;
     const epoch = this._epoch;
-    this._set({ email: input.email });
+    this._set({ email: input.email, emailConfirmation: undefined });
     return this._run(async () => {
       // Explicit credentials start a new identity attempt, including after a reload.
       try {
@@ -304,7 +305,14 @@ export class AuthFlowCoordinator {
         }
       }
       if (this._owns(request, epoch)) {
-        this._set({ step, pending: false, error: null, flow: undefined, recoverySent: false });
+        this._set({
+          step,
+          pending: false,
+          error: null,
+          flow: undefined,
+          recoverySent: false,
+          emailConfirmation: undefined,
+        });
       }
     })();
     return this._inFlight;
@@ -369,8 +377,18 @@ export class AuthFlowCoordinator {
         this._terminal(request, this._rejection(state.errorCode));
         return;
       }
+      if (state.status === "EMAIL_CONFIRMATION_REQUIRED") {
+        this._set({ step: "email", flow: state, emailConfirmation: "required" });
+        return;
+      }
       if (state.status === "LOGIN_REQUIRED") {
-        this._set({ step: "login", flow: state });
+        const confirmed =
+          this._snapshot.step === "code" && this._snapshot.emailConfirmation === "required";
+        this._set({
+          step: "login",
+          flow: state,
+          emailConfirmation: confirmed ? "confirmed" : undefined,
+        });
         return;
       }
       if (Date.parse(state.expiresAt) <= (this._ports.now?.() ?? Date.now())) {
@@ -484,6 +502,7 @@ export class AuthFlowCoordinator {
         pending: true,
         flow: undefined,
         canRetry: false,
+        emailConfirmation: undefined,
         error:
           code === "flow_expired" || code === "session_expired"
             ? "Время входа истекло. Войдите заново."

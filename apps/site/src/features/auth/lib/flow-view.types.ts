@@ -21,6 +21,7 @@ export type AuthFlowViewProps = FlowViewBase &
     | {
         step: "login";
         initialEmail?: string;
+        emailCodeConfirmed?: boolean;
         onLogin: (_values: PasswordLoginValues) => void;
         onSignup: () => void;
         onRecovery: () => void;
@@ -29,6 +30,7 @@ export type AuthFlowViewProps = FlowViewBase &
     | {
         step: "email";
         initialEmail?: string;
+        confirmExistingEmail?: boolean;
         onEmail: (_values: EmailCodeRequestValues) => void;
         onYandex: () => void;
         onLogin: () => void;
@@ -57,6 +59,7 @@ export type AuthFlowViewProps = FlowViewBase &
         email: string;
         onCode: (_values: EmailCodeConfirmValues) => void;
         onBack: () => void;
+        backLabel?: string;
         onResend: () => void;
         resendSeconds: number;
       }

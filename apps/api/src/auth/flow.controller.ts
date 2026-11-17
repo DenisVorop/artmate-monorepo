@@ -47,7 +47,7 @@ export class AuthFlowController {
       FlowRequestEvidence.from(request),
       FlowCookies.read(cookie),
     );
-    FlowCookies.write(response, result.credentials);
+    if (result.credentials) FlowCookies.write(response, result.credentials);
     return result.state;
   }
 

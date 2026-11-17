@@ -53,7 +53,7 @@ export function CodeStep({
         disabled={props.isPending}
       >
         <ArrowLeft aria-hidden />
-        Изменить почту
+        {props.backLabel ?? "Изменить почту"}
       </Button>
       <div className="space-y-3">
         <StepHeading id={titleId}>Код из письма</StepHeading>

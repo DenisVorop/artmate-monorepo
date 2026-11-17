@@ -12,6 +12,7 @@ import { FlowCredentials } from "./flow-credentials";
 import type {
   AuthFlowCredentials,
   AuthFlowStarted,
+  EmailConfirmationRequired,
 } from "./contracts/flow-response.contract";
 import { LoginThrottleService } from "./login-throttle.service";
 import { CredentialsAuthService } from "./credentials-auth.service";
@@ -31,7 +32,9 @@ export class PasswordFlowService {
     input: { email: string; password: string },
     context: RequestEvidenceV1,
     existing?: AuthFlowCredentials,
-  ): Promise<AuthFlowStarted> {
+  ): Promise<
+    AuthFlowStarted | { state: EmailConfirmationRequired; credentials?: never }
+  > {
     const email = input.email.trim().toLowerCase();
     const subject = { email, ipAddress: context.client.ipAddress ?? undefined };
     await this.throttle.assertLoginAllowed(subject);
@@ -79,15 +82,29 @@ export class PasswordFlowService {
           !currentUser ||
           currentUser.status !== "active" ||
           currentUser.authVersion !== user.authVersion ||
-          currentUser.email !== email ||
-          !currentUser.emailVerifiedAt
+          currentUser.email !== email
         )
           throw new UnauthorizedException("Invalid email or password");
-        const proof = await RecordedEmailProof.resolve(
-          tx,
-          currentUser,
-          context,
-        );
+        if (envBinding && !currentUser.emailVerifiedAt)
+          throw new UnauthorizedException("Invalid email or password");
+        const proof = currentUser.emailVerifiedAt
+          ? await RecordedEmailProof.resolve(tx, currentUser, context)
+          : await tx.verifiedIdentityFact.findFirst({
+              where: {
+                email,
+                userIdSnapshot: currentUser.userId,
+                method: "EMAIL_CODE",
+                verifiedAt: { lte: new Date() },
+              },
+              orderBy: { verifiedAt: "desc" },
+            });
+        if (!proof)
+          return {
+            state: {
+              status: "EMAIL_CONFIRMATION_REQUIRED",
+              nextStep: "email",
+            } as const,
+          };
         let credentials = existing ?? FlowCredentials.create();
         if (existing) {
           const previous = await tx.authPendingFlow.findUnique({

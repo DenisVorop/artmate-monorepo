@@ -56,6 +56,11 @@ export function LoginStep({
       }
     >
       <StepHeading id={titleId}>Войти</StepHeading>
+      {props.emailCodeConfirmed && (
+        <p role="status" className="text-sm leading-6 text-stone-700">
+          Код принят. Введите пароль, чтобы войти.
+        </p>
+      )}
       <div className="space-y-2">
         <div data-auth-field className="space-y-1">
           <Label htmlFor={emailId}>Электронная почта</Label>

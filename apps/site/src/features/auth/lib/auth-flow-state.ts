@@ -60,6 +60,7 @@ export type AuthFlowSnapshot = {
   pending: boolean;
   error: string | null;
   email: string;
+  emailConfirmation?: "required" | "confirmed";
   recoverySent: boolean;
   canRetry: boolean;
   flow?: AuthReadinessDTO;
