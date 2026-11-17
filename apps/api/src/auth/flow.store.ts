@@ -181,6 +181,24 @@ export class AuthFlowStore {
         throw new UnauthorizedException(
           "Auth continuation is missing or expired",
         );
+      // Users publishes the verification timestamp when this login completes.
+      if (!user?.emailVerifiedAt) {
+        const proof = user?.email
+          ? await tx.verifiedIdentityFact.findUnique({
+              where: {
+                id: auth.identityFactId,
+                email: user.email,
+                userIdSnapshot: user.userId,
+                method: "EMAIL_CODE",
+              },
+              select: { id: true },
+            })
+          : null;
+        if (!proof)
+          throw new UnauthorizedException(
+            "Auth continuation is missing or expired",
+          );
+      }
     }
     if (
       auth.method === "ENV_PASSWORD" &&

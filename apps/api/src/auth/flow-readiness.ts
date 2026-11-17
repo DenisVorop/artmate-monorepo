@@ -27,7 +27,7 @@ export class FlowReadiness {
         "Auth continuation is missing or expired",
       );
     if (
-      ["PASSWORD", "ENV_PASSWORD", "SESSION"].includes(auth.method) &&
+      ["ENV_PASSWORD", "SESSION"].includes(auth.method) &&
       !user?.emailVerifiedAt
     )
       throw new UnauthorizedException(

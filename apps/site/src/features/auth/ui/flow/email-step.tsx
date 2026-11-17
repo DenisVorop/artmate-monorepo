@@ -38,7 +38,7 @@ export function EmailStep({
             Получить код
           </CtaGradientButton>
           <p className="flex flex-wrap items-center justify-center gap-1 text-sm leading-6 text-stone-500">
-            Уже есть аккаунт?
+            {props.confirmExistingEmail ? null : "Уже есть аккаунт?"}
             <Button
               type="button"
               variant="link"
@@ -46,14 +46,18 @@ export function EmailStep({
               onClick={props.onLogin}
               disabled={props.isPending}
             >
-              Войти
+              {props.confirmExistingEmail ? "Ко входу" : "Войти"}
             </Button>
           </p>
-          <ProviderButtons onYandex={props.onYandex} disabled={props.isPending} />
+          {!props.confirmExistingEmail && (
+            <ProviderButtons onYandex={props.onYandex} disabled={props.isPending} />
+          )}
         </>
       }
     >
-      <StepHeading id={titleId}>Создать аккаунт</StepHeading>
+      <StepHeading id={titleId}>
+        {props.confirmExistingEmail ? "Подтвердите почту" : "Создать аккаунт"}
+      </StepHeading>
       <div data-auth-field className="space-y-1">
         <Label htmlFor={fieldId}>Электронная почта</Label>
         <Input
@@ -64,6 +68,7 @@ export function EmailStep({
           autoComplete="email"
           placeholder="name@example.com"
           className={fieldInputClassName}
+          readOnly={props.confirmExistingEmail}
           disabled={props.isPending}
           aria-invalid={!!form.formState.errors.email}
           aria-describedby={form.formState.errors.email ? `${fieldId}-error` : undefined}

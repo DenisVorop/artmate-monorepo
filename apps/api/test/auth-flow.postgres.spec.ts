@@ -520,39 +520,82 @@ describe("auth pipeline isolated PostgreSQL + HTTP", { skip: !url }, () => {
     );
   });
 
-  it("rejects an unfinished registration until its email is confirmed", async () => {
+  it("confirms an existing account by code and signs in with its original password", async () => {
+    const revisions = await _legalRevisions();
     const user = await _user("unfinished");
-    const before = await db.authCredential.findMany();
-    assert.equal(
-      (
-        await _post("/auth/flow/password", {
-          email: "unfinished@example.test",
-          password: "existing-password",
-        })
-      ).response.status,
-      401,
-    );
-    const confirmed = await _confirm(await _request("unfinished@example.test"));
+    const credential = await db.authCredential.findFirstOrThrow();
+    const input = { email: user.email!, password: "existing-password" };
+    const denied = await _post("/auth/flow/password", {
+      ...input,
+      password: "wrong-password",
+    });
+    assert.equal(denied.response.status, 401);
+    const needsCode = await _post("/auth/flow/password", input);
+    assert.equal(needsCode.response.status, 201);
+    assert.deepEqual(needsCode.state, {
+      status: "EMAIL_CONFIRMATION_REQUIRED",
+      nextStep: "email",
+    });
+    assert.equal(needsCode.cookie, "");
+    assert.equal(await db.notificationJob.count(), 0);
+
+    const confirmed = await _confirm(await _request(input.email));
     assert.deepEqual(confirmed.state, {
       status: "LOGIN_REQUIRED",
       nextStep: "login",
     });
+    assert.equal(confirmed.cookie.includes("artmate_access_token="), false);
+    const proof = await db.verifiedIdentityFact.findFirstOrThrow();
+    assert.equal(proof.userIdSnapshot, user.id);
+    assert.equal(proof.email, input.email);
+    assert.equal(proof.method, "EMAIL_CODE");
+    assert.equal(await db.authAuthenticationFact.count(), 0);
     assert.equal(
-      (
-        await _post("/auth/flow/password", {
-          email: "unfinished@example.test",
-          password: "existing-password",
-        })
-      ).response.status,
+      (await _post("/auth/flow/password", { ...input, password: "wrong-password" }))
+        .response.status,
       401,
     );
+
+    // The site's next password attempt cancels the code continuation.
+    assert.equal((await _post("/auth/flow/cancel", {}, confirmed.cookie)).response.status, 201);
+    const signedIn = await _post("/auth/flow/password", input);
+    assert.equal(signedIn.response.status, 201);
+    const flow = await _pendingRecord(signedIn.cookie);
+    assert.equal(flow.identityFactId, proof.id);
+    const submitted = await _completionPost(
+      await _consentInput(signedIn.cookie, revisions, false),
+      signedIn.cookie,
+    );
+    assert.equal(submitted.state.status, "PENDING");
+    const completed = await _finishCompletion(signedIn.cookie);
+    await _assertSession(completed.cookie, user.id);
     assert.equal(
-      (await db.user.findUniqueOrThrow({ where: { id: user.id } }))
-        .emailVerifiedAt,
+      (await db.user.findUniqueOrThrow({ where: { id: user.id } })).emailVerifiedAt?.getTime(),
+      proof.verifiedAt.getTime(),
+    );
+    assert.deepEqual(await db.authCredential.findMany(), [credential]);
+    assert.equal(await db.user.count(), 1);
+    assert.equal(await db.notificationJob.count(), 1);
+  });
+
+  it("requires a new code when the existing account has no proof bound to it", async () => {
+    const email = "unfinished@example.test";
+    const confirmed = await _confirm(await _request(email));
+    assert.equal(confirmed.state.nextStep, "registration");
+    const user = await _user("unfinished");
+    const login = await _post("/auth/flow/password", {
+      email,
+      password: "existing-password",
+    });
+    assert.deepEqual(login.state, {
+      status: "EMAIL_CONFIRMATION_REQUIRED",
+      nextStep: "email",
+    });
+    assert.equal(login.cookie, "");
+    assert.equal(
+      (await db.user.findUniqueOrThrow({ where: { id: user.id } })).emailVerifiedAt,
       null,
     );
-    assert.deepEqual(await db.authCredential.findMany(), before);
-    assert.equal(await db.authPendingFlow.count(), 0);
   });
 
   it("verifies the code before creating a registration draft, leaving User and active credentials absent", async () => {

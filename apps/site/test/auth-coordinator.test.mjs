@@ -114,6 +114,42 @@ function setup(overrides = {}) {
 }
 
 // These execute the coordinator with controlled mutation results; no browser or real timer is needed.
+test("an existing account requests and confirms a code before returning to password login", async () => {
+  const input = { email: user.email, password: "existing-password" };
+  let codeAccepted = false;
+  const { coordinator } = setup({
+    login: async (credentials) => {
+      assert.deepEqual(credentials, input);
+      return codeAccepted
+        ? completed
+        : { status: "EMAIL_CONFIRMATION_REQUIRED", nextStep: "email" };
+    },
+    requestCode: async ({ email }) => {
+      assert.equal(email, input.email);
+      return pending("code", { generation: 2 });
+    },
+    confirmCode: async (code) => {
+      assert.deepEqual(code, { code: "123456", generation: 2 });
+      codeAccepted = true;
+      return login;
+    },
+    saveRegistration: async () => assert.fail("Existing accounts do not register again"),
+  });
+  const outcome = coordinator.request(Symbol(), {}, {}, undefined);
+  await flush();
+  await coordinator.login(input);
+  assert.equal(coordinator.getSnapshot().step, "email");
+  assert.equal(coordinator.getSnapshot().emailConfirmation, "required");
+  await coordinator.requestCode({ email: input.email });
+  assert.equal(coordinator.getSnapshot().step, "code");
+  await coordinator.confirmCode({ code: "123456" });
+  assert.equal(coordinator.getSnapshot().step, "login");
+  assert.equal(coordinator.getSnapshot().emailConfirmation, "confirmed");
+  assert.equal(coordinator.getSnapshot().email, input.email);
+  await coordinator.login(input);
+  assert.deepEqual(await outcome, { status: "success", user });
+});
+
 test("same owner double click shares one Promise, payload and terminal callback", async () => {
   const gate = deferred();
   const { coordinator } = setup({ start: () => gate.promise });

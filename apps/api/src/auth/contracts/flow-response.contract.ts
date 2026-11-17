@@ -1,6 +1,12 @@
 import type { ConsentDocumentV1 } from "../../consents/contracts/consent-read-model";
 
+export type EmailConfirmationRequired = {
+  readonly status: "EMAIL_CONFIRMATION_REQUIRED";
+  readonly nextStep: "email";
+};
+
 export type AuthFlowResponseV1 =
+  | EmailConfirmationRequired
   | {
       readonly status: "PENDING";
       readonly nextStep: "consents";

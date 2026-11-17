@@ -36,6 +36,7 @@ export function CurrentFlowView({
           {...shared}
           step="login"
           initialEmail={snapshot.email}
+          emailCodeConfirmed={snapshot.emailConfirmation === "confirmed"}
           onLogin={(values) => void coordinator.login(values)}
           onSignup={() => void coordinator.showEmail()}
           onRecovery={() => void coordinator.showRecovery()}
@@ -52,6 +53,7 @@ export function CurrentFlowView({
           {...shared}
           step="email"
           initialEmail={snapshot.email}
+          confirmExistingEmail={snapshot.emailConfirmation === "required"}
           onEmail={(values) => void coordinator.requestCode(values)}
           onLogin={() => void coordinator.showLogin()}
           onYandex={() => void coordinator.startYandex()}
@@ -66,7 +68,14 @@ export function CurrentFlowView({
           email={flow.emailMasked}
           resendAvailableAt={flow.resendAvailableAt}
           onCode={(values) => void coordinator.confirmCode(values)}
-          onBack={() => void coordinator.showEmail()}
+          onBack={() =>
+            void (snapshot.emailConfirmation === "required"
+              ? coordinator.showLogin()
+              : coordinator.showEmail())
+          }
+          backLabel={
+            snapshot.emailConfirmation === "required" ? "Ко входу" : undefined
+          }
           onResend={() => void coordinator.resendCode()}
         />
       );

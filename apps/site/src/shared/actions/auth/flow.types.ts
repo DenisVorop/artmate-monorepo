@@ -89,6 +89,7 @@ export type AuthFlowStateDTO =
       missingFields: ("name" | "phone")[];
       profileRevision: number | null;
     }
+  | { status: "EMAIL_CONFIRMATION_REQUIRED"; nextStep: "email" }
   | { status: "LOGIN_REQUIRED"; nextStep: "login" };
 
 export type PasswordFlowInputDTO = { email: string; password: string };
