@@ -119,7 +119,12 @@ async function loadCoordinator(ports) {
   );
   const { AuthFlowCoordinator } = evaluateTypeScript(
     await readSource("src/features/auth/lib/auth-flow-coordinator.ts"),
-    { "./to-consent-decision": mapper },
+    {
+      "./to-consent-decision": mapper,
+      "./read-advertising-consent-device": {
+        readAdvertisingConsentDevice: async () => ({}),
+      },
+    },
   );
   return new AuthFlowCoordinator({
     now: () => 0,
