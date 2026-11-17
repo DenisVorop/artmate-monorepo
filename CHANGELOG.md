@@ -1,5 +1,12 @@
 # Changelog
 
+## [0.62.1](https://github.com/DenisVorop/artmate-monorepo/compare/v0.62.0...v0.62.1) (2026-11-17)
+
+
+### Bug Fixes
+
+* **auth:** confirm email for existing accounts ([ef58bc1](https://github.com/DenisVorop/artmate-monorepo/commit/ef58bc1e5ea9ac8c59f6039d0875502319ee9fdd))
+
 ## [0.62.0](https://github.com/DenisVorop/artmate-monorepo/compare/v0.61.1...v0.62.0) (2026-11-12)
 
 
