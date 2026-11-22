@@ -3,20 +3,14 @@ import { Accordion, AccordionContent, AccordionItem, AccordionTrigger } from "@/
 import { Link } from "@/shared/ui/link";
 import { SectionTitle } from "@/shared/ui/typography";
 
-export function Faq({ collectionSlug }: { collectionSlug?: string }) {
+export function Faq() {
   const items = [
     {
       question: "Это фотографии работ или цветные образцы?",
       answer: (
         <>
           В галерее — фотографии готовых работ участников. Контуры и цветные образцы Artmate
-          находятся в{" "}
-          <Link
-            href={collectionSlug ? routes.coloringCollection(collectionSlug) : routes.colorings}
-          >
-            цифровых версиях раскрасок
-          </Link>
-          .
+          находятся в <Link href={routes.colorings}>цифровых версиях раскрасок</Link>.
         </>
       ),
     },
@@ -47,10 +41,7 @@ export function Faq({ collectionSlug }: { collectionSlug?: string }) {
     },
   ];
   return (
-    <section
-      aria-labelledby="gallery-faq-title"
-      className="space-y-6"
-    >
+    <section aria-labelledby="gallery-faq-title" className="space-y-6">
       <SectionTitle id="gallery-faq-title">Вопросы о галерее</SectionTitle>
       <Accordion
         type="single"

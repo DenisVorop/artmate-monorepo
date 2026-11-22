@@ -1,0 +1,21 @@
+{
+  "edition": "3.1",
+  "source": "frozen local public contest API",
+  "positive": [
+    "100 RUB",
+    "500 RUB",
+    "Moscow time",
+    "fractional amounts",
+    "source snapshot reproduced",
+    "album dispatch 30 calendar days"
+  ],
+  "rejected": [
+    "prize not configured",
+    "manual criteria missing",
+    "wrong date order",
+    "expired before draw",
+    "negative money",
+    "invalid percentage",
+    "albums without snapshot"
+  ]
+}

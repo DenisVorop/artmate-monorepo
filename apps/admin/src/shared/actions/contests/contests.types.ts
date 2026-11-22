@@ -1,0 +1,92 @@
+import type { ContestAppearance } from "@repo/ui/contest-design";
+export type ContestStage =
+  | "draft"
+  | "upcoming"
+  | "open"
+  | "review"
+  | "completed";
+export type ContestSelectionMode = "AUTOMATIC" | "MANUAL";
+export type ContestInput = {
+  title: string;
+  slug: string;
+  description: string;
+  task: string;
+  rules: string[];
+  appearance: ContestAppearance;
+  prize: string;
+  prizeDetail: string;
+  prizeAlbumQuantity: number | null;
+  prizeAlbumIds: string[];
+  prizePromoCodeId: string | null;
+  winnersCount: number;
+  selectionMode: ContestSelectionMode;
+  manualCriteria: string;
+  manualTieBreak: string;
+  manualEvaluator: string;
+  opensAt: string;
+  closesAt: string;
+  drawAt: string;
+  published: boolean;
+};
+export type Contest = ContestInput & {
+  id: string;
+  legalHref: string | null;
+  legalDocumentId: string | null;
+  legalErrors: string[];
+  prizePromoTerms: {
+    name: string;
+    type: "PERCENTAGE" | "FIXED";
+    basisPoints: number | null;
+    amountKopecks: number | null;
+    minSubtotalKopecks: number;
+    maxDiscountKopecks: number | null;
+    startsAt: string | null;
+    endsAt: string | null;
+  } | null;
+  stage: ContestStage;
+  version: number;
+  publishedAt: string | null;
+  createdAt: string;
+  updatedAt: string;
+  entriesCount?: number;
+  pendingCount?: number;
+};
+export type ContestWork = {
+  id: string;
+  author: string;
+  title: string;
+  image: string;
+  albumTitle: string;
+};
+export type ContestDrawData = {
+  contest: Pick<
+    Contest,
+    "id" | "title" | "slug" | "selectionMode" | "winnersCount" | "drawAt"
+  >;
+  candidates: { entryId: string; version: number; work: ContestWork }[];
+  pendingCount: number;
+  rosterToken: string | null;
+  blocker: string | null;
+  result: null | {
+    id: string;
+    mode: ContestSelectionMode;
+    drawnAt: string;
+    eligibleCount: number;
+    requestedWinners: number;
+    actor: { id: string; name: string | null } | null;
+    algorithm: string;
+    eligibilityHash: string;
+    winners: {
+      id: string;
+      entryId: string;
+      author: string;
+      work: ContestWork | null;
+      entryVersion: number;
+      revision: number;
+    }[];
+  };
+};
+export type ManualContestDrawInput = {
+  rosterToken: string;
+  entryIds: string[];
+};

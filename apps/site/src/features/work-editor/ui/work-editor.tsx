@@ -9,7 +9,6 @@ import {
   ChevronRight,
   Info,
   Plus,
-  RotateCw,
   ShieldCheck,
   Trash2,
 } from "lucide-react";
@@ -36,7 +35,6 @@ import {
   SelectItem,
   SelectTrigger,
   SelectValue,
-  Slider,
   Textarea,
 } from "@/shared/ui";
 import { PageTitle } from "@/shared/ui/typography";
@@ -148,7 +146,6 @@ function EditorForm({
   const values = useWatch({ control });
   const selectedPhoto = useWatch({ control, name: "photo" });
   const materials = useWatch({ control, name: "materials" });
-  const crop = useWatch({ control, name: "crop" });
   const toolsQuery = useWorkshopTools();
   const markerColorsQuery = useMarkerColors(
     materials.some((material) => material.type === "ARTMATE_168"),
@@ -157,7 +154,6 @@ function EditorForm({
     markerColorsQuery.colors.length > 0
       ? markerColorsQuery.colors
       : (toolsQuery.tools.find((tool) => tool.type === "ARTMATE_168")?.officialPalette ?? []);
-  const canAdjustCrop = Boolean(selectedPhoto);
   const createRevision = useCreateWorkshopRevision(slug, number, {
     onSuccess: () => {
       reset(defaultValues);
@@ -289,7 +285,7 @@ function EditorForm({
         });
         setIsMaterialsEditorOpen(true);
         setIsMappingEditorOpen(true);
-        setCurrentStep(2);
+        setCurrentStep(1);
         return;
       }
 
@@ -331,12 +327,10 @@ function EditorForm({
 
     if (formErrors.photo) {
       setCurrentStep(0);
-    } else if (formErrors.crop) {
-      setCurrentStep(1);
     } else if (formErrors.materials || formErrors.mappings || formErrors.caption) {
-      setCurrentStep(2);
+      setCurrentStep(1);
     } else if (formErrors.publicationConsent || formErrors.advertisingConsent) {
-      setCurrentStep(3);
+      setCurrentStep(2);
     }
   }
 
@@ -354,8 +348,8 @@ function EditorForm({
           </p>
         ) : null}
         <p className="max-w-3xl text-stone-600">
-          Загрузите фото уже раскрашенной физической картины. Это не редактор рисования: здесь можно
-          подготовить фотографию, а материалы и номера маркеров добавить по желанию.
+          Загрузите фотографию готовой раскраски. Подпись, материалы и номера маркеров
+          можно добавить по желанию.
         </p>
         {data.work?.publishedRevision ? (
           <Badge className="h-auto max-w-full justify-start bg-emerald-100 py-1 text-left leading-snug whitespace-normal text-emerald-800">
@@ -411,8 +405,8 @@ function EditorForm({
                   </div>
                   <div className="rounded-2xl bg-rose-50 p-4 text-sm leading-6 text-rose-950">
                     <Camera className="mb-2 size-5 text-rose-500" aria-hidden="true" />
-                    Снимайте при ровном освещении, держите камеру параллельно листу и оставьте
-                    небольшой запас по краям для кадрирования.
+                    Снимайте при ровном освещении, чтобы раскраска была хорошо видна.
+                    Фотография сохранится целиком.
                   </div>
                 </div>
                 <PhotoPreview
@@ -428,84 +422,6 @@ function EditorForm({
             ) : null}
 
             {currentStep === 1 ? (
-              <section className="grid gap-6 lg:grid-cols-[minmax(18rem,28rem)_minmax(0,1fr)] lg:items-start">
-                <PhotoPreview
-                  objectUrl={objectUrl}
-                  revisionId={
-                    data.work?.currentRevision?.status === "HIDDEN"
-                      ? undefined
-                      : data.work?.currentRevision?.id
-                  }
-                  alt={`Кадрирование работы ${data.coloring.number}`}
-                  crop={objectUrl ? crop : undefined}
-                />
-                <div className="space-y-6">
-                  {!canAdjustCrop ? (
-                    <p className="rounded-xl border border-amber-200 bg-amber-50 p-4 text-sm text-amber-950">
-                      {data.work?.currentRevision?.status === "HIDDEN"
-                        ? "Эта версия скрыта модератором. Вернитесь на шаг «Фото» и загрузите новую фотографию."
-                        : data.work?.currentRevision
-                          ? "Без нового фото сервер сохранит прежний кадр без изменений. Чтобы изменить кадрирование, вернитесь на шаг «Фото» и выберите замену."
-                          : "Сначала выберите фотографию на шаге «Фото», затем настройте кадрирование."}
-                    </p>
-                  ) : null}
-                  <CropSlider
-                    label="Масштаб"
-                    value={crop.zoom}
-                    min={1}
-                    max={3}
-                    step={0.05}
-                    disabled={!canAdjustCrop}
-                    onCommit={analytics.zoomAdjusted}
-                    onChange={(value) => setValue("crop.zoom", value, { shouldDirty: true })}
-                  />
-                  <CropSlider
-                    label="По горизонтали"
-                    value={crop.x}
-                    min={-1}
-                    max={1}
-                    step={0.01}
-                    disabled={!canAdjustCrop}
-                    onCommit={analytics.horizontalAdjusted}
-                    onChange={(value) => setValue("crop.x", value, { shouldDirty: true })}
-                  />
-                  <CropSlider
-                    label="По вертикали"
-                    value={crop.y}
-                    min={-1}
-                    max={1}
-                    step={0.01}
-                    disabled={!canAdjustCrop}
-                    onCommit={analytics.verticalAdjusted}
-                    onChange={(value) => setValue("crop.y", value, { shouldDirty: true })}
-                  />
-                  <Button
-                    type="button"
-                    variant="outline"
-                    className="min-h-11"
-                    disabled={!canAdjustCrop}
-                    onClick={() => {
-                      analytics.rotated();
-                      setValue(
-                        "crop.rotation",
-                        ((crop.rotation + 90) % 360) as 0 | 90 | 180 | 270,
-                        {
-                          shouldDirty: true,
-                        },
-                      );
-                    }}
-                  >
-                    <RotateCw data-icon="inline-start" />
-                    Повернуть на 90°
-                  </Button>
-                  <p className="text-sm text-stone-500">
-                    Кадр сохраняется в нормализованном виде. Финальную обработку выполняет сервер.
-                  </p>
-                </div>
-              </section>
-            ) : null}
-
-            {currentStep === 2 ? (
               <section className="mx-auto max-w-2xl space-y-3">
                 <h2 className="text-xl font-bold">Подпись к работе</h2>
                 <Label htmlFor="work-caption">Необязательно</Label>
@@ -543,7 +459,7 @@ function EditorForm({
               </section>
             ) : null}
 
-            {currentStep === 2 && isMaterialsEditorOpen ? (
+            {currentStep === 1 && isMaterialsEditorOpen ? (
               <section id="workshop-materials" className="mt-8 space-y-6 border-t pt-8">
                 <div>
                   <h2 className="text-xl font-bold">Материалы</h2>
@@ -696,7 +612,7 @@ function EditorForm({
               </section>
             ) : null}
 
-            {currentStep === 2 && isMaterialsEditorOpen && isMappingEditorOpen ? (
+            {currentStep === 1 && isMaterialsEditorOpen && isMappingEditorOpen ? (
               <section id="workshop-symbol-mappings" className="mt-8 space-y-5 border-t pt-8">
                 <div>
                   <h2 className="text-xl font-bold">Соответствие символов</h2>
@@ -864,7 +780,7 @@ function EditorForm({
               </section>
             ) : null}
 
-            {currentStep === 3 ? (
+            {currentStep === 2 ? (
               <section className="mx-auto max-w-3xl space-y-5">
                 <div>
                   <h2 className="text-xl font-bold">Отправка на модерацию</h2>
@@ -909,7 +825,7 @@ function EditorForm({
               </section>
             ) : null}
 
-            {currentStep === 4 ? (
+            {currentStep === 3 ? (
               <section className="grid gap-6 lg:grid-cols-[minmax(18rem,26rem)_minmax(0,1fr)] lg:items-start">
                 <PhotoPreview
                   objectUrl={objectUrl}
@@ -919,7 +835,6 @@ function EditorForm({
                       : data.work?.currentRevision?.id
                   }
                   alt={`Предпросмотр работы ${data.coloring.number}`}
-                  crop={objectUrl ? crop : undefined}
                 />
                 <div className="space-y-5">
                   <div>
@@ -1013,47 +928,6 @@ function EditorForm({
           </div>
         </Card>
       </form>
-    </div>
-  );
-}
-
-function CropSlider({
-  label,
-  value,
-  min,
-  max,
-  step,
-  disabled,
-  onChange,
-  onCommit,
-}: {
-  label: string;
-  value: number;
-  min: number;
-  max: number;
-  step: number;
-  disabled?: boolean;
-  onChange: (_value: number) => void;
-  onCommit: () => void;
-}) {
-  return (
-    <div className="space-y-3">
-      <div className="flex justify-between gap-3">
-        <Label>{label}</Label>
-        <output className="font-mono text-sm">{value.toFixed(2)}</output>
-      </div>
-      <Slider
-        disabled={disabled}
-        value={[value]}
-        min={min}
-        max={max}
-        step={step}
-        aria-label={label}
-        className="min-h-11"
-        thumbClassName="size-5 after:-inset-3"
-        onValueChange={(nextValue) => onChange(nextValue[0] ?? value)}
-        onValueCommit={onCommit}
-      />
     </div>
   );
 }

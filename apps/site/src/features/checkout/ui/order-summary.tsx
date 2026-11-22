@@ -2,7 +2,7 @@
 
 import Image from "next/image";
 import { ShoppingBag } from "lucide-react";
-import type { ReactNode } from "react";
+import type { ReactNode, Ref } from "react";
 
 import type { Cart, CartItem } from "@/entities/cart";
 import type { PromoPreview } from "@/entities/promocode";
@@ -47,6 +47,7 @@ type OrderSummaryProps = {
   isSubmitDisabled: boolean;
   isSubmitting: boolean;
   submitLabel: string;
+  submitButtonRef?: Ref<HTMLButtonElement>;
 };
 
 export function OrderSummary(props: OrderSummaryProps) {
@@ -76,6 +77,7 @@ export function BaseOrderSummary({
   isSubmitDisabled,
   isSubmitting,
   submitLabel,
+  submitButtonRef,
   checkoutCalculation,
   hasDevelopmentBanner,
   promoPreview,
@@ -183,6 +185,7 @@ export function BaseOrderSummary({
           </div>
         ) : null}
         <CheckoutSubmitButton
+          ref={submitButtonRef}
           form={checkoutOrderFormId}
           disabled={isSubmitDisabled}
           isSubmitting={isSubmitting}

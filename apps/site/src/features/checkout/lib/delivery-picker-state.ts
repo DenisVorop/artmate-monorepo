@@ -1,27 +1,8 @@
-import type { DeliveryCityDTO, DeliveryPickupPointDTO } from "@/shared/actions/delivery";
 import type { CheckoutCalculationDTO } from "@/shared/actions/orders";
 
 import type { CheckoutDeliverySelection } from "./checkout-form";
 
-export type CdekDeliveryDraft = {
-  city?: DeliveryCityDTO;
-  cityCode?: number;
-  pickupPoint?: DeliveryPickupPointDTO;
-  pickupPointId?: string;
-};
-
-export type OzonDeliveryDraft = {
-  city?: DeliveryCityDTO;
-  cityCode?: number;
-  pickupPoint?: DeliveryPickupPointDTO;
-  pickupPointId?: string;
-};
-
-export type DeliveryPickerDrafts = {
-  cdek: CdekDeliveryDraft;
-  ozon: OzonDeliveryDraft;
-};
-
+import type { DeliveryPickerDrafts } from "@/widgets/pickup-point-picker";
 type ConfirmationInput = {
   calculate: () => Promise<unknown>;
   candidate: CheckoutDeliverySelection;
@@ -87,60 +68,6 @@ export function seedDeliveryPickerDrafts(
   }
 
   return withConfirmedTechnicalSelection;
-}
-
-export function selectDraftCity(
-  drafts: DeliveryPickerDrafts,
-  city: DeliveryCityDTO,
-): DeliveryPickerDrafts {
-  return {
-    ...drafts,
-    cdek: { city, cityCode: city.code },
-  };
-}
-
-export function clearCdekDraftCity(drafts: DeliveryPickerDrafts): DeliveryPickerDrafts {
-  return { ...drafts, cdek: {} };
-}
-
-export function selectOzonDraftCity(
-  drafts: DeliveryPickerDrafts,
-  city: DeliveryCityDTO,
-): DeliveryPickerDrafts {
-  return {
-    ...drafts,
-    ozon: { city, cityCode: city.code },
-  };
-}
-
-export function clearOzonDraftCity(drafts: DeliveryPickerDrafts): DeliveryPickerDrafts {
-  return { ...drafts, ozon: {} };
-}
-
-export function selectDraftPickupPoint(
-  drafts: DeliveryPickerDrafts,
-  provider: CheckoutDeliverySelection["provider"],
-  pickupPoint: DeliveryPickupPointDTO,
-): DeliveryPickerDrafts {
-  if (provider === "cdek") {
-    return {
-      ...drafts,
-      cdek: {
-        ...drafts.cdek,
-        pickupPoint,
-        pickupPointId: pickupPoint.id,
-      },
-    };
-  }
-
-  return {
-    ...drafts,
-    ozon: {
-      ...drafts.ozon,
-      pickupPoint,
-      pickupPointId: pickupPoint.id,
-    },
-  };
 }
 
 export function getDeliveryDraftCandidate(

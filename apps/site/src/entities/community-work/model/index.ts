@@ -10,6 +10,8 @@ export {
 } from "./schemas";
 export type {
   CommunityWorkSummary,
+  GalleryWork,
+  ContestGalleryWork,
   GalleryWorksPage,
   GalleryFilters,
   GalleryWorksFilters,

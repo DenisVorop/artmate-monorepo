@@ -1,0 +1,30 @@
+CREATE TABLE "contests" (
+  "id" VARCHAR(32) NOT NULL,
+  "slug" VARCHAR(120) NOT NULL,
+  "title" VARCHAR(160) NOT NULL,
+  "description" VARCHAR(600) NOT NULL,
+  "task" TEXT NOT NULL,
+  "rules" TEXT[] NOT NULL,
+  "appearance" VARCHAR(32) NOT NULL DEFAULT 'none',
+  "prize" VARCHAR(200) NOT NULL,
+  "prize_detail" VARCHAR(1000) NOT NULL,
+  "winners_count" INTEGER NOT NULL,
+  "opens_at" TIMESTAMPTZ(3) NOT NULL,
+  "closes_at" TIMESTAMPTZ(3) NOT NULL,
+  "draw_at" TIMESTAMPTZ(3) NOT NULL,
+  "published" BOOLEAN NOT NULL DEFAULT false,
+  "published_at" TIMESTAMPTZ(3),
+  "version" INTEGER NOT NULL DEFAULT 1,
+  "created_at" TIMESTAMPTZ(3) NOT NULL DEFAULT CURRENT_TIMESTAMP,
+  "updated_at" TIMESTAMPTZ(3) NOT NULL DEFAULT CURRENT_TIMESTAMP,
+  CONSTRAINT "contests_pkey" PRIMARY KEY ("id"),
+  CONSTRAINT "contests_dates" CHECK ("opens_at" < "closes_at" AND "closes_at" < "draw_at"),
+  CONSTRAINT "contests_winners" CHECK ("winners_count" BETWEEN 1 AND 100),
+  CONSTRAINT "contests_version" CHECK ("version" > 0),
+  CONSTRAINT "contests_slug" CHECK ("slug" ~ '^[a-z0-9]+(-[a-z0-9]+)*$'),
+  CONSTRAINT "contests_rules" CHECK (cardinality("rules") BETWEEN 1 AND 30 AND array_position("rules", NULL) IS NULL),
+  CONSTRAINT "contests_appearance" CHECK ("appearance" IN ('none','new-year','valentines','womens-day','easter','knowledge-day','halloween','mothers-day','artmate-birthday','spring','summer','autumn','winter')),
+  CONSTRAINT "contests_publication" CHECK (NOT "published" OR "published_at" IS NOT NULL)
+);
+CREATE UNIQUE INDEX "contests_slug_key" ON "contests"("slug");
+CREATE INDEX "contests_published_opens_at_idx" ON "contests"("published", "opens_at");

@@ -10,6 +10,7 @@ import { CustomerDirectoryReader } from "../auth/customer-directory.reader";
 import { CustomerAuthSubjectLock } from "../users/contracts/customer-auth-subject-lock";
 import type { AuthUser } from "../auth/auth.types";
 import type { RequestEvidenceV1 } from "../common/request-evidence";
+import { ConsentChecks } from "./consent-checks";
 import { RecipientConsentLock } from "./contracts/recipient-consent-lock";
 import { EmailAdvertisingRevision } from "./email-advertising-revision";
 import { EmailAdvertisingGrant } from "./email-advertising-grant";
@@ -37,11 +38,13 @@ export class EmailAdvertisingSettingsGrantService {
         user.status !== "active" ||
         !user.email ||
         user.email !== actor.email ||
-        !user.emailVerifiedAt ||
-        user.emailVerifiedAt > new Date()
+        !ConsentChecks.verified({
+          email: user.email,
+          verifiedAt: user.emailVerifiedAt,
+        })
       )
         throw new UnauthorizedException("A verified account is required");
-      await tx.$executeRaw`LOCK TABLE consent_revisions IN SHARE MODE`;
+      await ConsentChecks.lockRegistry(tx);
       await RecipientConsentLock.acquire(tx, user.email);
       const revisionId = await EmailAdvertisingRevision.current(tx);
       if (!revisionId)
@@ -113,7 +116,7 @@ export class EmailAdvertisingSettingsGrantService {
       const evidence = {
         actorUserIdSnapshot: actor.id,
         email: user.email,
-        emailVerifiedAtSnapshot: user.emailVerifiedAt,
+        emailVerifiedAtSnapshot: user.emailVerifiedAt!,
         revisionId,
         operationKey,
         source: "notification_settings",

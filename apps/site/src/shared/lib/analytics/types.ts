@@ -114,6 +114,9 @@ export const interactionEventParamKeys = {
   club_operations_previous: [],
   club_terms_open: [],
   club_workshop_open: [],
+  contest_view: ["contest_slug"],
+  contest_entry_start: ["contest_slug"],
+  contest_entry_submit_success: ["contest_slug"],
   delivery_method_select: ["delivery_provider"],
   payment_method_select: ["payment_method"],
   payment_recovery_error: [],
@@ -160,10 +163,6 @@ export const interactionEventParamKeys = {
   promo_replace_request: [],
   work_editor_advertising_check: [],
   work_editor_advertising_uncheck: [],
-  work_editor_crop_horizontal: [],
-  work_editor_crop_rotate: [],
-  work_editor_crop_vertical: [],
-  work_editor_crop_zoom: [],
   work_editor_custom_material_add: [],
   work_editor_mapping_assign: [],
   work_editor_mapping_clear: [],
@@ -278,6 +277,7 @@ type NamedSiteFields = {
   landing_slug: string;
   source: "header" | "mobile_menu" | "footer" | "home" | "product" | "gallery" | "digital";
   collection_slug: string;
+  contest_slug: string;
   coloring_number: number;
   palette_id: string;
   percent: number;

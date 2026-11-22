@@ -581,7 +581,11 @@ async function _legacySnapshot(db: PGlite): Promise<unknown> {
     "orders",
     "auth_order_activation_tokens",
   ]) {
-    result.push((await db.query(`SELECT * FROM ${table} ORDER BY id`)).rows);
+    // Later prize migrations add delivery funding; compare the original order data.
+    const query = table === "orders"
+      ? "SELECT to_jsonb(o) - 'sponsored_delivery_price' AS data FROM orders o ORDER BY id"
+      : `SELECT * FROM ${table} ORDER BY id`;
+    result.push((await db.query(query)).rows);
   }
   return result;
 }

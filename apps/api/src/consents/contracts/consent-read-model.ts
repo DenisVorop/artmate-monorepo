@@ -1,4 +1,5 @@
 import { RecipientConsentLock } from "./recipient-consent-lock";
+import { ConsentChecks } from "../consent-checks";
 import type { Prisma } from "../../generated/prisma/client";
 import type {
   RequiredConsentStateV1,
@@ -56,8 +57,7 @@ export class ConsentReadModel {
         'version', r.version, 'documentTitle', r.document_title,
         'documentSha256', r.document_sha256, 'formSha256', r.form_sha256))
         FROM consent_revisions r WHERE r.purpose = ${purpose}
-          AND r.published_at <= (clock_timestamp() AT TIME ZONE 'UTC')
-          AND (r.retired_at IS NULL OR r.retired_at > (clock_timestamp() AT TIME ZONE 'UTC'))) AS registry,
+          AND ${ConsentChecks.activeSql()}) AS registry,
       c.revision AS "stateRevision", c.required_acceptances AS "requiredAcceptances",
       s.id AS "subscriptionId", s.state::text AS "advertisingState", s.version AS "advertisingVersion",
       s.active_grant_id AS "activeGrantId", e.revision_id AS "advertisingRevisionId",
@@ -179,7 +179,7 @@ export class ConsentReadModel {
     email: string,
     purpose: string,
   ): Promise<ConsentReadinessV1 | null> {
-    await tx.$executeRaw`LOCK TABLE consent_revisions IN SHARE MODE`;
+    await ConsentChecks.lockRegistry(tx);
     await RecipientConsentLock.acquire(tx, email);
     return this.read(tx, email, purpose);
   }

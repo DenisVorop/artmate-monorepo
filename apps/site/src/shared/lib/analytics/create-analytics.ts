@@ -435,6 +435,11 @@ function isNamedSiteParam(
   params: SafeParams,
 ) {
   switch (key) {
+    case "contest_slug":
+      return (
+        typeof params.contest_slug === "string" &&
+        /^(?=.{1,120}$)[a-z0-9]+(?:-[a-z0-9]+)*$/.test(params.contest_slug)
+      );
     case "sort":
       return includesParam(["featured", "newest", "price-asc", "price-desc"], params.sort);
     case "catalog_category":

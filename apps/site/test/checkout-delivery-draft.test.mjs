@@ -31,7 +31,19 @@ async function loadDraftState() {
     testModule.exports,
   );
 
-  return testModule.exports;
+  const draftSource = await readSource("src/widgets/pickup-point-picker/lib/selection-drafts.ts");
+  const draftOutput = ts.transpileModule(draftSource, {
+    compilerOptions: { module: ts.ModuleKind.CommonJS, target: ts.ScriptTarget.ES2022 },
+  }).outputText;
+  const draftsModule = { exports: {} };
+  new Function("require", "module", "exports", draftOutput)(
+    (specifier) => {
+      throw new Error(`Unexpected test module import: ${specifier}`);
+    },
+    draftsModule,
+    draftsModule.exports,
+  );
+  return { ...testModule.exports, ...draftsModule.exports };
 }
 
 const cdekPointA = {
@@ -544,8 +556,8 @@ test("provider exposes confirmation rather than a destructive candidate setter",
 test("field owns controlled carrier drafts and point clicks do not close or commit", async () => {
   const [field, picker, selector] = await Promise.all([
     readSource("src/features/checkout/ui/delivery-method-field.tsx"),
-    readSource("src/features/checkout/ui/delivery-picker.tsx"),
-    readSource("src/features/checkout/ui/delivery-selector/delivery-selector.tsx"),
+    readSource("src/widgets/pickup-point-picker/ui/delivery-picker.tsx"),
+    readSource("src/widgets/pickup-point-picker/ui/delivery-selector/delivery-selector.tsx"),
   ]);
 
   assert.match(field, /useState\(\(\)\s*=>\s*createDeliveryPickerDrafts/u);

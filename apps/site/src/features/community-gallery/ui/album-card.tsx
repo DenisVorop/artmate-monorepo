@@ -51,25 +51,41 @@ export function AlbumCard({
               )}
             </div>
           </div>
-          <Button
-            asChild
-            size="lg"
-            className="min-h-11 w-full border-0 bg-gradient-to-r from-rose-500 via-rose-400 to-orange-400 font-semibold text-white shadow-sm shadow-rose-500/20 hover:from-rose-500/95 hover:via-rose-400/95 hover:to-orange-400/95"
-          >
-            <CtaGradientLink
-              data-site-action="gallery_album_open"
-              data-site-product-link=""
-              href={routes.product(
-                product?.categorySlug ?? relatedProduct.categorySlug,
-                relatedProduct.slug,
-              )}
-              onClick={onNavigate}
-            >
-              Посмотреть альбом <ArrowUpRight />
-            </CtaGradientLink>
-          </Button>
+          <div className="hidden md:block">
+            <AlbumLink product={product} relatedProduct={relatedProduct} onNavigate={onNavigate} />
+          </div>
         </CardContent>
       </Card>
     </section>
+  );
+}
+
+export function AlbumLink({
+  product,
+  relatedProduct,
+  onNavigate,
+}: {
+  product?: Product;
+  relatedProduct: { title: string; slug: string; categorySlug?: string };
+  onNavigate(): void;
+}) {
+  return (
+    <Button
+      asChild
+      size="lg"
+      className="min-h-11 w-full border-0 bg-gradient-to-r from-rose-500 via-rose-400 to-orange-400 font-semibold text-white shadow-sm shadow-rose-500/20 hover:from-rose-500/95 hover:via-rose-400/95 hover:to-orange-400/95"
+    >
+      <CtaGradientLink
+        data-site-action="gallery_album_open"
+        data-site-product-link=""
+        href={routes.product(
+          product?.categorySlug ?? relatedProduct.categorySlug,
+          relatedProduct.slug,
+        )}
+        onClick={onNavigate}
+      >
+        Посмотреть альбом <ArrowUpRight />
+      </CtaGradientLink>
+    </Button>
   );
 }

@@ -242,10 +242,15 @@ export class PublicCollectionWorksDTO {
 }
 
 export class PublicGalleryWorksDTO {
-  @ApiProperty({ type: [PublicWorkshopWorkDTO], maxItems: 60 })
+  @ApiProperty({ type: "array", items: { type: "object" }, maxItems: 60 })
   @IsArray()
   @ArrayMaxSize(60)
-  works!: PublicWorkshopWorkDTO[];
+  works!: Array<
+    | (PublicWorkshopWorkDTO & { source: "workshop" })
+    | ReturnType<
+        typeof import("../../contests/contest-entry-read-model").mapContestGalleryWork
+      >
+  >;
 
   @ApiProperty({ type: String, nullable: true })
   @IsOptional()

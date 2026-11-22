@@ -4,7 +4,6 @@ export {
   ownerWorkshopCollectionSchema,
   ownerWorkshopColoringSchema,
   ownerWorkshopSchema,
-  workshopCropSchema,
   workshopMappingSchema,
   workshopMarkerColorsSchema,
   workshopMarkerNumberPattern,

@@ -525,10 +525,7 @@ test("product gallery keeps the shared responsive shadcn Dialog and Drawer shell
   assert.match(responsiveViewer, /<Drawer \{\.\.\.drawerModalProps\}/);
   assert.match(responsiveViewer, /onCloseAutoFocus=\{handleCloseAutoFocus\}/);
   assert.match(responsiveViewer, /returnFocusRef\.current\.focus\(\{ preventScroll: true \}\)/);
-  assert.match(
-    responsiveViewer,
-    /data-\[vaul-drawer-direction=bottom\]:max-h-\[calc\(100dvh-0\.5rem\)\]/,
-  );
+  assert.match(drawer, /data-\[vaul-drawer-direction=bottom\]:max-h-\[90dvh\]!/);
   assert.match(responsiveViewer, /sm:max-w-\[min\(94vw,80rem\)\]/);
   assert.match(drawer, /from "vaul"/);
   assert.match(drawer, /DrawerPrimitive\.Handle/);
@@ -567,10 +564,7 @@ test("responsive media shell uses the shared light Artmate palette and spacing",
   assert.match(responsiveViewer, /text-stone-900/);
   assert.match(responsiveViewer, /hover:bg-rose-50/);
   assert.match(responsiveViewer, /px-4 text-stone-900 sm:px-5/);
-  assert.match(
-    responsiveViewer,
-    /<DrawerContent[\s\S]*?className=\{[\s\S]*?border-rose-100 bg-white/,
-  );
+  assert.match(responsiveViewer, /<DrawerContent[\s\S]*?className="[^"]*border-rose-100 bg-white/);
   assert.match(
     responsiveViewer,
     /<DialogContent[\s\S]*?className=\{[\s\S]*?border-rose-100 bg-white/,
@@ -583,7 +577,7 @@ test("responsive media shell uses the shared light Artmate palette and spacing",
   assert.match(gallery, /p-3 sm:p-6/);
   assert.match(gallery, /px-4 py-3/);
   assert.match(gallery, /min\(92dvh,64rem\)-12rem/);
-  assert.match(gallery, /100dvh-12rem/);
+  assert.match(gallery, /90dvh-12rem/);
   assert.doesNotMatch(gallery, /100dvh-11rem/);
 });
 

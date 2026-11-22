@@ -39,8 +39,10 @@ export function GalleryAlbums({ collectionSlug }: { collectionSlug?: string }) {
       >
         {collections.map((collection) => {
           const product = products?.products.find(
-            (item) => item.digitalCollection?.slug === collection.slug,
+            (item) =>
+              item.digitalCollection?.slug === collection.slug || item.slug === collection.slug,
           );
+          const digitalSlug = product?.digitalCollection?.slug;
           const title = getCommunityCollectionTitle(collection.title);
           return (
             <li
@@ -84,29 +86,33 @@ export function GalleryAlbums({ collectionSlug }: { collectionSlug?: string }) {
                         />
                       )}
                       {current ? (
-                        <Link
-                          href={routes.coloringCollection(collection.slug)}
-                          className="inline-flex min-h-11 items-center gap-1.5 text-sm text-stone-600 underline-offset-4 hover:underline"
-                        >
-                          Цифровая версия
-                          <ArrowUpRight className="size-3.5" aria-hidden="true" />
-                        </Link>
+                        digitalSlug ? (
+                          <Link
+                            href={routes.coloringCollection(digitalSlug)}
+                            className="inline-flex min-h-11 items-center gap-1.5 text-sm text-stone-600 underline-offset-4 hover:underline"
+                          >
+                            Цифровая версия
+                            <ArrowUpRight className="size-3.5" aria-hidden="true" />
+                          </Link>
+                        ) : null
                       ) : (
                         <div className="flex flex-col gap-1.5">
-                          <Button
-                            asChild
-                            variant="outline"
-                            size="sm"
-                            className="h-auto min-h-9 w-full justify-between gap-1.5 border-stone-200 bg-stone-50 px-2.5 py-1.5 text-left text-xs whitespace-normal hover:bg-stone-100"
-                          >
-                            <Link href={routes.coloringCollection(collection.slug)}>
-                              <span className="min-w-0">Цифровая версия</span>
-                              <ArrowUpRight
-                                className="size-3.5 text-stone-500"
-                                aria-hidden="true"
-                              />
-                            </Link>
-                          </Button>
+                          {digitalSlug && (
+                            <Button
+                              asChild
+                              variant="outline"
+                              size="sm"
+                              className="h-auto min-h-9 w-full justify-between gap-1.5 border-stone-200 bg-stone-50 px-2.5 py-1.5 text-left text-xs whitespace-normal hover:bg-stone-100"
+                            >
+                              <Link href={routes.coloringCollection(digitalSlug)}>
+                                <span className="min-w-0">Цифровая версия</span>
+                                <ArrowUpRight
+                                  className="size-3.5 text-stone-500"
+                                  aria-hidden="true"
+                                />
+                              </Link>
+                            </Button>
+                          )}
                           <Button
                             asChild
                             variant="outline"

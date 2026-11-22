@@ -2,6 +2,7 @@ import { Module } from "@nestjs/common";
 import { AuthModule } from "../auth/auth.module";
 import { blogLikeSubjects } from "../blog/contracts/like-subjects.contract";
 import { workshopLikeSubjects } from "../workshops/contracts/like-subjects.contract";
+import { contestLikeSubjects } from "../contests/contracts/like-subjects.contract";
 import { LikesCleanupService } from "./cleanup.service";
 import { likeSubjectPublications } from "./contracts";
 import { LikesController } from "./likes.controller";
@@ -15,7 +16,7 @@ import { LikeSubjectRegistry } from "./subject-registry";
   providers: [
     {
       provide: likeSubjectPublications,
-      useValue: [workshopLikeSubjects, blogLikeSubjects],
+      useValue: [workshopLikeSubjects, contestLikeSubjects, blogLikeSubjects],
     },
     LikeSubjectRegistry,
     LikesService,

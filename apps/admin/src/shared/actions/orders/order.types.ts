@@ -9,10 +9,11 @@ export type OrderStatusDTO =
   | "completed"
   | "cancelled";
 export type OrderPaymentMethodDTO =
+  | "contest_prize"
   | "bank_card_mock"
   | "ozon_acquiring"
   | "tbank_acquiring";
-export type OrderPaymentStatusDTO = "pending" | "paid" | "failed";
+export type OrderPaymentStatusDTO = "pending" | "paid" | "failed" | "not_required";
 export type OrderDeliveryProviderDTO = "ozon" | "cdek";
 
 export type OrderItemDTO = {

@@ -1,4 +1,10 @@
 export const routes = {
+  contests: "/contests",
+  contestCreate: "/contests/new",
+  contest: (contestId: string) => `/contests/${contestId}`,
+  contestEntries: (contestId: string) => `/contests/${contestId}/entries`,
+  contestResults: (contestId: string) => `/contests/${contestId}/results`,
+  contestEntry: (entryId: string) => `/contest-entries/${entryId}`,
   achievementDrafts: "/loyalty/achievements",
   blog: "/blog",
   blogAuthors: "/blog/authors",

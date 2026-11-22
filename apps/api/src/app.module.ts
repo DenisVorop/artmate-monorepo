@@ -13,6 +13,7 @@ import { CatalogLandingsModule } from "./catalog-landings/catalog-landings.modul
 import { ColoringsModule } from "./colorings/colorings.module";
 import { CsrfMiddleware } from "./common/csrf.middleware";
 import { SecurityHeadersMiddleware } from "./common/security-headers.middleware";
+import { ContestsModule } from "./contests/contests.module";
 import { ContactsModule } from "./contacts/contacts.module";
 import { CronModule } from "./cron/cron.module";
 import { ContentAssistantModule } from "./content-assistant/content-assistant.module";
@@ -54,6 +55,7 @@ import { MaterialsModule } from "./materials/materials.module";
     OzonModule,
     DeliveryModule,
     ContactsModule,
+    ContestsModule,
     PartnerApplicationsModule,
     SeoModule,
     ContentAssistantModule,

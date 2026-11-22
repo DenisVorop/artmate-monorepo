@@ -6,12 +6,12 @@ import { join } from "node:path";
 import { it } from "node:test";
 import { NotFoundException } from "@nestjs/common";
 import sharp from "sharp";
-import { WorkshopMediaService } from "../src/workshops/workshop-media.service";
+import { UserPhotoMediaService } from "../src/user-photos/user-photo-media.service";
 import { WorkshopStorageService } from "../src/workshops/workshop-storage.service";
 
 it("resizes verified photos to WebP without enlargement, reuses transforms and never bypasses file checks", async () => {
   const root = await mkdtemp(join(tmpdir(), "artmate-responsive-"));
-  const media = new WorkshopMediaService();
+  const media = new UserPhotoMediaService();
   let resizeCalls = 0;
   const resize = media.resize.bind(media);
   media.resize = async (...args) => {

@@ -3,7 +3,7 @@ import type { MouseEventHandler, ReactNode } from "react";
 import { Button } from "@/shared/ui";
 
 import { getCommunityCollectionTitle } from "../lib/selectors";
-import type { CommunityWorkSummary } from "../model/types";
+import type { CommunityWorkSummary, GalleryWork } from "../model/types";
 import { PublicAssetImage } from "./public-asset-image";
 
 export function CommunityWorkImageCard({
@@ -14,13 +14,15 @@ export function CommunityWorkImageCard({
   onPreviewIntent,
   likeAction,
 }: {
-  work: CommunityWorkSummary;
+  work: CommunityWorkSummary | GalleryWork;
   onOpenImage: MouseEventHandler<HTMLButtonElement>;
   priority?: boolean;
   imageSizes?: string;
   onPreviewIntent?: () => void;
   likeAction?: ReactNode;
 }) {
+  const title = "official" in work ? work.official.coloring.title : work.title;
+  const albumTitle = "official" in work ? work.official.collection.title : work.album.title;
   return (
     <div className="group relative h-full w-full overflow-hidden rounded-2xl bg-stone-100">
       <Button
@@ -30,16 +32,16 @@ export function CommunityWorkImageCard({
         onPointerEnter={onPreviewIntent}
         onFocus={onPreviewIntent}
         onPointerDown={onPreviewIntent}
-        aria-label={`Открыть работу «${work.official.coloring.title}» автора ${work.author.name}`}
+        aria-label={`Открыть работу «${title}» автора ${work.author.name}`}
         className="absolute inset-0 block h-full w-full rounded-2xl p-0 focus-visible:ring-rose-400 focus-visible:ring-inset"
       >
         <PublicAssetImage
-          key={work.revisionId}
+          key={work.publicId}
           src={work.submission.assets.web}
           sizes={imageSizes}
-          alt={`Работа ${work.author.name}: ${work.official.coloring.title}`}
+          alt={`Работа ${work.author.name}: ${title}`}
           priority={priority}
-          className="object-cover"
+          className="object-contain"
         />
       </Button>
       <div
@@ -48,13 +50,13 @@ export function CommunityWorkImageCard({
         <span
           className={`min-w-0 truncate text-xs leading-snug font-bold sm:text-sm lg:text-base ${likeAction ? "pr-2 sm:pr-3 md:pr-0" : ""}`}
         >
-          {work.official.coloring.title}
+          {title}
         </span>
         <div
           className={`grid min-w-0 items-center gap-2 ${likeAction ? "grid-cols-[minmax(0,1fr)_auto]" : "grid-cols-1"}`}
         >
           <span className="truncate text-[10px] leading-5 text-white/90 sm:text-xs">
-            {work.author.name} · {getCommunityCollectionTitle(work.official.collection.title)}
+            {work.author.name} · {getCommunityCollectionTitle(albumTitle)}
           </span>
           {/* Keep the 44px target around the 20px caption row. */}
           {likeAction && <div className="pointer-events-auto -my-3 flex">{likeAction}</div>}

@@ -12,6 +12,7 @@ export const orderStatuses = [
   "cancelled",
 ] as const;
 export const paymentMethods = [
+  "contest_prize",
   "bank_card_mock",
   "ozon_acquiring",
   "tbank_acquiring",
@@ -20,11 +21,17 @@ export const createOrderPaymentMethods = [
   "ozon_acquiring",
   "tbank_acquiring",
 ] as const;
-export const paymentStatuses = ["pending", "paid", "failed"] as const;
+export const paymentStatuses = [
+  "pending",
+  "paid",
+  "failed",
+  "not_required",
+] as const;
 export const deliveryProviders = ["ozon", "cdek"] as const;
 
 export type OrderStatus = (typeof orderStatuses)[number];
 export type PaymentMethod = (typeof paymentMethods)[number];
-export type CreateOrderPaymentMethod = (typeof createOrderPaymentMethods)[number];
+export type CreateOrderPaymentMethod =
+  (typeof createOrderPaymentMethods)[number];
 export type PaymentStatus = (typeof paymentStatuses)[number];
 export type DeliveryProvider = (typeof deliveryProviders)[number];

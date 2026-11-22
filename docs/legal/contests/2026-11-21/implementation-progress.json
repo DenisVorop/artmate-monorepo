@@ -1,0 +1,27 @@
+{
+  "task": "Подключение документов конкурсов к сайту, форме и админке",
+  "status": "complete",
+  "design": [
+    "Публичные PDF через общий LegalPage и PdfDocumentViewer",
+    "Сохранённые версии PDF условий из данных админки и снимка альбомов/промокода",
+    "Запрет изменения существенных условий после объявления",
+    "Отдельные непредустановленные галочки 18+, правил, обработки и распространения",
+    "Индивидуальные поля и ресурсы согласия, сохраняемые на каждую редакцию фото",
+    "Серверная проверка версии документов, одноразового предложения и подтверждений",
+    "Общий модуль Consents: реестр ConsentRevision и записи принятия, без отдельных согласий в домене конкурсов"
+  ],
+  "next": null,
+  "age": 18,
+  "consentYears": 15,
+  "checks": {
+    "types": "site, admin, API including tests: passed",
+    "lint": "changed API/site/admin source files: passed",
+    "http": "37 PostgreSQL/HTTP scenarios passed; final rerun of documents/upload/admin: 16 passed",
+    "unit": "24 consent/migration/API checks, 10 site access/viewer checks, 6 admin form checks passed",
+    "browser": "Public rules and publication consent use the existing viewer; generated terms render all pages at mobile width 390px without horizontal overflow or console errors",
+    "pdf": "Generated PDF rendered and both pages visually checked; common site/API PDF bytes and hashes match",
+    "migration": "119 migrations applied from scratch in isolated PostgreSQL; pending migrations also applied to local artmate_api"
+  },
+  "storage": "Consents: existing shared ConsentRevision registry, one command queue and handler for Auth and object operations. Contests only append commands and read published results; no exported ContextualConsentService or shared business transaction.",
+  "architectureUpdate": "docs/tasks/2026-11-22-consents-boundary/design.md"
+}

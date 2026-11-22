@@ -1,5 +1,5 @@
 import { ArrowRight, LoaderCircle } from "lucide-react";
-import type { ReactNode } from "react";
+import type { ReactNode, Ref } from "react";
 
 import { CtaGradientButton } from "@/shared/ui";
 
@@ -9,15 +9,18 @@ export function CheckoutSubmitButton({
   disabled,
   form,
   isSubmitting,
+  ref,
 }: {
   children: ReactNode;
   className?: string;
   disabled: boolean;
   form: string;
   isSubmitting: boolean;
+  ref?: Ref<HTMLButtonElement>;
 }) {
   return (
     <CtaGradientButton
+      ref={ref}
       type="submit"
       form={form}
       disabled={disabled}

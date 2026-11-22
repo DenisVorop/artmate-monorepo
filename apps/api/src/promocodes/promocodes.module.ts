@@ -9,11 +9,16 @@ import {
 } from "./promocodes.controller";
 import { PromocodesThrottleService } from "./promocodes-throttle.service";
 import { PromocodesService } from "./promocodes.service";
+import { ContestPromoPrizesService } from "./contest-promo-prizes.service";
 
 @Module({
   imports: [AuthModule, UsersModule],
   controllers: [PublicPromocodesController, AdminPromocodesController],
-  providers: [PromocodesService, PromocodesThrottleService],
-  exports: [PromocodesService],
+  providers: [
+    PromocodesService,
+    PromocodesThrottleService,
+    ContestPromoPrizesService,
+  ],
+  exports: [PromocodesService, ContestPromoPrizesService],
 })
 export class PromocodesModule {}

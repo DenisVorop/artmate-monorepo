@@ -49,6 +49,7 @@ export {
   Drawer,
   DrawerClose,
   DrawerContent,
+  DrawerBody,
   DrawerDescription,
   DrawerFooter,
   DrawerHandle,

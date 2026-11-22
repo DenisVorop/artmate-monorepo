@@ -1,6 +1,6 @@
 "use client";
 
-import { useState } from "react";
+import { useEffect, useState } from "react";
 import { useRouter } from "next/navigation";
 import { zodResolver } from "@hookform/resolvers/zod";
 import { useForm } from "react-hook-form";
@@ -34,6 +34,8 @@ type LoginFormProps = {
 export function LoginForm({ nextPath = routes.users }: LoginFormProps) {
   const router = useRouter();
   const [submitError, setSubmitError] = useState<string>();
+  const [isReady, setIsReady] = useState(false);
+  useEffect(() => setIsReady(true), []);
   const { isPending, mutate: login } = useLoginAdmin();
   const {
     register,
@@ -65,7 +67,7 @@ export function LoginForm({ nextPath = routes.users }: LoginFormProps) {
         </CardDescription>
       </CardHeader>
       <CardContent>
-        <form className="grid gap-4" onSubmit={submitForm}>
+        <form className="grid gap-4" method="post" onSubmit={submitForm}>
           <label className="grid gap-1.5">
             <span className="text-sm font-medium">Email</span>
             <Input
@@ -101,7 +103,7 @@ export function LoginForm({ nextPath = routes.users }: LoginFormProps) {
             </p>
           ) : null}
 
-          <Button disabled={isPending} type="submit">
+          <Button disabled={!isReady || isPending} type="submit">
             {isPending ? (
               <LoaderCircle
                 data-icon="inline-start"

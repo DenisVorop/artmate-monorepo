@@ -1,4 +1,6 @@
 enum ConsentKind {
+  RULES             @map("rules")
+  PUBLICATION       @map("publication")
   PERSONAL_DATA     @map("personal_data")
   EMAIL_ADVERTISING @map("email_advertising")
 
@@ -42,6 +44,7 @@ model ConsentRevision {
   publishedAt       DateTime?                      @map("published_at")
   retiredAt         DateTime?                      @map("retired_at")
   createdAt         DateTime                       @default(now()) @map("created_at")
+  contextualAcceptances ContextualConsentAcceptance[]
   acceptances       RequiredConsentAcceptance[]
   advertisingEvents EmailAdvertisingConsentEvent[]
 
@@ -63,20 +66,21 @@ model UserConsentState {
   @@map("user_consent_states")
 }
 
-// Auth enqueues the typed decision; Consents checks current revisions/identity
-// and atomically commits facts, projections and result. No session on enqueue.
+// One Consents inbox for Auth decisions and reusable object operations.
+// Only the owner validates identity/revisions and commits facts plus results.
+// Auth provenance is required for AUTH; CONTEXT never fabricates login facts.
 model ApplyConsentDecisionCommand {
   id                         String                  @id @default(cuid())
   contractVersion            Int                     @default(1) @map("contract_version")
-  operationId                String                  @unique @map("operation_id")
-  identityFactId             String                  @map("identity_fact_id")
-  expectedStateRevision      Int                     @map("expected_state_revision")
-  expectedAdvertisingVersion Int                     @map("expected_advertising_version")
-  decisions                  Json
+  operationId                String?                 @unique @map("operation_id")
+  identityFactId             String?                 @map("identity_fact_id")
+  expectedStateRevision      Int                     @default(0) @map("expected_state_revision")
+  expectedAdvertisingVersion Int                     @default(0) @map("expected_advertising_version")
+  decisions                  Json                    @default("[]")
   payloadHash                String                  @map("payload_hash") @db.Char(64)
   source                     String?                 @db.VarChar(255)
   requestId                  String                  @map("request_id") @db.VarChar(128)
-  requestContext             Json                    @map("request_context")
+  requestContext             Json?                   @map("request_context")
   advertisingDevice          Json?                   @map("advertising_device")
   status                     ConsentCommandStatus    @default(PENDING)
   attempts                   Int                     @default(0)
@@ -87,7 +91,12 @@ model ApplyConsentDecisionCommand {
   errorCode                  String?                 @map("error_code") @db.VarChar(80)
   processedAt                DateTime?               @map("processed_at")
   createdAt                  DateTime                @default(now()) @map("created_at")
-  operation                  AuthCompletionOperation @relation(fields: [operationId, identityFactId], references: [id, identityFactId], onDelete: Restrict)
+  operation                  AuthCompletionOperation? @relation(fields: [operationId, identityFactId], references: [id, identityFactId], onDelete: Restrict)
+
+  kind String @default("AUTH") @db.VarChar(32)
+  operationKey String? @unique @map("operation_key") @db.VarChar(160)
+  intent Json?
+  result Json?
 
   @@unique([operationId, identityFactId])
   @@index([status, availableAt])
@@ -191,4 +200,43 @@ model EmailAdvertisingUnsubscribeToken {
   subscription EmailAdvertisingSubscription @relation(fields: [subscriptionId], references: [id], onDelete: Restrict, map: "unsubscribe_token_subscription_fk")
   @@index([subscriptionId])
   @@map("email_advertising_unsubscribe_tokens")
+}
+
+// The same revision registry serves authenticated, contextual confirmations.
+// Auth inbox/operations retain their original purpose; no synthetic login facts.
+model ContextualConsentOffer {
+  id String @id @db.VarChar(32)
+  purpose String @db.VarChar(80)
+  subjectId String @map("subject_id") @db.VarChar(80)
+  contextKey String @map("context_key") @db.VarChar(80)
+  userId String @map("user_id")
+  email String @db.VarChar(320)
+  revisionIds String[] @map("revision_ids")
+  startsAt DateTime @map("starts_at") @db.Timestamptz(3)
+  endsAt DateTime @map("ends_at") @db.Timestamptz(3)
+  validUntil DateTime @map("valid_until") @db.Timestamptz(3)
+  usedAt DateTime? @map("used_at") @db.Timestamptz(3)
+  @@index([validUntil])
+  @@map("contextual_consent_offers")
+}
+model ContextualConsentAcceptance {
+  id String @id @default(cuid())
+  offerId String @map("offer_id") @db.VarChar(32)
+  actorUserIdSnapshot String @map("actor_user_id_snapshot")
+  email String @db.VarChar(320)
+  emailVerifiedAtSnapshot DateTime @map("email_verified_at_snapshot")
+  revisionId String @map("revision_id")
+  purpose String @db.VarChar(80)
+  subjectId String @map("subject_id") @db.VarChar(80)
+  contextKey String @map("context_key") @db.VarChar(80)
+  individualPart Json @map("individual_part")
+  requestId String @map("request_id") @db.VarChar(128)
+  requestContext Json @map("request_context")
+  acceptedAt DateTime @map("accepted_at") @db.Timestamptz(3)
+  startsAt DateTime @map("starts_at") @db.Timestamptz(3)
+  endsAt DateTime @map("ends_at") @db.Timestamptz(3)
+  revision ConsentRevision @relation(fields: [revisionId], references: [id], onDelete: Restrict)
+  @@unique([offerId, revisionId])
+  @@index([email, purpose, acceptedAt])
+  @@map("contextual_consent_acceptances")
 }

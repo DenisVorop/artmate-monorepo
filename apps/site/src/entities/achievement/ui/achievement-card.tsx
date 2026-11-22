@@ -49,7 +49,7 @@ export function AchievementCard({ item }: { item: Achievement }) {
         description={item.description}
         toolbar={<span className="font-semibold">Достижение</span>}
       >
-        <div className="overflow-y-auto overscroll-contain p-6 text-center sm:p-8">
+        <div className="p-6 text-center sm:p-8 md:overflow-y-auto md:overscroll-contain">
           <AchievementImage item={item} className="mx-auto mb-6 size-40" />
           <h2 className="text-2xl font-semibold break-words">{item.title}</h2>
           <p className="mt-3 leading-relaxed text-stone-600">{item.description}</p>

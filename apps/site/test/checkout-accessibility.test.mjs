@@ -311,8 +311,8 @@ test("delivery choices use the checkout delivery section as their accessible nam
           selectedDelivery: undefined,
         }),
       },
-      "./delivery-picker": { DeliveryPicker: component("DeliveryPicker") },
-      "./delivery-selector/delivery-options": {
+      "@/widgets/pickup-point-picker": {
+        DeliveryPicker: component("DeliveryPicker"),
         deliveryCompanies: [
           { code: "cdek", label: "СДЭК" },
           { code: "ozon", label: "Ozon" },
@@ -387,8 +387,8 @@ test("delivery choices open their picker even when already selected", async (t) 
             },
           }),
         },
-        "./delivery-picker": { DeliveryPicker: component("DeliveryPicker") },
-        "./delivery-selector/delivery-options": {
+        "@/widgets/pickup-point-picker": {
+          DeliveryPicker: component("DeliveryPicker"),
           deliveryCompanies: [{ code: "ozon", label: "Ozon" }],
         },
         "react/jsx-runtime": jsxRuntime,
@@ -573,8 +573,8 @@ test("delivery lists keep their local spacing and payment has a named bank selec
           selectedDelivery: undefined,
         }),
       },
-      "./delivery-picker": { DeliveryPicker: component("DeliveryPicker") },
-      "./delivery-selector/delivery-options": {
+      "@/widgets/pickup-point-picker": {
+        DeliveryPicker: component("DeliveryPicker"),
         deliveryCompanies: [
           { code: "cdek", label: "СДЭК" },
           { code: "ozon", label: "Ozon" },
@@ -612,7 +612,9 @@ test("delivery lists keep their local spacing and payment has a named bank selec
   const paymentGroup = findNodes(PaymentMethodField(), (node) => node.type === "RadioGroup")[0];
 
   const { DeliveryCompanySelector } = evaluateComponent(
-    await readSource("src/features/checkout/ui/delivery-selector/delivery-company-selector.tsx"),
+    await readSource(
+      "src/widgets/pickup-point-picker/ui/delivery-selector/delivery-company-selector.tsx",
+    ),
     {
       "@/shared/lib": { cn: (...values) => values.filter(Boolean).join(" ") },
       "@/shared/ui": sharedUi,
@@ -655,6 +657,13 @@ test("checkout calculation errors are assertive alerts and order errors go to th
   const { CheckoutFlow } = evaluateComponent(
     await readSource("src/features/checkout/ui/checkout-flow.tsx"),
     {
+      "@/shared/lib": { cn: (...values) => values.filter(Boolean).join(" ") },
+      "../lib/use-checkout-submit-visibility": {
+        useCheckoutSubmitVisibility: () => ({
+          submitButtonRef: { current: null },
+          isSubmitVisible: false,
+        }),
+      },
       "../lib/price-summary": priceSummary,
       "@/features/promocode": {
         getPromoPricingState: () => ({ isReady: true }),

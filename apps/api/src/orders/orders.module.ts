@@ -1,3 +1,5 @@
+import { OrderPrizesService } from "./prizes/prizes.service";
+import { OrderPrizesController } from "./prizes/prizes.controller";
 import { Module } from "@nestjs/common";
 
 import { AuthModule } from "../auth/auth.module";
@@ -37,8 +39,9 @@ import { OrderRefundsService } from "./refunds/order-refunds.service";
     UsersModule,
     LoyaltyModule,
   ],
-  controllers: [OrdersController],
+  controllers: [OrderPrizesController, OrdersController],
   providers: [
+    OrderPrizesService,
     CheckoutThrottleService,
     OrdersService,
     OrdersStorage,
@@ -49,6 +52,6 @@ import { OrderRefundsService } from "./refunds/order-refunds.service";
     OrderRefundsService,
     OrderDeliveryStatusService,
   ],
-  exports: [OrderDeliveryStatusService],
+  exports: [OrderDeliveryStatusService, OrderPrizesService],
 })
 export class OrdersModule {}

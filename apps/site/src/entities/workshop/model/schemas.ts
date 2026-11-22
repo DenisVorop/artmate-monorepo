@@ -77,21 +77,11 @@ export const workshopMappingSchema = z
   })
   .strict();
 
-export const workshopCropSchema = z
-  .object({
-    rotation: z.union([z.literal(0), z.literal(90), z.literal(180), z.literal(270)]),
-    zoom: z.number().min(1).max(3),
-    x: z.number().min(-1).max(1),
-    y: z.number().min(-1).max(1),
-  })
-  .strict();
-
 export const workshopRevisionSchema = z
   .object({
     id: internalId,
     sequence: z.number().int().positive(),
     status: z.enum(["PENDING", "APPROVED", "CHANGES_REQUESTED", "HIDDEN"]),
-    crop: workshopCropSchema,
     materials: z.array(workshopMaterialSchema).max(19),
     symbolMappings: z.array(workshopMappingSchema).max(19),
     caption: z.string().max(500).optional(),

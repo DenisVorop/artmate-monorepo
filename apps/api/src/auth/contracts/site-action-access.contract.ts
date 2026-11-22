@@ -1,6 +1,6 @@
 /** Auth's server-only access result. Contact fields in a business payload are
  * independent from this verified identity and never grant advertising permission. */
-export type SiteAction = "partner_application";
+export type SiteAction = "partner_application" | "contest_entry";
 
 export interface SiteActionAccessV1 {
   readonly contractVersion: 1;

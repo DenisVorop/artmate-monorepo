@@ -1,7 +1,11 @@
 export const promoCodeTypes = ["percentage", "fixed"] as const;
 export type PromoCodeTypeDTO = (typeof promoCodeTypes)[number];
 
-export type PromoCodeKindDTO = "standard" | "welcome" | "affiliate";
+export type PromoCodeKindDTO =
+  | "standard"
+  | "welcome"
+  | "affiliate"
+  | "contest_prize";
 
 export const promoCodeUsageStatuses = ["reserved", "used", "released"] as const;
 export type PromoCodeUsageStatusDTO = (typeof promoCodeUsageStatuses)[number];

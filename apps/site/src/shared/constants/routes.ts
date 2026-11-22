@@ -36,6 +36,9 @@ export const routes = {
   unsubscribe: "/unsubscribe",
   accountAchievements: "/account/achievements",
   accountOrders: "/account/orders",
+  accountPrizes: "/account/prizes",
+  prizeAlbums: (prizeId: string) => `/account/prizes/${encodeURIComponent(prizeId)}`,
+  prizeCheckout: (prizeId: string) => `/account/prizes/${encodeURIComponent(prizeId)}/checkout`,
   loyalty: "/account/club",
   workshop: "/account/workshop",
   workshopCollection: (collectionSlug: string) => `/account/workshop/${collectionSlug}`,
@@ -49,6 +52,8 @@ export const routes = {
   catalogMarkers: catalogMarkersPath,
   colorings: "/raskraski",
   gallery: "/gallery",
+  contests: "/contests",
+  contest: (slug: string) => `/contests/${slug}`,
   galleryCollection: (slug: string) => `/gallery/${slug}`,
   coloringCollection: (slug: string) => `/raskraski/digital/${slug}`,
   digitalCollection: (slug: string) => `/raskraski/digital/${slug}`,
@@ -73,6 +78,13 @@ export const routes = {
       : `${catalogColoringsPath}/${productSlug}`,
   legal: {
     index: "/legal",
+    contestRules: "/legal/contest-rules",
+    contestRulesRevision: (version: string) =>
+      `/legal/contest-rules?version=${encodeURIComponent(version)}`,
+    contestPersonalDataConsent: "/legal/contest-personal-data-consent",
+    contestPublicationConsent: "/legal/contest-publication-consent",
+    contestConditions: (slug: string, documentId: string) =>
+      `/legal/contest-conditions/${encodeURIComponent(slug)}/${encodeURIComponent(documentId)}`,
     loyaltyRules: "/legal/loyalty-rules",
     privacyPolicy: "/legal/privacy-policy",
     publicOffer: "/legal/public-offer",

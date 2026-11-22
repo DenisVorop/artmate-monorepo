@@ -81,8 +81,10 @@ export function CheckoutFailure({ orderId }: CheckoutFailureProps) {
   );
 }
 
-function getPaymentStatusLabel(status: "failed" | "paid" | "pending") {
+function getPaymentStatusLabel(status: "failed" | "paid" | "pending" | "not_required") {
   switch (status) {
+    case "not_required":
+      return "не требуется";
     case "failed":
       return "не прошла";
     case "paid":

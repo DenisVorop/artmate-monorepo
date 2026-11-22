@@ -7,7 +7,6 @@ import {
   IsDefined,
   IsIn,
   IsInt,
-  IsNumber,
   IsObject,
   IsOptional,
   IsString,
@@ -77,30 +76,6 @@ export class AddWorkshopCollectionDTO {
   collectionSlug!: string;
 }
 
-export class WorkshopCropDTO {
-  @ApiProperty({ enum: [0, 90, 180, 270] })
-  @IsIn([0, 90, 180, 270])
-  rotation!: 0 | 90 | 180 | 270;
-
-  @ApiProperty({ minimum: 1, maximum: 3 })
-  @IsNumber({ maxDecimalPlaces: 4 })
-  @Min(1)
-  @Max(3)
-  zoom!: number;
-
-  @ApiProperty({ minimum: -1, maximum: 1 })
-  @IsNumber({ maxDecimalPlaces: 4 })
-  @Min(-1)
-  @Max(1)
-  x!: number;
-
-  @ApiProperty({ minimum: -1, maximum: 1 })
-  @IsNumber({ maxDecimalPlaces: 4 })
-  @Min(-1)
-  @Max(1)
-  y!: number;
-}
-
 export class WorkshopRevisionMaterialInputDTO {
   @ApiProperty({ pattern: idPattern.source })
   @IsString()
@@ -149,13 +124,6 @@ export class WorkshopRevisionPayloadDTO {
   @IsDefined()
   @IsBoolean()
   publicationConsent!: boolean;
-
-  @ApiProperty({ type: () => WorkshopCropDTO })
-  @IsDefined()
-  @IsObject()
-  @ValidateNested()
-  @Type(() => WorkshopCropDTO)
-  crop!: WorkshopCropDTO;
 
   @ApiProperty({ type: () => [WorkshopRevisionMaterialInputDTO], maxItems: 19 })
   @IsArray()

@@ -3,6 +3,12 @@ import type { ApplyConsentDecisionIntentV1 } from "./consent-decision.contract";
 
 /** Canonical immutable intent, shared by Auth's producer and Consents' inbox. */
 export class ConsentCommandPayload {
+  public static operationHash(input: unknown): string {
+    return crypto
+      .createHash("sha256")
+      .update(JSON.stringify(_canonical(input)))
+      .digest("hex");
+  }
   public static hash(
     input: Omit<ApplyConsentDecisionIntentV1, "payloadHash">,
   ): string {

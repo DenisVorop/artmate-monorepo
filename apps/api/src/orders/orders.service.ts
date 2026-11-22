@@ -580,6 +580,7 @@ export class OrdersService {
     order: OrderDTO,
     userId: string | undefined,
   ) {
+    if (order.payment.status === "not_required") return order;
     const shouldInitialize =
       await this.ordersStorage.claimPaymentInitialization(order.id);
     if (!shouldInitialize) {

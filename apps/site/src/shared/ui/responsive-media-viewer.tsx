@@ -7,7 +7,15 @@ import { useIsMobile } from "@/shared/lib/device";
 
 import { Button } from "./button";
 import { Dialog, DialogClose, DialogContent, DialogDescription, DialogTitle } from "./dialog";
-import { Drawer, DrawerClose, DrawerContent, DrawerDescription, DrawerTitle } from "./drawer";
+import {
+  Drawer,
+  DrawerBody,
+  DrawerClose,
+  DrawerContent,
+  DrawerDescription,
+  DrawerFooter,
+  DrawerTitle,
+} from "./drawer";
 
 type ResponsiveMediaViewerProps = {
   compact?: boolean;
@@ -18,6 +26,7 @@ type ResponsiveMediaViewerProps = {
   returnFocusRef?: RefObject<HTMLElement | null>;
   title: string;
   toolbar?: ReactNode;
+  mobileFooter?: ReactNode;
 };
 
 type MediaViewerChromeProps = {
@@ -63,6 +72,7 @@ export function ResponsiveMediaViewer({
   returnFocusRef,
   title,
   toolbar,
+  mobileFooter,
 }: ResponsiveMediaViewerProps) {
   const isMobile = useIsMobile();
   useLayoutEffect(() => {
@@ -90,11 +100,7 @@ export function ResponsiveMediaViewer({
           data-responsive-media-viewer="drawer"
           overlayClassName="supports-backdrop-filter:backdrop-blur-none"
           onCloseAutoFocus={handleCloseAutoFocus}
-          className={
-            compact
-              ? "max-h-[90dvh] gap-0 overflow-hidden border-rose-100 bg-white p-0 text-stone-900 [&_[data-slot=drawer-handle]]:bg-rose-300"
-              : "h-[calc(100dvh-0.5rem)] max-h-[calc(100dvh-0.5rem)] gap-0 overflow-hidden border-rose-100 bg-white p-0 text-stone-900 shadow-2xl shadow-stone-950/20 data-[vaul-drawer-direction=bottom]:max-h-[calc(100dvh-0.5rem)] [&_[data-slot=drawer-handle]]:mt-2 [&_[data-slot=drawer-handle]]:w-12 [&_[data-slot=drawer-handle]]:bg-rose-300"
-          }
+          className="gap-0 border-rose-100 bg-white p-0 text-stone-900 shadow-2xl shadow-stone-950/20 [&_[data-slot=drawer-handle]]:mt-2 [&_[data-slot=drawer-handle]]:w-12 [&_[data-slot=drawer-handle]]:bg-rose-300"
         >
           <DrawerTitle className="sr-only">{title}</DrawerTitle>
           <DrawerDescription className="sr-only">{description}</DrawerDescription>
@@ -106,9 +112,10 @@ export function ResponsiveMediaViewer({
               </DrawerClose>
             }
           />
-          <div className="flex min-h-0 flex-1 flex-col bg-gradient-to-br from-rose-50/50 via-stone-50 to-orange-50/50">
+          <DrawerBody className="flex flex-col bg-gradient-to-br from-rose-50/50 via-stone-50 to-orange-50/50 p-0">
             {children}
-          </div>
+          </DrawerBody>
+          {mobileFooter && <DrawerFooter className="border-rose-100">{mobileFooter}</DrawerFooter>}
         </DrawerContent>
       </Drawer>
     );

@@ -52,7 +52,7 @@ export function WorkshopColoringCard({
         <OwnerAssetImage
           revisionId={displayedRevision.id}
           alt={`Работа по картине ${coloring.number}: ${coloring.title}`}
-          className="object-cover"
+          className="object-contain"
         />
       ) : (
         <>

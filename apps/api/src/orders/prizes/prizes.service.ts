@@ -1,0 +1,301 @@
+import { createHash, randomUUID } from "node:crypto";
+import {
+  BadRequestException,
+  ConflictException,
+  Injectable,
+  NotFoundException,
+  ServiceUnavailableException,
+} from "@nestjs/common";
+import { Prisma } from "../../generated/prisma/client";
+import {
+  albumPrizeWinnerPublicationSelect,
+  mapAlbumPrizeWinnerPublication,
+} from "../../contests/contracts/album-prize-winners.publication";
+import { PrismaService } from "../../prisma/prisma.service";
+import { DeliveryService } from "../../delivery/delivery.service";
+import { OrdersStorage } from "../orders.storage";
+import {
+  isPrizeAlbumAvailable,
+  mapPrizeAlbum,
+  prizeProductInclude,
+} from "./catalog";
+import type { CreatePrizeOrderRequestDTO } from "./prize-order.dto";
+import { ContestPromoPrizesService } from "../../promocodes/contest-promo-prizes.service";
+
+@Injectable()
+export class OrderPrizesService {
+  constructor(
+    private readonly prisma: PrismaService,
+    private readonly delivery: DeliveryService,
+    private readonly orders: OrdersStorage,
+    private readonly promoPrizes: ContestPromoPrizesService,
+  ) {}
+
+  // The finalized winner + frozen album definition is the contests publication.
+  // Orders consumes it idempotently, and owns all subsequent grant/order writes.
+  async issueForWinners(userId?: string) {
+    const winners = await this.prisma.contestDrawWinner.findMany({
+      where: {
+        albumPrize: { is: null },
+        ...(userId ? { entry: { userId } } : {}),
+        draw: { contest: { prizeAlbumQuantity: { not: null } } },
+      },
+      select: albumPrizeWinnerPublicationSelect,
+      take: 500,
+      orderBy: { id: "asc" },
+    });
+    if (!winners.length) return 0;
+    const result = await this.prisma.orderPrizeGrant.createMany({
+      data: winners.map(mapAlbumPrizeWinnerPublication),
+      skipDuplicates: true,
+    });
+    return result.count;
+  }
+
+  async list(userId: string) {
+    await this.issueForWinners(userId);
+    const promoPrizes = await this.promoPrizes.list(userId);
+    const grants = await this.prisma.orderPrizeGrant.findMany({
+      where: { userId },
+      orderBy: [{ awardedAt: "desc" }, { id: "desc" }],
+      include: { order: { include: { items: true } } },
+    });
+    const products = await this.prisma.product.findMany({
+      where: {
+        id: { in: [...new Set(grants.flatMap((grant) => grant.albumIds))] },
+        status: "PUBLISHED",
+      },
+      include: prizeProductInclude,
+    });
+    return {
+      available: [
+        ...grants
+          .filter((grant) => !grant.orderId)
+          .map((grant) => this.mapGrant(grant, products)),
+        ...promoPrizes.filter((p) =>
+          ["available", "upcoming", "reserved"].includes(p.status),
+        ),
+      ],
+      history: [
+        ...grants
+          .filter((grant) => grant.order)
+          .map((grant) => ({
+            id: grant.id,
+            kind: "albums" as const,
+            contestTitle: grant.contestTitle,
+            contestSlug: grant.contestSlug,
+            usedAt: grant.redeemedAt!.toISOString(),
+            orderId: grant.orderId!,
+            albumIds: grant.order!.items.map((item) => item.productId),
+            albums: grant.order!.items.map((item) => ({
+              id: item.productId,
+              title: item.title,
+              image: item.image,
+              available: false,
+            })),
+          })),
+        ...promoPrizes.filter((p) =>
+          ["used", "expired", "disabled"].includes(p.status),
+        ),
+      ],
+    };
+  }
+
+  async get(userId: string, id: string) {
+    await this.issueForWinners(userId);
+    const grant = await this.grant(this.prisma, userId, id);
+    const products = await this.prisma.product.findMany({
+      where: { id: { in: grant.albumIds }, status: "PUBLISHED" },
+      include: prizeProductInclude,
+    });
+    return this.mapGrant(grant, products);
+  }
+
+  async redeem(userId: string, id: string, input: CreatePrizeOrderRequestDTO) {
+    // Controller validates DTOs; these invariants also guard internal callers.
+    if (
+      input.acceptedLegal !== true ||
+      input.acceptedPersonalDataConsent !== true
+    )
+      throw new BadRequestException(
+        "Подтвердите согласие с условиями оформления",
+      );
+    const grant = await this.grant(this.prisma, userId, id);
+    // A retry always returns the original order, even if a browser changed its draft.
+    if (grant.orderId) return this.orders.getOrder(grant.orderId, userId);
+    this.assertSelection(grant, input.albumIds);
+    let quote: Awaited<
+      ReturnType<DeliveryService["calculatePickupPointDelivery"]>
+    >;
+    try {
+      quote = await this.delivery.calculatePickupPointDelivery(
+        { provider: "ozon", pickupPointId: input.pickupPointId },
+        [],
+      );
+    } catch (error) {
+      if (error instanceof BadRequestException)
+        throw new BadRequestException(
+          "Этот пункт выдачи Ozon недоступен. Выберите другой",
+        );
+      throw new ServiceUnavailableException(
+        "Не удалось проверить пункт выдачи Ozon. Попробуйте ещё раз",
+      );
+    }
+    if (
+      quote.provider !== "ozon" ||
+      quote.pickupPoint.id !== input.pickupPointId ||
+      !quote.pickupPoint.address ||
+      !Number.isFinite(quote.deliveryPrice) ||
+      quote.deliveryPrice < 0
+    )
+      throw new BadRequestException("Выберите другой пункт выдачи Ozon");
+    const fingerprint = createHash("sha256")
+      .update(
+        JSON.stringify({ ...input, albumIds: [...input.albumIds].sort() }),
+      )
+      .digest("hex");
+    const orderId = await this.prisma.$transaction(
+      async (tx) => {
+        await tx.$queryRaw`SELECT id FROM order_prize_grants WHERE id = ${id} FOR UPDATE`;
+        const current = await this.grant(tx, userId, id);
+        if (current.orderId) return current.orderId;
+        this.assertSelection(current, input.albumIds);
+        await tx.$queryRaw(
+          Prisma.sql`SELECT id FROM products WHERE id IN (${Prisma.join([...input.albumIds].sort())}) ORDER BY id FOR SHARE`,
+        );
+        const products = await tx.product.findMany({
+          where: { id: { in: input.albumIds } },
+          include: prizeProductInclude,
+        });
+        if (
+          products.length !== input.albumIds.length ||
+          products.some((product) => !isPrizeAlbumAvailable(product))
+        )
+          throw new ConflictException(
+            "Один из альбомов сейчас недоступен. Измените выбор",
+          );
+        const newOrderId = `prize_${randomUUID().replaceAll("-", "").slice(0, 26)}`;
+        await tx.order.create({
+          data: {
+            id: newOrderId,
+            userId,
+            checkoutActorUserId: userId,
+            // Dedicated immutable source, never a customer's cart or cart cookie.
+            cartId: `prize:${current.id}`,
+            checkoutAttemptId: `prize:${current.id}`,
+            checkoutPayloadFingerprint: fingerprint,
+            status: "FULFILLMENT_READY",
+            crmStatus: "IN_PROGRESS",
+            customerName: input.customer.name.trim(),
+            customerPhone: input.customer.phone.trim(),
+            customerEmail: input.customer.email.trim(),
+            deliveryProvider: "OZON",
+            pickupPointId: quote.pickupPoint.id,
+            pickupPointTitle: quote.pickupPoint.title,
+            pickupPointAddress: quote.pickupPoint.address,
+            pickupPointWorkHours: quote.pickupPoint.workHours,
+            deliveryPrice: 0,
+            sponsoredDeliveryPrice: quote.deliveryPrice,
+            paymentMethod: "CONTEST_PRIZE",
+            paymentStatus: "NOT_REQUIRED",
+            paymentRedirectUrl: "/account/orders",
+            subtotal: 0,
+            discount: 0,
+            total: 0,
+            itemsCount: products.length,
+            currency: "RUB",
+            comment: input.comment?.trim() || null,
+            items: {
+              create: products.map((product) => ({
+                productId: product.id,
+                title: product.title,
+                slug: product.slug,
+                category: product.category?.title,
+                categorySlug: product.category?.slug,
+                image: product.images[0]?.url ?? "",
+                quantity: 1,
+                price: 0,
+                lineTotal: 0,
+              })),
+            },
+            history: {
+              create: {
+                authorId: userId,
+                eventType: "prize_order_created",
+                payload: {
+                  prizeId: current.id,
+                  winnerId: current.winnerId,
+                  acceptedLegal: true,
+                  acceptedPersonalDataConsent: true,
+                  toStatus: "in_progress",
+                },
+              },
+            },
+          },
+        });
+        await tx.orderPrizeGrant.update({
+          where: { id: current.id },
+          data: {
+            orderId: newOrderId,
+            checkoutFingerprint: fingerprint,
+            redeemedAt: new Date(),
+          },
+        });
+        return newOrderId;
+      },
+      { timeout: 15_000 },
+    );
+    return this.orders.getOrder(orderId, userId);
+  }
+
+  private assertSelection(
+    grant: { quantity: number; albumIds: string[] },
+    ids: string[],
+  ) {
+    if (
+      !Array.isArray(ids) ||
+      ids.length !== grant.quantity ||
+      new Set(ids).size !== ids.length ||
+      ids.some((id) => !grant.albumIds.includes(id))
+    )
+      throw new BadRequestException(
+        `Выберите ${grant.quantity} разных альбомов из списка приза`,
+      );
+  }
+  private async grant(
+    db: Pick<Prisma.TransactionClient, "orderPrizeGrant">,
+    userId: string,
+    id: string,
+  ) {
+    const grant = await db.orderPrizeGrant.findFirst({ where: { id, userId } });
+    if (!grant) throw new NotFoundException("Приз не найден");
+    return grant;
+  }
+  private mapGrant(
+    grant: {
+      id: string;
+      contestTitle: string;
+      contestSlug: string;
+      quantity: number;
+      albumIds: string[];
+      awardedAt: Date;
+      orderId: string | null;
+    },
+    products: Parameters<typeof mapPrizeAlbum>[0][],
+  ) {
+    return {
+      id: grant.id,
+      kind: "albums" as const,
+      contestTitle: grant.contestTitle,
+      contestSlug: grant.contestSlug,
+      quantity: grant.quantity,
+      albumIds: grant.albumIds,
+      awardedAt: grant.awardedAt.toISOString(),
+      orderId: grant.orderId,
+      albums: grant.albumIds.flatMap((id) => {
+        const product = products.find((p) => p.id === id);
+        return product ? [mapPrizeAlbum(product)] : [];
+      }),
+    };
+  }
+}

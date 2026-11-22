@@ -20,7 +20,7 @@ export async function publishTrackingRequest(
     ozonPostings,
     enabled:
       order.crmStatus === "DELIVERING" &&
-      order.paymentStatus === "PAID" &&
+      ["PAID", "NOT_REQUIRED"].includes(order.paymentStatus) &&
       ozonPostings.length > 0,
   };
   await tx.deliveryTrackingRequest.upsert({

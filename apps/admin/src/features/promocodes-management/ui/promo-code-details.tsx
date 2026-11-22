@@ -84,6 +84,9 @@ export function PromoCodeDetails({
         <CardHeader>
           <CardTitle className="flex flex-wrap items-center gap-2">
             {promoCode.code}
+            {promoCode.kind === "contest_prize" ? (
+              <Badge variant="outline">Приз конкурса</Badge>
+            ) : null}
             {promoCode.kind === "welcome" ? (
               <Badge variant="outline">Приветственный</Badge>
             ) : null}
@@ -93,7 +96,8 @@ export function PromoCodeDetails({
           </CardTitle>
         </CardHeader>
         <CardContent>
-          {promoCode.kind !== "affiliate" ? (
+          {promoCode.kind !== "affiliate" &&
+          promoCode.kind !== "contest_prize" ? (
             <PromoCodeForm
               codeImmutable
               form={form}

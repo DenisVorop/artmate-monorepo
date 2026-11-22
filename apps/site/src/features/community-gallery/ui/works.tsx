@@ -6,7 +6,6 @@ import { Button, DataState } from "@/shared/ui";
 import { scheduleIdlePreload } from "@/shared/lib/schedule-idle-preload";
 
 import { useImagePreview } from "../lib/use-image-preview";
-import { useWorksScroll } from "../lib/use-works-scroll";
 import { Mosaic } from "./mosaic";
 import { PreviewLoading } from "./preview-loading";
 
@@ -34,14 +33,6 @@ export function GalleryWorks({
     isFetchNextPageError,
   } = useGalleryWorks(filters);
   const preview = useImagePreview();
-  const endRef = useWorksScroll({
-    count: works.length,
-    hasNextPage,
-    isFetchingNextPage,
-    isFetchNextPageError,
-    paused: preview.isOpen,
-    fetchNextPage,
-  });
   const [LoadedPreview, setLoadedPreview] = useState<PreviewComponent | null>(null);
   const preloadImagePreview = useCallback(
     () =>
@@ -97,43 +88,27 @@ export function GalleryWorks({
 
   return (
     <section aria-label="Галерея работ участников" className="space-y-5 md:space-y-6">
-      <Mosaic
-        workPages={workPages}
-        onOpenImage={preview.openImage}
-        onPreviewIntent={preloadImagePreview}
-      />
+      <Mosaic workPages={workPages} onOpenImage={preview.openImage} onPreviewIntent={preloadImagePreview} />
       {hasNextPage && (
-        <div
-          ref={endRef}
-          className="flex min-h-16 flex-col items-center justify-center gap-3"
-          aria-busy={isFetchingNextPage}
-        >
-          {isFetchNextPageError ? (
-            <>
-              <p role="status" className="text-sm text-stone-600">
-                Не удалось загрузить следующие работы.
-              </p>
-              <Button variant="outline" className="min-h-11" onClick={() => void fetchNextPage()}
-                data-site-action="gallery_load_more">
-                Повторить
-              </Button>
-            </>
-          ) : (
-            <>
-              <p role="status" className="text-sm text-stone-500">
-                {isFetchingNextPage ? "Загружаем работы…" : ""}
-              </p>
-              <Button
-                variant="outline"
-                className="sr-only min-h-11 focus:not-sr-only"
-                disabled={isFetchingNextPage}
-                onClick={() => void fetchNextPage()}
-                data-site-action="gallery_load_more"
-              >
-                Загрузить следующие работы
-              </Button>
-            </>
+        <div className="flex flex-col items-center gap-3 pt-4">
+          {isFetchNextPageError && (
+            <p role="status" className="text-sm text-stone-600">
+              Не удалось загрузить следующие работы. Попробуйте ещё раз.
+            </p>
           )}
+          <Button
+            variant="outline"
+            className="min-h-11"
+            disabled={isFetchingNextPage}
+            onClick={() => void fetchNextPage()}
+            data-site-action="gallery_load_more"
+          >
+            {isFetchingNextPage
+              ? "Загружаем…"
+              : isFetchNextPageError
+                ? "Повторить"
+                : "Показать ещё"}
+          </Button>
         </div>
       )}
       {(LoadedPreview || preview.selectedWork) && (

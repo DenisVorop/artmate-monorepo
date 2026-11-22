@@ -500,6 +500,8 @@ export class OrdersTelegramService {
         return "Ozon Acquiring";
       case "tbank_acquiring":
         return "T-Bank Acquiring";
+      case "contest_prize":
+        return "Приз конкурса, без оплаты";
       case "bank_card_mock":
         return "Банковская карта";
     }

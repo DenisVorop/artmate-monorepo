@@ -32,6 +32,14 @@ type CheckoutSuccessDetailsProps = {
 };
 
 const paymentStatusMeta = {
+  not_required: {
+    Icon: CheckCircle2,
+    iconClassName: "bg-emerald-50 text-emerald-600 ring-emerald-200",
+    title: "Заказ оформлен",
+    description: "Это приз конкурса. Оплата не нужна.",
+    statusTitle: "Готовим заказ",
+    statusDescription: "Заказ доступен в личном кабинете.",
+  },
   failed: {
     Icon: AlertCircle,
     iconClassName: "bg-rose-50 text-rose-600 ring-rose-200",
