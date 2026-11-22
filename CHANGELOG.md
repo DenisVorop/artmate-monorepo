@@ -1,5 +1,17 @@
 # Changelog
 
+## [0.63.0](https://github.com/DenisVorop/artmate-monorepo/compare/v0.62.1...v0.63.0) (2026-11-22)
+
+
+### Features
+
+* **contests:** add contests and prize rewards ([1611c77](https://github.com/DenisVorop/artmate-monorepo/commit/1611c77f1aa8869736c7a1c2707b507fdb8ef5a8))
+
+
+### Bug Fixes
+
+* **site:** replace default social preview ([14cf6d4](https://github.com/DenisVorop/artmate-monorepo/commit/14cf6d4ad819d2879224eb981c392a18623d7ac8))
+
 ## [0.62.1](https://github.com/DenisVorop/artmate-monorepo/compare/v0.62.0...v0.62.1) (2026-11-17)
 
 
