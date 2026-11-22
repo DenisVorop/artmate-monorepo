@@ -6,7 +6,31 @@ export type ContestStage =
   | "review"
   | "completed";
 export type ContestSelectionMode = "AUTOMATIC" | "MANUAL";
+export type PromoPrizeTerms = {
+  name: string;
+  type: "PERCENTAGE" | "FIXED";
+  basisPoints: number | null;
+  amountKopecks: number | null;
+  minSubtotalKopecks: number;
+  maxDiscountKopecks: number | null;
+  startsAt: string | null;
+  endsAt: string | null;
+};
+export type ContestPlacePrizeInput = {
+  prize: string;
+  prizeDetail: string;
+  prizeAlbumQuantity: number | null;
+  prizeAlbumIds: string[];
+  prizeMarkerQuantity: number | null;
+  prizeMarkerIds: string[];
+  prizePromoCodeId: string | null;
+};
 export type ContestInput = {
+  prizeMode: "EQUAL" | "PLACES";
+  prizePlaces: ContestPlacePrizeInput[];
+  prizeMarkerQuantity: number | null;
+  prizeMarkerIds: string[];
+  participationPromoCodeId: string | null;
   title: string;
   slug: string;
   description: string;
@@ -28,21 +52,16 @@ export type ContestInput = {
   drawAt: string;
   published: boolean;
 };
-export type Contest = ContestInput & {
+export type Contest = Omit<ContestInput, "prizePlaces"> & {
+  prizePlaces: (ContestPlacePrizeInput & {
+    prizePromoTerms: PromoPrizeTerms | null;
+  })[];
+  participationPromoTerms: PromoPrizeTerms | null;
   id: string;
   legalHref: string | null;
   legalDocumentId: string | null;
   legalErrors: string[];
-  prizePromoTerms: {
-    name: string;
-    type: "PERCENTAGE" | "FIXED";
-    basisPoints: number | null;
-    amountKopecks: number | null;
-    minSubtotalKopecks: number;
-    maxDiscountKopecks: number | null;
-    startsAt: string | null;
-    endsAt: string | null;
-  } | null;
+  prizePromoTerms: PromoPrizeTerms | null;
   stage: ContestStage;
   version: number;
   publishedAt: string | null;
@@ -61,8 +80,14 @@ export type ContestWork = {
 export type ContestDrawData = {
   contest: Pick<
     Contest,
-    "id" | "title" | "slug" | "selectionMode" | "winnersCount" | "drawAt"
-  >;
+    | "id"
+    | "title"
+    | "slug"
+    | "selectionMode"
+    | "winnersCount"
+    | "drawAt"
+    | "prizeMode"
+  > & { prizes: { place: number; title: string }[] };
   candidates: { entryId: string; version: number; work: ContestWork }[];
   pendingCount: number;
   rosterToken: string | null;
@@ -83,6 +108,8 @@ export type ContestDrawData = {
       work: ContestWork | null;
       entryVersion: number;
       revision: number;
+      place?: number;
+      prizeTitle?: string;
     }[];
   };
 };

@@ -323,6 +323,78 @@ describe(
           JSON.stringify(patch),
         );
     });
+    it("validates nested place prizes, product categories and participation templates through HTTP", async () => {
+      const place = {
+        prize: "Альбом",
+        prizeDetail: "",
+        prizeAlbumQuantity: 1,
+        prizeAlbumIds: [albumId],
+      };
+      for (const patch of [
+        { prizeMode: "OTHER" },
+        { prizeMode: "PLACES", prizePlaces: [place], winnersCount: 2 },
+        { prizeMode: "EQUAL", prizePlaces: [place] },
+        {
+          prizeMode: "PLACES",
+          winnersCount: 1,
+          prizePlaces: [{ ...place, prizeAlbumQuantity: 0 }],
+        },
+        {
+          prizeMode: "PLACES",
+          winnersCount: 1,
+          prizePlaces: [{ ...place, unexpected: true }],
+        },
+        {
+          prizeMode: "PLACES",
+          winnersCount: 1,
+          prizePlaces: [{ ...place, prizeAlbumIds: [albumId, albumId] }],
+        },
+        {
+          prizeAlbumQuantity: null,
+          prizeAlbumIds: [],
+          prizeMarkerQuantity: 1,
+          prizeMarkerIds: [albumId],
+        },
+        { participationPromoCodeId: "missing-template" },
+      ]) {
+        const response = await request("/admin/contests", {
+          ...valid(),
+          ...patch,
+        });
+        assert.equal(response.status, 400, JSON.stringify(patch));
+      }
+      const saved = await create({
+        prizeMode: "PLACES",
+        prizePlaces: [place],
+        winnersCount: 1,
+        published: true,
+      });
+      const record = await db.contest.findUniqueOrThrow({
+        where: { id: saved.id },
+      });
+      assert.equal(record.prizeMode, "PLACES");
+      assert.equal(record.prizeAlbumQuantity, null);
+      assert.equal((record.prizePlaces as unknown[]).length, 1);
+      const edit = await request(
+        `/admin/contests/${saved.id}`,
+        {
+          ...valid(),
+          slug: saved.slug,
+          prizeMode: "PLACES",
+          winnersCount: 1,
+          prizePlaces: [{ ...place, prize: "Другой приз" }],
+          published: true,
+          version: saved.version,
+        },
+        "admin",
+        "PATCH",
+      );
+      assert.equal(
+        edit.status,
+        409,
+        "published place definitions are immutable",
+      );
+    });
     it("allows only one concurrent edit of the same version", async () => {
       const saved = await create();
       const change = (title: string) =>

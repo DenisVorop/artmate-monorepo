@@ -1,8 +1,9 @@
+import { contestAwardLabel } from "@repo/ui/contest-prizes";
 import Image from "next/image";
 import { routes } from "@/shared/constants";
 import { Badge, Card } from "@/shared/ui";
 import { Link } from "@/shared/ui/link";
-import { albumQuantity, prizeDate } from "../lib/format";
+import { prizeDate } from "../lib/format";
 import type { PrizeHistoryItem } from "../lib/types";
 import { PromoPrizeCard } from "./promo-prize-card";
 import { PrizeContestLink } from "./contest-link";
@@ -17,9 +18,9 @@ export function PrizeHistory({ items }: { items: readonly PrizeHistoryItem[] }) 
               <PromoPrizeCard prize={item} />
             </li>
           );
-        const albums = item.albums;
+        const albums = item.products;
         const firstAlbum = albums[0];
-        const title = albums.length === 1 ? firstAlbum!.title : albumQuantity(albums.length);
+        const title = albums.length === 1 ? firstAlbum!.title : item.title;
         return (
           <li key={item.id}>
             <Card className="grid grid-cols-[4rem_minmax(0,1fr)] items-start gap-4 rounded-2xl p-5 sm:grid-cols-[5rem_minmax(0,1fr)_auto] sm:gap-6 sm:p-6">
@@ -35,6 +36,11 @@ export function PrizeHistory({ items }: { items: readonly PrizeHistoryItem[] }) 
                 ) : null}
               </div>
               <div className="min-w-0 space-y-2">
+                {item.award && (
+                  <p className="text-sm font-medium text-stone-600">
+                    {contestAwardLabel(item.award)}
+                  </p>
+                )}
                 <h2 className="font-heading text-lg font-bold sm:text-xl">{title}</h2>
                 {albums.length > 1 && (
                   <p className="text-sm text-stone-600">

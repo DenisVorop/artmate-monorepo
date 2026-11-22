@@ -1,5 +1,6 @@
 "use client";
 import Image from "next/image";
+import { ContestPlaceIcon } from "@repo/ui/contest-prizes";
 import Link from "next/link";
 import { Controller, useForm, useWatch } from "react-hook-form";
 import { zodResolver } from "@hookform/resolvers/zod";
@@ -18,6 +19,11 @@ import {
   CardContent,
   Checkbox,
   Label,
+  Select,
+  SelectTrigger,
+  SelectValue,
+  SelectContent,
+  SelectItem,
 } from "@/shared/ui";
 import {
   selectionFormSchema,
@@ -108,6 +114,20 @@ function ResultsContent({
                     />
                   )}
                   <div className="min-w-0 flex-1">
+                    {winner.place !== undefined && (
+                      <p className="mb-2 flex items-center gap-2 text-sm">
+                        <ContestPlaceIcon
+                          place={winner.place}
+                          className="size-5"
+                        />
+                        {winner.place}-е место
+                      </p>
+                    )}
+                    {winner.prizeTitle && (
+                      <p className="text-sm text-muted-foreground">
+                        {winner.prizeTitle}
+                      </p>
+                    )}
                     <p className="font-semibold">{winner.author}</p>
                     <p className="text-sm text-muted-foreground">
                       {winner.work?.albumTitle ?? "Работа скрыта"}
@@ -170,7 +190,11 @@ function ResultsContent({
               </CardContent>
             </Card>
           ) : (
-            <SelectionForm data={data} onRefresh={onRefresh} />
+            <SelectionForm
+              key={data.rosterToken ?? "blocked"}
+              data={data}
+              onRefresh={onRefresh}
+            />
           )}
         </>
       )}
@@ -188,7 +212,14 @@ function SelectionForm({
   const { confirmation, setConfirmation, publishButtonRef } = useResultsState();
   const form = useForm<SelectionFormValues>({
     resolver: zodResolver(selectionFormSchema),
-    defaultValues: { entryIds: [] },
+    defaultValues: {
+      entryIds:
+        data.contest.prizeMode === "PLACES"
+          ? Array(
+              Math.min(data.contest.winnersCount, data.candidates.length),
+            ).fill("")
+          : [],
+    },
   });
   const selected = useWatch({ control: form.control, name: "entryIds" });
   const { mutate: selectWinners, isPending } = useSelectWinners(
@@ -244,73 +275,153 @@ function SelectionForm({
           <Controller
             control={form.control}
             name="entryIds"
-            render={({ field }) => (
-              <div className="grid gap-4 sm:grid-cols-2 xl:grid-cols-3">
-                {data.candidates.map((candidate) => {
-                  const index = field.value.indexOf(candidate.entryId);
-                  return (
-                    <Card
-                      key={candidate.entryId}
-                      className={index >= 0 ? "ring-2 ring-primary" : ""}
-                    >
-                      <CardContent className="space-y-3 pt-4">
-                        <Image
-                          src={candidate.work.image}
-                          alt={candidate.work.title}
-                          width={320}
-                          height={220}
-                          unoptimized
-                          className="h-48 w-full rounded-lg bg-muted object-contain"
-                        />
-                        <div className="flex items-start gap-3">
-                          <Checkbox
-                            id={`winner-${candidate.entryId}`}
-                            checked={index >= 0}
-                            disabled={index < 0 && field.value.length >= count}
-                            onCheckedChange={(checked) =>
-                              field.onChange(
-                                checked
-                                  ? [...field.value, candidate.entryId]
-                                  : field.value.filter(
-                                      (id) => id !== candidate.entryId,
-                                    ),
-                              )
-                            }
-                          />
+            render={({ field }) =>
+              data.contest.prizeMode === "PLACES" ? (
+                <div className="space-y-4">
+                  {data.contest.prizes.slice(0, count).map((prize, index) => {
+                    const candidate = data.candidates.find(
+                      (candidate) => candidate.entryId === field.value[index],
+                    );
+                    return (
+                      <Card key={prize.place}>
+                        <CardContent className="space-y-3 pt-5">
                           <Label
-                            htmlFor={`winner-${candidate.entryId}`}
-                            className="min-w-0 flex-1 flex-col items-start gap-1 leading-5"
+                            htmlFor={`place-${prize.place}`}
+                            className="flex items-center gap-2"
                           >
-                            <span className="break-words">
-                              {candidate.work.author}
-                            </span>
-                            <span className="font-normal text-muted-foreground">
-                              {candidate.work.albumTitle}
-                            </span>
+                            <ContestPlaceIcon
+                              place={prize.place}
+                              className="size-6"
+                            />
+                            {prize.place}-е место · {prize.title}
                           </Label>
-                        </div>
-                        <Link
-                          href={routes.contestEntry(candidate.entryId)}
-                          target="_blank"
-                          className="inline-block py-2 text-sm underline underline-offset-4"
-                        >
-                          Посмотреть заявку
-                        </Link>
-                      </CardContent>
-                    </Card>
-                  );
-                })}
-              </div>
-            )}
+                          <Select
+                            value={field.value[index] || "none"}
+                            onValueChange={(value) => {
+                              const ids = [...field.value];
+                              ids[index] = value === "none" ? "" : value;
+                              field.onChange(ids);
+                            }}
+                          >
+                            <SelectTrigger
+                              id={`place-${prize.place}`}
+                              className="min-h-11 w-full"
+                            >
+                              <SelectValue placeholder="Выберите работу" />
+                            </SelectTrigger>
+                            <SelectContent>
+                              <SelectItem value="none">
+                                Выберите работу
+                              </SelectItem>
+                              {data.candidates.map((candidate) => (
+                                <SelectItem
+                                  key={candidate.entryId}
+                                  value={candidate.entryId}
+                                  disabled={
+                                    field.value.includes(candidate.entryId) &&
+                                    field.value[index] !== candidate.entryId
+                                  }
+                                >
+                                  {candidate.work.author} ·{" "}
+                                  {candidate.work.albumTitle}
+                                </SelectItem>
+                              ))}
+                            </SelectContent>
+                          </Select>
+                          {candidate && (
+                            <div className="flex items-center gap-4">
+                              <Image
+                                src={candidate.work.image}
+                                alt={candidate.work.title}
+                                width={88}
+                                height={88}
+                                unoptimized
+                                className="size-22 rounded-lg bg-muted object-contain"
+                              />
+                              <Link
+                                href={routes.contestEntry(candidate.entryId)}
+                                target="_blank"
+                                className="text-sm underline"
+                              >
+                                Посмотреть заявку
+                              </Link>
+                            </div>
+                          )}
+                        </CardContent>
+                      </Card>
+                    );
+                  })}
+                </div>
+              ) : (
+                <div className="grid gap-4 sm:grid-cols-2 xl:grid-cols-3">
+                  {data.candidates.map((candidate) => {
+                    const index = field.value.indexOf(candidate.entryId);
+                    return (
+                      <Card
+                        key={candidate.entryId}
+                        className={index >= 0 ? "ring-2 ring-primary" : ""}
+                      >
+                        <CardContent className="space-y-3 pt-4">
+                          <Image
+                            src={candidate.work.image}
+                            alt={candidate.work.title}
+                            width={320}
+                            height={220}
+                            unoptimized
+                            className="h-48 w-full rounded-lg bg-muted object-contain"
+                          />
+                          <div className="flex items-start gap-3">
+                            <Checkbox
+                              id={`winner-${candidate.entryId}`}
+                              checked={index >= 0}
+                              disabled={
+                                index < 0 && field.value.length >= count
+                              }
+                              onCheckedChange={(checked) =>
+                                field.onChange(
+                                  checked
+                                    ? [...field.value, candidate.entryId]
+                                    : field.value.filter(
+                                        (id) => id !== candidate.entryId,
+                                      ),
+                                )
+                              }
+                            />
+                            <Label
+                              htmlFor={`winner-${candidate.entryId}`}
+                              className="min-w-0 flex-1 flex-col items-start gap-1 leading-5"
+                            >
+                              <span className="break-words">
+                                {candidate.work.author}
+                              </span>
+                              <span className="font-normal text-muted-foreground">
+                                {candidate.work.albumTitle}
+                              </span>
+                            </Label>
+                          </div>
+                          <Link
+                            href={routes.contestEntry(candidate.entryId)}
+                            target="_blank"
+                            className="inline-block py-2 text-sm underline underline-offset-4"
+                          >
+                            Посмотреть заявку
+                          </Link>
+                        </CardContent>
+                      </Card>
+                    );
+                  })}
+                </div>
+              )
+            }
           />
         </fieldset>
         <div className="space-y-3 rounded-xl border p-4">
           <p className="font-semibold">
-            Выбрано: {selected.length} из {count}
+            Выбрано: {selected.filter(Boolean).length} из {count}
           </p>
-          {selected.length > 0 && (
+          {selected.some(Boolean) && (
             <ul className="space-y-2">
-              {selected.map((id) => (
+              {selected.filter(Boolean).map((id) => (
                 <li key={id}>
                   {data.candidates.find((candidate) => candidate.entryId === id)
                     ?.work.author ?? "Работа больше не допущена"}
@@ -318,12 +429,19 @@ function SelectionForm({
               ))}
             </ul>
           )}
-          {selected.length > 0 && (
+          {selected.some(Boolean) && (
             <Button
               type="button"
               variant="outline"
               disabled={isPending}
-              onClick={() => form.setValue("entryIds", [])}
+              onClick={() =>
+                form.setValue(
+                  "entryIds",
+                  data.contest.prizeMode === "PLACES"
+                    ? Array(count).fill("")
+                    : [],
+                )
+              }
             >
               Сбросить выбор
             </Button>
@@ -337,7 +455,9 @@ function SelectionForm({
             type="submit"
             ref={publishButtonRef}
             disabled={
-              isPending || Boolean(data.blocker) || selected.length !== count
+              isPending ||
+              Boolean(data.blocker) ||
+              selected.filter(Boolean).length !== count
             }
           >
             {count ? "Опубликовать результаты" : "Завершить без победителей"}
@@ -368,8 +488,10 @@ function SelectionForm({
           </AlertDialogHeader>
           {confirmation && confirmation.entryIds.length > 0 && (
             <ul className="space-y-2">
-              {confirmation.entryIds.map((id) => (
+              {confirmation.entryIds.map((id, index) => (
                 <li key={id}>
+                  {data.contest.prizeMode === "PLACES" &&
+                    `${index + 1}-е место — `}
                   {data.candidates.find((candidate) => candidate.entryId === id)
                     ?.work.author ?? "Участник"}
                 </li>

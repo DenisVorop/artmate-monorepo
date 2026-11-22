@@ -1,4 +1,5 @@
 import Image from "next/image";
+import { ContestPlaceIcon } from "@repo/ui/contest-prizes";
 import type { Contest, ContestWork } from "@/entities/contest";
 import { Button, Card } from "@/shared/ui";
 import { SectionTitle } from "@/shared/ui/typography";
@@ -29,11 +30,19 @@ export function ContestResults({
     );
   }
   const result = contest.draw;
+  const winners =
+    contest.prizePresentation?.mode === "places"
+      ? [...result.winners].sort((a, b) => (a.place ?? Infinity) - (b.place ?? Infinity))
+      : result.winners;
   return (
     <section aria-labelledby="contest-winners" className="space-y-5">
       <div className="space-y-2">
         <SectionTitle id="contest-winners">
-          {result.winners.length ? "Победители" : "Итоги"}
+          {result.winners.length === 1
+            ? "Победитель"
+            : result.winners.length
+              ? "Победители"
+              : "Итоги"}
         </SectionTitle>
         <p className="text-sm text-stone-500">
           {result.mode === "AUTOMATIC" ? "Случайный выбор" : "Выбор Artmate"} ·{" "}
@@ -44,9 +53,15 @@ export function ContestResults({
         <p className="text-stone-600">Допущенных работ нет. Конкурс завершён без победителей.</p>
       )}
       <ul className="grid gap-4 sm:grid-cols-2 lg:grid-cols-3">
-        {result.winners.map(({ id, work }) => (
+        {winners.map(({ id, work, place, prizeTitle }) => (
           <li key={id}>
             <Card className="h-full gap-4 overflow-hidden p-4">
+              {place !== undefined && (
+                <p className="flex items-center gap-2 text-sm font-semibold text-stone-600">
+                  <ContestPlaceIcon place={place} className="size-6 shrink-0" />
+                  {place}-е место
+                </p>
+              )}
               {work ? (
                 <>
                   <Button
@@ -69,7 +84,7 @@ export function ContestResults({
                     <h3 className="font-heading text-lg font-bold break-words">{work.author}</h3>
                     <p className="text-sm text-stone-500">{work.albumTitle}</p>
                   </div>
-                  <p className="text-sm text-stone-600">{contest.prize}</p>
+                  <p className="text-sm text-stone-600">{prizeTitle ?? contest.prize}</p>
                   <Button
                     type="button"
                     variant="outline"

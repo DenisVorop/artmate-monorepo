@@ -22,7 +22,7 @@ export async function renderContestPdf(content: LegalText) {
     const options = {
       align: centered ? ("center" as const) : ("justify" as const),
       lineGap: 1.1,
-      paragraphGap: 8,
+      paragraphGap: 7,
     };
     if (
       heading &&
@@ -38,10 +38,17 @@ export async function renderContestPdf(content: LegalText) {
     paragraph(section.title, true, true);
     for (const text of section.paragraphs) paragraph(text);
   }
-  paragraph(
-    "Индивидуальный предприниматель Воропаев Денис Юрьевич\nИНН 772459963613\nОГРНИП 324774600166803\nЭлектронная почта: support@artmate.ru",
-  );
-  paragraph("Редакция от 22 ноября 2026 года");
+  const signature =
+    "Индивидуальный предприниматель Воропаев Денис Юрьевич\nИНН 772459963613\nОГРНИП 324774600166803\nЭлектронная почта: support@artmate.ru";
+  const edition = "Редакция от 22 ноября 2026 года";
+  const footerHeight =
+    doc.heightOfString(signature, { lineGap: 1.1 }) +
+    doc.heightOfString(edition, { lineGap: 1.1 }) +
+    16;
+  if (doc.y + footerHeight > doc.page.height - doc.page.margins.bottom)
+    doc.addPage();
+  paragraph(signature);
+  paragraph(edition);
   doc.end();
   return result;
 }

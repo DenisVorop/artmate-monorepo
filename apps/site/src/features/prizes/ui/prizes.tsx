@@ -7,7 +7,7 @@ import { routes } from "@/shared/constants";
 import { Button, DataState } from "@/shared/ui";
 import { Link } from "@/shared/ui/link";
 import { PrizeList } from "./prize-list";
-import { AlbumSelection } from "./album-selection";
+import { ProductSelection } from "./product-selection";
 import { PrizeCheckout } from "./prize-checkout";
 export function MyPrizes({
   view = "list",
@@ -56,7 +56,7 @@ function PrizeDetail({
   if (!prize) return <DataState title="Приз не найден" description="Вернитесь к списку призов." />;
   if (prize.orderId) return <PrizeOrderRedirect />;
   return view === "albums" ? (
-    <AlbumSelection key={`${user.id}:${id}`} owner={user.id} prize={prize} />
+    <ProductSelection key={`${user.id}:${id}`} owner={user.id} prize={prize} />
   ) : (
     <PrizeCheckout key={`${user.id}:${id}`} user={user} prize={prize} />
   );

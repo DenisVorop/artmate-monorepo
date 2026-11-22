@@ -1,24 +1,25 @@
-export type PrizeAlbumDTO = { id: string; title: string; image: string; available: boolean };
-export type AlbumPrizeDTO = {
+import type { ContestAward } from "@repo/ui/contest-prizes";
+export type PrizeProductDTO = { id: string; title: string; image: string; available: boolean };
+export type PrizeProductGroupDTO = {
+  kind: "albums" | "markers";
+  quantity: number;
+  products: PrizeProductDTO[];
+};
+export type ProductPrizeDTO = {
   id: string;
-  kind: "albums";
+  kind: "products";
+  title: string;
   contestTitle: string;
   contestSlug: string;
   awardedAt: string;
-  quantity: number;
-  albumIds: string[];
-  albums: PrizeAlbumDTO[];
+  award?: ContestAward;
+  groups: PrizeProductGroupDTO[];
   orderId: string | null;
 };
-export type AlbumPrizeHistoryDTO = {
-  id: string;
-  kind: "albums";
-  contestTitle: string;
-  contestSlug: string;
-  usedAt: string;
+export type ProductPrizeHistoryDTO = Omit<ProductPrizeDTO, "groups" | "orderId"> & {
   orderId: string;
-  albumIds: string[];
-  albums: PrizeAlbumDTO[];
+  usedAt: string;
+  products: PrizeProductDTO[];
 };
 export type PromoPrizeDTO = {
   id: string;
@@ -27,6 +28,7 @@ export type PromoPrizeDTO = {
   contestTitle: string;
   contestSlug: string;
   awardedAt: string;
+  award?: ContestAward;
   status: "available" | "upcoming" | "reserved" | "used" | "expired" | "disabled";
   discountPercent: number | null;
   amount: number | null;
@@ -37,11 +39,11 @@ export type PromoPrizeDTO = {
   orderId: string | null;
   usedAt: string | null;
 };
-export type AvailablePrizeDTO = AlbumPrizeDTO | PromoPrizeDTO;
-export type PrizeHistoryDTO = AlbumPrizeHistoryDTO | PromoPrizeDTO;
+export type AvailablePrizeDTO = ProductPrizeDTO | PromoPrizeDTO;
+export type PrizeHistoryDTO = ProductPrizeHistoryDTO | PromoPrizeDTO;
 export type MyPrizesDTO = { available: AvailablePrizeDTO[]; history: PrizeHistoryDTO[] };
 export type CreatePrizeOrderInput = {
-  albumIds: string[];
+  productIds: string[];
   customer: { name: string; phone: string; email: string };
   pickupPointId: string;
   acceptedLegal: boolean;

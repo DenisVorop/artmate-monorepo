@@ -277,18 +277,20 @@ model OrderHistory {
 // Orders own entitlements and redeem them atomically with their own orders.
 model OrderPrizeGrant {
   id String @id @default(cuid()) @db.VarChar(32)
-  winnerId String @unique @map("winner_id") @db.VarChar(32)
+  awardId String @unique @map("award_id") @db.VarChar(32)
   userId String @map("user_id")
   contestTitle String @map("contest_title") @db.VarChar(160)
   contestSlug String @map("contest_slug") @db.VarChar(120)
-  quantity Int
-  albumIds String[] @map("album_ids")
+  title String @db.VarChar(200)
+  awardKind String @map("award_kind") @db.VarChar(16)
+  place Int?
+  productGroups Json @map("product_groups")
   awardedAt DateTime @map("awarded_at") @db.Timestamptz(3)
   orderId String? @unique @map("order_id") @db.VarChar(32)
   checkoutFingerprint String? @map("checkout_fingerprint") @db.Char(64)
   redeemedAt DateTime? @map("redeemed_at") @db.Timestamptz(3)
   createdAt DateTime @default(now()) @map("created_at") @db.Timestamptz(3)
-  winner ContestDrawWinner @relation(fields: [winnerId], references: [id], onDelete: Restrict)
+  award ContestPrizeAward @relation(fields: [awardId], references: [id], onDelete: Restrict)
   user User @relation(fields: [userId], references: [id], onDelete: Restrict)
   order Order? @relation(fields: [orderId], references: [id], onDelete: Restrict)
   @@index([userId, awardedAt])

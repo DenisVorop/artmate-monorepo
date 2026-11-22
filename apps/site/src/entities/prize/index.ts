@@ -1,10 +1,11 @@
 export { prizesQuery } from "./model/query";
 export { usePrizes, usePrize } from "./model/use-prizes";
 export type {
-  AlbumPrize,
+  ProductPrize,
+  PrizeProductGroup,
   AvailablePrize,
   PromoPrize,
-  PrizeAlbum,
+  PrizeProduct,
   PrizeHistoryItem,
   MyPrizes,
 } from "./model/types";

@@ -1,3 +1,4 @@
+import type { ContestPrizePresentation } from "@repo/ui/contest-prizes";
 import type { ContestAppearance } from "@repo/ui/contest-design";
 export type ContestStage = "upcoming" | "open" | "review" | "completed";
 export type ContestWork = {
@@ -20,6 +21,7 @@ export type Contest = {
   task: string;
   rules: string[];
   appearance: ContestAppearance;
+  prizePresentation: ContestPrizePresentation;
   prize: string;
   prizeDetail: string;
   winnersCount: number;
@@ -35,7 +37,7 @@ export type Contest = {
     drawnAt: string;
     eligibleCount: number;
     requestedWinners: number;
-    winners: { id: string; work: ContestWork | null }[];
+    winners: { id: string; work: ContestWork | null; place?: number; prizeTitle?: string }[];
   };
 };
 export type ContestEntryStatus =

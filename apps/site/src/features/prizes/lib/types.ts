@@ -1,9 +1,10 @@
 import type { DeliveryCityDTO, DeliveryPickupPointDTO } from "@/shared/actions/delivery";
 export type {
-  AlbumPrize,
+  ProductPrize,
+  PrizeProductGroup,
   AvailablePrize,
   PromoPrize,
-  PrizeAlbum,
+  PrizeProduct,
   PrizeHistoryItem,
 } from "@/entities/prize";
 export type PrizePickupSelection = { city: DeliveryCityDTO; point: DeliveryPickupPointDTO };

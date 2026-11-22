@@ -8,19 +8,21 @@ import {
 } from "@nestjs/common";
 import { Prisma } from "../../generated/prisma/client";
 import {
-  albumPrizeWinnerPublicationSelect,
-  mapAlbumPrizeWinnerPublication,
-} from "../../contests/contracts/album-prize-winners.publication";
+  prizeAwardPublicationSelect,
+  mapProductPrizeAward,
+  mapPrizeAwardLabel,
+  readPrizeGroups,
+} from "../../contests/contracts/prize-awards.publication";
 import { PrismaService } from "../../prisma/prisma.service";
 import { DeliveryService } from "../../delivery/delivery.service";
 import { OrdersStorage } from "../orders.storage";
 import {
-  isPrizeAlbumAvailable,
-  mapPrizeAlbum,
+  isPrizeProductAvailable,
+  mapPrizeProduct,
   prizeProductInclude,
 } from "./catalog";
 import type { CreatePrizeOrderRequestDTO } from "./prize-order.dto";
-import { ContestPromoPrizesService } from "../../promocodes/contest-promo-prizes.service";
+import { readPersonalPrizeCodes } from "../../promocodes/contracts/personal-prizes.publication";
 
 @Injectable()
 export class OrderPrizesService {
@@ -28,33 +30,32 @@ export class OrderPrizesService {
     private readonly prisma: PrismaService,
     private readonly delivery: DeliveryService,
     private readonly orders: OrdersStorage,
-    private readonly promoPrizes: ContestPromoPrizesService,
   ) {}
 
-  // The finalized winner + frozen album definition is the contests publication.
+  // Finalized awards are the contests publication.
   // Orders consumes it idempotently, and owns all subsequent grant/order writes.
-  async issueForWinners(userId?: string) {
-    const winners = await this.prisma.contestDrawWinner.findMany({
+  async issueAwards(userId?: string) {
+    const winners = await this.prisma.contestPrizeAward.findMany({
       where: {
-        albumPrize: { is: null },
-        ...(userId ? { entry: { userId } } : {}),
-        draw: { contest: { prizeAlbumQuantity: { not: null } } },
+        productPrize: { is: null },
+        ...(userId ? { userId } : {}),
+        NOT: { productGroups: { equals: [] } },
       },
-      select: albumPrizeWinnerPublicationSelect,
+      select: prizeAwardPublicationSelect,
       take: 500,
       orderBy: { id: "asc" },
     });
     if (!winners.length) return 0;
     const result = await this.prisma.orderPrizeGrant.createMany({
-      data: winners.map(mapAlbumPrizeWinnerPublication),
+      data: winners.map(mapProductPrizeAward),
       skipDuplicates: true,
     });
     return result.count;
   }
 
   async list(userId: string) {
-    await this.issueForWinners(userId);
-    const promoPrizes = await this.promoPrizes.list(userId);
+    await this.issueAwards(userId);
+    const promoPrizes = await readPersonalPrizeCodes(this.prisma, userId);
     const grants = await this.prisma.orderPrizeGrant.findMany({
       where: { userId },
       orderBy: [{ awardedAt: "desc" }, { id: "desc" }],
@@ -62,7 +63,17 @@ export class OrderPrizesService {
     });
     const products = await this.prisma.product.findMany({
       where: {
-        id: { in: [...new Set(grants.flatMap((grant) => grant.albumIds))] },
+        id: {
+          in: [
+            ...new Set(
+              grants.flatMap((grant) =>
+                readPrizeGroups(grant.productGroups).flatMap(
+                  (group) => group.productIds,
+                ),
+              ),
+            ),
+          ],
+        },
         status: "PUBLISHED",
       },
       include: prizeProductInclude,
@@ -81,13 +92,15 @@ export class OrderPrizesService {
           .filter((grant) => grant.order)
           .map((grant) => ({
             id: grant.id,
-            kind: "albums" as const,
+            kind: "products" as const,
+            title: grant.title,
+            award: mapPrizeAwardLabel(grant),
             contestTitle: grant.contestTitle,
             contestSlug: grant.contestSlug,
             usedAt: grant.redeemedAt!.toISOString(),
             orderId: grant.orderId!,
-            albumIds: grant.order!.items.map((item) => item.productId),
-            albums: grant.order!.items.map((item) => ({
+            awardedAt: grant.awardedAt.toISOString(),
+            products: grant.order!.items.map((item) => ({
               id: item.productId,
               title: item.title,
               image: item.image,
@@ -102,10 +115,17 @@ export class OrderPrizesService {
   }
 
   async get(userId: string, id: string) {
-    await this.issueForWinners(userId);
+    await this.issueAwards(userId);
     const grant = await this.grant(this.prisma, userId, id);
     const products = await this.prisma.product.findMany({
-      where: { id: { in: grant.albumIds }, status: "PUBLISHED" },
+      where: {
+        id: {
+          in: readPrizeGroups(grant.productGroups).flatMap(
+            (group) => group.productIds,
+          ),
+        },
+        status: "PUBLISHED",
+      },
       include: prizeProductInclude,
     });
     return this.mapGrant(grant, products);
@@ -123,7 +143,7 @@ export class OrderPrizesService {
     const grant = await this.grant(this.prisma, userId, id);
     // A retry always returns the original order, even if a browser changed its draft.
     if (grant.orderId) return this.orders.getOrder(grant.orderId, userId);
-    this.assertSelection(grant, input.albumIds);
+    this.assertSelection(grant, input.productIds);
     let quote: Awaited<
       ReturnType<DeliveryService["calculatePickupPointDelivery"]>
     >;
@@ -151,7 +171,7 @@ export class OrderPrizesService {
       throw new BadRequestException("Выберите другой пункт выдачи Ozon");
     const fingerprint = createHash("sha256")
       .update(
-        JSON.stringify({ ...input, albumIds: [...input.albumIds].sort() }),
+        JSON.stringify({ ...input, productIds: [...input.productIds].sort() }),
       )
       .digest("hex");
     const orderId = await this.prisma.$transaction(
@@ -159,20 +179,28 @@ export class OrderPrizesService {
         await tx.$queryRaw`SELECT id FROM order_prize_grants WHERE id = ${id} FOR UPDATE`;
         const current = await this.grant(tx, userId, id);
         if (current.orderId) return current.orderId;
-        this.assertSelection(current, input.albumIds);
+        this.assertSelection(current, input.productIds);
         await tx.$queryRaw(
-          Prisma.sql`SELECT id FROM products WHERE id IN (${Prisma.join([...input.albumIds].sort())}) ORDER BY id FOR SHARE`,
+          Prisma.sql`SELECT id FROM products WHERE id IN (${Prisma.join([...input.productIds].sort())}) ORDER BY id FOR SHARE`,
         );
         const products = await tx.product.findMany({
-          where: { id: { in: input.albumIds } },
+          where: { id: { in: input.productIds } },
           include: prizeProductInclude,
         });
         if (
-          products.length !== input.albumIds.length ||
-          products.some((product) => !isPrizeAlbumAvailable(product))
+          products.length !== input.productIds.length ||
+          products.some(
+            (product) =>
+              !isPrizeProductAvailable(
+                product,
+                readPrizeGroups(current.productGroups).find((group) =>
+                  group.productIds.includes(product.id),
+                )!.kind,
+              ),
+          )
         )
           throw new ConflictException(
-            "Один из альбомов сейчас недоступен. Измените выбор",
+            "Один из товаров сейчас недоступен. Измените выбор",
           );
         const newOrderId = `prize_${randomUUID().replaceAll("-", "").slice(0, 26)}`;
         await tx.order.create({
@@ -224,7 +252,7 @@ export class OrderPrizesService {
                 eventType: "prize_order_created",
                 payload: {
                   prizeId: current.id,
-                  winnerId: current.winnerId,
+                  awardId: current.awardId,
                   acceptedLegal: true,
                   acceptedPersonalDataConsent: true,
                   toStatus: "in_progress",
@@ -249,18 +277,23 @@ export class OrderPrizesService {
   }
 
   private assertSelection(
-    grant: { quantity: number; albumIds: string[] },
+    grant: { productGroups: Prisma.JsonValue },
     ids: string[],
   ) {
+    const groups = readPrizeGroups(grant.productGroups);
+    const allowed = groups.flatMap((group) => group.productIds);
     if (
+      !groups.length ||
       !Array.isArray(ids) ||
-      ids.length !== grant.quantity ||
       new Set(ids).size !== ids.length ||
-      ids.some((id) => !grant.albumIds.includes(id))
+      ids.some((id) => !allowed.includes(id)) ||
+      groups.some(
+        (group) =>
+          ids.filter((id) => group.productIds.includes(id)).length !==
+          group.quantity,
+      )
     )
-      throw new BadRequestException(
-        `Выберите ${grant.quantity} разных альбомов из списка приза`,
-      );
+      throw new BadRequestException("Выберите товары для каждой части приза");
   }
   private async grant(
     db: Pick<Prisma.TransactionClient, "orderPrizeGrant">,
@@ -274,28 +307,34 @@ export class OrderPrizesService {
   private mapGrant(
     grant: {
       id: string;
+      title: string;
+      awardKind: string;
+      place: number | null;
       contestTitle: string;
       contestSlug: string;
-      quantity: number;
-      albumIds: string[];
+      productGroups: Prisma.JsonValue;
       awardedAt: Date;
       orderId: string | null;
     },
-    products: Parameters<typeof mapPrizeAlbum>[0][],
+    products: Parameters<typeof mapPrizeProduct>[0][],
   ) {
     return {
       id: grant.id,
-      kind: "albums" as const,
+      kind: "products" as const,
+      title: grant.title,
+      award: mapPrizeAwardLabel(grant),
       contestTitle: grant.contestTitle,
       contestSlug: grant.contestSlug,
-      quantity: grant.quantity,
-      albumIds: grant.albumIds,
       awardedAt: grant.awardedAt.toISOString(),
       orderId: grant.orderId,
-      albums: grant.albumIds.flatMap((id) => {
-        const product = products.find((p) => p.id === id);
-        return product ? [mapPrizeAlbum(product)] : [];
-      }),
+      groups: readPrizeGroups(grant.productGroups).map((group) => ({
+        kind: group.kind,
+        quantity: group.quantity,
+        products: group.productIds.flatMap((id) => {
+          const product = products.find((item) => item.id === id);
+          return product ? [mapPrizeProduct(product, group.kind)] : [];
+        }),
+      })),
     };
   }
 }

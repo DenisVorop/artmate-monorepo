@@ -33,12 +33,19 @@ const {
   toContestForm,
 } = loaded.exports;
 const values = {
+  prizeMode: "EQUAL",
+  prizePlaces: [],
+  hasParticipationPrize: false,
+  participationPromoCodeId: null,
   title: "Конкурс",
   slug: "rabota-noyabrya",
   description: "Описание",
   task: "Задание",
   rules: " Одна работа \n\n Только своя фотография ",
   appearance: "new-year",
+  hasMarkerPrize: false,
+  prizeMarkerQuantity: 1,
+  prizeMarkerIds: [],
   hasAlbumPrize: false,
   prizePromoCodeId: null,
   prizeAlbumQuantity: 1,
@@ -92,6 +99,9 @@ test("album prize requires enough choices and excludes UI switches from the API 
   assert.equal(
     contestFormSchema.safeParse({
       ...values,
+      hasMarkerPrize: false,
+      prizeMarkerQuantity: 1,
+      prizeMarkerIds: [],
       hasAlbumPrize: true,
       prizeAlbumQuantity: 2,
       prizeAlbumIds: ["one"],
@@ -100,6 +110,9 @@ test("album prize requires enough choices and excludes UI switches from the API 
   );
   const parsed = contestFormSchema.parse({
     ...values,
+    hasMarkerPrize: false,
+    prizeMarkerQuantity: 1,
+    prizeMarkerIds: [],
     hasAlbumPrize: true,
     prizeAlbumQuantity: 2,
     prizeAlbumIds: ["one", "two"],
@@ -135,5 +148,172 @@ test("contest promo template is sent explicitly and remains distinct from album 
   assert.equal(
     toContestInput({ ...parsed, prizePromoCodeId: null }).prizePromoCodeId,
     null,
+  );
+});
+
+test("ranked prizes validate each place and require a participation code", () => {
+  const base = {
+    ...values,
+    prizeMode: "PLACES",
+    prize: "",
+    prizeDetail: "",
+    prizePlaces: [
+      {
+        prize: "Три альбома",
+        prizeDetail: "",
+        hasMarkerPrize: false,
+        prizeMarkerQuantity: 1,
+        prizeMarkerIds: [],
+        hasAlbumPrize: true,
+        prizeAlbumQuantity: 3,
+        prizeAlbumIds: ["a", "b", "c"],
+        prizePromoCodeId: null,
+      },
+      {
+        prize: "Скидка 20%",
+        prizeDetail: "",
+        hasMarkerPrize: false,
+        prizeMarkerQuantity: 1,
+        prizeMarkerIds: [],
+        hasAlbumPrize: false,
+        prizeAlbumQuantity: 1,
+        prizeAlbumIds: [],
+        prizePromoCodeId: "promo-20",
+      },
+    ],
+    hasParticipationPrize: true,
+    participationPromoCodeId: "promo-10",
+  };
+  assert.equal(contestFormSchema.safeParse(base).success, true);
+  assert.equal(
+    contestFormSchema.safeParse({ ...base, participationPromoCodeId: null })
+      .success,
+    false,
+  );
+  assert.equal(
+    contestFormSchema.safeParse({ ...base, prizePlaces: [] }).success,
+    false,
+  );
+  assert.equal(
+    contestFormSchema.safeParse({
+      ...base,
+      prizePlaces: [{ ...base.prizePlaces[0], prizeAlbumIds: ["a", "a", "b"] }],
+    }).success,
+    false,
+  );
+  const input = toContestInput(contestFormSchema.parse(base));
+  assert.equal(input.prizeMode, "PLACES");
+  assert.equal(input.winnersCount, 2);
+  assert.deepEqual(input.prizePlaces[0].prizeAlbumIds, ["a", "b", "c"]);
+  assert.equal(input.prizePlaces[1].prizePromoCodeId, "promo-20");
+  assert.equal(input.participationPromoCodeId, "promo-10");
+  assert.equal(input.prizeAlbumQuantity, null);
+  const reopened = toContestForm({
+    ...input,
+    prizePromoTerms: null,
+    participationPromoTerms: null,
+    prizePlaces: input.prizePlaces.map((prize) => ({
+      ...prize,
+      prizePromoTerms: null,
+    })),
+    id: "contest",
+    version: 1,
+  });
+  assert.equal(reopened.prizePlaces[0].hasAlbumPrize, true);
+  assert.equal(reopened.hasParticipationPrize, true);
+  assert.equal(toContestInput(reopened).winnersCount, 2);
+});
+
+test("inactive prize settings do not block switching back to equal prizes", () => {
+  const inactive = {
+    prize: "",
+    prizeDetail: "",
+    hasMarkerPrize: false,
+    prizeMarkerQuantity: 1,
+    prizeMarkerIds: [],
+    hasAlbumPrize: true,
+    prizeAlbumQuantity: "",
+    prizeAlbumIds: [],
+    prizePromoCodeId: null,
+  };
+  assert.equal(
+    contestFormSchema.safeParse({ ...values, prizePlaces: [inactive] }).success,
+    true,
+  );
+  assert.equal(
+    contestFormSchema.safeParse({
+      ...values,
+      prizeMode: "PLACES",
+      winnersCount: "",
+      prizeAlbumQuantity: "",
+      prizePlaces: [
+        {
+          ...inactive,
+          prize: "Скидка",
+          hasMarkerPrize: false,
+          prizeMarkerQuantity: 1,
+          prizeMarkerIds: [],
+          hasAlbumPrize: false,
+          prizePromoCodeId: "promo",
+        },
+      ],
+    }).success,
+    true,
+  );
+});
+
+test("marker prizes validate quantities and choices independently from albums", () => {
+  const marker = {
+    ...values,
+    hasMarkerPrize: true,
+    prizeMarkerQuantity: 1,
+    prizeMarkerIds: ["markers-24"],
+  };
+  const parsed = contestFormSchema.parse(marker);
+  assert.deepEqual(toContestInput(parsed).prizeMarkerIds, ["markers-24"]);
+  for (const patch of [
+    { prizeMarkerQuantity: 0 },
+    { prizeMarkerQuantity: 1.5 },
+    { prizeMarkerQuantity: 2 },
+    { prizeMarkerIds: [] },
+  ])
+    assert.equal(
+      contestFormSchema.safeParse({ ...marker, ...patch }).success,
+      false,
+    );
+  const place = {
+    prize: "Альбом и маркеры",
+    prizeDetail: "",
+    hasAlbumPrize: true,
+    prizeAlbumQuantity: 1,
+    prizeAlbumIds: ["album"],
+    prizePromoCodeId: null,
+    hasMarkerPrize: true,
+    prizeMarkerQuantity: 1,
+    prizeMarkerIds: ["marker"],
+  };
+  assert.equal(
+    contestFormSchema.safeParse({
+      ...values,
+      prizeMode: "PLACES",
+      prizePlaces: [place],
+    }).success,
+    true,
+  );
+  assert.equal(
+    contestFormSchema.safeParse({
+      ...values,
+      prizeMode: "PLACES",
+      prizePlaces: [{ ...place, prizeMarkerIds: ["album"] }],
+    }).success,
+    false,
+  );
+  assert.equal(
+    contestFormSchema.safeParse({
+      ...values,
+      prizeMode: "PLACES",
+      prizePlaces: [{ ...place, hasAlbumPrize: false, prizeAlbumIds: [] }],
+    }).success,
+    true,
   );
 });

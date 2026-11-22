@@ -5,6 +5,7 @@ import type { AuthUser } from "@/entities/session";
 import { routes } from "@/shared/constants";
 import {
   Button,
+  CtaGradientButton,
   Input,
   Label,
   PageHero,
@@ -20,29 +21,33 @@ import {
   toPrizeOrderInput,
   type PrizeCheckoutValues,
 } from "../lib/forms";
-import { albumQuantity, prizeTitle } from "../lib/format";
-import type { AlbumPrize, PrizePickupSelection } from "../lib/types";
+import {
+  isPrizeSelectionComplete,
+  selectedPrizeProducts,
+  productGroupQuantity,
+} from "../lib/product-prize";
+import type { ProductPrize, PrizePickupSelection } from "../lib/types";
 import { useCreatePrizeOrder } from "../model/use-create-prize-order";
 import { PrizeDelivery } from "./pickup-picker";
 
-export function PrizeCheckout({ user, prize }: { user: AuthUser; prize: AlbumPrize }) {
+export function PrizeCheckout({ user, prize }: { user: AuthUser; prize: ProductPrize }) {
   const state = usePrizeDraft(user.id, prize);
-  if (!state.isReady) return <p role="status">Загружаем выбранные альбомы…</p>;
-  if (state.draft.albumIds.length !== prize.quantity)
+  if (!state.isReady) return <p role="status">Загружаем выбранные товары…</p>;
+  if (!isPrizeSelectionComplete(prize, state.draft.productIds))
     return (
       <div className="space-y-7">
         <CheckoutHeading prize={prize} />
         <div className="space-y-4 rounded-2xl border p-6">
-          <p>Сначала выберите {albumQuantity(prize.quantity)}.</p>
+          <p>Сначала выберите товары для приза.</p>
           <Button asChild>
-            <Link href={routes.prizeAlbums(prize.id)}>Выбрать альбомы</Link>
+            <Link href={routes.prizeAlbums(prize.id)}>Выбрать приз</Link>
           </Button>
         </div>
       </div>
     );
   return <CheckoutForm user={user} prize={prize} draftState={state} />;
 }
-function CheckoutHeading({ prize }: { prize: AlbumPrize }) {
+function CheckoutHeading({ prize }: { prize: ProductPrize }) {
   return (
     <PageHero
       title="Получение приза"
@@ -50,7 +55,7 @@ function CheckoutHeading({ prize }: { prize: AlbumPrize }) {
       breadcrumbs={[
         { label: "Личный кабинет", href: routes.account },
         { label: "Мои призы", href: routes.accountPrizes },
-        { label: "Выбор альбомов", href: routes.prizeAlbums(prize.id) },
+        { label: "Выбор приза", href: routes.prizeAlbums(prize.id) },
         { label: "Получение приза" },
       ]}
     />
@@ -62,7 +67,7 @@ function CheckoutForm({
   draftState,
 }: {
   user: AuthUser;
-  prize: AlbumPrize;
+  prize: ProductPrize;
   draftState: ReturnType<typeof usePrizeDraft>;
 }) {
   const { draft, saveDraft } = draftState;
@@ -79,12 +84,9 @@ function CheckoutForm({
       acceptedPersonalDataConsent: false,
     },
   });
-  const albums = draft.albumIds.flatMap((id) => {
-    const album = prize.albums.find((item) => item.id === id);
-    return album ? [album] : [];
-  });
-  const hasUnavailableAlbums =
-    albums.length !== prize.quantity || albums.some((album) => !album.available);
+  const albums = selectedPrizeProducts(prize, draft.productIds);
+  const groups = prize.groups;
+  const hasUnavailableAlbums = !isPrizeSelectionComplete(prize, draft.productIds);
   const { mutate: createOrder, isPending: isSubmitting } = useCreatePrizeOrder(
     user.id,
     prize,
@@ -105,7 +107,7 @@ function CheckoutForm({
           if (hasUnavailableAlbums) return;
           form.clearErrors("root");
           saveContacts();
-          createOrder(toPrizeOrderInput(draft.albumIds, values));
+          createOrder(toPrizeOrderInput(draft.productIds, values));
         })}
         className="grid items-start gap-6 lg:grid-cols-[minmax(0,1fr)_24rem]"
       >
@@ -178,7 +180,7 @@ function CheckoutForm({
                   <span aria-hidden className="font-mono text-sm text-rose-500">
                     03
                   </span>
-                  Ваши альбомы
+                  Ваш приз
                 </h2>
                 <Link
                   href={routes.prizeAlbums(prize.id)}
@@ -189,7 +191,7 @@ function CheckoutForm({
               </div>
               {hasUnavailableAlbums && (
                 <p role="alert" className="text-sm text-destructive">
-                  Один из альбомов сейчас недоступен. Измените выбор.
+                  Один из товаров сейчас недоступен. Измените выбор.
                 </p>
               )}
               <ul className="divide-y">
@@ -238,13 +240,15 @@ function CheckoutForm({
               <h2 id="prize-summary-heading" className="font-heading text-xl font-bold">
                 Сумма заказа
               </h2>
-              <p className="text-sm text-muted-foreground">{prizeTitle(prize.quantity)}</p>
+              <p className="text-sm text-muted-foreground">{prize.title}</p>
             </div>
             <dl className="space-y-3 text-sm">
-              <div className="flex justify-between gap-3">
-                <dt>{albumQuantity(prize.quantity)}</dt>
-                <dd className="font-semibold">0 ₽</dd>
-              </div>
+              {groups.map((group, index) => (
+                <div key={index} className="flex justify-between gap-3">
+                  <dt>{productGroupQuantity(group)}</dt>
+                  <dd className="font-semibold">0 ₽</dd>
+                </div>
+              ))}
               <div className="flex justify-between gap-3">
                 <dt>Доставка</dt>
                 <dd className="font-semibold">0 ₽</dd>
@@ -255,7 +259,7 @@ function CheckoutForm({
               </div>
             </dl>
             <p className="text-sm leading-6 text-stone-600">
-              Альбомы и доставку оплачивает Artmate.
+              Товары и доставку оплачивает Artmate.
             </p>
             <div className="space-y-4 text-xs leading-5">
               <div className="flex items-start gap-3">
@@ -288,13 +292,13 @@ function CheckoutForm({
               />
               <FieldError message={form.formState.errors.acceptedPersonalDataConsent?.message} />
             </div>
-            <Button
+            <CtaGradientButton
               type="submit"
               disabled={isSubmitting || hasUnavailableAlbums}
               className="min-h-12 w-full rounded-xl"
             >
               {isSubmitting ? "Оформляем…" : "Оформить заказ"}
-            </Button>
+            </CtaGradientButton>
             <FieldError message={form.formState.errors.root?.message} />
           </aside>
         </fieldset>

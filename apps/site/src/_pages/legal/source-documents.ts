@@ -7,7 +7,7 @@ export const sourceLegalDocuments = {
     description: "Участие, проверка работ, выбор победителей и получение призов.",
     href: routes.legal.contestRules,
     updatedAt: "22.11.2026",
-    fileHref: "/documents/legal/contest-rules-2026-11-22-v3.2.pdf",
+    fileHref: "/documents/legal/contest-rules-2026-11-22-v3.3.pdf",
   },
   contestPersonalDataConsent: {
     contentType: "pdf",
@@ -95,5 +95,11 @@ export const contestRulesRevisions = {
   "3.2": {
     ...sourceLegalDocuments.contestRules,
     href: routes.legal.contestRulesRevision("3.2"),
+    fileHref: "/documents/legal/contest-rules-2026-11-22-v3.2.pdf",
+  },
+  "3.3": {
+    ...sourceLegalDocuments.contestRules,
+    href: routes.legal.contestRulesRevision("3.3"),
+    fileHref: "/documents/legal/contest-rules-2026-11-22-v3.3.pdf",
   },
 } as const;

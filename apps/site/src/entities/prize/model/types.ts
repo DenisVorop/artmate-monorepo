@@ -1,8 +1,9 @@
 export type {
-  AlbumPrizeDTO as AlbumPrize,
+  ProductPrizeDTO as ProductPrize,
+  PrizeProductGroupDTO as PrizeProductGroup,
   AvailablePrizeDTO as AvailablePrize,
   PromoPrizeDTO as PromoPrize,
-  PrizeAlbumDTO as PrizeAlbum,
+  PrizeProductDTO as PrizeProduct,
   PrizeHistoryDTO as PrizeHistoryItem,
   MyPrizesDTO as MyPrizes,
 } from "@/shared/actions/prizes";
