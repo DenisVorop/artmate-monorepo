@@ -1,0 +1,101 @@
+{
+  "version": "2.0",
+  "existingFields": [
+    {
+      "condition": "Название и адрес",
+      "source": [
+        "title",
+        "slug"
+      ],
+      "status": "available"
+    },
+    {
+      "condition": "Задание и дополнительные требования",
+      "source": [
+        "task",
+        "rules"
+      ],
+      "status": "available"
+    },
+    {
+      "condition": "Начало, окончание, выбор победителей",
+      "source": [
+        "opensAt",
+        "closesAt",
+        "drawAt"
+      ],
+      "format": "Europe/Moscow, UTC+3",
+      "status": "available"
+    },
+    {
+      "condition": "Способ выбора и число победителей",
+      "source": [
+        "selectionMode",
+        "winnersCount"
+      ],
+      "status": "available"
+    },
+    {
+      "condition": "Описание приза",
+      "source": [
+        "prize",
+        "prizeDetail"
+      ],
+      "status": "available",
+      "note": "Текст не заменяет настройку выдачи"
+    },
+    {
+      "condition": "Состав альбомного приза",
+      "source": [
+        "prizeAlbumQuantity",
+        "prizeAlbumIds"
+      ],
+      "status": "available",
+      "note": "Нужен снимок названий и состава из каталога на дату объявления"
+    },
+    {
+      "condition": "Условия скидки",
+      "source": [
+        "prizePromoTerms.type",
+        "prizePromoTerms.basisPoints",
+        "prizePromoTerms.amountKopecks",
+        "prizePromoTerms.maxDiscountKopecks",
+        "prizePromoTerms.minSubtotalKopecks",
+        "prizePromoTerms.startsAt",
+        "prizePromoTerms.endsAt"
+      ],
+      "status": "available",
+      "note": "Используется сохранённый образец, а не позднее изменённый исходный промокод"
+    },
+    {
+      "condition": "Редакция события",
+      "source": [
+        "version"
+      ],
+      "status": "available",
+      "note": "Нужно сохранить также сформированный документ и версию шаблона"
+    }
+  ],
+  "commonTerms": {
+    "minimumAge": 18,
+    "delivery": "Доступный ПВЗ Ozon по России",
+    "entryPrice": 0,
+    "entriesPerPerson": 1,
+    "consentYears": 15,
+    "photoLicenseYears": 15,
+    "placeRanking": false,
+    "albumClaimExpiry": null,
+    "promocodeUses": 1,
+    "promocodeDeliveryIncluded": false,
+    "albumDispatchCalendarDays": 30
+  },
+  "publicationGates": [
+    "Правила и индивидуальные согласия утверждены, опубликованы и доступны до подачи",
+    "Описание приза соответствует настроенной выдаче и сохранённому составу",
+    "Для альбомов применяется общий срок передачи в доставку 30 календарных дней",
+    "Для ручного режима утверждены критерии, способ сравнения и правило равенства",
+    "Сохранён неизменяемый снимок документа, состав приза и применимые версии",
+    "Форма и сервер сохраняют подтверждения и индивидуальные условия",
+    "Учтены налоговые обязанности и законные основания внешней публикации данных"
+  ]
+}

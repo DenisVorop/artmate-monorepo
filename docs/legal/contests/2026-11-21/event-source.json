@@ -1,0 +1,28 @@
+{
+  "slug": "e2e-personal-promo-100-20261121",
+  "title": "Зимнее настроение",
+  "task": "Сфотографируйте готовую раскраску.",
+  "rules": [
+    "Одна работа от участника."
+  ],
+  "prize": "Промокод на 100 ₽",
+  "prizeDetail": "Личный промокод победителю.",
+  "winnersCount": 1,
+  "selectionMode": "AUTOMATIC",
+  "opensAt": "2026-11-19T07:00:00.000Z",
+  "closesAt": "2026-11-20T20:59:00.000Z",
+  "drawAt": "2026-11-21T14:00:00.000Z",
+  "version": 2,
+  "prizeAlbumQuantity": null,
+  "prizeAlbumIds": [],
+  "prizePromoTerms": {
+    "name": "Зимнее настроение",
+    "type": "FIXED",
+    "endsAt": "2026-12-01T20:59:59.000Z",
+    "startsAt": null,
+    "basisPoints": null,
+    "amountKopecks": 10000,
+    "maxDiscountKopecks": null,
+    "minSubtotalKopecks": 50000
+  }
+}

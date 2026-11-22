@@ -1,6 +1,6 @@
 import { memo, type CSSProperties } from "react";
 
-import { CommunityWorkImageCard, type CommunityWorkSummary } from "@/entities/community-work";
+import { CommunityWorkImageCard, type GalleryWork } from "@/entities/community-work";
 import { cn } from "@/shared/lib";
 import { LikeButton } from "@/features/likes";
 
@@ -11,15 +11,15 @@ export const Mosaic = memo(function Mosaic({
   onOpenImage,
   onPreviewIntent,
 }: {
-  workPages: readonly (readonly CommunityWorkSummary[])[];
-  onOpenImage: (_work: CommunityWorkSummary, _button: HTMLButtonElement) => void;
+  workPages: readonly (readonly GalleryWork[])[];
+  onOpenImage: (_work: GalleryWork, _button: HTMLButtonElement) => void;
   onPreviewIntent?: () => void;
 }) {
   return (
     <div className="flex flex-col gap-3 md:gap-5">
       {getMosaicBlocks(workPages).map((block, blockIndex) => (
         <ul
-          key={block.items[0]!.publicId}
+          key={`${block.items[0]!.source}:${block.items[0]!.publicId}`}
           className={cn(
             "grid gap-3 md:gap-5",
             block.items.length <= 3
@@ -38,7 +38,7 @@ export const Mosaic = memo(function Mosaic({
         >
           {block.items.map((work, index) => (
             <li
-              key={work.publicId}
+              key={`${work.source}:${work.publicId}`}
               className={cn(
                 "min-h-0 min-w-0",
                 block.items.length <= 3
@@ -62,8 +62,11 @@ export const Mosaic = memo(function Mosaic({
                 onOpenImage={(event) => onOpenImage(work, event.currentTarget)}
                 likeAction={
                   <LikeButton
-                    subject={{ subjectType: "community-work", subjectId: work.publicId }}
-                    title={work.official.coloring.title}
+                    subject={{
+                      subjectType: work.source === "contest" ? "contest-work" : "community-work",
+                      subjectId: work.publicId,
+                    }}
+                    title={work.source === "contest" ? work.title : work.official.coloring.title}
                   />
                 }
               />

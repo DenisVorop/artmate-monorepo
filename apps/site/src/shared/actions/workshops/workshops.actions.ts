@@ -91,7 +91,6 @@ export async function createMyWorkshopRevision(
       caption: input.caption,
       publicationConsent: input.publicationConsent,
       advertisingConsent: input.advertisingConsent,
-      crop: input.crop,
       materials: input.materials,
       symbolMappings: input.symbolMappings,
     }),

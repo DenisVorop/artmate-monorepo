@@ -1,244 +1,142 @@
 "use client";
-
-import { useAnalytics } from "../lib/analytics";
-import { zodResolver } from "@hookform/resolvers/zod";
-import { Check, LoaderCircle, LogIn, Tag, Trash2 } from "lucide-react";
-import { useEffect, useState } from "react";
+import { useEffect, useId } from "react";
 import { useForm } from "react-hook-form";
-
-import {
-  Accordion,
-  AccordionContent,
-  AccordionItem,
-  AccordionTrigger,
-  Button,
-  Input,
-  Label,
-} from "@/shared/ui";
-
-import {
-  normalizePromoCode,
-  promoCodeFormSchema,
-  type PromoCodeFormValues,
-  usePromocode,
-} from "../lib";
+import { zodResolver } from "@hookform/resolvers/zod";
+import { Check, ChevronRight, TicketPercent, Trash2 } from "lucide-react";
+import { Button } from "@/shared/ui";
+import { useUser } from "@/entities/session";
+import { useAnalytics } from "../lib/analytics";
+import { usePromocode } from "../lib/promo-code-provider";
+import { getPromoPricingState } from "../lib/promo-pricing-state";
+import { promoCodeFormSchema, type PromoCodeFormValues } from "../lib/promo-code-form";
+import { personalPromoCount } from "../lib/personal-promocodes";
+import type { PersonalPromoCode } from "../lib/personal-promocodes";
+import { usePromoPickerState } from "../lib/use-promo-picker-state";
+import { usePersonalPromocodes } from "../model/use-personal-promocodes";
+import { PersonalPromoCodes } from "./personal-promo-codes";
+import { PromoCodePicker } from "./promo-code-picker";
+import { PromoCodeStatus } from "./promo-code-status";
 
 export function PromoCodeForm() {
-  const analytics = useAnalytics();
-  const {
-    applyCode,
-    clearCode,
-    error,
-    isError,
-    isGuest,
-    isHydrating,
-    isPaused,
-    isPending,
-    onLoginRequested,
-    preview,
-    selectedCode,
-  } = usePromocode();
-  const [isOpen, setIsOpen] = useState(false);
-  const [isEditing, setIsEditing] = useState(false);
-  const {
-    formState: { errors },
-    handleSubmit,
-    register,
-    reset,
-    watch,
-    clearErrors,
-  } = useForm<PromoCodeFormValues>({
-    defaultValues: { code: selectedCode ?? "" },
+  const user = useUser();
+  return <PromoCodeControls key={user?.id ?? "guest"} />;
+}
+function PromoCodeControls() {
+  const promo = usePromocode(),
+    analytics = useAnalytics();
+  const pricing = getPromoPricingState(promo);
+  const personal = usePersonalPromocodes();
+  const picker = usePromoPickerState();
+  const selectedPersonal = personal.codes.some((code) => code.code === promo.selectedCode);
+  const headingId = useId();
+  const form = useForm<PromoCodeFormValues>({
+    defaultValues: { code: promo.selectedCode ?? "" },
     resolver: zodResolver(promoCodeFormSchema),
   });
-  const codeField = register("code");
-  const hasInput = Boolean(watch("code")?.trim());
-  const codeError = hasInput ? errors.code : undefined;
-  const isApplied = Boolean(
-    selectedCode &&
-    preview?.code === selectedCode &&
-    !isError &&
-    !isPending &&
-    !isPaused &&
-    !isHydrating,
-  );
-
   useEffect(() => {
-    reset({ code: selectedCode ?? "" });
-    setIsEditing(false);
-    if (selectedCode) setIsOpen(true);
-  }, [reset, selectedCode]);
-
-  const removeCode = () => {
-    analytics.removed();
-    clearCode();
-    reset({ code: "" });
-    setIsEditing(false);
-  };
-
+    form.reset({ code: promo.selectedCode ?? "" });
+  }, [form, promo.selectedCode]);
+  function show(view: "list" | "manual") {
+    analytics.opened();
+    picker.show(view);
+  }
+  function close() {
+    analytics.closed();
+    picker.close();
+  }
+  function showDetails(code: PersonalPromoCode, fromList = false) {
+    if (!picker.open) analytics.opened();
+    picker.showDetails(code, fromList);
+  }
   return (
-    <Accordion
-      type="single"
-      collapsible
-      value={isOpen ? "promo" : ""}
-      onValueChange={(value) => {
-        if (value === "promo") analytics.opened();
-        else analytics.closed();
-        setIsOpen(value === "promo");
-      }}
-    >
-      <AccordionItem value="promo" className="border-0">
-        <AccordionTrigger className="min-h-12 items-center gap-2 py-2 hover:no-underline">
-          <Tag className="size-4 shrink-0 text-muted-foreground" aria-hidden="true" />
-          <span className="flex-1">Промокод</span>
-          {isApplied && <Check className="size-4 text-rose-500" aria-label="Промокод применён" />}
-        </AccordionTrigger>
-        <AccordionContent className="space-y-3 pt-1 pb-3">
-          {isApplied && !isEditing ? (
-            <div className="flex min-w-0 items-center gap-2">
-              <span className="min-w-0 flex-1 text-sm font-semibold tracking-wide break-all">
-                {selectedCode}
-              </span>
-              <Button
-                type="button"
-                variant="ghost"
-                className="min-h-11 px-2 text-xs"
-                onClick={() => {
-                  analytics.edited();
-                  setIsEditing(true);
-                }}
-              >
-                Изменить
-              </Button>
-              <Button
-                type="button"
-                variant="ghost"
-                size="icon"
-                className="min-h-11 min-w-11 text-muted-foreground"
-                aria-label="Убрать промокод"
-                onClick={removeCode}
-              >
-                <Trash2 className="size-4" aria-hidden="true" />
-              </Button>
-            </div>
-          ) : (
-            <form
-              className="space-y-2"
-              noValidate
-              onSubmit={handleSubmit((values) => {
-                const code = normalizePromoCode(values.code);
-                if (!code) return;
-                if (selectedCode && selectedCode !== code) analytics.replaced();
-                else analytics.submitted();
-                applyCode(code);
-                setIsEditing(false);
-              })}
-            >
-              <Label htmlFor="promo-code" className="sr-only">
-                Промокод
-              </Label>
-              <div className="flex min-w-0 gap-2">
-                <Input
-                  id="promo-code"
-                  autoComplete="off"
-                  autoCapitalize="characters"
-                  spellCheck={false}
-                  aria-invalid={Boolean(codeError)}
-                  aria-describedby={
-                    codeError ? "promo-code-error promo-code-status" : "promo-code-status"
-                  }
-                  placeholder="Введите промокод"
-                  disabled={isHydrating}
-                  className="min-h-11 min-w-0 flex-1"
-                  {...codeField}
-                  onChange={(event) => {
-                    codeField.onChange(event);
-                    if (!event.target.value.trim()) {
-                      clearErrors("code");
-                      if (selectedCode) {
-                        analytics.removed();
-                        clearCode();
-                      }
-                    }
-                  }}
-                />
-                <Button
-                  type="submit"
-                  variant="outline"
-                  disabled={!hasInput || isHydrating || (isPending && !isPaused)}
-                  className="min-h-11 shrink-0 px-3"
-                >
-                  {isPending && !isPaused ? (
-                    <LoaderCircle data-icon="inline-start" className="animate-spin" />
-                  ) : null}
-                  {selectedCode ? "Заменить" : "Применить"}
-                </Button>
-              </div>
-              {codeError?.message ? (
-                <p id="promo-code-error" className="text-sm text-destructive" role="alert">
-                  {codeError.message}
-                </p>
-              ) : null}
-            </form>
+    <section aria-labelledby={headingId} className="min-w-0 space-y-2 py-3">
+      <h3 id={headingId} className="text-base font-semibold">
+        Промокоды
+      </h3>
+      <Button
+        type="button"
+        variant="ghost"
+        className="h-auto min-h-12 w-full justify-between gap-3 px-3 text-left whitespace-normal"
+        onClick={() => show(personal.codes.length ? "list" : "manual")}
+      >
+        <TicketPercent aria-hidden="true" className="size-5 shrink-0 text-stone-500" />
+        <span className="flex-1">
+          {personal.codes.length
+            ? `У вас ${personalPromoCount(personal.codes.length)}`
+            : "Ввести промокод"}
+        </span>
+        <ChevronRight aria-hidden="true" className="size-4 shrink-0" />
+      </Button>
+      {personal.codes.length > 0 && (
+        <PersonalPromoCodes codes={personal.codes} onInfo={showDetails} />
+      )}
+      {personal.isPending && !personal.codes.length && personal.owner && (
+        <p role="status" className="text-xs text-stone-500">
+          Загружаем личные промокоды…
+        </p>
+      )}
+      {personal.isError && !personal.codes.length && (
+        <Button
+          type="button"
+          variant="ghost"
+          className="min-h-11 px-0 text-xs"
+          onClick={() => void personal.retry()}
+        >
+          Загрузить личные промокоды ещё раз
+        </Button>
+      )}
+      {promo.selectedCode && (!selectedPersonal || promo.isError || promo.isPaused) && (
+        <div className="flex min-w-0 items-center gap-2 border-t pt-2">
+          {pricing.code && (
+            <Check aria-label="Промокод применён" className="size-4 shrink-0 text-rose-600" />
           )}
-
-          <div id="promo-code-status" aria-live="polite" className="space-y-2 text-xs leading-5">
-            {isHydrating || (isPending && !isPaused) ? (
-              <p className="text-muted-foreground">Проверяем промокод…</p>
-            ) : null}
-            {isPaused ? (
-              <p className="text-muted-foreground" role="status">
-                Нет сети. Подключитесь к интернету и примените промокод ещё раз.
-              </p>
-            ) : null}
-            {isApplied ? (
-              <p className="text-rose-600">Скидка {formatMoney(preview!.discount)}</p>
-            ) : null}
-            {isError ? (
-              <div className="space-y-2" role="alert">
-                <p className="text-destructive">{getPromoErrorMessage(error?.message)}</p>
-                {isGuest && onLoginRequested ? (
-                  <Button
-                    type="button"
-                    size="sm"
-                    variant="outline"
-                    className="min-h-11"
-                    onClick={() => {
-                      analytics.loginRequested();
-                      onLoginRequested();
-                    }}
-                  >
-                    <LogIn data-icon="inline-start" />
-                    Войти и применить
-                  </Button>
-                ) : null}
-              </div>
-            ) : null}
-          </div>
-          {selectedCode && !isApplied ? (
-            <Button
-              type="button"
-              variant="ghost"
-              size="icon"
-              className="min-h-11 min-w-11 text-muted-foreground"
-              aria-label="Убрать промокод"
-              onClick={removeCode}
-            >
-              <Trash2 className="size-4" aria-hidden="true" />
-            </Button>
-          ) : null}
-        </AccordionContent>
-      </AccordionItem>
-    </Accordion>
+          <Button
+            type="button"
+            variant="ghost"
+            className="h-auto min-h-11 min-w-0 flex-1 justify-start px-0 text-left text-xs break-all whitespace-normal"
+            aria-label="Изменить промокод"
+            onClick={() => {
+              analytics.edited();
+              show("manual");
+            }}
+          >
+            {promo.selectedCode}
+          </Button>
+          <Button
+            type="button"
+            variant="ghost"
+            size="icon"
+            className="min-h-11 min-w-11 text-stone-500"
+            aria-label="Убрать промокод"
+            onClick={() => {
+              analytics.removed();
+              promo.clearCode();
+            }}
+          >
+            <Trash2 aria-hidden="true" className="size-4" />
+          </Button>
+        </div>
+      )}
+      <PromoCodeStatus
+        onLogin={() => {
+          close();
+          promo.onLoginRequested?.();
+        }}
+      />
+      <PromoCodePicker
+        open={picker.open}
+        onOpenChange={(value) => {
+          if (!value) close();
+          else picker.setOpen(true);
+        }}
+        view={picker.view}
+        onViewChange={picker.setView}
+        codes={personal.codes}
+        form={form}
+        details={picker.details}
+        detailsFromList={picker.detailsFromList}
+        onInfo={(code) => showDetails(code, true)}
+      />
+    </section>
   );
-}
-
-function getPromoErrorMessage(message?: string) {
-  return message && /[а-яё]/iu.test(message)
-    ? message
-    : "Не удалось проверить промокод. Попробуйте ещё раз.";
-}
-
-function formatMoney(value: number) {
-  return `${value.toLocaleString("ru-RU")} ₽`;
 }

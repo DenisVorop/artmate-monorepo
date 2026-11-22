@@ -96,3 +96,13 @@ export {
   TooltipProvider,
   TooltipTrigger,
 } from "./tooltip";
+
+export {
+  Select,
+  SelectContent,
+  SelectItem,
+  SelectTrigger,
+  SelectValue,
+} from "./select";
+
+export { Label } from "./label";

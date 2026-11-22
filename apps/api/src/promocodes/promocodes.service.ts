@@ -89,6 +89,11 @@ export class PromocodesService {
         await this.lockPromoById(tx, id);
         const current = await tx.promoCode.findUnique({ where: { id } });
         if (!current) throw new NotFoundException("Промокод не найден");
+        if (current.kind === PrismaPromoCodeKind.CONTEST_PRIZE) {
+          throw new BadRequestException(
+            "Условия выданного призового промокода менять нельзя",
+          );
+        }
         if (current.kind === PrismaPromoCodeKind.AFFILIATE) {
           throw new BadRequestException(
             "Партнёрский промокод изменяется в партнёрском разделе",
@@ -622,6 +627,12 @@ export class PromocodesService {
     now: Date,
     client: PromoEvaluationClient,
   ) {
+    if (
+      promo.kind === PrismaPromoCodeKind.CONTEST_PRIZE &&
+      (!userId || promo.recipientUserId !== userId)
+    ) {
+      return "Этот промокод доступен только победителю конкурса";
+    }
     if (promo.kind === PrismaPromoCodeKind.AFFILIATE) {
       await this.getAffiliateSnapshot(
         promo,

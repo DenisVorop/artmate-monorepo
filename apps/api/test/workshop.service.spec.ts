@@ -19,9 +19,9 @@ import { publicWorkshopWorkWhere } from "../src/workshops/workshop-eligibility";
 import { PublicWorkshopService } from "../src/workshops/public-workshop.service";
 import type { WorkshopAssetDeletionQueueService } from "../src/workshops/workshop-asset-deletion-queue.service";
 import type {
-  ProcessedWorkshopPhoto,
-  WorkshopMediaService,
-} from "../src/workshops/workshop-media.service";
+  ProcessedUserPhoto,
+  UserPhotoMediaService,
+} from "../src/user-photos/user-photo-media.service";
 import { WorkshopModerationService } from "../src/workshops/workshop-moderation.service";
 import type { WorkshopStorageService } from "../src/workshops/workshop-storage.service";
 import { WorkshopService } from "../src/workshops/workshop.service";
@@ -349,7 +349,6 @@ describe("WorkshopService", () => {
         {
           advertisingConsent: false,
           publicationConsent: false,
-          crop: { rotation: 0, zoom: 1, x: 0, y: 0 },
           materials: [{ toolId: "e".repeat(32) }],
           symbolMappings: [],
         },
@@ -417,7 +416,6 @@ describe("WorkshopService", () => {
         {
           advertisingConsent: false,
           publicationConsent: false,
-          crop: { rotation: 0, zoom: 1, x: 0, y: 0 },
           materials: [{ toolId: tool.id }],
           symbolMappings: [],
         },
@@ -548,7 +546,6 @@ describe("WorkshopService", () => {
         {
           advertisingConsent: true,
           publicationConsent: false,
-          crop: { rotation: 90, zoom: 2, x: 1, y: 1 },
           materials: [{ toolId: tool.id }],
           symbolMappings: [],
         },
@@ -559,7 +556,6 @@ describe("WorkshopService", () => {
         revisionCreates[0]?.data.status,
         WorkshopRevisionStatus.PENDING,
       );
-      assert.equal(revisionCreates[0]?.data.cropRotation, current.cropRotation);
       assert.equal(
         revisionCreates[0]?.data.officialRevisionId,
         current.officialRevisionId,
@@ -603,7 +599,6 @@ describe("WorkshopService", () => {
         {
           advertisingConsent: false,
           publicationConsent: true,
-          crop: { rotation: 0, zoom: 1, x: 0, y: 0 },
           materials: [],
           symbolMappings: [],
         },
@@ -635,7 +630,6 @@ describe("WorkshopService", () => {
           caption: "Updated photo",
           advertisingConsent: false,
           publicationConsent: true,
-          crop: { rotation: 0, zoom: 1, x: 0, y: 0 },
           materials: [],
           symbolMappings: [],
         },
@@ -1064,7 +1058,6 @@ describe("WorkshopService", () => {
         {
           advertisingConsent: false,
           publicationConsent: false,
-          crop: { rotation: 0, zoom: 1, x: 0, y: 0 },
           materials: [{ toolId: tool.id }],
           symbolMappings: [],
         },
@@ -1363,7 +1356,7 @@ describe("WorkshopModerationService", () => {
           id: "1".repeat(32),
           revisionId: previousRevisionId,
           decision: WorkshopModerationDecision.CHANGES_REQUESTED,
-          reason: "Adjust the crop",
+          reason: "Please upload a clearer photo",
           actor: { id: "admin-2", name: "Reviewer" },
           createdAt: new Date("2026-09-01T10:00:00Z"),
         },
@@ -1386,7 +1379,7 @@ describe("WorkshopModerationService", () => {
         id: "1".repeat(32),
         revisionId: previousRevisionId,
         decision: WorkshopModerationDecision.CHANGES_REQUESTED,
-        reason: "Adjust the crop",
+        reason: "Please upload a clearer photo",
         actor: { id: "admin-2", name: "Reviewer" },
         createdAt: "2026-09-01T10:00:00.000Z",
       },
@@ -1651,7 +1644,7 @@ describe("WorkshopModerationService", () => {
     );
     await service.decide(revision.id, "admin-1", {
       decision: "REQUEST_CHANGES",
-      reason: "Please adjust the crop",
+      reason: "Please upload a clearer photo",
     });
 
     assert.equal(updates.length, 0);
@@ -1834,7 +1827,7 @@ function createWorkshopService(
 ) {
   return new WorkshopService(
     prisma as PrismaService,
-    media as WorkshopMediaService,
+    media as UserPhotoMediaService,
     storage as WorkshopStorageService,
     coloringStorage as ColoringStorageService,
     deletionQueue as WorkshopAssetDeletionQueueService,
@@ -1992,10 +1985,6 @@ function revisionRecord(overrides: Record<string, unknown> = {}) {
     advertisingConsentAt: null as Date | null,
     publicationConsent: false,
     publicationConsentAt: null as Date | null,
-    cropRotation: 0,
-    cropZoom: 1,
-    cropX: 0,
-    cropY: 0,
     sourceMime: "image/jpeg",
     sourceChecksum: "2".repeat(64),
     perceptualHash: null,
@@ -2036,7 +2025,7 @@ function customTool(overrides: Record<string, unknown> = {}) {
   };
 }
 
-function processedPhoto(): ProcessedWorkshopPhoto {
+function processedPhoto(): ProcessedUserPhoto {
   const asset = (checksum: string, width: number, height: number) => ({
     buffer: Buffer.from(checksum),
     checksum,

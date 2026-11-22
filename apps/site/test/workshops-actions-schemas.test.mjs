@@ -104,7 +104,6 @@ test("workshop actions forward auth/IP, use no-store and add CSRF only to unsafe
       caption: "Готовая работа",
       publicationConsent: true,
       advertisingConsent: false,
-      crop: { rotation: 90, zoom: 1.2, x: 0.1, y: -0.2 },
       materials: [{ toolId: "a".repeat(32) }],
       symbolMappings: [
         {
@@ -267,7 +266,7 @@ test("bounded workshop read schemas accept needed fields and reject private stor
     id: "a".repeat(32),
     sequence: 1,
     status: "PENDING",
-    crop: { rotation: 0, zoom: 1, x: 0, y: 0 },
+
     materials: [{ position: 19, type: "CUSTOM", brand: "Copic", line: "Sketch" }],
     symbolMappings: [{ symbol: "1", markerNumber: "023", materialPosition: 19 }],
     publicationConsent: true,

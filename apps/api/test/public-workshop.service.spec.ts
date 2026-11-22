@@ -80,6 +80,7 @@ describe("PublicWorkshopService gallery", () => {
     let query: Prisma.WorkshopWorkFindManyArgs | undefined;
     const service = new PublicWorkshopService(
       {
+        $queryRaw: async () => [],
         workshopWork: {
           findMany: async (args: Prisma.WorkshopWorkFindManyArgs) => {
             query = args;
@@ -136,6 +137,7 @@ describe("PublicWorkshopService gallery", () => {
     ];
     const service = new PublicWorkshopService(
       {
+        $queryRaw: async () => [],
         workshopWork: {
           findMany: async (args: Prisma.WorkshopWorkFindManyArgs) => {
             query = args;
@@ -174,6 +176,7 @@ describe("PublicWorkshopService gallery", () => {
     const calls: Prisma.WorkshopWorkFindManyArgs[] = [];
     const service = new PublicWorkshopService(
       {
+        $queryRaw: async () => [],
         workshopWork: {
           findMany: async (args: Prisma.WorkshopWorkFindManyArgs) => {
             calls.push(args);
@@ -186,12 +189,14 @@ describe("PublicWorkshopService gallery", () => {
     const first = await service.getGalleryWorks();
     assert.equal(first.works.length, 60);
     assert.equal(
-      first.works[1]!.official.collection.slug,
+      first.works[1]!.source === "workshop"
+        ? first.works[1]!.official.collection.slug
+        : undefined,
       "another-collection",
     );
     assert.equal(
       first.nextCursor,
-      `${publishedAt.toISOString()}_${works[59]!.id}`,
+      `${publishedAt.toISOString()}_workshop_${works[59]!.id}`,
     );
     assert.equal(calls[0]!.take, 61);
     assert.deepEqual(calls[0]!.orderBy, [
@@ -233,6 +238,7 @@ describe("PublicWorkshopService gallery", () => {
   it("rejects malformed cursors before querying public works", async () => {
     const service = new PublicWorkshopService(
       {
+        $queryRaw: async () => [],
         workshopWork: {
           findMany: async () => {
             throw new Error("Must not query for invalid cursor");
@@ -251,6 +257,64 @@ describe("PublicWorkshopService gallery", () => {
         message: "Invalid works cursor",
       });
     }
+  });
+
+  it("merges workshop and contest sources before limiting the page", async () => {
+    const publishedAt = new Date("2026-11-01T12:00:00Z");
+    const identity = (value: number) => value.toString(16).padStart(32, "0");
+    const publicIdentity = (value: number) =>
+      value.toString(16).padStart(24, "0");
+    let workshopRows = Array.from({ length: 32 }, (_, index) => ({
+      ...createWork(),
+      id: identity(index * 2 + 1),
+      publicId: publicIdentity(index * 2 + 1),
+      publishedAt,
+    })).reverse();
+    let contestRows = Array.from({ length: 32 }, (_, index) => ({
+      id: identity(index * 2 + 2),
+      publicId: publicIdentity(index * 2 + 2),
+      publishedAt,
+      user: { name: "Участник конкурса" },
+      contest: { slug: "winter", title: "Зима" },
+      revisions: [
+        {
+          caption: "Праздничная фотография",
+          number: null,
+          product: {
+            slug: "album",
+            title: "Альбом",
+            category: null,
+            coloringCollection: null,
+          },
+        },
+      ],
+    })).reverse();
+    const service = new PublicWorkshopService(
+      {
+        workshopWork: { findMany: async () => workshopRows },
+        contestEntry: { findMany: async () => contestRows },
+        $queryRaw: async () => contestRows.map((row) => ({ id: row.id })),
+      } as unknown as PrismaService,
+      {} as WorkshopStorageService,
+    );
+    const first = await service.getGalleryWorks();
+    assert.equal(first.works.length, 60);
+    assert.equal(first.works[0]!.source, "contest");
+    assert.equal(first.works[1]!.source, "workshop");
+    assert.equal("official" in first.works[0]!, false);
+    assert.equal(
+      first.nextCursor,
+      `${publishedAt.toISOString()}_workshop_${identity(5)}`,
+    );
+    workshopRows = workshopRows.filter((row) => row.id < identity(5));
+    contestRows = contestRows.filter((row) => row.id < identity(5));
+    const last = await service.getGalleryWorks(first.nextCursor!);
+    assert.equal(last.nextCursor, null);
+    const ids = [...first.works, ...last.works].map((row) => row.publicId);
+    assert.deepEqual(
+      ids,
+      Array.from({ length: 64 }, (_, index) => publicIdentity(64 - index)),
+    );
   });
 });
 

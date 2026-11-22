@@ -1,0 +1,35 @@
+{
+  "edition": "3.1",
+  "date": "2026-11-22",
+  "changes": [
+    "creative purpose made primary; promotion removed from the purpose clause",
+    "article 1058 procedure expanded separately for assessed contests",
+    "digital copies do not need to be returned; deletion and withdrawal rights preserved",
+    "free random promotion distinguished from a lottery by mechanics; no exemption based on IP status"
+  ],
+  "sources": [
+    {
+      "title": "ГК РФ, статья 1058",
+      "url": "https://www.consultant.ru/document/cons_doc_LAW_9027/117ce2c341d384aff236a7f4271ff4c62f14334b/"
+    },
+    {
+      "title": "ГК РФ, статья 1061",
+      "url": "https://www.consultant.ru/document/cons_doc_LAW_9027/5753c78e6d47b63a7b2079dc2eb4adf0da9d8225/"
+    },
+    {
+      "title": "Закон № 138-ФЗ, статья 2",
+      "url": "https://www.consultant.ru/document/cons_doc_LAW_44970/6af7b9fea46ae480b3af356b520b0361d6f50772/"
+    },
+    {
+      "title": "Письмо Минэкономразвития от 07.04.2014 № Д09и-451",
+      "url": "https://www.consultant.ru/document/cons_doc_LAW_162464/7c8d4ad8510b45a59335e85396fca50b30af8fa8/"
+    }
+  ],
+  "qualification": "Применительно к описанной бесплатной механике есть основания квалифицировать её как акцию вне лотерейного регулирования. Письмо — разъяснение, а не закон и не индивидуальное разрешение. Статус ИП не исключает ответственности за проведение фактической лотереи. Утверждение «ни один признак не присутствует» не используется: случайный выбор и призы присутствуют. Изменение фактической механики требует новой оценки.",
+  "unchanged": [
+    "18+; 14+ was discussed but not adopted",
+    "15-year consents and photo licence",
+    "conditional taxation wording for promo codes",
+    "30 calendar days for album dispatch"
+  ]
+}

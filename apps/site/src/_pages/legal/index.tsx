@@ -7,9 +7,13 @@ import { Link } from "@/shared/ui/link";
 import { PageTitle, SectionTitle } from "@/shared/ui/typography";
 
 import { sourceLegalDocuments } from "./source-documents";
+export { contestRulesRevisions } from "./source-documents";
 import { PdfDocumentViewer } from "./ui/pdf-document-viewer";
 
 export type LegalDocumentId =
+  | "contestRules"
+  | "contestPersonalDataConsent"
+  | "contestPublicationConsent"
   | "loyaltyRules"
   | "privacyPolicy"
   | "publicOffer"
@@ -50,6 +54,9 @@ const sellerName = `${companyDetails.legalName}, ИНН ${companyDetails.inn}, $
 const legalDocumentsUpdatedAt = "04.05.2026";
 
 export const legalDocuments = {
+  contestRules: sourceLegalDocuments.contestRules,
+  contestPersonalDataConsent: sourceLegalDocuments.contestPersonalDataConsent,
+  contestPublicationConsent: sourceLegalDocuments.contestPublicationConsent,
   publicOffer: sourceLegalDocuments.publicOffer,
   returnPolicy: {
     contentType: "html",
@@ -156,10 +163,10 @@ export const legalDocuments = {
   },
 } satisfies Record<LegalDocumentId, LegalDocument>;
 
-type LegalPageProps = {
-  children?: ReactNode;
-  documentId: LegalDocumentId;
-};
+type LegalPageProps = { children?: ReactNode } & (
+  | { documentId: LegalDocumentId }
+  | { document: PdfLegalDocument }
+);
 
 export function LegalDirectoryPage() {
   return (
@@ -168,7 +175,7 @@ export function LegalDirectoryPage() {
         <div className="mx-auto max-w-4xl">
           <PageTitle>Правовые документы</PageTitle>
           <p className="mt-4 leading-7 text-muted-foreground">
-            Условия покупок, использования сайта и участия в клубе Artmate.
+            Условия покупок, использования сайта, участия в клубе и конкурсах Artmate.
           </p>
           <nav aria-label="Правовые документы" className="mt-8 grid gap-3 sm:grid-cols-2 sm:gap-4">
             {Object.values(legalDocuments).map((document) => (
@@ -191,8 +198,9 @@ export function LegalDirectoryPage() {
   );
 }
 
-export function LegalPage({ children, documentId }: LegalPageProps) {
-  const document: LegalDocument = legalDocuments[documentId];
+export function LegalPage({ children, ...props }: LegalPageProps) {
+  const document: LegalDocument =
+    "document" in props ? props.document : legalDocuments[props.documentId];
   const titledSections =
     document.contentType === "html"
       ? document.sections.flatMap((section, index) =>
@@ -329,11 +337,13 @@ export function LegalPage({ children, documentId }: LegalPageProps) {
             </span>
             <Link
               href={
-                documentId === "publicOffer" ? routes.legal.promocodes : routes.paymentAndDelivery
+                "documentId" in props && props.documentId === "publicOffer"
+                  ? routes.legal.promocodes
+                  : routes.paymentAndDelivery
               }
               className="font-medium text-foreground underline"
             >
-              {documentId === "publicOffer"
+              {"documentId" in props && props.documentId === "publicOffer"
                 ? "Правила использования промокодов"
                 : "Оплата и доставка"}
             </Link>

@@ -19,6 +19,82 @@ const publicationConsentMigrationPath = resolve(
 );
 
 describe("Workshops migration", () => {
+  it("preserves stored photos and accepts uncropped compositions after migration", async () => {
+    const db = await createDatabase();
+    const workId = "b".repeat(32);
+    const revisionId = "c".repeat(32);
+    try {
+      await seedOfficialData(db);
+      await db.exec(`
+        INSERT INTO "workshops" ("id", "owner_id", "handle")
+        VALUES ('${"a".repeat(32)}', 'user-1', '0123456789abcdefabcd');
+        INSERT INTO "workshop_collections" ("workshop_id", "collection_id")
+        VALUES ('${"a".repeat(32)}', 'collection-1');
+        INSERT INTO "workshop_works" (
+          "id", "public_id", "workshop_id", "collection_id", "coloring_id"
+        ) VALUES (
+          '${workId}', '0123456789abcdef01234567', '${"a".repeat(32)}',
+          'collection-1', 'coloring-1'
+        );
+      `);
+      await insertRevision(db, revisionId, workId, "coloring-1");
+      await db.exec(
+        await readFile(
+          resolve(
+            __dirname,
+            "../prisma/migrations/20261119000000_preserve_full_workshop_photos/migration.sql",
+          ),
+          "utf8",
+        ),
+      );
+      const stored = await db.query<{
+        normalized_width: number;
+        normalized_height: number;
+      }>(
+        `SELECT normalized_width, normalized_height FROM workshop_work_revisions WHERE id = '${revisionId}'`,
+      );
+      assert.deepEqual(stored.rows, [
+        { normalized_width: 800, normalized_height: 1000 },
+      ]);
+      const removed =
+        await db.query(`SELECT column_name FROM information_schema.columns
+        WHERE table_name = 'workshop_work_revisions' AND column_name LIKE 'crop_%'`);
+      assert.equal(removed.rows.length, 0);
+
+      for (const [index, [width, height]] of [
+        [1600, 800],
+        [800, 1600],
+        [900, 900],
+      ].entries()) {
+        const patch = JSON.stringify({
+          id: String(index + 1).repeat(32),
+          sequence: index + 2,
+          normalized_width: width,
+          normalized_height: height,
+          web_width: width! / 2,
+          web_height: height! / 2,
+          thumb_width: width! / 5,
+          thumb_height: height! / 5,
+        });
+        await db.exec(`INSERT INTO workshop_work_revisions
+          SELECT (jsonb_populate_record(NULL::workshop_work_revisions, to_jsonb(r) || '${patch}'::jsonb)).*
+          FROM workshop_work_revisions r WHERE id = '${revisionId}'`);
+      }
+      await assert.rejects(
+        db.exec(`UPDATE workshop_work_revisions SET caption = 'Changed'
+        WHERE id = '${revisionId}'`),
+      );
+      await assert.rejects(
+        db.exec(`INSERT INTO workshop_work_revisions
+        SELECT (jsonb_populate_record(NULL::workshop_work_revisions,
+          to_jsonb(r) || '{"id":"${"9".repeat(32)}","sequence":9,"normalized_width":8001}'::jsonb)).*
+        FROM workshop_work_revisions r WHERE id = '${revisionId}'`),
+      );
+    } finally {
+      await db.close();
+    }
+  });
+
   it("enforces exact ownership, memberships, attempts and revision pointers", async () => {
     const db = await createDatabase();
 

@@ -61,8 +61,8 @@ test("checkout sections and owned field errors have stable accessible relationsh
 
 test("delivery popup controls keep native button semantics and 44px targets", async () => {
   const [field, option] = await Promise.all([
-    readSource("src/features/checkout/ui/delivery-selector/combobox-field.tsx"),
-    readSource("src/features/checkout/ui/delivery-selector/combobox-option.tsx"),
+    readSource("src/widgets/pickup-point-picker/ui/delivery-selector/combobox-field.tsx"),
+    readSource("src/widgets/pickup-point-picker/ui/delivery-selector/combobox-option.tsx"),
   ]);
 
   assert.match(field, /useId\(\)/u);
@@ -182,7 +182,12 @@ test("checkout summary and mobile bar submit the same continuous form", async ()
   assert.match(summary, /className="min-h-12\s+w-full\s+rounded-xl"/u);
   assert.match(flow, /fixed\s+inset-x-0[\s\S]*lg:hidden/u);
   assert.match(flow, /form=\{checkoutOrderFormId\}/u);
-  assert.match(flow, /min-h-11/u);
+  assert.match(flow, /aria-hidden=\{isSubmitVisible\}/u);
+  assert.match(flow, /inert=\{isSubmitVisible\}/u);
+  assert.match(flow, /transition-\[opacity,translate\]/u);
+  assert.match(flow, /motion-reduce:transition-none/u);
+  assert.match(flow, /submitButtonRef=\{submitButtonRef\}/u);
+  assert.match(flow, /className="min-h-12 w-full rounded-xl"/u);
   assert.doesNotMatch(flow, /md:hidden|md:pb-0/u);
   assert.match(flow, /lg:pb-0/u);
   assert.match(flow, /env\(safe-area-inset-bottom\)/u);
@@ -379,7 +384,7 @@ test("cookie consent publishes observed border-box height without synchronous la
 });
 
 test("pickup picker uses a large desktop Dialog and a mobile Drawer", async () => {
-  const source = await readSource("src/features/checkout/ui/delivery-picker.tsx");
+  const source = await readSource("src/widgets/pickup-point-picker/ui/delivery-picker.tsx");
 
   assert.match(source, /Dialog/u);
   assert.match(source, /Drawer/u);
@@ -513,10 +518,10 @@ test("checkout attempt id is reused for an identical payload and rotated after p
 
 test("CDEK search is debounced by 300ms and client map clustering is deterministic runtime logic", async () => {
   const [cities, debounce, map, clusteringSource, packageJson] = await Promise.all([
-    readSource("src/features/checkout/model/use-cdek-cities.ts"),
-    readSource("src/features/checkout/lib/use-debounced-city-query.ts"),
-    readSource("src/features/checkout/ui/delivery-selector/pickup-points-map.tsx"),
-    readSource("src/features/checkout/lib/cluster-pickup-points.ts"),
+    readSource("src/widgets/pickup-point-picker/model/use-cdek-cities.ts"),
+    readSource("src/widgets/pickup-point-picker/lib/use-debounced-city-query.ts"),
+    readSource("src/widgets/pickup-point-picker/ui/delivery-selector/pickup-points-map.tsx"),
+    readSource("src/widgets/pickup-point-picker/lib/cluster-pickup-points.ts"),
     readSource("package.json"),
   ]);
 

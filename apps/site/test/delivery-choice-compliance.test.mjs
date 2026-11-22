@@ -13,7 +13,7 @@ test("cart links directly to checkout", async () => {
 
 test("checkout offers Ozon as the only visible delivery company", async () => {
   const [options, field] = await Promise.all([
-    readSource("src/features/checkout/ui/delivery-selector/delivery-options.ts"),
+    readSource("src/widgets/pickup-point-picker/ui/delivery-selector/delivery-options.ts"),
     readSource("src/features/checkout/ui/delivery-method-field.tsx"),
   ]);
 

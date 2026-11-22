@@ -31,7 +31,7 @@ export function CartLine({ item, disabled, onUpdateQuantity, onRemove }: CartLin
         <Link
           href={productHref}
           onClick={() => analytics.productOpened(item.id)}
-          className="relative block aspect-square overflow-hidden rounded-md bg-muted"
+          className="relative block aspect-[3/4] overflow-hidden rounded-md bg-muted"
         >
           <Image
             fill
@@ -39,7 +39,7 @@ export function CartLine({ item, disabled, onUpdateQuantity, onRemove }: CartLin
             alt={item.title}
             unoptimized={shouldBypassNextImageOptimization(item.image)}
             sizes="(min-width: 640px) 80px, 72px"
-            className="object-cover"
+            className="object-contain"
           />
         </Link>
 

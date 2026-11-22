@@ -8,6 +8,7 @@ import {
   Drawer,
   DrawerClose,
   DrawerContent,
+  DrawerBody,
   DrawerDescription,
   DrawerHeader,
   DrawerTitle,
@@ -31,7 +32,7 @@ export function DetailsDrawer({ title, productTitle, triggerLabel, children }: D
           <ChevronRight aria-hidden="true" />
         </Button>
       </DrawerTrigger>
-      <DrawerContent className="data-[vaul-drawer-direction=bottom]:max-h-[90dvh]">
+      <DrawerContent>
         <DrawerHeader className="relative shrink-0 border-b pr-16 group-data-[vaul-drawer-direction=bottom]/drawer-content:text-left">
           <DrawerTitle>{title}</DrawerTitle>
           <DrawerDescription className="wrap-anywhere">{productTitle}</DrawerDescription>
@@ -47,9 +48,7 @@ export function DetailsDrawer({ title, productTitle, triggerLabel, children }: D
             </Button>
           </DrawerClose>
         </DrawerHeader>
-        <div className="min-h-0 overflow-y-auto overscroll-contain px-4 pb-[max(1rem,env(safe-area-inset-bottom))]">
-          {children}
-        </div>
+        <DrawerBody className="pt-0">{children}</DrawerBody>
       </DrawerContent>
     </Drawer>
   );

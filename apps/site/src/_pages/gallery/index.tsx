@@ -50,7 +50,7 @@ export function GalleryPage({
         <div className="space-y-10 pb-6 md:space-y-14 md:pb-10">
           <About collectionSlug={initialCollectionSlug} collectionTitle={collectionTitle} />
           <GalleryAlbums collectionSlug={initialCollectionSlug} />
-          <Faq collectionSlug={initialCollectionSlug} />
+          <Faq />
         </div>
       </div>
     </main>

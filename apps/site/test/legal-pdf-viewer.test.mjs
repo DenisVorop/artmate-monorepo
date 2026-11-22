@@ -108,6 +108,15 @@ test("legal registry uses configured repository PDFs as its only PDF document so
     "legalDocuments",
   );
   const expectedPdfFileHrefs = new Map([
+    ["contestRules", "/documents/legal/contest-rules-2026-11-22-v3.2.pdf"],
+    [
+      "contestPersonalDataConsent",
+      "/documents/legal/contest-personal-data-consent-2026-11-22-v3.1.pdf",
+    ],
+    [
+      "contestPublicationConsent",
+      "/documents/legal/contest-publication-consent-2026-11-22-v3.1.pdf",
+    ],
     ["loyaltyRules", "/documents/legal/loyalty-rules-2026-09-22-v4.pdf"],
     ["personalDataConsent", "/documents/legal/personal-data-consent-2026-09-22.pdf"],
     ["publicOffer", "/documents/legal/public-offer-2026-09-22.pdf"],
@@ -181,7 +190,10 @@ test("legal documents are collected on one directory page linked from the footer
     readSource("app/(site)/legal/page.tsx"),
   ]);
   const ids = [
-    ...[...source.matchAll(/href: routes\.legal\.(\w+)/g)].map((match) => match[1]),
+    ...getObjectProperties(
+      findVariableObject(source, "source-documents.ts", "sourceLegalDocuments"),
+      "sourceLegalDocuments",
+    ).keys(),
     "returnPolicy",
     "promocodes",
   ];
@@ -196,17 +208,23 @@ test("legal documents are collected on one directory page linked from the footer
     findVariableObject(legalPage, "index.tsx", "legalDocuments", ts.ScriptKind.TSX),
     "legalDocuments",
   );
-  assert.deepEqual([...documents.keys()], [
-    "publicOffer",
-    "returnPolicy",
-    "userAgreement",
-    "privacyPolicy",
-    "personalDataConsent",
-    "cookiePolicy",
-    "advertisingConsent",
-    "loyaltyRules",
-    "promocodes",
-  ]);
+  assert.deepEqual(
+    [...documents.keys()],
+    [
+      "contestRules",
+      "contestPersonalDataConsent",
+      "contestPublicationConsent",
+      "publicOffer",
+      "returnPolicy",
+      "userAgreement",
+      "privacyPolicy",
+      "personalDataConsent",
+      "cookiePolicy",
+      "advertisingConsent",
+      "loyaltyRules",
+      "promocodes",
+    ],
+  );
   assert.match(legalPage, /<Link href=\{document\.href\}>/);
   assert.match(legalPage, /href=\{routes\.legal\.index\}/);
   assert.match(directoryRoute, /<LegalDirectoryPage\s*\/>/);

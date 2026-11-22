@@ -1,0 +1,50 @@
+export type PrizeAlbumDTO = { id: string; title: string; image: string; available: boolean };
+export type AlbumPrizeDTO = {
+  id: string;
+  kind: "albums";
+  contestTitle: string;
+  contestSlug: string;
+  awardedAt: string;
+  quantity: number;
+  albumIds: string[];
+  albums: PrizeAlbumDTO[];
+  orderId: string | null;
+};
+export type AlbumPrizeHistoryDTO = {
+  id: string;
+  kind: "albums";
+  contestTitle: string;
+  contestSlug: string;
+  usedAt: string;
+  orderId: string;
+  albumIds: string[];
+  albums: PrizeAlbumDTO[];
+};
+export type PromoPrizeDTO = {
+  id: string;
+  kind: "promocode";
+  code: string;
+  contestTitle: string;
+  contestSlug: string;
+  awardedAt: string;
+  status: "available" | "upcoming" | "reserved" | "used" | "expired" | "disabled";
+  discountPercent: number | null;
+  amount: number | null;
+  minSubtotal: number;
+  maxDiscount: number | null;
+  startsAt: string | null;
+  endsAt: string | null;
+  orderId: string | null;
+  usedAt: string | null;
+};
+export type AvailablePrizeDTO = AlbumPrizeDTO | PromoPrizeDTO;
+export type PrizeHistoryDTO = AlbumPrizeHistoryDTO | PromoPrizeDTO;
+export type MyPrizesDTO = { available: AvailablePrizeDTO[]; history: PrizeHistoryDTO[] };
+export type CreatePrizeOrderInput = {
+  albumIds: string[];
+  customer: { name: string; phone: string; email: string };
+  pickupPointId: string;
+  acceptedLegal: boolean;
+  acceptedPersonalDataConsent: boolean;
+  comment?: string;
+};

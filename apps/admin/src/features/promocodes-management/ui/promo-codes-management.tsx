@@ -86,6 +86,9 @@ export function PromoCodesManagement() {
                     <p className="text-xs text-muted-foreground">
                       {promoCode.name}
                     </p>
+                    {promoCode.kind === "contest_prize" ? (
+                      <Badge variant="outline">Приз конкурса</Badge>
+                    ) : null}
                     {promoCode.kind === "welcome" ? (
                       <Badge className="mt-1" variant="outline">
                         Приветственный
@@ -122,7 +125,16 @@ export function PromoCodesManagement() {
                   </TableCell>
                   <TableCell>
                     <div className="flex justify-end gap-1">
-                      {promoCode.kind === "affiliate" ? (
+                      {promoCode.kind === "contest_prize" ? (
+                        <Button asChild size="icon-sm" variant="outline">
+                          <Link
+                            aria-label={`Посмотреть применения ${promoCode.code}`}
+                            href={routes.promoCode(promoCode.id)}
+                          >
+                            <Eye aria-hidden="true" />
+                          </Link>
+                        </Button>
+                      ) : promoCode.kind === "affiliate" ? (
                         <>
                           <Button asChild size="icon-sm" variant="outline">
                             <Link

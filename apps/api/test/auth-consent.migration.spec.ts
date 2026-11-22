@@ -39,6 +39,30 @@ describe("auth and consent persistence", () => {
     await db.exec("ROLLBACK");
   });
 
+  it("retains an immutable staged submission and its terminal result", async () => {
+    await db.exec(`INSERT INTO contests (id, slug, title, description, task, rules, prize, prize_detail, winners_count, opens_at, closes_at, draw_at, updated_at)
+      VALUES ('staged-contest', 'staged-contest', 'Конкурс', 'Описание', 'Фото', ARRAY['Правила'], 'Приз', 'Описание', 1, now() - interval '1 day', now() + interval '1 day', now() + interval '2 days', now());
+      INSERT INTO contest_entry_submissions (id, contest_id, user_id, entry_id, public_id, offer_id, consent_command_id, revision, data, stored_keys)
+      VALUES ('staged', 'staged-contest', 'test-actor', 'future-entry', 'future-public-id', 'future-offer', 'future-command', 1, '{"photoSha256":"original"}', ARRAY['retained-photo']);`);
+    await _reject(
+      db,
+      `UPDATE contest_entry_submissions SET data = '{"photoSha256":"replacement"}' WHERE id = 'staged'`,
+      "55000",
+    );
+    await db.exec(
+      `UPDATE contest_entry_submissions SET status = 'COMPLETED', finished_at = now() WHERE id = 'staged'`,
+    );
+    await _reject(
+      db,
+      `UPDATE contest_entry_submissions SET status = 'PENDING', finished_at = NULL WHERE id = 'staged'`,
+      "55000",
+    );
+    await _reject(
+      db,
+      `DELETE FROM contest_entry_submissions WHERE id = 'staged'`,
+      "55000",
+    );
+  });
   it("publishes the initial documents without enrolling existing users, and can safely run again", async () => {
     const migration = await readFile(
       resolve(

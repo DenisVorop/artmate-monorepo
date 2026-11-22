@@ -17,8 +17,11 @@ import {
   useCheckout,
 } from "../lib";
 
-import { DeliveryPicker } from "./delivery-picker";
-import { deliveryCompanies, type DeliveryCompanyCode } from "./delivery-selector/delivery-options";
+import {
+  DeliveryPicker,
+  deliveryCompanies,
+  type DeliveryCompanyCode,
+} from "@/widgets/pickup-point-picker";
 
 type DeliveryMethodFieldProps = {
   isOzonDeliveryAvailable: boolean;

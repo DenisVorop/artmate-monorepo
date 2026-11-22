@@ -16,7 +16,7 @@ export function readGalleryFilters(
         : [albums];
   const collections = values.includes("all")
     ? []
-    : [...new Set(values.filter((value) => /^[a-z0-9-]{1,120}$/.test(value)))].sort().slice(0, 30);
+    : [...new Set(values.filter((value) => /^[a-z0-9-]{1,180}$/.test(value)))].sort().slice(0, 30);
   const picture = params.picture;
   const number =
     typeof picture === "string" && /^(?:[1-9]|[1-9][0-9])$/.test(picture)

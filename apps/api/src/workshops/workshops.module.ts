@@ -11,7 +11,7 @@ import {
   WorkshopController,
   WorkshopModerationController,
 } from "./workshop.controller";
-import { WorkshopMediaService } from "./workshop-media.service";
+import { UserPhotoMediaService } from "../user-photos/user-photo-media.service";
 import { WorkshopModerationService } from "./workshop-moderation.service";
 import { WorkshopStorageService } from "./workshop-storage.service";
 import { WorkshopService } from "./workshop.service";
@@ -25,7 +25,7 @@ import { WorkshopService } from "./workshop.service";
   ],
   providers: [
     WorkshopAdminGuard,
-    WorkshopMediaService,
+    UserPhotoMediaService,
     WorkshopStorageService,
     WorkshopAssetDeletionQueueService,
     WorkshopService,

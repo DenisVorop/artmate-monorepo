@@ -1,0 +1,21 @@
+{
+  "references": [
+    "apps/site/public/documents/legal/public-offer-2026-09-22.pdf",
+    "apps/site/public/documents/legal/personal-data-consent-2026-09-22.pdf"
+  ],
+  "page": "A4 portrait",
+  "font": "Arial 12 pt, rendered as Liberation Sans",
+  "marginsCm": {
+    "left": 3,
+    "right": 1.5,
+    "top": 2,
+    "bottom": 2
+  },
+  "lineSpacingPt": 14.9,
+  "paragraphAfterPt": 8,
+  "body": "justified, no first-line indent",
+  "titles": "centered 12 pt; consent titles bold",
+  "runningHeaderFooter": false,
+  "requisites": "plain compact block at the end",
+  "edition": "3.1"
+}

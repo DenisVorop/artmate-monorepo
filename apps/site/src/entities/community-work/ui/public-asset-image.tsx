@@ -25,7 +25,9 @@ export function PublicAssetImage({ src, alt, className, priority, sizes }: Publi
 
   return (
     <picture className="absolute inset-0">
-      {sizes && <source type="image/webp" srcSet={getPublicAssetSrcSet(src)} sizes={sizes} />}
+      {sizes && !src.includes("/contests/works/") && (
+        <source type="image/webp" srcSet={getPublicAssetSrcSet(src)} sizes={sizes} />
+      )}
       <Image
         fill
         unoptimized
@@ -35,7 +37,7 @@ export function PublicAssetImage({ src, alt, className, priority, sizes }: Publi
         fetchPriority={priority ? "high" : undefined}
         decoding="async"
         onError={() => setFailedSrc(src)}
-        className={className ?? "object-cover"}
+        className={className ?? "object-contain"}
       />
     </picture>
   );

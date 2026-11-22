@@ -5,7 +5,8 @@ import { createContext } from "react";
 import type { PromoPreview } from "@/entities/promocode";
 
 export type PromocodeContextValue = {
-  applyCode: (_code: string) => void;
+  applyCode: (_code: string) => Promise<boolean>;
+  subtotal: number;
   clearCode: () => void;
   error: Error | null;
   isError: boolean;

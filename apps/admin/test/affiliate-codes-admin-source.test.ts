@@ -77,7 +77,7 @@ test("affiliate code mutation invalidates partner and common promo caches", () =
 });
 
 test("common promo editor marks affiliate codes and does not mutate them", () => {
-  assert.match(promoTypesSource, /"standard" \| "welcome" \| "affiliate"/);
+  assert.match(promoTypesSource, /"standard"\s*\|\s*"welcome"\s*\|\s*"affiliate"/);
   assert.match(promoDetailsSource, /Партнёрский/);
   assert.match(promoDetailsSource, /routes\.partners/);
   assert.match(promoDetailsSource, /promoCode\.kind !== "affiliate"/);

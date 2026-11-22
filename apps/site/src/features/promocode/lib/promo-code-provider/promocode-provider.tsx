@@ -78,7 +78,7 @@ export function PromocodeProvider({ cart, children, onLoginRequested }: Promocod
   }, [accountIdentity, cart.id, cart.items.length, cartSignature]);
 
   const startApplyAttempt = useCallback(
-    (code: string) => {
+    async (code: string) => {
       const query = promoCodeQuery.preview({ accountIdentity, cartSignature, code });
       const attempt: PromoApplyAttempt = {
         attemptKey: `${cart.id}:${++promoApplyAttemptSequence}`,
@@ -87,36 +87,36 @@ export function PromocodeProvider({ cart, children, onLoginRequested }: Promocod
       };
       activeApplyAttemptKeyRef.current = attempt.attemptKey;
       setCompletedApply(undefined);
-      void (async () => {
-        try {
-          await queryClient.cancelQueries({ exact: true, queryKey: query.queryKey });
+      try {
+        await queryClient.cancelQueries({ exact: true, queryKey: query.queryKey });
 
-          if (activeApplyAttemptKeyRef.current !== attempt.attemptKey) {
-            return;
-          }
-
-          const confirmedPreview = await queryClient.fetchQuery({ ...query, staleTime: 0 });
-
-          if (!confirmedPreview || activeApplyAttemptKeyRef.current !== attempt.attemptKey) {
-            return;
-          }
-
-          setCompletedApply({
-            accountIdentity,
-            attempt,
-            cartSignature,
-            preview: confirmedPreview,
-          });
-        } catch {
-          if (activeApplyAttemptKeyRef.current === attempt.attemptKey) {
-            analytics.applyFailed();
-          }
-        } finally {
-          if (activeApplyAttemptKeyRef.current === attempt.attemptKey) {
-            activeApplyAttemptKeyRef.current = undefined;
-          }
+        if (activeApplyAttemptKeyRef.current !== attempt.attemptKey) {
+          return false;
         }
-      })();
+
+        const confirmedPreview = await queryClient.fetchQuery({ ...query, staleTime: 0 });
+
+        if (!confirmedPreview || activeApplyAttemptKeyRef.current !== attempt.attemptKey) {
+          return false;
+        }
+
+        setCompletedApply({
+          accountIdentity,
+          attempt,
+          cartSignature,
+          preview: confirmedPreview,
+        });
+        return true;
+      } catch {
+        if (activeApplyAttemptKeyRef.current === attempt.attemptKey) {
+          analytics.applyFailed();
+        }
+        return false;
+      } finally {
+        if (activeApplyAttemptKeyRef.current === attempt.attemptKey) {
+          activeApplyAttemptKeyRef.current = undefined;
+        }
+      }
     },
     [accountIdentity, analytics, cart.id, cartSignature, queryClient],
   );
@@ -126,12 +126,12 @@ export function PromocodeProvider({ cart, children, onLoginRequested }: Promocod
       const code = parsePromoCode(value);
 
       if (!code) {
-        return;
+        return Promise.resolve(false);
       }
 
       writeStoredPromoCode({ cartId: cart.id, code });
       setSelectedCode(code);
-      startApplyAttempt(code);
+      return startApplyAttempt(code);
     },
     [cart.id, startApplyAttempt],
   );
@@ -225,6 +225,7 @@ export function PromocodeProvider({ cart, children, onLoginRequested }: Promocod
       preview: preview.data,
       retry,
       selectedCode,
+      subtotal: cart.subtotal,
     }),
     [
       applyCode,
@@ -239,6 +240,7 @@ export function PromocodeProvider({ cart, children, onLoginRequested }: Promocod
       preview.isPending,
       retry,
       selectedCode,
+      cart.subtotal,
       user,
     ],
   );

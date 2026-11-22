@@ -76,6 +76,21 @@ const staticRoutes = [
     priority: 0.7,
   },
   {
+    path: routes.legal.contestRules,
+    changeFrequency: "monthly",
+    priority: 0.4,
+  },
+  {
+    path: routes.legal.contestPersonalDataConsent,
+    changeFrequency: "monthly",
+    priority: 0.4,
+  },
+  {
+    path: routes.legal.contestPublicationConsent,
+    changeFrequency: "monthly",
+    priority: 0.4,
+  },
+  {
     path: routes.legal.index,
     changeFrequency: "monthly",
     priority: 0.5,

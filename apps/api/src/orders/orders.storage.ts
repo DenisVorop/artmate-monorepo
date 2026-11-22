@@ -800,7 +800,7 @@ export class OrdersStorage {
         include: orderInclude,
       });
       if (!order) throw new NotFoundException("Order not found");
-      if (!order.checkoutAttemptId) return;
+      if (!order.checkoutAttemptId || order.paymentStatus === PrismaOrderPaymentStatus.NOT_REQUIRED) return;
       if (
         order.cartConsumedAt ||
         order.cartRestoredAt ||
@@ -1128,13 +1128,12 @@ export class OrdersStorage {
         throw new NotFoundException("Order not found");
       }
 
-      if (
-        this.isPaidWorkflowStatus(status) &&
-        existingOrder.paymentStatus !== PrismaOrderPaymentStatus.PAID
-      ) {
-        throw new ConflictException(
-          "Payment must be confirmed by the payment provider before moving the order to the paid workflow",
-        );
+      const isPrizeOrder = existingOrder.paymentStatus === PrismaOrderPaymentStatus.NOT_REQUIRED;
+      if (isPrizeOrder && (status === "paid" || status === "waiting_payment")) {
+        throw new ConflictException("Призовой заказ не требует оплаты");
+      }
+      if (this.isPaidWorkflowStatus(status) && existingOrder.paymentStatus !== PrismaOrderPaymentStatus.PAID && !isPrizeOrder) {
+        throw new ConflictException("Payment must be confirmed by the payment provider before moving the order to the paid workflow");
       }
 
       const previousStatus = this.mapOrderCrmStatus(existingOrder.crmStatus);
@@ -1148,7 +1147,8 @@ export class OrdersStorage {
             : existingOrder.completedAt;
         if (
           existingOrder.crmStatus === PrismaOrderCrmStatus.COMPLETED &&
-          nextStatus !== PrismaOrderCrmStatus.COMPLETED
+          nextStatus !== PrismaOrderCrmStatus.COMPLETED &&
+          existingOrder.paymentStatus === PrismaOrderPaymentStatus.PAID
         ) {
           await this.affiliateFinancialAccountingService.recordEligibilityLossInTransaction(
             tx,
@@ -1164,7 +1164,7 @@ export class OrdersStorage {
               : {}),
           },
         });
-        if (nextStatus === PrismaOrderCrmStatus.COMPLETED && completedAt) {
+        if (nextStatus === PrismaOrderCrmStatus.COMPLETED && completedAt && existingOrder.paymentStatus === PrismaOrderPaymentStatus.PAID) {
           await this.affiliateFinancialAccountingService.recordCompletionInTransaction(
             tx,
             orderId,
@@ -1904,7 +1904,7 @@ export class OrdersStorage {
         request.revision === event.id &&
         order.deliveryProvider === "OZON" &&
         order.crmStatus === "DELIVERING" &&
-        order.paymentStatus === "PAID" &&
+        ["PAID", "NOT_REQUIRED"].includes(order.paymentStatus) &&
         expectedNumbers.length > 0 &&
         expectedNumbers.length === event.externalNumbers.length &&
         new Set(event.externalNumbers).size === event.externalNumbers.length &&
@@ -1919,11 +1919,9 @@ export class OrdersStorage {
           data: { crmStatus: "COMPLETED", completedAt },
           include: adminOrderInclude,
         });
-        await this.affiliateFinancialAccountingService.recordCompletionInTransaction(
-          tx,
-          order.id,
-          completedAt,
-        );
+        if (order.paymentStatus === "PAID") {
+          await this.affiliateFinancialAccountingService.recordCompletionInTransaction(tx, order.id, completedAt);
+        }
         await tx.orderHistory.create({
           data: {
             orderId: order.id,
@@ -2122,6 +2120,8 @@ export class OrdersStorage {
     method: PrismaOrderPaymentMethod,
   ): OrderPaymentDTO["method"] {
     switch (method) {
+      case PrismaOrderPaymentMethod.CONTEST_PRIZE:
+        return "contest_prize";
       case PrismaOrderPaymentMethod.BANK_CARD_MOCK:
         return "bank_card_mock";
       case PrismaOrderPaymentMethod.OZON_ACQUIRING:
@@ -2135,6 +2135,8 @@ export class OrdersStorage {
     status: PrismaOrderPaymentStatus,
   ): OrderPaymentDTO["status"] {
     switch (status) {
+      case PrismaOrderPaymentStatus.NOT_REQUIRED:
+        return "not_required";
       case PrismaOrderPaymentStatus.FAILED:
       case PrismaOrderPaymentStatus.CLOSED_UNPAID:
         return "failed";

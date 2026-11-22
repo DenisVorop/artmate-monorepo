@@ -7,7 +7,7 @@ import { WorkshopCollectionSource } from "../src/generated/prisma/client";
 import type { PrismaService } from "../src/prisma/prisma.service";
 import type { ColoringStorageService } from "../src/colorings/coloring-storage.service";
 import type { WorkshopAssetDeletionQueueService } from "../src/workshops/workshop-asset-deletion-queue.service";
-import type { WorkshopMediaService } from "../src/workshops/workshop-media.service";
+import type { UserPhotoMediaService } from "../src/user-photos/user-photo-media.service";
 import type { WorkshopStorageService } from "../src/workshops/workshop-storage.service";
 import { WorkshopService } from "../src/workshops/workshop.service";
 
@@ -132,7 +132,7 @@ describe("WorkshopService dashboard preview", () => {
 function createService(prisma: object) {
   return new WorkshopService(
     prisma as PrismaService,
-    {} as WorkshopMediaService,
+    {} as UserPhotoMediaService,
     {} as WorkshopStorageService,
     {} as ColoringStorageService,
     {} as WorkshopAssetDeletionQueueService,

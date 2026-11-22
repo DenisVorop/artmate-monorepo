@@ -2,7 +2,7 @@ export function CartLineSkeleton() {
   return (
     <div className="rounded-lg border bg-background p-3 sm:p-4" aria-hidden="true">
       <div className="grid grid-cols-[4.5rem_minmax(0,1fr)] gap-3 sm:grid-cols-[5rem_minmax(0,1fr)_auto] sm:items-center sm:gap-4">
-        <div className="aspect-square rounded-md bg-muted motion-safe:animate-pulse" />
+        <div className="aspect-[3/4] rounded-md bg-muted motion-safe:animate-pulse" />
 
         <div className="min-w-0 self-center space-y-2">
           <div className="h-3 w-20 rounded bg-muted motion-safe:animate-pulse" />

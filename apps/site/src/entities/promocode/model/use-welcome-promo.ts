@@ -21,5 +21,7 @@ export function useWelcomePromo({ enabled, userId }: UseWelcomePromoInput) {
   return {
     data: shouldFetch ? getFreshQueryData(result) : undefined,
     isPending: shouldFetch && (result.isPending || result.isFetching),
+    isError: shouldFetch && result.isError,
+    refetch: result.refetch,
   };
 }

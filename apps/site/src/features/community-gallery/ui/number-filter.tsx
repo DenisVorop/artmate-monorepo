@@ -5,6 +5,7 @@ import {
   Drawer,
   DrawerClose,
   DrawerContent,
+  DrawerBody,
   DrawerDescription,
   DrawerFooter,
   DrawerHeader,
@@ -45,7 +46,7 @@ export function NumberFilter({ numbers, selected, mobile, onChange }: Props) {
     return (
       <Drawer>
         <DrawerTrigger asChild>{field}</DrawerTrigger>
-        <DrawerContent className="max-h-[90dvh]! rounded-t-2xl">
+        <DrawerContent className="rounded-t-2xl">
           <DrawerHeader className="relative shrink-0 px-14">
             <DrawerTitle>Номер картинки</DrawerTitle>
             <DrawerDescription className="sr-only">
@@ -62,7 +63,7 @@ export function NumberFilter({ numbers, selected, mobile, onChange }: Props) {
               </Button>
             </DrawerClose>
           </DrawerHeader>
-          <div className="min-h-0 overflow-y-auto overscroll-contain px-4 pb-4">
+          <DrawerBody className="pt-0">
             <RadioGroup
               value={value}
               onValueChange={select}
@@ -85,7 +86,7 @@ export function NumberFilter({ numbers, selected, mobile, onChange }: Props) {
                 </Label>
               ))}
             </RadioGroup>
-          </div>
+          </DrawerBody>
           <DrawerFooter className="shrink-0 border-t border-stone-100 pb-[max(1rem,env(safe-area-inset-bottom))]">
             <DrawerClose asChild>
               <Button size="lg" className="min-h-12">

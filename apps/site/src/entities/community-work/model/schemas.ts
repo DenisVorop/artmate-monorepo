@@ -112,9 +112,34 @@ export const collectionWorksPageSchema = z
   })
   .strict();
 
+export const contestGalleryWorkSchema = z
+  .object({
+    source: z.literal("contest"),
+    publicId,
+    title: z.string().min(1).max(500),
+    author: z.object({ name: z.string().min(1).max(120) }).strict(),
+    album: z.object({ slug: boundedSlug, title: boundedTitle }).strict(),
+    number: z.number().int().min(1).max(99).optional(),
+    relatedProduct: z
+      .object({ slug: boundedSlug, title: boundedTitle, categorySlug: boundedSlug.optional() })
+      .strict(),
+    contest: z.object({ slug: boundedSlug, title: boundedTitle }).strict(),
+    submission: z
+      .object({
+        caption: z.string().max(500).optional(),
+        publishedAt: isoDate,
+        assets: z.object({ web: boundedUrl, thumb: boundedUrl }).strict(),
+      })
+      .strict(),
+  })
+  .strict();
+export const galleryWorkSchema = z.discriminatedUnion("source", [
+  publicCommunityWorkSchema.extend({ source: z.literal("workshop") }),
+  contestGalleryWorkSchema,
+]);
 export const galleryWorksPageSchema = z
   .object({
-    works: communityWorksSchema.max(60),
+    works: z.array(galleryWorkSchema).max(60),
     nextCursor: z.string().max(80).nullable(),
   })
   .strict();

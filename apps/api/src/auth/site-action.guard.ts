@@ -34,7 +34,7 @@ export class SiteActionGuard implements CanActivate {
       siteActionMetadataKey,
       context.getHandler(),
     );
-    if (action !== "partner_application")
+    if (action !== "partner_application" && action !== "contest_entry")
       throw new ForbiddenException("Unsupported site action");
     const request = context.switchToHttp().getRequest<SiteActionRequest>();
     const token = this.auth.getTokenFromRequest(

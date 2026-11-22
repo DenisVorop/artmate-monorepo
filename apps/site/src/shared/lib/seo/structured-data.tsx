@@ -151,15 +151,23 @@ export function GalleryStructuredData({ url, collection, works }: SeoGallery) {
                 position: index + 1,
                 item: {
                   "@type": "ImageObject",
-                  "@id": `${getAbsoluteUrl(routes.publicWork(work.publicId))}#photo`,
-                  url: getAbsoluteUrl(routes.publicWork(work.publicId)),
+                  "@id":
+                    "official" in work
+                      ? `${getAbsoluteUrl(routes.publicWork(work.publicId))}#photo`
+                      : `${getAbsoluteUrl(routes.contest(work.contest.slug))}#work-${work.publicId}`,
+                  url:
+                    "official" in work
+                      ? getAbsoluteUrl(routes.publicWork(work.publicId))
+                      : `${getAbsoluteUrl(routes.contest(work.contest.slug))}#work-${work.publicId}`,
                   contentUrl: work.submission.assets.web,
-                  name: work.official.coloring.title,
+                  name: "official" in work ? work.official.coloring.title : work.title,
                   datePublished: work.submission.publishedAt,
                   author: {
                     "@type": "Person",
                     name: work.author.name,
-                    url: getAbsoluteUrl(routes.publicWorkshop(work.author.handle)),
+                    ...("handle" in work.author
+                      ? { url: getAbsoluteUrl(routes.publicWorkshop(work.author.handle)) }
+                      : {}),
                   },
                 },
               })),

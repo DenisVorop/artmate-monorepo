@@ -1,4 +1,5 @@
 import { AchievementGallery } from "@/features/achievements";
+import { AccountPrizesPreview } from "@/features/prizes";
 import {
   Account,
   AccountClubPreview,
@@ -11,6 +12,7 @@ export function AccountPage() {
   return (
     <main className="container space-y-8 py-8 md:space-y-10 md:py-12">
       <Account />
+      <AccountPrizesPreview />
       <AccountClubPreview />
       <AchievementGallery preview />
       <AccountWorkshopPreview />

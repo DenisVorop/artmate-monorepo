@@ -1,3 +1,4 @@
+import { ConsentChecks } from "./consent-checks";
 import type { Prisma } from "../generated/prisma/client";
 
 /** The currently published advertising document/form; withdrawal never depends on it. */
@@ -9,8 +10,7 @@ export class EmailAdvertisingRevision {
       where: {
         kind: "EMAIL_ADVERTISING",
         purpose: "site_auth",
-        publishedAt: { lte: new Date() },
-        OR: [{ retiredAt: null }, { retiredAt: { gt: new Date() } }],
+        ...ConsentChecks.activeWhere(),
       },
       select: { id: true },
       take: 2,

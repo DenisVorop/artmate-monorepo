@@ -298,6 +298,10 @@ function assertOrderedRows(markup, items) {
 }
 
 async function loadDetailsDrawer({ drawerOpen = false } = {}) {
+  const { DrawerBody } = await load("src/shared/ui/drawer.tsx", {
+    vaul: { Drawer: {} },
+    "@/shared/lib/utils": { cn: classNames },
+  });
   const drawerUi = {
     ...ui,
     Drawer: box,
@@ -308,6 +312,7 @@ async function loadDetailsDrawer({ drawerOpen = false } = {}) {
         ? React.createElement("div", { ...props, "data-test-drawer": true }, children)
         : null,
     DrawerHeader: box,
+    DrawerBody,
     DrawerFooter: box,
     // eslint-disable-next-line react/prop-types -- Primitive stub isolates the content contract.
     DrawerTitle: ({ children }) => React.createElement("h3", null, children),

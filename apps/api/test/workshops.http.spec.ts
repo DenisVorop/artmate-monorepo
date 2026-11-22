@@ -175,7 +175,6 @@ describe("Workshop HTTP security contract", () => {
         caption: "My work\nhttps://spam.example",
         advertisingConsent: false,
         publicationConsent: false,
-        crop: { rotation: 0, zoom: 1, x: 0, y: 0 },
         materials: [{ toolId: "a".repeat(32) }],
         symbolMappings: [],
       }),
@@ -209,39 +208,33 @@ describe("Workshop HTTP security contract", () => {
       formDataWithPayload({
         advertisingConsent: false,
         publicationConsent: false,
-        materials: [{ toolId: "a".repeat(32) }],
         symbolMappings: [],
       }),
       formDataWithPayload([]),
       formDataWithPayload({
         advertisingConsent: false,
         publicationConsent: false,
-        crop: [],
-        materials: [{ toolId: "a".repeat(32) }],
+        materials: {},
         symbolMappings: [],
       }),
       formDataWithPayload({
         advertisingConsent: false,
         publicationConsent: false,
-        crop: { rotation: 0, zoom: 1, x: 0, y: 0 },
         materials: [[]],
         symbolMappings: [],
       }),
       formDataWithPayload({
         advertisingConsent: false,
         publicationConsent: false,
-        crop: { rotation: 0, zoom: 1, x: 0, y: 0 },
         materials: [{ toolId: "a".repeat(32) }],
         symbolMappings: [[]],
       }),
       formDataWithPayload({
-        crop: { rotation: 0, zoom: 1, x: 0, y: 0 },
         materials: [{ toolId: "a".repeat(32) }],
         symbolMappings: [],
       }),
       formDataWithPayload({
         advertisingConsent: false,
-        crop: { rotation: 0, zoom: 1, x: 0, y: 0 },
         materials: [{ toolId: "a".repeat(32) }],
         symbolMappings: [],
       }),
@@ -275,7 +268,6 @@ describe("Workshop HTTP security contract", () => {
         caption: "  My finished work  ",
         advertisingConsent: false,
         publicationConsent: true,
-        crop: { rotation: 90, zoom: 1.25, x: -0.5, y: 0.5 },
         materials: [{ toolId: "a".repeat(32) }],
         symbolMappings: [
           {
@@ -308,7 +300,6 @@ describe("Workshop HTTP security contract", () => {
       caption: "My finished work",
       advertisingConsent: false,
       publicationConsent: true,
-      crop: { rotation: 90, zoom: 1.25, x: -0.5, y: 0.5 },
       materials: [{ toolId: "a".repeat(32) }],
       symbolMappings: [
         {
@@ -329,7 +320,6 @@ describe("Workshop HTTP security contract", () => {
       JSON.stringify({
         advertisingConsent: false,
         publicationConsent: true,
-        crop: { rotation: 0, zoom: 1, x: 0, y: 0 },
         materials: [],
         symbolMappings: [],
       }),
@@ -366,7 +356,6 @@ describe("Workshop HTTP security contract", () => {
         intent: "SUBMIT",
         advertisingConsent: false,
         publicationConsent: false,
-        crop: { rotation: 0, zoom: 1, x: 0, y: 0 },
         materials: [{ toolId: "a".repeat(32) }],
         symbolMappings: [],
       }),

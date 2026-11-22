@@ -8,7 +8,11 @@ export function PreviewLoading({ preview }: { preview: ReturnType<typeof useImag
       open={preview.isOpen}
       onOpenChange={preview.onOpenChange}
       returnFocusRef={preview.triggerRef}
-      title={preview.selectedWork?.official.coloring.title ?? "Работа участника"}
+      title={
+        (preview.selectedWork?.source === "contest"
+          ? preview.selectedWork.title
+          : preview.selectedWork?.official.coloring.title) ?? "Работа участника"
+      }
       description="Просмотр фотографии"
     >
       <div role="status" className="flex min-h-0 flex-1 flex-col gap-5 p-5">

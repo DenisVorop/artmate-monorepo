@@ -1,0 +1,193 @@
+model Contest {
+  id           String   @id @default(cuid()) @db.VarChar(32)
+  slug         String   @unique @db.VarChar(120)
+  title        String   @db.VarChar(160)
+  description  String   @db.VarChar(600)
+  task         String   @db.Text
+  rules        String[]
+  appearance   String   @default("none") @db.VarChar(32)
+  prize        String   @db.VarChar(200)
+  prizeDetail  String   @map("prize_detail") @db.VarChar(1000)
+  winnersCount Int      @map("winners_count")
+  selectionMode ContestSelectionMode @default(AUTOMATIC) @map("selection_mode")
+  opensAt      DateTime @map("opens_at") @db.Timestamptz(3)
+  closesAt     DateTime @map("closes_at") @db.Timestamptz(3)
+  drawAt       DateTime @map("draw_at") @db.Timestamptz(3)
+  published    Boolean  @default(false)
+  publishedAt  DateTime? @map("published_at") @db.Timestamptz(3)
+  version      Int      @default(1)
+  createdAt    DateTime @default(now()) @map("created_at") @db.Timestamptz(3)
+  updatedAt    DateTime @default(now()) @updatedAt @map("updated_at") @db.Timestamptz(3)
+  prizeAlbumQuantity Int? @map("prize_album_quantity")
+  prizeAlbumIds String[] @default([]) @map("prize_album_ids")
+  prizePromoCodeId String? @map("prize_promo_code_id") @db.VarChar(32)
+  prizePromoTerms Json? @map("prize_promo_terms")
+  manualCriteria String @default("") @map("manual_criteria") @db.Text
+  manualTieBreak String @default("") @map("manual_tie_break") @db.Text
+  manualEvaluator String @default("") @map("manual_evaluator") @db.VarChar(300)
+  legalDocumentId String? @map("legal_document_id") @db.VarChar(32)
+  legalDocument ContestLegalDocument? @relation("contestCurrentLegal", fields: [legalDocumentId], references: [id], onDelete: Restrict)
+  legalDocuments ContestLegalDocument[] @relation("contestLegalHistory")
+  submissions ContestEntrySubmission[]
+  entries      ContestEntry[]
+  draw         ContestDraw?
+
+  @@index([published, opensAt])
+  @@map("contests")
+}
+
+enum ContestEntryStatus {
+  PENDING
+  CHANGES_REQUESTED
+  APPROVED
+  REJECTED
+  HIDDEN
+
+  @@map("contest_entry_status")
+}
+
+model ContestEntry {
+  id              String @id @db.VarChar(32)
+  publicId        String @unique @map("public_id") @db.VarChar(24)
+  contestId       String @map("contest_id") @db.VarChar(32)
+  userId          String @map("user_id")
+  status          ContestEntryStatus @default(PENDING)
+  version         Int @default(1)
+  revision        Int @default(1)
+  contestSnapshot Json @map("contest_snapshot")
+  publicationEndsAt DateTime? @map("publication_ends_at") @db.Timestamptz(3)
+  publishedAt     DateTime? @map("published_at") @db.Timestamptz(3)
+  createdAt       DateTime @default(now()) @map("created_at") @db.Timestamptz(3)
+  updatedAt       DateTime @default(now()) @updatedAt @map("updated_at") @db.Timestamptz(3)
+  contest         Contest @relation(fields: [contestId], references: [id], onDelete: Restrict)
+  user            User @relation(fields: [userId], references: [id], onDelete: Restrict)
+  revisions       ContestEntryRevision[]
+  events          ContestEntryEvent[]
+  wins            ContestDrawWinner[]
+
+  @@unique([contestId, userId])
+  @@index([contestId, status, createdAt])
+  @@index([status, publishedAt, id])
+  @@map("contest_entries")
+}
+
+enum ContestSelectionMode {
+  AUTOMATIC
+  MANUAL
+
+  @@map("contest_selection_mode")
+}
+
+model ContestDraw {
+  id               String @id @default(cuid()) @db.VarChar(32)
+  contestId        String @unique @map("contest_id") @db.VarChar(32)
+  mode             ContestSelectionMode
+  actorId          String? @map("actor_id")
+  requestedWinners Int @map("requested_winners")
+  eligibleCount    Int @map("eligible_count")
+  eligibility      Json
+  eligibilityHash  String @map("eligibility_hash") @db.VarChar(64)
+  selectionOrder   Json @map("selection_order")
+  algorithm        String @db.VarChar(64)
+  createdAt        DateTime @default(now()) @map("created_at") @db.Timestamptz(3)
+  contest          Contest @relation(fields: [contestId], references: [id], onDelete: Restrict)
+  actor            User? @relation(fields: [actorId], references: [id], onDelete: Restrict)
+  winners          ContestDrawWinner[]
+
+  @@map("contest_draws")
+}
+
+model ContestDrawWinner {
+  id           String @id @default(cuid()) @db.VarChar(32)
+  drawId       String @map("draw_id") @db.VarChar(32)
+  entryId      String @map("entry_id") @db.VarChar(32)
+  entryVersion Int @map("entry_version")
+  revision     Int
+  albumPrize   OrderPrizeGrant?
+  promoPrize   PromoCode?
+  draw         ContestDraw @relation(fields: [drawId], references: [id], onDelete: Restrict)
+  entry        ContestEntry @relation(fields: [entryId], references: [id], onDelete: Restrict)
+
+  @@unique([drawId, entryId])
+  @@map("contest_draw_winners")
+}
+
+model ContestEntryRevision {
+  id        String @id @db.VarChar(32)
+  entryId   String @map("entry_id") @db.VarChar(32)
+  sequence  Int
+  productId String @map("product_id") @db.VarChar(32)
+  number    Int?
+  caption   String @db.VarChar(500)
+  assets    Json
+  consentAcceptanceIds String[] @default([]) @map("consent_acceptance_ids")
+  publicationSnapshot Json? @map("publication_snapshot")
+  createdAt DateTime @default(now()) @map("created_at") @db.Timestamptz(3)
+  entry     ContestEntry @relation(fields: [entryId], references: [id], onDelete: Restrict)
+  product   Product @relation(fields: [productId], references: [id], onDelete: Restrict)
+
+  @@unique([entryId, sequence])
+  @@index([productId])
+  @@map("contest_entry_revisions")
+}
+
+model ContestEntryEvent {
+  id        String @id @default(cuid()) @db.VarChar(32)
+  entryId   String @map("entry_id") @db.VarChar(32)
+  actorId   String @map("actor_id")
+  revision  Int
+  version   Int
+  status    ContestEntryStatus
+  reason    String? @db.VarChar(1000)
+  createdAt DateTime @default(now()) @map("created_at") @db.Timestamptz(3)
+  entry     ContestEntry @relation(fields: [entryId], references: [id], onDelete: Restrict)
+  actor     User @relation(fields: [actorId], references: [id], onDelete: Restrict)
+
+  @@unique([entryId, version])
+  @@map("contest_entry_events")
+}
+
+// Immutable terms presented to participants. Previously published revisions remain readable.
+model ContestLegalDocument {
+  id String @id @default(cuid()) @db.VarChar(32)
+  contestId String @map("contest_id") @db.VarChar(32)
+  contestVersion Int @map("contest_version")
+  edition String @db.VarChar(20)
+  title String @db.VarChar(240)
+  content Json
+  sourceSnapshot Json @map("source_snapshot")
+  commonDocuments Json @map("common_documents")
+  registrationCommandIds String[] @default([]) @map("registration_command_ids")
+  sha256 String @db.VarChar(64)
+  pdf Bytes
+  publishedAt DateTime? @map("published_at") @db.Timestamptz(3)
+  createdAt DateTime @default(now()) @map("created_at") @db.Timestamptz(3)
+  contest Contest @relation("contestLegalHistory", fields: [contestId], references: [id], onDelete: Restrict)
+  currentFor Contest[] @relation("contestCurrentLegal")
+  @@unique([contestId, contestVersion])
+  @@map("contest_legal_documents")
+}
+
+
+// Contest-owned durable submission. Consents commits separately; this row is
+// finalized only after its published result, including after a process restart.
+model ContestEntrySubmission {
+  id String @id @db.VarChar(32)
+  contestId String @map("contest_id") @db.VarChar(32)
+  userId String @map("user_id")
+  entryId String @map("entry_id") @db.VarChar(32)
+  publicId String @map("public_id") @db.VarChar(24)
+  offerId String @unique @map("offer_id") @db.VarChar(32)
+  consentCommandId String @unique @map("consent_command_id")
+  expectedVersion Int? @map("expected_version")
+  revision Int
+  data Json
+  storedKeys String[] @map("stored_keys")
+  status String @default("PENDING") @db.VarChar(16)
+  errorCode String? @map("error_code") @db.VarChar(80)
+  createdAt DateTime @default(now()) @map("created_at") @db.Timestamptz(3)
+  finishedAt DateTime? @map("finished_at") @db.Timestamptz(3)
+  contest Contest @relation(fields: [contestId], references: [id], onDelete: Restrict)
+  @@index([status, createdAt])
+  @@map("contest_entry_submissions")
+}

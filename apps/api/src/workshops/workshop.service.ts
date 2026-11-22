@@ -28,10 +28,10 @@ import type {
 } from "./dto";
 import { WorkshopAssetDeletionQueueService } from "./workshop-asset-deletion-queue.service";
 import {
-  WorkshopMediaService,
-  type ProcessedWorkshopPhoto,
-  type WorkshopUploadedFile,
-} from "./workshop-media.service";
+  UserPhotoMediaService,
+  type ProcessedUserPhoto,
+  type UserPhotoUpload,
+} from "../user-photos/user-photo-media.service";
 import { WorkshopStorageService } from "./workshop-storage.service";
 
 const revisionInclude = {
@@ -57,7 +57,7 @@ type StoredRevision = Prisma.WorkshopWorkRevisionGetPayload<{
 export class WorkshopService {
   constructor(
     private readonly prisma: PrismaService,
-    private readonly media: WorkshopMediaService,
+    private readonly media: UserPhotoMediaService,
     private readonly storage: WorkshopStorageService,
     private readonly coloringStorage: ColoringStorageService,
     private readonly deletionQueue: WorkshopAssetDeletionQueueService,
@@ -508,7 +508,7 @@ export class WorkshopService {
     collectionSlug: string,
     number: number,
     input: WorkshopRevisionPayloadDTO,
-    photo: WorkshopUploadedFile | undefined,
+    photo: UserPhotoUpload | undefined,
   ) {
     const context = await this.getRevisionContext(
       userId,
@@ -534,7 +534,7 @@ export class WorkshopService {
       input.symbolMappings,
       materials,
     );
-    let processed: ProcessedWorkshopPhoto | undefined;
+    let processed: ProcessedUserPhoto | undefined;
     let storedKeys: string[] = [];
 
     if (photo) {
@@ -549,7 +549,6 @@ export class WorkshopService {
       );
       processed = await this.media.processPhoto(
         photo,
-        input.crop,
         officialBuffer,
       );
 
@@ -575,14 +574,6 @@ export class WorkshopService {
     const media = processed
       ? this.mediaData(workId, revisionId, processed)
       : this.reusedMediaData(current!);
-    const appliedCrop = processed
-      ? input.crop
-      : {
-          rotation: current!.cropRotation as 0 | 90 | 180 | 270,
-          zoom: current!.cropZoom,
-          x: current!.cropX,
-          y: current!.cropY,
-        };
 
     try {
       const created = await this.prisma.$transaction(async (tx) => {
@@ -642,10 +633,6 @@ export class WorkshopService {
             advertisingConsentAt: input.advertisingConsent ? submittedAt : null,
             publicationConsent: input.publicationConsent,
             publicationConsentAt: input.publicationConsent ? submittedAt : null,
-            cropRotation: appliedCrop.rotation,
-            cropZoom: appliedCrop.zoom,
-            cropX: appliedCrop.x,
-            cropY: appliedCrop.y,
             ...media,
             submittedAt,
             materials: {
@@ -1231,7 +1218,7 @@ export class WorkshopService {
   private storageEntries(
     workId: string,
     revisionId: string,
-    photo: ProcessedWorkshopPhoto,
+    photo: ProcessedUserPhoto,
   ) {
     return (["normalized", "web", "thumb"] as const).map((variant) => ({
       key: `${workId}/${revisionId}/${variant}-${photo[variant].checksum}.webp`,
@@ -1243,7 +1230,7 @@ export class WorkshopService {
   private mediaData(
     workId: string,
     revisionId: string,
-    photo: ProcessedWorkshopPhoto,
+    photo: ProcessedUserPhoto,
   ) {
     return {
       sourceMime: photo.sourceMime,
@@ -1461,12 +1448,6 @@ export class WorkshopService {
       advertisingConsentAt: revision.advertisingConsentAt?.toISOString(),
       publicationConsent: revision.publicationConsent,
       publicationConsentAt: revision.publicationConsentAt?.toISOString(),
-      crop: {
-        rotation: revision.cropRotation,
-        zoom: revision.cropZoom,
-        x: revision.cropX,
-        y: revision.cropY,
-      },
       materials: revision.materials.map((material) => ({
         position: material.position,
         type: material.toolType,

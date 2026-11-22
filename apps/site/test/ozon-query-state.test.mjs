@@ -34,7 +34,7 @@ test("shared CDEK city search uses debounced input and hides stale data and erro
   let queryOptions;
   const staleCity = { code: 44, countryCode: "RU", name: "Москва" };
   const { exports, source } = await loadTypeScript(
-    "src/features/checkout/model/use-cdek-cities.ts",
+    "src/widgets/pickup-point-picker/model/use-cdek-cities.ts",
     {
       "@/shared/actions/delivery": { searchCdekCities: async () => ({ data: [] }) },
       "@/shared/lib/api-result": {
@@ -80,7 +80,7 @@ test("CDEK city details are exact-code scoped and reject late selected-city data
     name: "Москва",
     region: "Москва",
   };
-  const { exports } = await loadTypeScript("src/features/checkout/model/use-cdek-city.ts", {
+  const { exports } = await loadTypeScript("src/widgets/pickup-point-picker/model/use-cdek-city.ts", {
     "@/shared/actions/delivery": {
       getCdekCity: async () => {
         actionCalls += 1;
@@ -133,7 +133,7 @@ test("Ozon pickup query is city-gated and hides late wrong-city data and errors"
     deliveryPrice: 100,
   };
   const { exports } = await loadTypeScript(
-    "src/features/checkout/model/use-ozon-pickup-points.ts",
+    "src/widgets/pickup-point-picker/model/use-ozon-pickup-points.ts",
     {
       "@/shared/actions/delivery": {
         getOzonPickupPoints: async () => ({ data: [] }),
@@ -188,7 +188,7 @@ test("city debounce UI state lives in lib and cancels its 300ms timer", async ()
   };
   try {
     const { exports } = await loadTypeScript(
-      "src/features/checkout/lib/use-debounced-city-query.ts",
+      "src/widgets/pickup-point-picker/lib/use-debounced-city-query.ts",
       {
         react: {
           useState: (initial) => [

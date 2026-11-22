@@ -6,6 +6,7 @@ import type { ReactNode } from "react";
 
 import type { Cart } from "@/entities/cart";
 import { getPromoPricingState, usePromocode } from "@/features/promocode";
+import { cn } from "@/shared/lib";
 import { Button, DataState, Separator } from "@/shared/ui";
 
 import {
@@ -17,6 +18,7 @@ import {
 } from "../lib";
 
 import { getCheckoutPriceSummary } from "../lib/price-summary";
+import { useCheckoutSubmitVisibility } from "../lib/use-checkout-submit-visibility";
 
 import { ContactFields } from "./contact-fields";
 import { CheckoutSubmitButton } from "./checkout-submit-button";
@@ -33,6 +35,7 @@ function BaseCheckoutFlow({ cart, createOrderError }: CheckoutFlowProps) {
   const analytics = useAnalytics();
   const { checkoutCalculation, isSubmitting, submitLabel, submitOrder } = useCheckout();
   const promoPricing = getPromoPricingState(usePromocode());
+  const { submitButtonRef, isSubmitVisible } = useCheckoutSubmitVisibility();
   const pricing = getCheckoutPriceSummary(cart, checkoutCalculation, promoPricing.preview);
   const isSubmitDisabled =
     !cart.isOzonDeliveryAvailable || isSubmitting || checkoutCalculation.status === "pending";
@@ -93,12 +96,21 @@ function BaseCheckoutFlow({ cart, createOrderError }: CheckoutFlowProps) {
           isSubmitDisabled={isSubmitDisabled}
           isSubmitting={isSubmitting}
           submitLabel={submitLabel}
+          submitButtonRef={submitButtonRef}
         />
       </div>
 
-      <div className="fixed inset-x-0 bottom-[var(--site-cookie-consent-height)] z-40 border-t bg-background/95 px-4 pt-3 pb-[calc(env(safe-area-inset-bottom)+0.75rem)] backdrop-blur lg:hidden">
-        <div className="mx-auto flex max-w-lg items-center gap-4">
-          <div className="min-w-0 flex-1">
+      <div
+        data-checkout-mobile-submit
+        aria-hidden={isSubmitVisible}
+        inert={isSubmitVisible}
+        className={cn(
+          "fixed inset-x-0 bottom-[var(--site-cookie-consent-height)] z-40 translate-y-0 border-t bg-background/95 px-4 pt-3 pb-[calc(env(safe-area-inset-bottom)+0.75rem)] opacity-100 backdrop-blur transition-[opacity,translate] duration-200 ease-out motion-reduce:transition-none lg:hidden",
+          isSubmitVisible && "pointer-events-none translate-y-full opacity-0",
+        )}
+      >
+        <div className="w-full space-y-2">
+          <div className="flex items-baseline justify-between gap-4">
             <p className="text-xs text-muted-foreground">
               {pricing.includesDelivery ? "Итого" : "Без доставки"}
             </p>
@@ -106,9 +118,9 @@ function BaseCheckoutFlow({ cart, createOrderError }: CheckoutFlowProps) {
           </div>
           <CheckoutSubmitButton
             form={checkoutOrderFormId}
-            disabled={isSubmitDisabled}
+            disabled={isSubmitDisabled || isSubmitVisible}
             isSubmitting={isSubmitting}
-            className="min-h-11"
+            className="min-h-12 w-full rounded-xl"
           >
             {submitLabel}
           </CheckoutSubmitButton>

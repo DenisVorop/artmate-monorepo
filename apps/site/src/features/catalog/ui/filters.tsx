@@ -12,6 +12,7 @@ import {
   Drawer,
   DrawerClose,
   DrawerContent,
+  DrawerBody,
   DrawerDescription,
   DrawerFooter,
   DrawerHeader,
@@ -146,9 +147,9 @@ export function Filters() {
               <DrawerTitle>Фильтры</DrawerTitle>
               <DrawerDescription>{activeCategory?.title ?? "Все товары"}</DrawerDescription>
             </DrawerHeader>
-            <div className="min-h-0 overflow-y-auto px-4">
+            <DrawerBody className="py-0">
               <FilterFields />
-            </div>
+            </DrawerBody>
             <DrawerFooter>
               <DrawerClose asChild>
                 <Button type="button" size="lg" onClick={analytics.filtersApplied}>

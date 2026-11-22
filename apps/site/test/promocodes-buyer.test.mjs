@@ -328,7 +328,7 @@ test("legal promocode page contains only general rules while cart and checkout k
   assert.doesNotMatch(footer, /routes\.legal\.promocodes/u);
   assert.match(legalPage, /href: routes\.legal\.promocodes/u);
   assert.match(legalPage, /Object\.values\(legalDocuments\)\.map/u);
-  assert.match(legalPage, /documentId === "publicOffer" \? routes\.legal\.promocodes/u);
+  assert.match(legalPage, /documentId === "publicOffer"\s*\? routes\.legal\.promocodes/u);
   assert.match(legalPage, /условиях, сообщаемых покупателю при его предоставлении/u);
   assert.match(legalPage, /зависят от промокода и сообщаются покупателю при его предоставлении/u);
   assert.match(legalPage, /Сроки действия указываются по московскому времени/u);

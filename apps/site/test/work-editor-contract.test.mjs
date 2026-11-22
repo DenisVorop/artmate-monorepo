@@ -41,7 +41,7 @@ test("editor RHF+Zod contract maps a separate material for every color", async (
   });
   const values = {
     photo: new File([new Uint8Array(64)], "photo.jpg", { type: "image/jpeg" }),
-    crop: { rotation: 270, zoom: 1.5, x: -0.25, y: 0.25 },
+
     materials: [
       { type: "ARTMATE_168", brand: "Artmate", line: "168" },
       { type: "CUSTOM", brand: "Copic", line: "Sketch" },
@@ -88,7 +88,7 @@ test("editor RHF+Zod contract maps a separate material for every color", async (
     assert.equal(dto.advertisingConsent, false);
     assert.equal(dto.publicationConsent, true);
     assert.equal("intent" in dto, false);
-    assert.equal(dto.crop.rotation, 270);
+    assert.equal("crop" in dto, false);
 
     const photoOnlyValues = form.workEditorFormSchema.parse({
       ...values,
@@ -151,7 +151,6 @@ test("editor defaults restore mixed material positions from an existing revision
     },
     work: {
       currentRevision: {
-        crop: { rotation: 0, zoom: 1, x: 0, y: 0 },
         materials: [
           { position: 1, type: "ARTMATE_168", brand: "Artmate", line: "168" },
           { position: 2, type: "CUSTOM", brand: "Copic", line: "Sketch" },
@@ -247,7 +246,6 @@ test("editor UI hides optional materials and marker mappings behind nested contr
   assert.match(editor, /URL\.createObjectURL\(selectedPhoto\)/);
   assert.match(editor, /URL\.revokeObjectURL\(nextUrl\)/);
   assert.match(editor, /accept=\{acceptedWorkshopPhotoTypes\.join/);
-  assert.match(editor, /Повернуть на 90°/);
   assert.match(editor, /Материалы можно добавить по желанию/);
   assert.match(editor, /Материал цвета/);
   assert.match(editor, /mappings\.\$\{index\}\.materialIndex/);
@@ -268,96 +266,32 @@ test("editor UI hides optional materials and marker mappings behind nested contr
   assert.match(editor, /toCreateRevisionInput\(formValues, resolvedTools, officialColors\)/);
   assert.match(editor, /officialColors/);
   assert.match(editor, /handleSubmit\(onSubmit, onInvalid\)/);
-  assert.match(editor, /disabled=\{!canAdjustCrop\}/);
-  assert.match(editor, /crop=\{objectUrl \? crop : undefined\}/);
-  assert.match(editor, /Без нового фото сервер сохранит прежний кадр без изменений/);
   assert.match(editor, /currentRevision\?\.status === "PENDING"/);
   assert.match(editor, /Добавить материалы/);
   assert.match(editor, /aria-expanded=\{isMaterialsEditorOpen\}/);
-  assert.match(editor, /currentStep === 2 && isMaterialsEditorOpen/);
+  assert.match(editor, /currentStep === 1 && isMaterialsEditorOpen/);
   assert.match(editor, /currentRevision\?\.materials\.length/);
   assert.match(editor, /Добавить соответствия маркеров/);
   assert.match(editor, /Скрыть соответствия маркеров/);
   assert.match(editor, /Заполнять эти данные необязательно/);
   assert.match(editor, /aria-expanded=\{isMappingEditorOpen\}/);
-  assert.match(editor, /currentStep === 2 && isMaterialsEditorOpen && isMappingEditorOpen/);
+  assert.match(editor, /currentStep === 1 && isMaterialsEditorOpen && isMappingEditorOpen/);
   assert.match(editor, /Boolean\(data\.work\?\.currentRevision\?\.symbolMappings\.length\)/);
   assert.equal(editor.match(/setIsMappingEditorOpen\(true\)/g)?.length, 2);
   assert.match(
     editor,
-    /formErrors\.materials \|\| formErrors\.mappings[\s\S]*setIsMaterialsEditorOpen\(true\)[\s\S]*formErrors\.mappings[\s\S]*setIsMappingEditorOpen\(true\)[\s\S]*setCurrentStep\(2\)/,
+    /formErrors\.materials \|\| formErrors\.mappings[\s\S]*setIsMaterialsEditorOpen\(true\)[\s\S]*formErrors\.mappings[\s\S]*setIsMappingEditorOpen\(true\)[\s\S]*setCurrentStep\(1\)/,
   );
-  assert.match(editor, /currentStep === 2[\s\S]*Подпись к работе/);
-  assert.match(editor, /currentStep === 3[\s\S]*Отправка на модерацию/);
-  assert.match(editor, /currentStep === 4[\s\S]*Проверьте данные/);
-  assert.match(preview, /getCropPreviewGeometry/);
-  assert.match(preview, /naturalWidth/);
-  assert.match(preview, /naturalHeight/);
-  assert.match(preview, /geometry\.imageCenterXPercent/);
-  assert.match(preview, /geometry\.imageCenterYPercent/);
+  assert.match(editor, /currentStep === 1[\s\S]*Подпись к работе/);
+  assert.match(editor, /currentStep === 2[\s\S]*Отправка на модерацию/);
+  assert.match(editor, /currentStep === 3[\s\S]*Проверьте данные/);
   assert.doesNotMatch(`${editor}\n${preview}`, /canvas|getContext\(/i);
+  assert.match(preview, /object-contain/);
+  assert.doesNotMatch(`${editor}\n${preview}\n${stepper}`, /CropSlider|crop=|кадрирован|"Кадр"|Повернуть на 90°/);
   assert.match(stepper, /aria-label="Шаги добавления работы"/);
   assert.match(stepper, /min-h-11/);
   assert.doesNotMatch(stepper, /"Материалы"/);
   assert.doesNotMatch(stepper, /"Символы"/);
-  assert.match(stepper, /"Кадр",\s*"Подпись"/);
-});
-
-test("photo preview geometry matches the server crop rectangle", async () => {
-  const geometry = evaluateTypeScript(
-    await readSource("src/features/work-editor/lib/crop-preview.ts"),
-    {},
-  );
-
-  const fullFrame = geometry.getCropPreviewGeometry(800, 1000, {
-    rotation: 0,
-    zoom: 1,
-    x: 1,
-    y: -1,
-  });
-
-  assert.deepEqual(fullFrame, {
-    rotatedWidth: 800,
-    rotatedHeight: 1000,
-    cropWidth: 800,
-    cropHeight: 1000,
-    cropLeft: 0,
-    cropTop: 0,
-    imageCenterXPercent: 50,
-    imageCenterYPercent: 50,
-    imageWidthPercent: 100,
-    imageHeightPercent: 100,
-  });
-
-  const leftEdge = geometry.getCropPreviewGeometry(1600, 1000, {
-    rotation: 0,
-    zoom: 1,
-    x: -1,
-    y: 0,
-  });
-  const rightEdge = geometry.getCropPreviewGeometry(1600, 1000, {
-    rotation: 0,
-    zoom: 1,
-    x: 1,
-    y: 0,
-  });
-
-  assert.equal(leftEdge.cropLeft, 0);
-  assert.equal(leftEdge.imageCenterXPercent, 100);
-  assert.equal(rightEdge.cropLeft, 800);
-  assert.equal(rightEdge.imageCenterXPercent, 0);
-
-  const quarterTurn = geometry.getCropPreviewGeometry(1600, 1000, {
-    rotation: 90,
-    zoom: 1,
-    x: 0,
-    y: 0,
-  });
-
-  assert.equal(quarterTurn.rotatedWidth, 1000);
-  assert.equal(quarterTurn.rotatedHeight, 1600);
-  assert.equal(quarterTurn.cropWidth, 1000);
-  assert.equal(quarterTurn.cropHeight, 1250);
 });
 
 test("author-material warning is neutral and only shown for supplied author details", async () => {

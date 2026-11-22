@@ -452,6 +452,7 @@ function Metric({
 
 function PaymentBadge({ order }: { readonly order: AdminOrder }) {
   const isPaid = order.payment.status === "paid";
+  const isPrize = order.payment.status === "not_required";
   const isFailed = order.payment.status === "failed";
 
   return (
@@ -467,7 +468,7 @@ function PaymentBadge({ order }: { readonly order: AdminOrder }) {
       variant="outline"
     >
       <PackageCheck data-icon="inline-start" aria-hidden="true" />
-      {isPaid ? "Оплачен" : isFailed ? "Не оплачено" : "Оплата"}
+      {isPrize ? "Приз конкурса" : isPaid ? "Оплачен" : isFailed ? "Не оплачено" : "Оплата"}
     </Badge>
   );
 }

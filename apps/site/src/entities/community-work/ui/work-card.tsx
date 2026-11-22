@@ -56,7 +56,7 @@ export function CommunityWorkCard({
         <PublicAssetImage
           src={work.submission.assets.thumb}
           alt={`Работа ${work.author.name}: ${work.official.coloring.title}`}
-          className="object-cover transition-transform duration-300 group-hover:scale-[1.02]"
+          className="object-contain"
         />
       </div>
       <CardContent className="pointer-events-none relative flex min-w-0 flex-1 flex-col gap-2 p-4">

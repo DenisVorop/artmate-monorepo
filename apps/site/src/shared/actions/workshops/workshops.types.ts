@@ -14,13 +14,6 @@ export type SaveWorkshopToolInput = {
   line: string;
 };
 
-export type WorkshopCropInput = {
-  rotation: 0 | 90 | 180 | 270;
-  zoom: number;
-  x: number;
-  y: number;
-};
-
 export type WorkshopMarkerMappingInput = {
   symbol: string;
   markerNumber: string;
@@ -33,7 +26,6 @@ export type CreateWorkshopRevisionInput = {
   caption?: string;
   publicationConsent: boolean;
   advertisingConsent: boolean;
-  crop: WorkshopCropInput;
   materials: Array<{ toolId: string }>;
   symbolMappings: WorkshopMarkerMappingInput[];
 };

@@ -24,12 +24,6 @@ const editorMaterialSchema = z.object({
 export const workEditorFormSchema = z
   .object({
     photo: photoSchema.optional(),
-    crop: z.object({
-      rotation: z.union([z.literal(0), z.literal(90), z.literal(180), z.literal(270)]),
-      zoom: z.number().min(1).max(3),
-      x: z.number().min(-1).max(1),
-      y: z.number().min(-1).max(1),
-    }),
     materials: z
       .array(editorMaterialSchema)
       .max(19, "Не более 19 материалов")
@@ -106,7 +100,6 @@ export function toCreateRevisionInput(
     caption: values.caption.trim() || undefined,
     publicationConsent: values.publicationConsent,
     advertisingConsent: values.advertisingConsent,
-    crop: values.crop,
     materials: tools.map((tool) => ({ toolId: tool.id })),
     symbolMappings: values.mappings
       .filter((mapping) => mapping.materialIndex !== null)

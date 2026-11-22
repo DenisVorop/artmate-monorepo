@@ -69,12 +69,13 @@ export type SeoFaqSection = {
 export type SeoGallery = {
   url: string;
   collection?: { title: string; slug: string };
-  works: readonly {
+  works: readonly ({
     publicId: string;
-    author: { name: string; handle: string };
-    official: { coloring: { title: string } };
     submission: { assets: { web: string }; publishedAt: string };
-  }[];
+  } & (
+    | { author: { name: string; handle: string }; official: { coloring: { title: string } } }
+    | { source: "contest"; author: { name: string }; title: string; contest: { slug: string } }
+  ))[];
 };
 
 export type SeoProduct = {

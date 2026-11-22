@@ -7,11 +7,14 @@ import type {
 } from "../generated/prisma/client";
 import type { RequestEvidenceV1 } from "../common/request-evidence";
 import { ConsentCommandPayload } from "./contracts/consent-command-payload";
-import type {
-  AdvertisingConsentDevice,
-  ConsentDecisionV1,
-} from "./contracts/consent-decision.contract";
+import type { AdvertisingConsentDevice } from "./contracts/consent-decision.contract";
 import { EmailAdvertisingGrant } from "./email-advertising-grant";
+import { ConsentChecks } from "./consent-checks";
+import { applyConsentOperation } from "./consent-operations";
+import {
+  ConsentOperationError,
+  type ConsentOperationResult,
+} from "./contracts/consent-operations.contract";
 import { ConsentReadModel } from "./contracts/consent-read-model";
 
 /** The receipt, immutable facts and authoritative permission commit in one local
@@ -32,7 +35,49 @@ export class ConsentDecisionCommandHandler {
       const command = await tx.applyConsentDecisionCommand.findUniqueOrThrow({
         where: { id: commandId },
       });
-      const result = await this._apply(tx, command);
+      let result: {
+        errorCode?: string;
+        revision?: number;
+        operationResult?: ConsentOperationResult;
+      };
+      if (command.kind === "CONTEXT") {
+        if (
+          !command.intent ||
+          command.payloadHash !==
+            ConsentCommandPayload.operationHash(command.intent)
+        )
+          result = { errorCode: "INVALID_PAYLOAD" };
+        else {
+          try {
+            result = {
+              operationResult: await applyConsentOperation(
+                tx,
+                command.intent,
+                command.requestId,
+              ),
+            };
+          } catch (error) {
+            if (error instanceof ConsentOperationError)
+              result = { errorCode: error.code };
+            else throw error;
+          }
+        }
+      } else if (
+        command.kind !== "AUTH" ||
+        !command.operationId ||
+        !command.identityFactId ||
+        !command.requestContext
+      )
+        result = { errorCode: "INVALID_PAYLOAD" };
+      else
+        result = await this._apply(
+          tx,
+          command as ApplyConsentDecisionCommand & {
+            operationId: string;
+            identityFactId: string;
+            requestContext: Prisma.JsonValue;
+          },
+        );
       await tx.applyConsentDecisionCommand.update({
         where: { id: command.id },
         data: {
@@ -42,7 +87,15 @@ export class ConsentDecisionCommandHandler {
           processedAt: new Date(),
           ...(result.errorCode
             ? { status: "REJECTED", errorCode: result.errorCode }
-            : { status: "COMPLETED", resultStateRevision: result.revision! }),
+            : {
+                status: "COMPLETED",
+                ...(result.operationResult
+                  ? {
+                      result:
+                        result.operationResult as unknown as Prisma.InputJsonValue,
+                    }
+                  : { resultStateRevision: result.revision! }),
+              }),
         },
       });
       return true;
@@ -51,10 +104,15 @@ export class ConsentDecisionCommandHandler {
 
   private async _apply(
     tx: Prisma.TransactionClient,
-    command: ApplyConsentDecisionCommand,
+    command: ApplyConsentDecisionCommand & {
+      operationId: string;
+      identityFactId: string;
+      requestContext: Prisma.JsonValue;
+    },
   ): Promise<{ errorCode?: string; revision?: number }> {
-    const decisions = this._decisions(command.decisions);
-    const requestContext = command.requestContext as unknown as RequestEvidenceV1;
+    const decisions = ConsentChecks.decisions(command.decisions);
+    const requestContext =
+      command.requestContext as unknown as RequestEvidenceV1;
     const advertisingDevice = (command.advertisingDevice ?? undefined) as
       | AdvertisingConsentDevice
       | undefined;
@@ -96,7 +154,10 @@ export class ConsentDecisionCommandHandler {
     });
     if (
       !proof ||
-      proof.verifiedAt > new Date() ||
+      !ConsentChecks.verified({
+        email: proof.email,
+        verifiedAt: proof.verifiedAt,
+      }) ||
       (proof.userIdSnapshot !== null &&
         proof.userIdSnapshot !== operation.authentication.userIdSnapshot)
     )
@@ -113,11 +174,10 @@ export class ConsentDecisionCommandHandler {
     )
       return { errorCode: "CONSENTS_CHANGED" };
     if (
-      decisions.some(
-        (decision) =>
-          decision.revisionId !== current.personalData.revisionId &&
-          decision.revisionId !== current.emailAdvertising.revisionId,
-      )
+      !ConsentChecks.revisionsMatch(decisions, [
+        current.personalData.revisionId,
+        current.emailAdvertising.revisionId,
+      ])
     )
       return { errorCode: "CONSENT_REVISION_CHANGED" };
     const personalData = decisions.find(
@@ -205,25 +265,5 @@ export class ConsentDecisionCommandHandler {
     if (current.state.revision < 1)
       return { errorCode: "CONSENT_STATE_UNAVAILABLE" };
     return { revision: current.state.revision };
-  }
-
-  private _decisions(input: Prisma.JsonValue): ConsentDecisionV1[] | null {
-    if (!Array.isArray(input)) return null;
-    const result: ConsentDecisionV1[] = [];
-    for (const item of input) {
-      if (
-        !item ||
-        typeof item !== "object" ||
-        Array.isArray(item) ||
-        Object.keys(item).length !== 2 ||
-        typeof item.revisionId !== "string" ||
-        !item.revisionId ||
-        typeof item.accepted !== "boolean" ||
-        result.some((decision) => decision.revisionId === item.revisionId)
-      )
-        return null;
-      result.push({ revisionId: item.revisionId, accepted: item.accepted });
-    }
-    return result;
   }
 }

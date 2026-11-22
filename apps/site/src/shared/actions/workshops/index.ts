@@ -27,7 +27,6 @@ export type {
   ReportCommunityWorkInput,
   SaveWorkshopToolInput,
   UpdateWorkshopVisibilityInput,
-  WorkshopCropInput,
   WorkshopMarkerMappingInput,
   WorkshopToolType,
 } from "./workshops.types";

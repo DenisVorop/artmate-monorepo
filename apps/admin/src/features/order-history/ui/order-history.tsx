@@ -146,6 +146,7 @@ function OrderSummary({ order }: { readonly order: AdminOrder }) {
 }
 
 function getPaymentStatusLabel(status: AdminOrder["payment"]["status"]) {
+  if (status === "not_required") return "Не требуется";
   switch (status) {
     case "failed":
       return "Оплата не прошла";
@@ -260,9 +261,7 @@ function CustomerPanel({ order }: { readonly order: AdminOrder }) {
         <div className="mt-4 space-y-2">
           <h3 className="text-sm font-medium">Отправления Ozon</h3>
           {order.ozonPostings.length > 0 ? (
-            <OzonPostingLinks
-              ozonPostings={order.ozonPostings}
-            />
+            <OzonPostingLinks ozonPostings={order.ozonPostings} />
           ) : (
             <p className="text-sm text-muted-foreground">
               Отправления пока не добавлены.
@@ -386,6 +385,7 @@ function Metric({
 }
 
 function getHistoryEventTitle(event: AdminOrder["history"][number]) {
+  if (event.eventType === "prize_order_created") return "Приз оформлен";
   if (event.eventType === "ozon_postings_updated") {
     return "Отправления Ozon обновлены";
   }
@@ -413,6 +413,8 @@ function getHistoryEventTitle(event: AdminOrder["history"][number]) {
 }
 
 function getHistoryEventText(event: AdminOrder["history"][number]) {
+  if (event.eventType === "prize_order_created")
+    return "Альбомы и доставка бесплатны для победителя.";
   if (event.eventType === "ozon_postings_updated") {
     return "Администратор изменил список отправлений Ozon.";
   }

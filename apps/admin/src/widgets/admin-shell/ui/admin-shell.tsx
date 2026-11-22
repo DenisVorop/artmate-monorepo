@@ -59,6 +59,7 @@ const navigation: readonly NavigationItem[] = [
   { label: "Блог", href: routes.blog, Icon: FileText },
   { label: "SEO", href: routes.seo, Icon: SearchCode },
   { label: "Баннеры", href: routes.featureBanners, Icon: Megaphone },
+  { label: "Конкурсы", href: routes.contests, Icon: Trophy },
   { label: "Ачивки", href: routes.achievementDrafts, Icon: Trophy },
   { label: "Рассылки", href: routes.mailings, Icon: MailCheck },
   { label: "Пользователи", href: routes.users, Icon: Users },

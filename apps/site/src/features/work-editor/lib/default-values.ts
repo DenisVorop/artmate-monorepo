@@ -8,7 +8,6 @@ export function getEditorDefaultValues(data: OwnerWorkshopColoring): WorkEditorF
     revision?.materials.map(({ type, brand, line }) => ({ type, brand, line })) ?? [];
 
   return {
-    crop: revision?.crop ?? { rotation: 0, zoom: 1, x: 0, y: 0 },
     materials,
     mappings: data.coloring.officialRevision.palette.colors.map((color) => {
       const existingMapping = revision?.symbolMappings.find(

@@ -36,12 +36,12 @@ function evaluateTypeScript(source, mocks) {
 }
 
 async function loadDeliverySelectorLib() {
-  return evaluateTypeScript(await readSource("src/features/checkout/lib/delivery-selector.ts"), {});
+  return evaluateTypeScript(await readSource("src/widgets/pickup-point-picker/lib/delivery-selector.ts"), {});
 }
 
 async function createPickupComboboxHarness({ deferValue = (value) => value } = {}) {
   const source = await readSource(
-    "src/features/checkout/ui/delivery-selector/pickup-point-combobox.tsx",
+    "src/widgets/pickup-point-picker/ui/delivery-selector/pickup-point-combobox.tsx",
   );
   const checkoutLib = await loadDeliverySelectorLib();
   const states = [];
@@ -166,7 +166,7 @@ async function renderOzonSelector({
   onPickupPoints,
 } = {}) {
   const source = await readSource(
-    "src/features/checkout/ui/delivery-selector/delivery-selector.tsx",
+    "src/widgets/pickup-point-picker/ui/delivery-selector/delivery-selector.tsx",
   );
   const jsx = (type, props, key) => ({ key, props, type });
   const component = (name) => name;
@@ -279,7 +279,7 @@ test("Vaul Dialog and Popover share one FocusScope for nested mobile focus", () 
 });
 
 test("checkout combobox traps its portal and keeps a Vaul-safe scrollable list", async () => {
-  const source = await readSource("src/features/checkout/ui/delivery-selector/combobox-field.tsx");
+  const source = await readSource("src/widgets/pickup-point-picker/ui/delivery-selector/combobox-field.tsx");
 
   assert.match(source, /<Popover modal open=\{isOpen\}/u);
   assert.match(source, /<PopoverContent data-vaul-no-drag className="flex flex-col p-0">/u);
@@ -571,11 +571,11 @@ test("pickup map skips fit-key work for Ozon and retains stable CDEK fitting", a
 
 test("pickup combobox virtualizes dynamic rows with stable keys and complete ARIA keyboard wiring", async () => {
   const [source, fieldSource, selectorSource] = await Promise.all([
-    readSource("src/features/checkout/ui/delivery-selector/pickup-point-combobox.tsx").catch(
+    readSource("src/widgets/pickup-point-picker/ui/delivery-selector/pickup-point-combobox.tsx").catch(
       () => "",
     ),
-    readSource("src/features/checkout/ui/delivery-selector/combobox-field.tsx"),
-    readSource("src/features/checkout/ui/delivery-selector/delivery-selector.tsx"),
+    readSource("src/widgets/pickup-point-picker/ui/delivery-selector/combobox-field.tsx"),
+    readSource("src/widgets/pickup-point-picker/ui/delivery-selector/delivery-selector.tsx"),
   ]);
 
   assert.match(source, /useDeferredValue/u);
@@ -667,7 +667,7 @@ test("selected Ozon city renders the full dataset at the exact stable CDEK cente
   assert.equal(map.props.initialZoom, 12);
   assert.equal(map.key, "ozon-city-map-44");
   const source = await readSource(
-    "src/features/checkout/ui/delivery-selector/delivery-selector.tsx",
+    "src/widgets/pickup-point-picker/ui/delivery-selector/delivery-selector.tsx",
   );
   assert.match(source, /<PickupPointCombobox/u);
   assert.match(source, /pickupPoints=\{ozonPickupPointsState\.pickupPoints\}/u);
@@ -701,10 +701,10 @@ test("Ozon selector omits positive count and boundary label but preserves status
     pickupState: { hasData: false, errorMessage: "Ошибка Ozon", isError: true },
   });
   const source = await readSource(
-    "src/features/checkout/ui/delivery-selector/delivery-selector.tsx",
+    "src/widgets/pickup-point-picker/ui/delivery-selector/delivery-selector.tsx",
   );
   const mapSource = await readSource(
-    "src/features/checkout/ui/delivery-selector/pickup-points-map.tsx",
+    "src/widgets/pickup-point-picker/ui/delivery-selector/pickup-points-map.tsx",
   );
 
   assert.doesNotMatch(getText(loadedTree), /Нашли|Поиск работает/u);
@@ -750,8 +750,8 @@ test("frontend delivery actions request Ozon points by exact CDEK city code", as
 
 test("map markers and zoom controls keep 44px interactive targets", async () => {
   const [map, styles] = await Promise.all([
-    readSource("src/features/checkout/ui/delivery-selector/pickup-points-map.tsx"),
-    readSource("src/features/checkout/ui/delivery-selector/pickup-points-map.module.css"),
+    readSource("src/widgets/pickup-point-picker/ui/delivery-selector/pickup-points-map.tsx"),
+    readSource("src/widgets/pickup-point-picker/ui/delivery-selector/pickup-points-map.module.css"),
   ]);
 
   assert.equal(map.match(/iconSize: \[44, 44\]/gu)?.length, 2);

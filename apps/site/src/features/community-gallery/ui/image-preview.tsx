@@ -13,15 +13,27 @@ import { Link } from "@/shared/ui/link";
 import { useVisibleImage } from "@/shared/lib/hooks/use-visible-image";
 import { useAnalytics } from "../lib/analytics";
 import type { useImagePreview } from "../lib/use-image-preview";
-import { AlbumCard } from "./album-card";
+import { AlbumCard, AlbumLink } from "./album-card";
+
+import { ContestImagePreview } from "./contest-image-preview";
 
 export function ImagePreview({ preview }: { preview: ReturnType<typeof useImagePreview> }) {
-  const work = preview.selectedWork;
+  if (preview.selectedWork?.source === "contest")
+    return <ContestImagePreview preview={preview} work={preview.selectedWork} />;
+  return <WorkshopImagePreview preview={preview} />;
+}
+function WorkshopImagePreview({ preview }: { preview: ReturnType<typeof useImagePreview> }) {
+  const work = preview.selectedWork?.source === "workshop" ? preview.selectedWork : null;
   const analytics = useAnalytics();
   const photo = useRef<HTMLDivElement>(null);
-  useVisibleImage(photo, work?.publicId ?? "", () => {
-    if (work) analytics.photoViewed(work.publicId);
-  }, preview.isOpen && Boolean(work));
+  useVisibleImage(
+    photo,
+    work?.publicId ?? "",
+    () => {
+      if (work) analytics.photoViewed(work.publicId);
+    },
+    preview.isOpen && Boolean(work),
+  );
   const { data: productsData } = useProductsData();
   const product = work
     ? getProductBySlug(productsData?.products ?? [], work.relatedProduct.slug)
@@ -31,6 +43,15 @@ export function ImagePreview({ preview }: { preview: ReturnType<typeof useImageP
       open={preview.isOpen}
       onOpenChange={preview.onOpenChange}
       returnFocusRef={preview.triggerRef}
+      mobileFooter={
+        work ? (
+          <AlbumLink
+            product={product}
+            relatedProduct={work.relatedProduct}
+            onNavigate={() => preview.onOpenChange(false)}
+          />
+        ) : undefined
+      }
       title={work?.official.coloring.title ?? "Работа участника"}
       description={
         work
@@ -39,8 +60,11 @@ export function ImagePreview({ preview }: { preview: ReturnType<typeof useImageP
       }
     >
       {work && (
-        <div className="flex min-h-0 flex-1 flex-col overflow-y-auto overscroll-contain md:grid md:grid-cols-[minmax(0,1.5fr)_minmax(18rem,1fr)] md:items-start">
-          <div ref={photo} className="relative h-[52dvh] min-h-64 shrink-0 bg-stone-100 md:sticky md:top-0 md:h-[min(calc(92dvh-3.5rem),60.5rem)] md:min-h-0">
+        <div className="flex flex-col md:grid md:min-h-0 md:flex-1 md:grid-cols-[minmax(0,1.5fr)_minmax(18rem,1fr)] md:items-start md:overflow-y-auto md:overscroll-contain">
+          <div
+            ref={photo}
+            className="relative h-[52dvh] min-h-64 shrink-0 bg-stone-100 md:sticky md:top-0 md:h-[min(calc(92dvh-3.5rem),60.5rem)] md:min-h-0"
+          >
             <PublicAssetImage
               key={work.revisionId}
               src={work.submission.assets.web}
@@ -108,7 +132,10 @@ export function ImagePreview({ preview }: { preview: ReturnType<typeof useImageP
                 href={routes.coloring(work.official.collection.slug, work.official.coloring.number)}
                 className="flex min-h-11 w-fit items-center gap-2 text-sm text-stone-600 underline-offset-4 hover:underline focus-visible:underline"
                 onClick={() => {
-                  analytics.digitalPictureClicked(work.official.collection.slug, work.official.coloring.number);
+                  analytics.digitalPictureClicked(
+                    work.official.collection.slug,
+                    work.official.coloring.number,
+                  );
                   preview.onOpenChange(false);
                 }}
               >

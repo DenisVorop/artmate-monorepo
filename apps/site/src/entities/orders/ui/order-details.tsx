@@ -15,6 +15,7 @@ import {
 import {
   Drawer,
   DrawerContent,
+  DrawerBody,
   DrawerTitle,
   DrawerDescription,
   DrawerHeader,
@@ -58,11 +59,7 @@ export function OrderDetails({
   if (isMobile) {
     return (
       <Drawer {...drawerModalProps} open={open} onOpenChange={onOpenChange}>
-        <DrawerContent
-          id={contentId}
-          onCloseAutoFocus={restoreFocus}
-          className="overflow-hidden data-[vaul-drawer-direction=bottom]:max-h-[90dvh]"
-        >
+        <DrawerContent id={contentId} onCloseAutoFocus={restoreFocus}>
           <DrawerHeader className="relative shrink-0 px-5 pr-14 text-left group-data-[vaul-drawer-direction=bottom]/drawer-content:text-left">
             <DrawerTitle className="leading-snug">{title}</DrawerTitle>
             <DrawerDescription className="break-words">{description}</DrawerDescription>
@@ -77,9 +74,9 @@ export function OrderDetails({
               </Button>
             </DrawerClose>
           </DrawerHeader>
-          <div className="min-h-0 overflow-y-auto overscroll-contain px-5 pt-3 pb-[max(1.5rem,env(safe-area-inset-bottom))]">
+          <DrawerBody className="px-5 pt-3 pb-[max(1.5rem,env(safe-area-inset-bottom))]">
             <DetailsContent order={order} onProductOpen={onProductOpen} />
-          </div>
+          </DrawerBody>
         </DrawerContent>
       </Drawer>
     );

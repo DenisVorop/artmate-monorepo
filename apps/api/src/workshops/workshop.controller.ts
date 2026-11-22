@@ -62,7 +62,7 @@ import {
 import { PublicWorkshopService } from "./public-workshop.service";
 import { WorkshopAdminGuard } from "./workshop-admin.guard";
 import { WorkshopModerationService } from "./workshop-moderation.service";
-import type { WorkshopUploadedFile } from "./workshop-media.service";
+import type { UserPhotoUpload } from "../user-photos/user-photo-media.service";
 import { WorkshopService } from "./workshop.service";
 
 type AuthenticatedRequest = { user: AuthUser };
@@ -199,7 +199,7 @@ export class WorkshopController {
     @Param("collectionSlug") collectionSlug: string,
     @Param("number") number: string,
     @Body() body: CreateWorkshopRevisionMultipartDTO,
-    @UploadedFile() photo: WorkshopUploadedFile | undefined,
+    @UploadedFile() photo: UserPhotoUpload | undefined,
   ) {
     return this.workshops.createRevision(
       request.user.id,

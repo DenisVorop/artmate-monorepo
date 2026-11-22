@@ -42,7 +42,7 @@ export function OwnerAssetImage({
       src={dataUrl}
       alt={alt}
       priority={priority}
-      className={className ?? "object-cover"}
+      className={className ?? "object-contain"}
     />
   );
 }

@@ -6,6 +6,7 @@ import {
   Drawer,
   DrawerClose,
   DrawerContent,
+  DrawerBody,
   DrawerDescription,
   DrawerFooter,
   DrawerHeader,
@@ -37,7 +38,7 @@ export function AlbumFilter({ options, selected, value, mobile, onToggle, onClea
     return (
       <Drawer>
         <DrawerTrigger asChild>{field}</DrawerTrigger>
-        <DrawerContent className="max-h-[90dvh]! rounded-t-2xl">
+        <DrawerContent className="rounded-t-2xl">
           <DrawerHeader className="relative shrink-0 px-14">
             <DrawerTitle>Альбом</DrawerTitle>
             <DrawerDescription>Можно выбрать несколько</DrawerDescription>
@@ -52,7 +53,7 @@ export function AlbumFilter({ options, selected, value, mobile, onToggle, onClea
               </Button>
             </DrawerClose>
           </DrawerHeader>
-          <div className="min-h-0 overflow-y-auto overscroll-contain px-4">
+          <DrawerBody className="py-0">
             <Label
               htmlFor={`${id}-all`}
               className="min-h-13 cursor-pointer gap-3 rounded-xl px-3 py-3 text-base font-normal"
@@ -75,7 +76,7 @@ export function AlbumFilter({ options, selected, value, mobile, onToggle, onClea
                 {getCommunityCollectionTitle(option.title)}
               </Label>
             ))}
-          </div>
+          </DrawerBody>
           <DrawerFooter className="shrink-0 border-t border-stone-100 pb-[max(1rem,env(safe-area-inset-bottom))]">
             <DrawerClose asChild>
               <Button size="lg" className="min-h-12">

@@ -15,6 +15,8 @@ enum UserRole {
 }
 
 model User {
+  orderPrizes OrderPrizeGrant[]
+  contestPromoCodes PromoCode[] @relation("contestPrizeRecipient")
   id              String     @id @default(cuid())
   email           String?    @unique @db.VarChar(320)
   emailVerifiedAt DateTime?  @map("email_verified_at")
@@ -45,6 +47,9 @@ model User {
   coloringRevisionReviews  ColoringRevisionReview[]    @relation("ColoringRevisionReviewer")
   publishedColorings       Coloring[]                  @relation("ColoringPublisher")
   workshop                 Workshop?
+  contestEntries           ContestEntry[]
+  contestEntryEvents       ContestEntryEvent[]
+  contestDraws             ContestDraw[]
   workshopPublicationFacts WorkshopPublicationFact[]
   workshopTools            WorkshopTool[]
   workshopModerationEvents WorkshopModerationEvent[]   @relation("WorkshopModerationActor")
