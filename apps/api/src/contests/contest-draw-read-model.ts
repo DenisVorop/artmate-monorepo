@@ -7,8 +7,9 @@ import {
 export const contestDrawInclude = {
   actor: { select: { id: true, name: true } },
   winners: {
-    orderBy: { entryId: "asc" as const },
+    orderBy: [{ place: "asc" as const }, { entryId: "asc" as const }],
     include: {
+      prizeAward: { select: { title: true } },
       entry: {
         include: {
           ...contestEntryInclude,
@@ -47,6 +48,8 @@ export function mapContestDraw(draw: ContestDrawRecord | null, admin = false) {
         !entry.user.deletedAt;
       return {
         id: winner.id,
+        ...(winner.place !== null ? { place: winner.place } : {}),
+        prizeTitle: winner.prizeAward?.title,
         work: visible ? mapContestWork(entry) : null,
         ...(admin
           ? {

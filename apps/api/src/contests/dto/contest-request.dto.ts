@@ -1,4 +1,4 @@
-import { Transform } from "class-transformer";
+import { Transform, Type } from "class-transformer";
 import {
   ArrayMaxSize,
   ArrayMinSize,
@@ -15,12 +15,38 @@ import {
   Max,
   MaxLength,
   Min,
+  ValidateNested,
 } from "class-validator";
 import { contestAppearances, type ContestAppearance } from "../contests.types";
 
 const trim = ({ value }: { value: unknown }) =>
   typeof value === "string" ? value.trim() : value;
 
+export class ContestPlacePrizeRequestDTO {
+  @Transform(trim) @IsString() @IsNotEmpty() @MaxLength(200) prize!: string;
+  @Transform(trim) @IsString() @MaxLength(1000) prizeDetail!: string;
+  @IsOptional() @IsInt() @Min(1) @Max(20) prizeAlbumQuantity?: number | null;
+  @IsOptional()
+  @IsArray()
+  @ArrayMaxSize(200)
+  @ArrayUnique()
+  @IsString({ each: true })
+  @IsNotEmpty({ each: true })
+  @MaxLength(32, { each: true })
+  prizeAlbumIds?: string[];
+  @IsOptional() @IsInt() @Min(1) @Max(20) prizeMarkerQuantity?: number | null;
+  @IsOptional()
+  @IsArray()
+  @ArrayMaxSize(200)
+  @ArrayUnique()
+  @IsString({ each: true })
+  @IsNotEmpty({ each: true })
+  @MaxLength(32, { each: true })
+  prizeMarkerIds?: string[];
+  @IsOptional() @IsString() @IsNotEmpty() @MaxLength(32) prizePromoCodeId?:
+    | string
+    | null;
+}
 export class CreateContestRequestDTO {
   @Transform(trim)
   @IsString()
@@ -99,6 +125,27 @@ export class CreateContestRequestDTO {
   @IsNotEmpty()
   @MaxLength(32)
   prizePromoCodeId?: string | null;
+  @IsOptional() @IsIn(["EQUAL", "PLACES"]) prizeMode?: "EQUAL" | "PLACES";
+  @IsOptional()
+  @IsArray()
+  @ArrayMaxSize(100)
+  @ValidateNested({ each: true })
+  @Type(() => ContestPlacePrizeRequestDTO)
+  prizePlaces?: ContestPlacePrizeRequestDTO[];
+  @IsOptional() @IsInt() @Min(1) @Max(20) prizeMarkerQuantity?: number | null;
+  @IsOptional()
+  @IsArray()
+  @ArrayMaxSize(200)
+  @ArrayUnique()
+  @IsString({ each: true })
+  @IsNotEmpty({ each: true })
+  @MaxLength(32, { each: true })
+  prizeMarkerIds?: string[];
+  @IsOptional()
+  @IsString()
+  @IsNotEmpty()
+  @MaxLength(32)
+  participationPromoCodeId?: string | null;
   @IsInt()
   @Min(1)
   @Max(100)

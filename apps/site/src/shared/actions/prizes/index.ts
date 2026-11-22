@@ -1,9 +1,10 @@
 export { getMyPrizes, getMyPrize, createPrizeOrder } from "./prizes.actions";
 export type {
-  AlbumPrizeDTO,
+  ProductPrizeDTO,
+  PrizeProductGroupDTO,
   PromoPrizeDTO,
   AvailablePrizeDTO,
-  PrizeAlbumDTO,
+  PrizeProductDTO,
   PrizeHistoryDTO,
   MyPrizesDTO,
   CreatePrizeOrderInput,

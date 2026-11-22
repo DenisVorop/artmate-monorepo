@@ -1,7 +1,7 @@
 import { z } from "zod";
 import type { CreatePrizeOrderInput } from "@/shared/actions/prizes";
-import { albumQuantity } from "./format";
-import type { AlbumPrize } from "./types";
+import { isPrizeSelectionComplete } from "./product-prize";
+import type { ProductPrize } from "./types";
 
 export const prizeContactsSchema = z.object({
   name: z
@@ -28,16 +28,14 @@ export const prizeCheckoutSchema = prizeContactsSchema.extend({
     .refine(Boolean, "Подтвердите согласие на обработку персональных данных"),
 });
 export type PrizeCheckoutValues = z.infer<typeof prizeCheckoutSchema>;
-export function createAlbumSelectionSchema(prize: AlbumPrize) {
+export function createProductSelectionSchema(prize: ProductPrize) {
   return z.object({
-    albumIds: z
+    productIds: z
       .array(z.string())
-      .length(prize.quantity, `Выберите ${albumQuantity(prize.quantity)}`)
+      .max(100)
       .refine(
-        (ids) =>
-          new Set(ids).size === ids.length &&
-          ids.every((id) => prize.albums.some((album) => album.id === id && album.available)),
-        "Проверьте выбранные альбомы",
+        (ids) => isPrizeSelectionComplete(prize, ids),
+        "Выберите товары для каждой части приза",
       ),
   });
 }
@@ -49,11 +47,11 @@ export function formatPrizePhone(value: string) {
 }
 
 export function toPrizeOrderInput(
-  albumIds: string[],
+  productIds: string[],
   values: PrizeCheckoutValues,
 ): CreatePrizeOrderInput {
   return {
-    albumIds: [...albumIds],
+    productIds: [...productIds],
     customer: {
       name: values.name.trim(),
       email: values.email.trim(),

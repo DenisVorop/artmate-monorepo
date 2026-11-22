@@ -108,7 +108,7 @@ test("legal registry uses configured repository PDFs as its only PDF document so
     "legalDocuments",
   );
   const expectedPdfFileHrefs = new Map([
-    ["contestRules", "/documents/legal/contest-rules-2026-11-22-v3.2.pdf"],
+    ["contestRules", "/documents/legal/contest-rules-2026-11-22-v3.3.pdf"],
     [
       "contestPersonalDataConsent",
       "/documents/legal/contest-personal-data-consent-2026-11-22-v3.1.pdf",

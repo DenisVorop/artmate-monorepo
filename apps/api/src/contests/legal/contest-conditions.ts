@@ -1,8 +1,9 @@
 import type { Contest } from "../../generated/prisma/client";
+import { contestPrizes, prizeProductGroups } from "../prize-definitions";
 import type { PromoPrizeTerms } from "../../promocodes/contracts/prize-template.publication";
 import { contestLegalPacket, type LegalText } from "./contest-legal.constants";
 
-export type PrizeAlbumSnapshot = { id: string; title: string; slug: string };
+export type PrizeProductSnapshot = { id: string; title: string; slug: string };
 export function legalReadiness(
   contest: Pick<
     Contest,
@@ -13,16 +14,36 @@ export function legalReadiness(
     | "prizeAlbumQuantity"
     | "prizeAlbumIds"
     | "prizePromoTerms"
+    | "prizeMode"
+    | "prizePlaces"
+    | "prize"
+    | "prizeDetail"
+    | "prizeMarkerQuantity"
+    | "prizeMarkerIds"
+    | "prizePromoCodeId"
+    | "winnersCount"
   >,
 ) {
   const errors: string[] = [];
-  if (!contest.prizeAlbumQuantity && !contest.prizePromoTerms)
-    errors.push("Настройте выдачу альбомов или призового промокода");
+  const prizes = contestPrizes(contest);
   if (
-    contest.prizeAlbumQuantity &&
-    contest.prizeAlbumIds.length < contest.prizeAlbumQuantity
+    !prizes.length ||
+    (contest.prizeMode === "PLACES" && prizes.length !== contest.winnersCount)
   )
-    errors.push("Выберите достаточно призовых альбомов");
+    errors.push("Настройте приз для каждого места");
+  for (const prize of prizes) {
+    if (
+      !prize.prize.trim() ||
+      (!prizeProductGroups(prize).length && !prize.prizePromoTerms)
+    )
+      errors.push("Настройте товары или промокод в призе");
+    if (
+      prizeProductGroups(prize).some(
+        (group) => group.productIds.length < group.quantity,
+      )
+    )
+      errors.push("Выберите достаточно призовых товаров");
+  }
   if (
     contest.selectionMode === "MANUAL" &&
     [
@@ -60,7 +81,7 @@ function albumWord(quantity: number) {
 }
 export function buildContestConditions(
   contest: Contest,
-  albums: PrizeAlbumSnapshot[],
+  albums: PrizeProductSnapshot[],
 ): LegalText {
   const error = legalReadiness(contest);
   if (error.length) throw new Error(error.join(". "));
@@ -91,35 +112,44 @@ export function buildContestConditions(
     contest.selectionMode === "AUTOMATIC"
       ? "После завершения проверки программа случайно перемешивает зафиксированный список одобренных заявок и выбирает победителей без повторов. У всех допущенных заявок равные шансы. Лайки и покупки на результат не влияют. Результат сохраняется и повторным запуском не меняется."
       : `Работы оценивает: ${contest.manualEvaluator}. Критерии и порядок оценки: ${contest.manualCriteria}. При равенстве оценок: ${contest.manualTieBreak}. Решение сохраняется вместе с основаниями выбора.`,
-    `Число победителей: ${contest.winnersCount}. Все победители равноправны, места не распределяются. Если допущенных работ меньше этого числа, выигрывают все допущенные участники. При отсутствии допущенных работ победители не определяются.`,
+    contest.prizeMode === "PLACES"
+      ? `Число призовых мест: ${contest.winnersCount}. Места распределяются последовательно: первый выбранный участник получает первое место, следующий — второе и так далее. При случайном выборе используется сохранённый порядок перемешанного списка; при оценке работ — порядок, определённый по объявленным критериям. Один человек не может занять несколько мест. Если допущенных работ меньше числа мест, заполняются первые места по порядку; остальные остаются незанятыми. При отсутствии допущенных работ победители не определяются.`
+      : `Число победителей: ${contest.winnersCount}. Все победители получают одинаковые призы, места не распределяются. Если допущенных работ меньше этого числа, выигрывают все допущенные участники. При отсутствии допущенных работ победители не определяются.`,
     "Результаты публикуются на странице конкурса с соблюдением согласия на распространение данных. Приз появляется в разделе «Мои призы» аккаунта победителя.",
   ]);
-  const prizes = [`Приз — ${contest.prize}. ${contest.prizeDetail}`];
-  if (contest.prizeAlbumQuantity) {
-    if (
-      albums.length !== contest.prizeAlbumIds.length ||
-      albums.length < contest.prizeAlbumQuantity
-    )
-      throw new Error("Не удалось сохранить список призовых альбомов");
+  const prizes: string[] = [];
+  for (const [index, prize] of contestPrizes(contest).entries()) {
     prizes.push(
-      `Каждый победитель выбирает ${contest.prizeAlbumQuantity} ${albumWord(contest.prizeAlbumQuantity)} из списка: ${albums.map((a) => a.title).join("; ")}.`,
-      "Альбомы и доставка в доступный ПВЗ Ozon в России оплачиваются организатором. Он оформляет заказ и передаёт его в доставку в течение 30 календарных дней после получения полного выбора альбомов, необходимых данных получателя и доступного ПВЗ. Срок обращения за призом не ограничен. Сроки перевозки и хранения зависят от доставки Ozon. Если товара нет, организатор согласует исполнение с победителем; право на приз сохраняется.",
+      `${contest.prizeMode === "PLACES" ? `${index + 1}-е место` : "Каждому победителю"}: ${prize.prize}.${prize.prizeDetail ? ` ${prize.prizeDetail}` : ""}`,
     );
+    for (const group of prizeProductGroups(prize)) {
+      const products = group.productIds.map((id) =>
+        albums.find((product) => product.id === id),
+      );
+      if (products.some((product) => !product))
+        throw new Error("Не удалось сохранить список призовых товаров");
+      const names = products.map((product) => product!.title).join("; ");
+      prizes.push(
+        group.productIds.length === group.quantity
+          ? `Победитель получает по одной единице каждого товара: ${names}.`
+          : `Победитель выбирает ${group.quantity} ${group.kind === "albums" ? albumWord(group.quantity) : "набора маркеров"} из списка: ${names}. Каждый товар можно выбрать один раз. Выбор альбомов и наборов маркеров учитывается отдельно: одну часть приза нельзя заменить другой.`,
+      );
+    }
+    if (prize.prizePromoTerms)
+      prizes.push(...promoConditions(prize.prizePromoTerms));
   }
-  if (contest.prizePromoTerms) {
-    const terms = contest.prizePromoTerms as unknown as PromoPrizeTerms;
-    const discount =
-      terms.type === "FIXED"
-        ? money(terms.amountKopecks!)
-        : `${new Intl.NumberFormat("ru-RU").format(terms.basisPoints! / 100)}%`;
+  if (contestPrizes(contest).some((prize) => prizeProductGroups(prize).length))
     prizes.push(
-      `Каждый победитель получает один персональный промокод со скидкой ${discount}. Код применяется к стоимости товаров заказа на сайте Artmate при сумме товаров от ${money(terms.minSubtotalKopecks)}, без учёта доставки. ${terms.maxDiscountKopecks !== null ? `Максимальная скидка — ${money(terms.maxDiscountKopecks)}.` : "Скидка не превышает стоимость товаров в заказе."}`,
-      `${terms.startsAt ? `Код действует не ранее ${stamp(terms.startsAt)}.` : "Код действует с момента выдачи после определения победителя."} ${terms.endsAt ? `Код перестаёт действовать ${stamp(terms.endsAt)}.` : "Срок окончания действия не установлен."}`,
-      "Код используется один раз в аккаунте победителя. На заказ действует один промокод. Скидка рассчитывается от текущих цен товаров, включая сниженные, и не уменьшает стоимость доставки. Неиспользованный остаток скидки деньгами не выплачивается. Бесплатная доставка по коду не предоставляется.",
-      "После объявления результатов код можно скопировать в «Моих призах» или выбрать среди личных промокодов в корзине при оформлении заказа. Временное резервирование кода при оформлении не считается отдельным использованием. Код используется либо снова становится доступным в зависимости от состояния заказа.",
+      "Товары и доставка в доступный ПВЗ Ozon в России оплачиваются организатором. Он оформляет заказ и передаёт его в доставку в течение 30 календарных дней после получения полного выбора товаров, необходимых данных получателя и доступного ПВЗ. Срок обращения за призом не ограничен. Сроки перевозки и хранения зависят от доставки Ozon. Если товара нет, организатор согласует исполнение с победителем; право на приз сохраняется.",
     );
-  }
-  section("Приз и получение", prizes);
+  section("Призы и получение", prizes);
+  if (contest.participationPromoTerms)
+    section("Приз за участие", [
+      "Персональный промокод получают участники с одобренной и допущенной к подведению итогов работой, которые не стали победителями. Отклонённые, скрытые и не допущенные заявки права на этот код не дают. Состав получателей фиксируется вместе с итогами. Один участник получает один код за участие; победителям этот код не выдаётся.",
+      ...promoConditions(
+        contest.participationPromoTerms as unknown as PromoPrizeTerms,
+      ),
+    ]);
   section("Документы и данные", [
     "Публикация работ, использование фотографии, налоги и обращения регулируются Правилами. Согласия на обработку и распространение персональных данных предоставляются отдельно, каждое на 15 лет с правом досрочного прекращения по закону.",
     "До отправки заявки участник видит Правила, эти Условия и свои согласия. Организатор сохраняет принятую редакцию. Использование фотографии в социальных сетях и рекламе разрешено в пределах лицензии и оснований обработки данных. Подписка на рекламу для участия не нужна.",
@@ -130,4 +160,17 @@ export function buildContestConditions(
     lead: `В Условиях указаны задание, сроки и приз конкурса «${contest.title}». Они применяются вместе с Правилами конкурсов Artmate.`,
     sections,
   };
+}
+
+function promoConditions(terms: PromoPrizeTerms): string[] {
+  const discount =
+    terms.type === "FIXED"
+      ? money(terms.amountKopecks!)
+      : `${new Intl.NumberFormat("ru-RU").format(terms.basisPoints! / 100)}%`;
+  return [
+    `Персональный промокод даёт скидку ${discount} на товары заказа на сайте Artmate при сумме товаров от ${money(terms.minSubtotalKopecks)}, без учёта доставки. ${terms.maxDiscountKopecks !== null ? `Максимальная скидка — ${money(terms.maxDiscountKopecks)}.` : "Скидка не превышает стоимость товаров в заказе."}`,
+    `${terms.startsAt ? `Код действует не ранее ${stamp(terms.startsAt)}.` : "Код действует с момента выдачи после подведения итогов."} ${terms.endsAt ? `Код перестаёт действовать ${stamp(terms.endsAt)}.` : "Срок окончания действия не установлен."}`,
+    "Код используется один раз в аккаунте получателя. На заказ действует один промокод. Скидка рассчитывается от текущих цен товаров, включая сниженные, и не уменьшает стоимость доставки. Неиспользованный остаток скидки деньгами не выплачивается. Бесплатная доставка по коду не предоставляется.",
+    "Код можно скопировать в «Моих призах» или выбрать среди личных промокодов в корзине при оформлении заказа. Временное резервирование не считается отдельным использованием. Код используется либо снова становится доступным в зависимости от состояния заказа.",
+  ];
 }

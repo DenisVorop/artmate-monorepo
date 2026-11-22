@@ -17,12 +17,12 @@ import { CreateOrderCustomerRequestDTO } from "../dto/create-order-customer-requ
 export class CreatePrizeOrderRequestDTO {
   @IsArray()
   @ArrayMinSize(1)
-  @ArrayMaxSize(20)
+  @ArrayMaxSize(40)
   @ArrayUnique()
   @IsString({ each: true })
   @IsNotEmpty({ each: true })
   @MaxLength(32, { each: true })
-  albumIds!: string[];
+  productIds!: string[];
   @IsDefined()
   @ValidateNested()
   @Type(() => CreateOrderCustomerRequestDTO)

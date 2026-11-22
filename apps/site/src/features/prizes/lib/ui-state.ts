@@ -6,7 +6,7 @@ export function usePrizeListState() {
   const [tab, setTab] = useState("available");
   return { tab, setTab };
 }
-export function useAlbumSearch() {
+export function useProductSearch() {
   const [search, setSearch] = useState("");
   return { search, setSearch };
 }

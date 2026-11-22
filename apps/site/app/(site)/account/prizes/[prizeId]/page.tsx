@@ -9,7 +9,7 @@ import { routes } from "@/shared/constants";
 import { ApiResult } from "@/shared/lib/api-result";
 import { dehydrateQueryClient } from "@/shared/lib/dehydrate-query-client";
 export const metadata: Metadata = {
-  title: "Выбор альбомов — Мои призы",
+  title: "Выбор приза — Мои призы",
   robots: { index: false, follow: false },
 };
 export default async function Page({ params }: { params: Promise<{ prizeId: string }> }) {

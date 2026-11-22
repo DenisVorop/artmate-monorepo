@@ -1,3 +1,4 @@
+import { contestAwardLabel } from "@repo/ui/contest-prizes";
 import Image from "next/image";
 import { routes } from "@/shared/constants";
 import {
@@ -12,8 +13,8 @@ import {
   TabsTrigger,
 } from "@/shared/ui";
 import { Link } from "@/shared/ui/link";
-import type { AlbumPrize, AvailablePrize, PrizeHistoryItem } from "../lib/types";
-import { prizeDate, prizeTitle } from "../lib/format";
+import type { ProductPrize, AvailablePrize, PrizeHistoryItem } from "../lib/types";
+import { prizeDate } from "../lib/format";
 import { usePrizeListState } from "../lib/ui-state";
 import { PromoPrizeCard } from "./promo-prize-card";
 import { PrizeHistory } from "./prize-history";
@@ -56,8 +57,8 @@ export function PrizeList({
             )}
             <div className="grid items-stretch gap-5 lg:grid-cols-2">
               {prizes.map((prize) =>
-                prize.kind === "albums" ? (
-                  <AlbumPrizeCard key={prize.id} prize={prize} />
+                prize.kind !== "promocode" ? (
+                  <ProductPrizeCard key={prize.id} prize={prize} />
                 ) : (
                   <PromoPrizeCard key={prize.id} prize={prize} className="lg:col-span-2" />
                 ),
@@ -76,8 +77,9 @@ export function PrizeList({
     </div>
   );
 }
-function AlbumPrizeCard({ prize }: { prize: AlbumPrize }) {
-  const covers = prize.albums;
+function ProductPrizeCard({ prize }: { prize: ProductPrize }) {
+  const groups = prize.groups;
+  const covers = groups.flatMap((group) => group.products);
   return (
     <Card className="gap-0 overflow-hidden rounded-2xl border-rose-100 bg-gradient-to-br from-rose-50/70 via-white to-orange-50/70 py-0">
       <div className="grid h-full grid-cols-[5rem_minmax(0,1fr)] gap-x-4 gap-y-5 p-4 sm:grid-cols-[9rem_minmax(0,1fr)] sm:gap-x-7 sm:p-7">
@@ -85,7 +87,7 @@ function AlbumPrizeCard({ prize }: { prize: AlbumPrize }) {
           aria-hidden="true"
           className="relative row-span-2 flex items-center justify-center self-center py-3"
         >
-          {prize.quantity > 1 && covers[1]?.image && (
+          {covers.length > 1 && covers[1]?.image && (
             <div className="absolute inset-y-3 right-0 left-2 rotate-9 overflow-hidden rounded-lg border border-orange-100 bg-orange-50 shadow-sm">
               <Image src={covers[1].image} alt="" fill sizes="144px" className="object-contain" />
             </div>
@@ -97,10 +99,10 @@ function AlbumPrizeCard({ prize }: { prize: AlbumPrize }) {
           )}
         </div>
         <div className="min-w-0 space-y-3">
-          <Badge className="border-0 bg-rose-100 text-rose-800">Ваш приз</Badge>
-          <h2 className="font-heading text-xl leading-snug font-bold sm:text-2xl">
-            {prizeTitle(prize.quantity)}
-          </h2>
+          <Badge className="border-0 bg-rose-100 text-rose-800">
+            {contestAwardLabel(prize.award) ?? "Ваш приз"}
+          </Badge>
+          <h2 className="font-heading text-xl leading-snug font-bold sm:text-2xl">{prize.title}</h2>
           <PrizeContestLink slug={prize.contestSlug} title={prize.contestTitle} />
           <time dateTime={prize.awardedAt} className="block text-sm text-muted-foreground">
             {prizeDate(prize.awardedAt)}
@@ -111,9 +113,7 @@ function AlbumPrizeCard({ prize }: { prize: AlbumPrize }) {
           size="lg"
           className="min-h-12 w-full self-end border-0 bg-gradient-to-r from-rose-500 via-rose-400 to-orange-400 text-white"
         >
-          <CtaGradientLink href={routes.prizeAlbums(prize.id)}>
-            {prize.quantity === 1 ? "Выбрать альбом" : "Выбрать альбомы"}
-          </CtaGradientLink>
+          <CtaGradientLink href={routes.prizeAlbums(prize.id)}>Выбрать приз</CtaGradientLink>
         </Button>
       </div>
     </Card>

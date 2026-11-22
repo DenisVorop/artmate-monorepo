@@ -46,12 +46,12 @@ model PromoCode {
   createdAt               DateTime      @default(now()) @map("created_at")
   updatedAt               DateTime      @default(now()) @updatedAt @map("updated_at")
 
-  prizeWinnerId String? @unique @map("prize_winner_id") @db.VarChar(32)
+  prizeAwardId String? @unique @map("prize_award_id") @db.VarChar(32)
   recipientUserId String? @map("recipient_user_id")
   prizeContestTitle String? @map("prize_contest_title") @db.VarChar(160)
   prizeContestSlug String? @map("prize_contest_slug") @db.VarChar(120)
   awardedAt DateTime? @map("awarded_at") @db.Timestamptz(3)
-  prizeWinner ContestDrawWinner? @relation(fields: [prizeWinnerId], references: [id], onDelete: Restrict)
+  prizeAward ContestPrizeAward? @relation(fields: [prizeAwardId], references: [id], onDelete: Restrict)
   recipient User? @relation("contestPrizeRecipient", fields: [recipientUserId], references: [id], onDelete: Restrict)
 
   redemptions      PromoRedemption[]

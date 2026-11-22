@@ -5,6 +5,7 @@ import { BadRequestException } from "@nestjs/common";
 import { Prisma, type Contest } from "../../generated/prisma/client";
 import { ConsentOperations } from "../../consents/contracts/consent-operations.contract";
 import type { PrismaService } from "../../prisma/prisma.service";
+import { contestPrizes, prizeProductGroups } from "../prize-definitions";
 import { buildContestConditions, legalReadiness } from "./contest-conditions";
 import {
   conditionsHref,
@@ -26,7 +27,17 @@ export async function saveContestLegalDocument(
     return null;
   }
   const albums = await tx.product.findMany({
-    where: { id: { in: contest.prizeAlbumIds } },
+    where: {
+      id: {
+        in: [
+          ...new Set(
+            contestPrizes(contest).flatMap((prize) =>
+              prizeProductGroups(prize).flatMap((group) => group.productIds),
+            ),
+          ),
+        ],
+      },
+    },
     select: { id: true, title: true, slug: true },
     orderBy: { id: "asc" },
   });
@@ -130,7 +141,14 @@ export async function registerContestConsentDocuments(
       form,
     });
     registrationCommandIds.push(registration.commandId);
-    common.push({ ...document, revisionId: registration.revisionId });
+    common.push({
+      ...document,
+      href:
+        document.id === "contest-rules"
+          ? `/legal/contest-rules?version=${encodeURIComponent(document.version)}`
+          : document.href,
+      revisionId: registration.revisionId,
+    });
   }
   return { common, registrationCommandIds };
 }

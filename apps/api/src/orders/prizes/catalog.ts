@@ -8,22 +8,31 @@ export const prizeProductInclude = {
 export type PrizeProduct = Prisma.ProductGetPayload<{
   include: typeof prizeProductInclude;
 }>;
-export function isPrizeAlbum(product: PrizeProduct) {
-  return product.status === "PUBLISHED" && product.category?.slug !== "markery";
-}
-export function isPrizeAlbumAvailable(product: PrizeProduct) {
+export function isPrizeProductAvailable(
+  product: PrizeProduct,
+  kind: "albums" | "markers",
+) {
   return (
-    isPrizeAlbum(product) &&
+    product.status === "PUBLISHED" &&
+    (kind === "markers"
+      ? product.category?.slug === "markery"
+      : product.category?.slug !== "markery") &&
     Boolean(product.images[0]?.url.trim()) &&
     !product.isOutOfStock &&
     product.isOzonDeliveryAvailable
   );
 }
-export function mapPrizeAlbum(product: PrizeProduct) {
+export function mapPrizeProduct(
+  product: PrizeProduct,
+  kind: "albums" | "markers",
+) {
   return {
     id: product.id,
-    title: product.title.replace(/,?\s*\d+\s+картин(?:а|ы)?$/iu, ""),
+    title:
+      kind === "albums"
+        ? product.title.replace(/,?\s*\d+\s+картин(?:а|ы)?$/iu, "")
+        : product.title,
     image: product.images[0]?.url ?? "",
-    available: isPrizeAlbumAvailable(product),
+    available: isPrizeProductAvailable(product, kind),
   };
 }

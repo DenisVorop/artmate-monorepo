@@ -1,10 +1,10 @@
 "use client";
 import { useEffect, useState } from "react";
 import { z } from "zod";
-import type { AlbumPrize } from "./types";
+import type { ProductPrize } from "./types";
 
 const draftSchema = z.object({
-  albumIds: z.array(z.string()).max(100),
+  productIds: z.array(z.string()).max(100),
   contacts: z
     .object({ name: z.string(), email: z.string(), phone: z.string(), comment: z.string() })
     .optional(),
@@ -32,9 +32,9 @@ const draftSchema = z.object({
 export type PrizeDraft = z.infer<typeof draftSchema>;
 const memoryDrafts = new Map<string, PrizeDraft>();
 
-export function usePrizeDraft(owner: string, prize: AlbumPrize) {
+export function usePrizeDraft(owner: string, prize: ProductPrize) {
   const key = `artmate:prize-draft:${owner}:${prize.id}`;
-  const [draft, setDraft] = useState<PrizeDraft>({ albumIds: [] });
+  const [draft, setDraft] = useState<PrizeDraft>({ productIds: [] });
   const [isReady, setReady] = useState(false);
   useEffect(() => {
     let saved = memoryDrafts.get(key);
@@ -46,9 +46,11 @@ export function usePrizeDraft(owner: string, prize: AlbumPrize) {
     }
     const next = {
       ...saved,
-      albumIds: [...new Set(saved?.albumIds ?? [])]
-        .filter((id) => prize.albumIds.includes(id))
-        .slice(0, prize.quantity),
+      productIds: prize.groups.flatMap((group) =>
+        [...new Set(saved?.productIds ?? [])]
+          .filter((id) => group.products.some((product) => product.id === id && product.available))
+          .slice(0, group.quantity),
+      ),
     };
     setDraft(next);
     setReady(true);

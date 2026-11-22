@@ -3,20 +3,20 @@ import { cookies, headers } from "next/headers";
 import { ApiResult, type ApiResultDTO } from "@/shared/lib/api-result";
 import { apiCsrfHeader, getForwardedIpHeaders } from "@/shared/lib/api-security";
 import type { OrderDTO } from "@/shared/actions/orders";
-import type { AlbumPrizeDTO, CreatePrizeOrderInput, MyPrizesDTO } from "./prizes.types";
+import type { ProductPrizeDTO, CreatePrizeOrderInput, MyPrizesDTO } from "./prizes.types";
 
 export async function getMyPrizes(): Promise<ApiResultDTO<MyPrizesDTO>> {
   return (
     await ApiResult.prepareApi(() => request<MyPrizesDTO>("/orders/prizes"))()
   ).toDTO() as ApiResultDTO<MyPrizesDTO>;
 }
-export async function getMyPrize(id: string): Promise<ApiResultDTO<AlbumPrizeDTO | null>> {
+export async function getMyPrize(id: string): Promise<ApiResultDTO<ProductPrizeDTO | null>> {
   return (
     await ApiResult.prepareApi(
-      () => request<AlbumPrizeDTO | null>(`/orders/prizes/${encodeURIComponent(id)}`, {}, true),
+      () => request<ProductPrizeDTO | null>(`/orders/prizes/${encodeURIComponent(id)}`, {}, true),
       { isEmptyCb: () => false },
     )()
-  ).toDTO() as ApiResultDTO<AlbumPrizeDTO | null>;
+  ).toDTO() as ApiResultDTO<ProductPrizeDTO | null>;
 }
 export async function createPrizeOrder(
   id: string,

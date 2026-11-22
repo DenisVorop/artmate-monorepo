@@ -21,22 +21,46 @@ export function PromoPrizeFields({
   form,
   locked,
   terms,
+  placeIndex,
+  participation = false,
 }: {
   form: UseFormReturn<ContestFormValues>;
   locked: boolean;
-  terms: Contest["prizePromoTerms"];
+  terms?: Contest["prizePromoTerms"];
+  placeIndex?: number;
+  participation?: boolean;
 }) {
   const { promoCodes, isPending, isError } = usePromoCodes();
+  const name = participation
+    ? "participationPromoCodeId"
+    : placeIndex === undefined
+      ? "prizePromoCodeId"
+      : (`prizePlaces.${placeIndex}.prizePromoCodeId` as const);
+  const inputId = participation
+    ? "contest-participation-promo"
+    : placeIndex === undefined
+      ? "contest-promo-prize"
+      : `contest-place-${placeIndex}-promo`;
+  const error = participation
+    ? form.formState.errors.participationPromoCodeId
+    : placeIndex === undefined
+      ? form.formState.errors.prizePromoCodeId
+      : form.formState.errors.prizePlaces?.[placeIndex]?.prizePromoCodeId;
   const selectedId = useWatch({
     control: form.control,
-    name: "prizePromoCodeId",
+    name,
   });
   const selected = promoCodes.find((p) => p.id === selectedId);
   const snapshot =
     selectedId &&
     terms &&
-    form.getValues("prizePromoCodeId") ===
-      form.formState.defaultValues?.prizePromoCodeId
+    selectedId ===
+      (participation
+        ? form.formState.defaultValues?.participationPromoCodeId
+        : placeIndex === undefined
+          ? form.formState.defaultValues?.prizePromoCodeId
+          : form.formState.defaultValues?.prizePlaces?.[placeIndex]
+              ?.prizePromoCodeId)
       ? terms
       : null;
   const options = promoCodes.filter(
@@ -61,10 +85,16 @@ export function PromoPrizeFields({
   const endsAt = snapshot ? snapshot.endsAt : selected?.endsAt;
   return (
     <div className="space-y-3 border-t pt-5">
-      <Label htmlFor="contest-promo-prize">Промокод каждому победителю</Label>
+      <Label htmlFor={inputId}>
+        {participation
+          ? "Промокод за участие"
+          : placeIndex === undefined
+            ? "Промокод каждому победителю"
+            : "Промокод"}
+      </Label>
       <Controller
         control={form.control}
-        name="prizePromoCodeId"
+        name={name}
         render={({ field }) => (
           <Select
             value={field.value ?? "none"}
@@ -74,9 +104,9 @@ export function PromoPrizeFields({
             disabled={locked || isPending || isError}
           >
             <SelectTrigger
-              id="contest-promo-prize"
+              id={inputId}
               className="w-full"
-              aria-invalid={Boolean(form.formState.errors.prizePromoCodeId)}
+              aria-invalid={Boolean(error)}
             >
               <SelectValue placeholder="Выберите промокод" />
             </SelectTrigger>
@@ -105,7 +135,6 @@ export function PromoPrizeFields({
       )}
       {selectedId && (
         <div className="space-y-1 text-sm text-muted-foreground">
-          <p>Каждому победителю — личный код на одно использование.</p>
           {discount && (
             <p>
               Скидка {discount}
@@ -117,9 +146,9 @@ export function PromoPrizeFields({
           {endsAt && <p>До {formatPromoCodeDate(endsAt)}</p>}
         </div>
       )}
-      {form.formState.errors.prizePromoCodeId && (
+      {error && (
         <p role="alert" className="text-sm text-destructive">
-          {form.formState.errors.prizePromoCodeId.message}
+          {error.message}
         </p>
       )}
     </div>

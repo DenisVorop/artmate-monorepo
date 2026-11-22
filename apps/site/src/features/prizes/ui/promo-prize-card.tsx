@@ -1,3 +1,4 @@
+import { contestAwardLabel } from "@repo/ui/contest-prizes";
 import { Check, Copy } from "lucide-react";
 import { routes } from "@/shared/constants";
 import { Badge, Button, Card } from "@/shared/ui";
@@ -51,6 +52,11 @@ export function PromoPrizeCard({ prize, className }: { prize: PromoPrize; classN
         </span>
       </div>
       <div className="min-w-0 space-y-1 px-5 py-5 sm:px-6">
+        {prize.award && (
+          <p className="mb-2 text-sm font-medium text-stone-600">
+            {contestAwardLabel(prize.award)}
+          </p>
+        )}
         <div className="flex flex-wrap items-center gap-2">
           <h2 className="font-heading text-lg font-bold sm:text-xl">Скидка на следующий заказ</h2>
           {prize.status !== "available" && (

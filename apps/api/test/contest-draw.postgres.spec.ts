@@ -118,6 +118,7 @@ describe(
       await app?.close();
       if (!db) return;
       const where = { contestId: { in: contestIds } };
+      await db.contestPrizeAward.deleteMany({ where: { draw: where } });
       await db.contestDrawWinner.deleteMany({ where: { draw: where } });
       await db.contestDraw.deleteMany({ where });
       await db.contestEntryEvent.deleteMany({ where: { entry: where } });
@@ -493,6 +494,7 @@ describe(
         await assert.rejects(
           contestsService.update(c.id, {
             ...c,
+            prizePlaces: [],
             appearance: "none",
             selectionMode: "MANUAL",
             opensAt: c.opensAt.toISOString(),

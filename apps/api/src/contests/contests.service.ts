@@ -9,7 +9,6 @@ import { PrismaService } from "../prisma/prisma.service";
 import {
   mapPromoPrizeTerms,
   promoPrizeTemplateSelect,
-  type PromoPrizeTerms,
 } from "../promocodes/contracts/prize-template.publication";
 import type {
   CreateContestRequestDTO,
@@ -27,6 +26,14 @@ import {
   publicContestEntryWhere,
 } from "./contest-entry-read-model";
 
+import {
+  contestPrizes,
+  normalizePrize,
+  prizePresentation,
+  prizeProductGroups,
+  type PrizeDefinition,
+  type PrizeDefinitionInput,
+} from "./prize-definitions";
 import { saveContestLegalDocument } from "./legal/contest-legal-documents";
 import { legalReadiness } from "./legal/contest-conditions";
 import { throwContestConsentError } from "./legal/contest-consent-errors";
@@ -92,19 +99,14 @@ export class ContestsService {
   }
   async create(input: CreateContestRequestDTO) {
     const data = this.data(input);
-    await this.assertPrizeCatalog(data);
-    const prizePromoTerms = await this.promoPrizeTerms(
-      data.prizePromoCodeId,
-      data.drawAt,
-    );
     try {
       const saved = await this.prisma.$transaction(
         async (tx) => {
-          await this.assertPrizeCatalog(data, tx);
+          const rewards = await this.preparePrizes(data, tx);
           const contest = await tx.contest.create({
             data: {
               ...data,
-              prizePromoTerms,
+              ...rewards,
               publishedAt: input.published ? new Date() : null,
             },
           });
@@ -132,11 +134,12 @@ export class ContestsService {
             throw new ConflictException(
               "Адрес опубликованного конкурса менять нельзя",
             );
-          if (
+          const locked = Boolean(
             current.publishedAt ||
             (await tx.contestEntry.count({ where: { contestId: id } })) ||
-            (await tx.contestDraw.findUnique({ where: { contestId: id } }))
-          ) {
+            (await tx.contestDraw.findUnique({ where: { contestId: id } })),
+          );
+          if (locked) {
             const frozen = [
               "title",
               "slug",
@@ -153,14 +156,20 @@ export class ContestsService {
               "closesAt",
               "drawAt",
               "prizePromoCodeId",
+              "prizeMode",
+              "participationPromoCodeId",
+              "prizeMarkerQuantity",
+              "prizeMarkerIds",
             ] as const;
             if (
+              JSON.stringify(contestPrizes(current).map(normalizePrize)) !==
+                JSON.stringify(this.inputPrizes(data)) ||
               current.prizeAlbumQuantity !== data.prizeAlbumQuantity ||
               JSON.stringify([...current.prizeAlbumIds].sort()) !==
                 JSON.stringify([...data.prizeAlbumIds].sort())
             )
               throw new ConflictException(
-                "Состав альбомного приза уже зафиксирован",
+                "После публикации нельзя менять состав призов: он уже зафиксирован",
               );
             if (
               frozen.some(
@@ -172,31 +181,19 @@ export class ContestsService {
                 "После публикации нельзя менять название, задание, условия, сроки, призы и выбор победителей",
               );
           }
-          if (
-            !current.publishedAt ||
-            current.prizeAlbumQuantity !== data.prizeAlbumQuantity ||
-            JSON.stringify([...current.prizeAlbumIds].sort()) !==
-              JSON.stringify(data.prizeAlbumIds)
-          )
-            await this.assertPrizeCatalog(data, tx);
-          const prizePromoTerms =
-            current.prizePromoCodeId === data.prizePromoCodeId
-              ? (current.prizePromoTerms ?? Prisma.DbNull)
-              : await this.promoPrizeTerms(
-                  data.prizePromoCodeId,
-                  data.drawAt,
-                  tx,
-                );
-          const endsAt = (prizePromoTerms as Partial<PromoPrizeTerms>).endsAt;
-          if (endsAt && new Date(endsAt) <= data.drawAt)
-            throw new BadRequestException(
-              "Промокод должен действовать после подведения итогов",
-            );
+          const rewards = locked
+            ? {
+                prizePlaces: current.prizePlaces as Prisma.InputJsonValue,
+                prizePromoTerms: current.prizePromoTerms ?? Prisma.DbNull,
+                participationPromoTerms:
+                  current.participationPromoTerms ?? Prisma.DbNull,
+              }
+            : await this.preparePrizes(data, tx);
           const result = await tx.contest.updateMany({
             where: { id, version: input.version },
             data: {
               ...data,
-              prizePromoTerms,
+              ...rewards,
               publishedAt:
                 current.publishedAt ?? (input.published ? new Date() : null),
               version: { increment: 1 },
@@ -279,11 +276,33 @@ export class ContestsService {
       task: input.task,
       rules: input.rules,
       appearance: input.appearance,
-      prize: input.prize,
-      prizeDetail: input.prizeDetail,
-      prizeAlbumQuantity: input.prizeAlbumQuantity ?? null,
-      prizeAlbumIds: [...(input.prizeAlbumIds ?? [])].sort(),
-      prizePromoCodeId: input.prizePromoCodeId ?? null,
+      prize:
+        input.prizeMode === "PLACES"
+          ? (input.prizePlaces?.[0]?.prize ?? input.prize)
+          : input.prize,
+      prizeDetail:
+        input.prizeMode === "PLACES" ? "Призы по местам" : input.prizeDetail,
+      prizeMode: input.prizeMode ?? "EQUAL",
+      prizePlaces: (input.prizePlaces ?? []).map(normalizePrize),
+      prizeMarkerQuantity:
+        input.prizeMode === "PLACES"
+          ? null
+          : (input.prizeMarkerQuantity ?? null),
+      prizeMarkerIds:
+        input.prizeMode === "PLACES"
+          ? []
+          : [...(input.prizeMarkerIds ?? [])].sort(),
+      participationPromoCodeId: input.participationPromoCodeId ?? null,
+      prizeAlbumQuantity:
+        input.prizeMode === "PLACES"
+          ? null
+          : (input.prizeAlbumQuantity ?? null),
+      prizeAlbumIds:
+        input.prizeMode === "PLACES"
+          ? []
+          : [...(input.prizeAlbumIds ?? [])].sort(),
+      prizePromoCodeId:
+        input.prizeMode === "PLACES" ? null : (input.prizePromoCodeId ?? null),
       winnersCount: input.winnersCount,
       selectionMode: input.selectionMode,
       opensAt,
@@ -292,49 +311,97 @@ export class ContestsService {
       published: input.published,
     };
   }
-  private async assertPrizeCatalog(
-    data: {
-      prizeAlbumQuantity: number | null;
-      prizeAlbumIds: string[];
-    },
-    db: Pick<Prisma.TransactionClient, "product"> = this.prisma,
+  private inputPrizes(
+    data: ReturnType<ContestsService["data"]>,
+  ): PrizeDefinitionInput[] {
+    return data.prizeMode === "PLACES"
+      ? data.prizePlaces
+      : [normalizePrize(data)];
+  }
+  private async preparePrizes(
+    data: ReturnType<ContestsService["data"]>,
+    db: Prisma.TransactionClient,
   ) {
-    const count = data.prizeAlbumQuantity;
-    if (count === null) {
-      if (data.prizeAlbumIds.length)
-        throw new BadRequestException("Укажите количество альбомов в призе");
-      return;
-    }
+    const definitions = this.inputPrizes(data);
     if (
-      data.prizeAlbumIds.length < count ||
-      new Set(data.prizeAlbumIds).size !== data.prizeAlbumIds.length
+      !definitions.length ||
+      (data.prizeMode === "PLACES" && definitions.length !== data.winnersCount)
     )
       throw new BadRequestException(
-        "Добавьте достаточно разных альбомов для выбора",
+        "Количество мест должно совпадать с числом победителей",
       );
-    const products = await db.product.count({
-      where: {
-        id: { in: data.prizeAlbumIds },
-        status: "PUBLISHED",
-        isOzonDeliveryAvailable: true,
-        images: { some: { url: { not: "" } } },
-        OR: [
-          { categoryId: null },
-          { category: { is: { slug: { not: "markery" } } } },
-        ],
-      },
-    });
-    if (products !== data.prizeAlbumIds.length)
-      throw new BadRequestException(
-        "Для приза доступны опубликованные альбомы с доставкой Ozon",
+    if (data.prizeMode === "EQUAL" && data.prizePlaces.length)
+      throw new BadRequestException("Уберите места для одинаковых призов");
+    const frozen: PrizeDefinition[] = [];
+    for (const definition of definitions) {
+      const groups = prizeProductGroups(definition);
+      for (const [quantity, ids] of [
+        [definition.prizeAlbumQuantity, definition.prizeAlbumIds],
+        [definition.prizeMarkerQuantity, definition.prizeMarkerIds],
+      ] as const)
+        if (quantity === null && ids.length)
+          throw new BadRequestException("Укажите количество призовых товаров");
+      const ids = groups.flatMap((group) => group.productIds);
+      if (
+        new Set(ids).size !== ids.length ||
+        groups.some((group) => group.productIds.length < group.quantity)
+      )
+        throw new BadRequestException(
+          "Добавьте достаточно разных товаров для каждой части приза",
+        );
+      for (const group of groups) {
+        const count = await db.product.count({
+          where: {
+            id: { in: group.productIds },
+            status: "PUBLISHED",
+            isOzonDeliveryAvailable: true,
+            images: { some: { url: { not: "" } } },
+            ...(group.kind === "markers"
+              ? { category: { is: { slug: "markery" } } }
+              : {
+                  OR: [
+                    { categoryId: null },
+                    { category: { is: { slug: { not: "markery" } } } },
+                  ],
+                }),
+          },
+        });
+        if (count !== group.productIds.length)
+          throw new BadRequestException(
+            "Выберите опубликованные товары нужной категории с доставкой Ozon",
+          );
+      }
+      const terms = await this.promoPrizeTerms(
+        definition.prizePromoCodeId,
+        data.drawAt,
+        db,
       );
+      frozen.push({ ...definition, prizePromoTerms: terms });
+    }
+    const participation = await this.promoPrizeTerms(
+      data.participationPromoCodeId,
+      data.drawAt,
+      db,
+    );
+    return {
+      prizePlaces: (data.prizeMode === "PLACES"
+        ? frozen
+        : []) as unknown as Prisma.InputJsonValue,
+      prizePromoTerms:
+        data.prizeMode === "PLACES"
+          ? Prisma.DbNull
+          : ((frozen[0]!.prizePromoTerms as unknown as Prisma.InputJsonValue) ??
+            Prisma.DbNull),
+      participationPromoTerms:
+        (participation as unknown as Prisma.InputJsonValue) ?? Prisma.DbNull,
+    };
   }
   private async promoPrizeTerms(
     id: string | null,
     drawAt: Date,
     db: Pick<Prisma.TransactionClient, "promoCode"> = this.prisma,
   ) {
-    if (!id) return Prisma.DbNull;
+    if (!id) return null;
     const promo = await db.promoCode.findUnique({
       where: { id },
       select: promoPrizeTemplateSelect,
@@ -360,6 +427,8 @@ export class ContestsService {
             : "review";
     return {
       ...contest,
+      prizePresentation: prizePresentation(contest),
+      prizePlaces: contest.prizeMode === "PLACES" ? contestPrizes(contest) : [],
       legalErrors: legalReadiness(contest),
       legalHref: contest.legalDocumentId
         ? conditionsHref(contest.slug, contest.legalDocumentId)

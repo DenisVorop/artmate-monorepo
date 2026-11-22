@@ -80,7 +80,7 @@ describe(
         adapter: new PrismaPg({ connectionString: url.href }),
       });
       await db.$connect();
-      for (let i = 0; i < 2; i++)
+      for (let i = 0; i < 6; i++)
         users.push(
           (
             await db.user.create({
@@ -124,7 +124,6 @@ describe(
         prisma,
         delivery as unknown as DeliveryService,
         storage,
-        new ContestPromoPrizesService(prisma),
       );
       contests = new ContestsService(prisma);
       consentWorker = new ConsentDecisionCommandWorker(
@@ -200,6 +199,9 @@ describe(
         where: { orderId: { in: ids } },
       });
       await db.order.deleteMany({ where: { id: { in: ids } } });
+      await db.contestPrizeAward.deleteMany({
+        where: { draw: { contestId: { in: contestIds } } },
+      });
       await db.contestDrawWinner.deleteMany({
         where: { draw: { contestId: { in: contestIds } } },
       });
@@ -282,9 +284,9 @@ describe(
           entryIds: [entry.id],
         });
       }
-      await prizes.issueForWinners(owner);
+      await prizes.issueAwards(owner);
       return await db.orderPrizeGrant.findFirstOrThrow({
-        where: { winner: { draw: { contestId: contest.id } } },
+        where: { award: { draw: { contestId: contest.id } } },
       });
     }
     async function template(type: "percentage" | "fixed" = "percentage") {
@@ -332,7 +334,7 @@ describe(
       });
     }
     const input = () => ({
-      albumIds: productIds.slice(0, 2),
+      productIds: productIds.slice(0, 2),
       customer: {
         name: "Иван Иванов",
         phone: "+7 (999) 000-00-00",
@@ -368,11 +370,11 @@ describe(
       const a = await winner(),
         b = await winner(1, "MANUAL");
       await Promise.all(
-        Array.from({ length: 6 }, () => prizes.issueForWinners(owner)),
+        Array.from({ length: 6 }, () => prizes.issueAwards(owner)),
       );
       assert.equal(
         await db.orderPrizeGrant.count({
-          where: { winnerId: { in: [a.winnerId, b.winnerId] } },
+          where: { awardId: { in: [a.awardId, b.awardId] } },
         }),
         2,
       );
@@ -390,9 +392,9 @@ describe(
     it("rejects quantity, duplicate and foreign products, missing consents, price injection and CSRF", async () => {
       const grant = await winner();
       for (const body of [
-        { ...input(), albumIds: [] },
-        { ...input(), albumIds: [productIds[0], productIds[0]] },
-        { ...input(), albumIds: [productIds[0], uid()] },
+        { ...input(), productIds: [] },
+        { ...input(), productIds: [productIds[0], productIds[0]] },
+        { ...input(), productIds: [productIds[0], uid()] },
         { ...input(), acceptedLegal: false },
         { ...input(), total: 0 },
         { ...input(), delivery: { provider: "cdek" } },
@@ -440,9 +442,9 @@ describe(
         null,
       );
       assert.equal(
-        (await prizes.get(owner, grant.id)).albums.find(
-          (album) => album.id === productIds[0],
-        )?.available,
+        (await prizes.get(owner, grant.id)).groups
+          .flatMap((group) => group.products)
+          .find((album) => album.id === productIds[0])?.available,
         false,
       );
       await db.product.update({
@@ -454,9 +456,9 @@ describe(
         data: { status: "DRAFT", title: "Неопубликованное название" },
       });
       assert.equal(
-        (await prizes.get(owner, grant.id)).albums.some(
-          (album) => album.id === productIds[0],
-        ),
+        (await prizes.get(owner, grant.id)).groups
+          .flatMap((group) => group.products)
+          .some((album) => album.id === productIds[0]),
         false,
       );
       assert.equal(
@@ -517,7 +519,7 @@ describe(
       const calls = deliveryCalls;
       const replay = await http(`/${grant.id}/order`, owner, {
         ...input(),
-        albumIds: productIds.slice(1),
+        productIds: productIds.slice(1),
         pickupPointId: "changed-after-success",
       });
       assert.equal(replay.body.id, order.id);
@@ -600,10 +602,11 @@ describe(
     it("freezes album prizes after publication even when an older contest had no configured prize", async () => {
       const grant = await winner();
       const record = await db.contest.findFirstOrThrow({
-        where: { draw: { winners: { some: { id: grant.winnerId } } } },
+        where: { draw: { prizeAwards: { some: { id: grant.awardId } } } },
       });
       const payload = {
         ...record,
+        prizePlaces: [],
         opensAt: record.opensAt.toISOString(),
         closesAt: record.closesAt.toISOString(),
         drawAt: record.drawAt.toISOString(),
@@ -638,10 +641,10 @@ describe(
       const first = await winner(1, "AUTOMATIC", source.id);
       const second = await winner(1, "MANUAL", source.id);
       await Promise.all(
-        Array.from({ length: 6 }, () => promoPrizes().issueForWinners(owner)),
+        Array.from({ length: 6 }, () => promoPrizes().issueAwards(owner)),
       );
       const promos = await db.promoCode.findMany({
-        where: { prizeWinnerId: { in: [first.winnerId, second.winnerId] } },
+        where: { prizeAwardId: { in: [first.awardId, second.awardId] } },
       });
       assert.equal(promos.length, 2);
       assert.notEqual(promos[0]!.code, promos[1]!.code);
@@ -664,9 +667,9 @@ describe(
     it("checks the recipient for both pricing and transactional reservation", async () => {
       const source = await template("fixed");
       const grant = await winner(1, "AUTOMATIC", source.id);
-      await promoPrizes().issueForWinners(owner);
+      await promoPrizes().issueAwards(owner);
       const promo = await db.promoCode.findUniqueOrThrow({
-        where: { prizeWinnerId: grant.winnerId },
+        where: { prizeAwardId: grant.awardId },
       });
       const items = [
         { id: productIds[0]!, quantity: 1, unitPriceKopecks: 100000 },
@@ -715,9 +718,9 @@ describe(
     it("reserves a personal code in one order, restores it after release, and consumes it once after payment", async () => {
       const source = await template();
       const grant = await winner(1, "AUTOMATIC", source.id);
-      await promoPrizes().issueForWinners(owner);
+      await promoPrizes().issueAwards(owner);
       const promo = await db.promoCode.findUniqueOrThrow({
-        where: { prizeWinnerId: grant.winnerId },
+        where: { prizeAwardId: grant.awardId },
       });
       const orders = await Promise.all(
         Array.from({ length: 4 }, () => promoOrder()),
@@ -801,16 +804,16 @@ describe(
         where: { id: source.id },
         data: { basisPoints: 3000, isActive: false },
       });
-      await promoPrizes().issueForWinners(owner);
+      await promoPrizes().issueAwards(owner);
       const promo = await db.promoCode.findUniqueOrThrow({
-        where: { prizeWinnerId: grant.winnerId },
+        where: { prizeAwardId: grant.awardId },
       });
       assert.equal(promo.basisPoints, 1500);
       assert.equal(promo.isActive, true);
       const record = await contests.getAdmin(
         (
-          await db.contestDrawWinner.findUniqueOrThrow({
-            where: { id: grant.winnerId },
+          await db.contestPrizeAward.findUniqueOrThrow({
+            where: { id: grant.awardId },
             include: { draw: true },
           })
         ).draw.contestId,
@@ -842,10 +845,11 @@ describe(
       const source = await template();
       const grant = await winner(1, "AUTOMATIC", source.id);
       const original = await db.contest.findFirstOrThrow({
-        where: { draw: { winners: { some: { id: grant.winnerId } } } },
+        where: { draw: { prizeAwards: { some: { id: grant.awardId } } } },
       });
       const payload: CreateContestRequestDTO = {
         ...original,
+        prizePlaces: [],
         slug: `promo-settings-${uid()}`,
         appearance: "winter",
         opensAt: original.opensAt.toISOString(),
@@ -884,6 +888,317 @@ describe(
         }),
         /После публикации/,
       );
+    });
+
+    async function configuredContest(
+      prizeMode: "EQUAL" | "PLACES",
+      participationId: string | null,
+      winnerPromoId: string | null = null,
+    ) {
+      const category = await db.productCategory.upsert({
+        where: { slug: "markery" },
+        update: {},
+        create: { slug: "markery", title: "Маркеры" },
+      });
+      const marker = await db.product.create({
+        data: {
+          slug: `markers-${uid()}`,
+          title: "Набор маркеров",
+          status: "PUBLISHED",
+          price: 100000,
+          categoryId: category.id,
+          isOzonDeliveryAvailable: true,
+          images: { create: { url: "https://example.test/markers.jpg" } },
+        },
+      });
+      productIds.push(marker.id);
+      const place = (
+        title: string,
+        albumIds: string[],
+        markerIds: string[],
+        promoId: string | null = null,
+      ) => ({
+        prize: title,
+        prizeDetail: "",
+        prizeAlbumQuantity: albumIds.length ? 1 : null,
+        prizeAlbumIds: albumIds,
+        prizeMarkerQuantity: markerIds.length ? 1 : null,
+        prizeMarkerIds: markerIds,
+        prizePromoCodeId: promoId,
+      });
+      const places = [
+        place("Маркеры", [], [marker.id], winnerPromoId),
+        place("Котики", [productIds[0]!], []),
+        place("Альбом на выбор", productIds.slice(1, 3), [], winnerPromoId),
+      ];
+      const contest = await contests.create({
+        slug: `ranked-${uid()}`,
+        title: "Конкурс с призами",
+        description: "Работы",
+        task: "Фото",
+        rules: ["Одна работа"],
+        appearance: "winter",
+        prize: "Товарный приз",
+        prizeDetail: "Альбомы и маркеры",
+        published: true,
+        selectionMode: prizeMode === "PLACES" ? "MANUAL" : "AUTOMATIC",
+        manualCriteria: "Соответствие теме",
+        manualTieBreak: "Сравнение композиции",
+        manualEvaluator: "Artmate",
+        opensAt: new Date(Date.now() - 900000).toISOString(),
+        closesAt: new Date(Date.now() - 600000).toISOString(),
+        drawAt: new Date(Date.now() - 300000).toISOString(),
+        prizeMode,
+        prizePlaces: prizeMode === "PLACES" ? places : [],
+        winnersCount: prizeMode === "PLACES" ? 3 : 1,
+        participationPromoCodeId: participationId,
+        ...(prizeMode === "EQUAL"
+          ? place("Альбом и маркеры", [productIds[0]!], [marker.id])
+          : {}),
+      });
+      contestIds.push(contest.id);
+      const entries = [];
+      for (let i = 0; i < users.length; i++)
+        entries.push(
+          await db.$transaction(async (tx) => {
+            const entry = await tx.contestEntry.create({
+              data: {
+                id: uid(),
+                publicId: randomBytes(12).toString("hex"),
+                contestId: contest.id,
+                userId: users[i]!,
+                status: i === 5 ? "REJECTED" : "APPROVED",
+                publishedAt: new Date(),
+                contestSnapshot: {},
+              },
+            });
+            await tx.contestEntryRevision.create({
+              data: {
+                id: uid(),
+                entryId: entry.id,
+                sequence: 1,
+                productId: productIds[0]!,
+                caption: "Работа",
+                assets: {},
+              },
+            });
+            return entry;
+          }),
+        );
+      return { contest, entries, marker };
+    }
+    it("assigns explicit manual places, freezes different prizes and issues consolation only to eligible non-winners", async () => {
+      const winnerTemplate = await template(),
+        participationTemplate = await template("fixed");
+      const { contest, entries, marker } = await configuredContest(
+        "PLACES",
+        participationTemplate.id,
+        winnerTemplate.id,
+      );
+      await db.contestEntry.update({
+        where: { id: entries[4]!.id },
+        data: { status: "PENDING" },
+      });
+      let roster = await draws.getAdmin(contest.id);
+      const order = [entries[2]!.id, entries[0]!.id, entries[1]!.id];
+      await assert.rejects(
+        draws.selectManual(contest.id, owner, {
+          rosterToken: roster.rosterToken!,
+          entryIds: order,
+        }),
+        /Проверьте/,
+      );
+      await db.contestEntry.update({
+        where: { id: entries[4]!.id },
+        data: { status: "APPROVED", version: { increment: 1 } },
+      });
+      roster = await draws.getAdmin(contest.id);
+      await Promise.all(
+        [1, 2, 3].map(() =>
+          draws.selectManual(contest.id, owner, {
+            rosterToken: roster.rosterToken!,
+            entryIds: order,
+          }),
+        ),
+      );
+      const result = (await draws.getAdmin(contest.id)).result!;
+      assert.deepEqual(
+        result.winners.map((winner) => ({
+          entryId: winner.entryId,
+          place: winner.place,
+          title: winner.prizeTitle,
+        })),
+        order.map((entryId, index) => ({
+          entryId,
+          place: index + 1,
+          title: ["Маркеры", "Котики", "Альбом на выбор"][index],
+        })),
+      );
+      await assert.rejects(
+        draws.selectManual(contest.id, owner, {
+          rosterToken: roster.rosterToken!,
+          entryIds: [...order].reverse(),
+        }),
+        /уже опубликован/,
+      );
+      const awards = await db.contestPrizeAward.findMany({
+        where: { drawId: result.id },
+      });
+      assert.equal(awards.length, 5);
+      assert.deepEqual(
+        awards
+          .filter((a) => a.kind === "PARTICIPATION")
+          .map((a) => a.userId)
+          .sort(),
+        [users[3], users[4]].sort(),
+      );
+      assert.ok(!awards.some((a) => a.userId === users[5]));
+      await db.promoCode.update({
+        where: { id: winnerTemplate.id },
+        data: { basisPoints: 7500, isActive: false },
+      });
+      await Promise.all(
+        [1, 2, 3, 4].map(async () => {
+          await prizes.issueAwards();
+          await promoPrizes().issueAwards();
+        }),
+      );
+      const grants = await db.orderPrizeGrant.findMany({
+        where: { awardId: { in: awards.map((a) => a.id) } },
+      });
+      const codes = await db.promoCode.findMany({
+        where: { prizeAwardId: { in: awards.map((a) => a.id) } },
+      });
+      assert.equal(grants.length, 3);
+      assert.equal(codes.length, 4);
+      assert.equal(new Set(codes.map((c) => c.code)).size, 4);
+      assert.ok(
+        codes
+          .filter((c) => [users[1], users[2]].includes(c.recipientUserId!))
+          .every((c) => c.basisPoints === 1500),
+      );
+      assert.ok(
+        !(await prizes.list(users[3]!)).available.some(
+          (p) => p.kind === "products" && p.contestSlug === contest.slug,
+        ),
+      );
+      assert.ok(
+        (await prizes.list(users[3]!)).available.some(
+          (p) =>
+            p.kind === "promocode" &&
+            p.contestSlug === contest.slug &&
+            p.award?.kind === "participation",
+        ),
+      );
+      const first = grants.find((grant) => grant.place === 1)!;
+      assert.equal(first.userId, users[2]);
+      await assert.rejects(
+        prizes.redeem(first.userId, first.id, {
+          ...input(),
+          productIds: [productIds[0]!],
+        }),
+        /каждой части/,
+      );
+      await assert.rejects(prizes.get(owner, first.id), /не найден/);
+      const orders = await Promise.all(
+        [1, 2, 3].map(() =>
+          prizes.redeem(first.userId, first.id, {
+            ...input(),
+            productIds: [marker.id],
+          }),
+        ),
+      );
+      assert.equal(new Set(orders.map((order) => order.id)).size, 1);
+      const saved = await db.order.findUniqueOrThrow({
+        where: { id: orders[0]!.id },
+        include: { items: true },
+      });
+      assert.equal(Number(saved.total), 0);
+      assert.equal(Number(saved.deliveryPrice), 0);
+      assert.equal(saved.paymentStatus, "NOT_REQUIRED");
+      assert.deepEqual(
+        saved.items.map((item) => item.productId),
+        [marker.id],
+      );
+      const publicContest = await contests.getPublic(contest.slug);
+      for (const code of codes)
+        assert.ok(!JSON.stringify(publicContest).includes(code.code));
+      const document = await db.contestLegalDocument.findUniqueOrThrow({
+        where: { id: contest.legalDocumentId! },
+      });
+      const text = JSON.stringify(document.content);
+      assert.match(text, /1-е место/);
+      assert.match(text, /Приз за участие/);
+      assert.match(text, /Маркеры/);
+    });
+    it("keeps automatic draw order stable and enforces independent quotas in a mixed free order", async () => {
+      const { contest, marker } = await configuredContest("EQUAL", null);
+      const results = await Promise.all(
+        [1, 2, 3, 4].map(() => draws.selectAutomatic(contest.id)),
+      );
+      assert.equal(results.filter(Boolean).length, 1);
+      const draw = await db.contestDraw.findUniqueOrThrow({
+        where: { contestId: contest.id },
+        include: { winners: true, prizeAwards: true },
+      });
+      assert.equal(draw.winners[0]!.place, null);
+      assert.equal(draw.prizeAwards.length, 1);
+      assert.deepEqual(
+        (draw.selectionOrder as string[]).slice(0, 1),
+        draw.winners.map((w) => w.entryId),
+      );
+      await prizes.issueAwards();
+      const grant = await db.orderPrizeGrant.findUniqueOrThrow({
+        where: { awardId: draw.prizeAwards[0]!.id },
+      });
+      await assert.rejects(
+        prizes.redeem(grant.userId, grant.id, {
+          ...input(),
+          productIds: productIds.slice(0, 2),
+        }),
+        /каждой части/,
+      );
+      const order = await prizes.redeem(grant.userId, grant.id, {
+        ...input(),
+        productIds: [productIds[0]!, marker.id],
+      });
+      const saved = await db.order.findUniqueOrThrow({
+        where: { id: order.id },
+        include: { items: true },
+      });
+      assert.equal(saved.items.length, 2);
+      assert.equal(Number(saved.total), 0);
+    });
+
+    it("fills only the first places when there are fewer entries and creates no awards for an empty draw", async () => {
+      const participation = await template();
+      for (const count of [2, 0]) {
+        const { contest, entries } = await configuredContest(
+          "PLACES",
+          participation.id,
+        );
+        await db.contestEntry.updateMany({
+          where: {
+            contestId: contest.id,
+            id: { notIn: entries.slice(0, count).map((entry) => entry.id) },
+          },
+          data: { status: "REJECTED" },
+        });
+        const roster = await draws.getAdmin(contest.id);
+        await draws.selectManual(contest.id, owner, {
+          rosterToken: roster.rosterToken!,
+          entryIds: entries.slice(0, count).map((entry) => entry.id),
+        });
+        const result = (await draws.getAdmin(contest.id)).result!;
+        assert.deepEqual(
+          result.winners.map((winner) => winner.place),
+          Array.from({ length: count }, (_, index) => index + 1),
+        );
+        assert.equal(
+          await db.contestPrizeAward.count({ where: { drawId: result.id } }),
+          count,
+        );
+      }
     });
   },
 );

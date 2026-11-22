@@ -4,7 +4,7 @@ import {
   Logger,
   NotFoundException,
 } from "@nestjs/common";
-import { createHash, randomInt } from "node:crypto";
+import { createHash, randomInt, randomBytes } from "node:crypto";
 import { Prisma, type Contest } from "../generated/prisma/client";
 import { PrismaService } from "../prisma/prisma.service";
 import {
@@ -13,6 +13,7 @@ import {
   publicContestEntryWhere,
 } from "./contest-entry-read-model";
 import { contestDrawInclude, mapContestDraw } from "./contest-draw-read-model";
+import { contestPrizes, prizeProductGroups } from "./prize-definitions";
 import type { ManualContestDrawRequestDTO } from "./dto/contest-draw-request.dto";
 
 @Injectable()
@@ -65,12 +66,18 @@ export class ContestDrawService {
           );
         const existing = await tx.contestDraw.findUnique({
           where: { contestId },
-          include: { winners: { orderBy: { entryId: "asc" } } },
+          include: {
+            winners: { orderBy: [{ place: "asc" }, { entryId: "asc" }] },
+          },
         });
         if (existing) {
           if (
             JSON.stringify(existing.winners.map((winner) => winner.entryId)) !==
-            JSON.stringify([...input.entryIds].sort())
+            JSON.stringify(
+              contest.prizeMode === "PLACES"
+                ? input.entryIds
+                : [...input.entryIds].sort(),
+            )
           )
             throw new ConflictException(
               "Результат уже опубликован. Изменить победителей нельзя",
@@ -99,7 +106,9 @@ export class ContestDrawService {
           tx,
           contest,
           roster,
-          [...input.entryIds].sort(),
+          contest.prizeMode === "PLACES"
+            ? [...input.entryIds]
+            : [...input.entryIds].sort(),
           actorId,
         );
       },
@@ -215,7 +224,9 @@ export class ContestDrawService {
     actorId: string | null,
   ) {
     const entries = new Map(roster.eligible.map((entry) => [entry.id, entry]));
-    await tx.contestDraw.create({
+    const definitions = contestPrizes(contest);
+    const selected = order.slice(0, contest.winnersCount);
+    const draw = await tx.contestDraw.create({
       data: {
         createdAt: new Date(),
         contestId: contest.id,
@@ -228,14 +239,59 @@ export class ContestDrawService {
         selectionOrder: order,
         algorithm: actorId ? "manual-v1" : "crypto-fisher-yates-v1",
         winners: {
-          create: order.slice(0, contest.winnersCount).map((id) => ({
+          create: selected.map((id, index) => ({
+            place: contest.prizeMode === "PLACES" ? index + 1 : null,
             entryId: id,
             entryVersion: entries.get(id)!.version,
             revision: entries.get(id)!.revision,
           })),
         },
       },
+      include: { winners: true },
     });
+    const awards: Prisma.ContestPrizeAwardCreateManyInput[] = selected.map(
+      (id, index) => {
+        const definition =
+          definitions[contest.prizeMode === "PLACES" ? index : 0]!;
+        return {
+          id: randomBytes(16).toString("hex"),
+          drawId: draw.id,
+          entryId: id,
+          userId: entries.get(id)!.userId,
+          winnerId: draw.winners.find((winner) => winner.entryId === id)!.id,
+          kind: "WINNER",
+          place: contest.prizeMode === "PLACES" ? index + 1 : null,
+          title: definition.prize,
+          contestTitle: contest.title,
+          contestSlug: contest.slug,
+          awardedAt: draw.createdAt,
+          productGroups: prizeProductGroups(
+            definition,
+          ) as unknown as Prisma.InputJsonValue,
+          promoTerms:
+            (definition.prizePromoTerms as unknown as Prisma.InputJsonValue) ??
+            Prisma.DbNull,
+        };
+      },
+    );
+    if (contest.participationPromoTerms)
+      for (const entry of roster.eligible) {
+        if (selected.includes(entry.id)) continue;
+        awards.push({
+          id: randomBytes(16).toString("hex"),
+          drawId: draw.id,
+          entryId: entry.id,
+          userId: entry.userId,
+          kind: "PARTICIPATION",
+          title: "Промокод за участие",
+          contestTitle: contest.title,
+          contestSlug: contest.slug,
+          awardedAt: draw.createdAt,
+          productGroups: [],
+          promoTerms: contest.participationPromoTerms as Prisma.InputJsonValue,
+        });
+      }
+    if (awards.length) await tx.contestPrizeAward.createMany({ data: awards });
   }
   private async lock(tx: Prisma.TransactionClient, id: string) {
     await tx.$queryRaw`SELECT id FROM contests WHERE id = ${id} FOR UPDATE`;
@@ -260,6 +316,11 @@ export class ContestDrawService {
       title: contest.title,
       slug: contest.slug,
       selectionMode: contest.selectionMode,
+      prizeMode: contest.prizeMode,
+      prizes: contestPrizes(contest).map((prize, index) => ({
+        place: index + 1,
+        title: prize.prize,
+      })),
       winnersCount: contest.winnersCount,
       drawAt: contest.drawAt.toISOString(),
     };

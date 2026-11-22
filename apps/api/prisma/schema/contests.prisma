@@ -18,6 +18,12 @@ model Contest {
   version      Int      @default(1)
   createdAt    DateTime @default(now()) @map("created_at") @db.Timestamptz(3)
   updatedAt    DateTime @default(now()) @updatedAt @map("updated_at") @db.Timestamptz(3)
+  prizeMode ContestPrizeMode @default(EQUAL) @map("prize_mode")
+  prizePlaces Json @default("[]") @map("prize_places")
+  prizeMarkerQuantity Int? @map("prize_marker_quantity")
+  prizeMarkerIds String[] @default([]) @map("prize_marker_ids")
+  participationPromoCodeId String? @map("participation_promo_code_id") @db.VarChar(32)
+  participationPromoTerms Json? @map("participation_promo_terms")
   prizeAlbumQuantity Int? @map("prize_album_quantity")
   prizeAlbumIds String[] @default([]) @map("prize_album_ids")
   prizePromoCodeId String? @map("prize_promo_code_id") @db.VarChar(32)
@@ -64,6 +70,7 @@ model ContestEntry {
   revisions       ContestEntryRevision[]
   events          ContestEntryEvent[]
   wins            ContestDrawWinner[]
+  prizeAwards     ContestPrizeAward[]
 
   @@unique([contestId, userId])
   @@index([contestId, status, createdAt])
@@ -93,6 +100,7 @@ model ContestDraw {
   contest          Contest @relation(fields: [contestId], references: [id], onDelete: Restrict)
   actor            User? @relation(fields: [actorId], references: [id], onDelete: Restrict)
   winners          ContestDrawWinner[]
+  prizeAwards      ContestPrizeAward[]
 
   @@map("contest_draws")
 }
@@ -103,12 +111,13 @@ model ContestDrawWinner {
   entryId      String @map("entry_id") @db.VarChar(32)
   entryVersion Int @map("entry_version")
   revision     Int
-  albumPrize   OrderPrizeGrant?
-  promoPrize   PromoCode?
+  place        Int?
+  prizeAward   ContestPrizeAward?
   draw         ContestDraw @relation(fields: [drawId], references: [id], onDelete: Restrict)
   entry        ContestEntry @relation(fields: [entryId], references: [id], onDelete: Restrict)
 
   @@unique([drawId, entryId])
+  @@unique([drawId, place])
   @@map("contest_draw_winners")
 }
 
@@ -190,4 +199,35 @@ model ContestEntrySubmission {
   contest Contest @relation(fields: [contestId], references: [id], onDelete: Restrict)
   @@index([status, createdAt])
   @@map("contest_entry_submissions")
+}
+
+// Immutable, contest-owned prize publication. Orders and Promocodes consume it independently.
+model ContestPrizeAward {
+  id String @id @default(cuid()) @db.VarChar(32)
+  drawId String @map("draw_id") @db.VarChar(32)
+  entryId String @map("entry_id") @db.VarChar(32)
+  winnerId String? @unique @map("winner_id") @db.VarChar(32)
+  userId String @map("user_id")
+  kind String @db.VarChar(16)
+  place Int?
+  title String @db.VarChar(200)
+  contestTitle String @map("contest_title") @db.VarChar(160)
+  contestSlug String @map("contest_slug") @db.VarChar(120)
+  productGroups Json @map("product_groups")
+  promoTerms Json? @map("promo_terms")
+  awardedAt DateTime @map("awarded_at") @db.Timestamptz(3)
+  draw ContestDraw @relation(fields: [drawId], references: [id], onDelete: Restrict)
+  entry ContestEntry @relation(fields: [entryId], references: [id], onDelete: Restrict)
+  winner ContestDrawWinner? @relation(fields: [winnerId], references: [id], onDelete: Restrict)
+  productPrize OrderPrizeGrant?
+  promoPrize PromoCode?
+  @@unique([drawId, entryId])
+  @@index([userId, awardedAt])
+  @@map("contest_prize_awards")
+}
+
+enum ContestPrizeMode {
+  EQUAL
+  PLACES
+  @@map("contest_prize_mode")
 }

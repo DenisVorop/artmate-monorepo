@@ -1,6 +1,7 @@
 "use client";
 
 import Image from "next/image";
+import { ContestPrizeList } from "@repo/ui/contest-prizes";
 import { withAuth } from "@/features/auth";
 
 import { routes } from "@/shared/constants";
@@ -90,7 +91,7 @@ function BaseContestDetails({ slug }: { slug: string }) {
   return (
     <div className="space-y-9 md:space-y-12">
       <ContestSurface appearance={contest.appearance}>
-        <div className="relative z-30 grid items-start gap-6 p-6 sm:p-8 md:gap-8 lg:grid-cols-[minmax(0,1fr)_22rem] lg:gap-x-10">
+        <div className="relative z-30 grid items-start gap-6 p-6 sm:p-8 md:gap-8 lg:grid-cols-[minmax(0,1fr)_20rem] lg:grid-rows-[auto_1fr] lg:gap-x-10">
           <PageHero
             breadcrumbs={[
               { label: "Главная", href: routes.home },
@@ -134,14 +135,17 @@ function BaseContestDetails({ slug }: { slug: string }) {
             )}
           </div>
           <Card className="gap-0 self-start rounded-2xl py-0 lg:col-start-2 lg:row-span-2 lg:row-start-1">
-            <CardContent className="space-y-5 p-6">
-              <p className="text-sm text-stone-500">
-                {contest.winnersCount === 1 ? "Приз победителю" : "Призы победителям"}
-              </p>
-              <h2 className="font-heading text-2xl leading-snug font-bold">{contest.prize}</h2>
-              <p className="text-base leading-7 text-stone-600">{contest.prizeDetail}</p>
+            <CardContent className="space-y-3 p-5">
+              <h2 className="font-heading text-lg font-bold">
+                {contest.winnersCount === 1
+                  ? "Приз победителю"
+                  : contest.prizePresentation.mode === "equal"
+                    ? `Призы для ${contest.winnersCount} победителей`
+                    : "Призы"}
+              </h2>
+              <ContestPrizeList prizes={contest.prizePresentation} />
               {contest.stage === "open" && (
-                <div className="border-t border-stone-200 pt-5">
+                <div className="border-t border-stone-200 pt-3">
                   <CtaGradientButton
                     type="button"
                     ref={(element) => {

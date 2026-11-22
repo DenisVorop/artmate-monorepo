@@ -35,8 +35,7 @@ import {
 } from "../lib/form-values";
 import { useCreateContest } from "../model/use-create-contest";
 import { useUpdateContest } from "../model/use-update-contest";
-import { AlbumPrizeFields } from "./album-prize-fields";
-import { PromoPrizeFields } from "./promo-prize-fields";
+import { ContestPrizeFields } from "./prize-fields";
 import { AppearancePreview } from "./appearance-preview";
 
 export function ContestEditor({ contestId }: { contestId?: string }) {
@@ -65,7 +64,6 @@ function EditorForm({ contest }: { contest?: Contest }) {
     defaultValues: contest ? toContestForm(contest) : defaultContestValues,
   });
   const {
-    register,
     control,
     handleSubmit,
     formState: { errors },
@@ -156,48 +154,11 @@ function EditorForm({ contest }: { contest?: Contest }) {
               <CardTitle>Призы</CardTitle>
             </CardHeader>
             <CardContent className="space-y-5">
-              <TextField
-                form={form}
-                name="prize"
-                readOnly={locked}
-                label="Приз"
-                maxLength={200}
-              />
-              <TextField
-                form={form}
-                name="prizeDetail"
-                readOnly={locked}
-                label="Описание приза"
-                multiline
-                maxLength={1000}
-              />
-              <PromoPrizeFields
+              <ContestPrizeFields
                 form={form}
                 locked={locked}
-                terms={contest?.prizePromoTerms ?? null}
+                contest={contest}
               />
-              <AlbumPrizeFields form={form} locked={locked} />
-              <div className="space-y-2">
-                <Label htmlFor="contest-winnersCount">Число победителей</Label>
-                <Input
-                  readOnly={locked}
-                  id="contest-winnersCount"
-                  type="number"
-                  min={1}
-                  max={100}
-                  aria-invalid={Boolean(errors.winnersCount)}
-                  aria-describedby={
-                    errors.winnersCount
-                      ? "contest-winnersCount-error"
-                      : undefined
-                  }
-                  {...register("winnersCount")}
-                />
-                <FieldError
-                  name="winnersCount"
-                  message={errors.winnersCount?.message}
-                />
-              </div>
             </CardContent>
           </Card>
         </div>
@@ -344,8 +305,8 @@ function EditorForm({ contest }: { contest?: Contest }) {
             </CardHeader>
             <CardContent className="space-y-3 text-sm">
               <p>
-                Условия формируются из задания, сроков и настроенных призов при
-                сохранении. После публикации эти данные изменить нельзя.
+                Условия формируются при сохранении. После публикации изменить их
+                нельзя.
               </p>
               {contest?.legalHref && (
                 <Button asChild variant="outline" className="w-full">

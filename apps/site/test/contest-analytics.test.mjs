@@ -338,6 +338,7 @@ test("contest UI ignores loading/errors and starts only the authenticated ready 
   const mocks = {
     "react/jsx-runtime": { jsx, jsxs: jsx, Fragment: "fragment" },
     "next/image": { default: "image" },
+    "@repo/ui/contest-prizes": { ContestPrizeList: "prize-list" },
     "@/features/auth": { withAuth: (Component) => Component },
     "@/entities/contest": {
       useContest: () => query,
@@ -345,8 +346,14 @@ test("contest UI ignores loading/errors and starts only the authenticated ready 
       useMyContestPhoto: () => ({}),
     },
     "@/shared/constants": {
-      routes: { home: "/", contests: "/contests", catalogColorings: "/catalog",
-        legal: { contestRules: "/legal/contest-rules", contestConditions: (slug, id) => `/legal/contest-conditions/${slug}/${id}` },
+      routes: {
+        home: "/",
+        contests: "/contests",
+        catalogColorings: "/catalog",
+        legal: {
+          contestRules: "/legal/contest-rules",
+          contestConditions: (slug, id) => `/legal/contest-conditions/${slug}/${id}`,
+        },
       },
     },
     "@/shared/ui": new Proxy({}, { get: (_target, name) => String(name) }),
@@ -382,7 +389,14 @@ test("contest UI ignores loading/errors and starts only the authenticated ready 
   render();
   assert.equal(views.at(-1), undefined);
   assert.equal(starts.at(-1)[1], false);
-  const contest = { slug, stage: "open", works: [], rules: [], draw: null };
+  const contest = {
+    slug,
+    stage: "open",
+    works: [],
+    rules: [],
+    draw: null,
+    prizePresentation: { mode: "equal", winners: [{ title: "Альбом" }] },
+  };
   query = { contest, isPending: false, isError: true };
   render();
   assert.equal(views.at(-1), undefined);
