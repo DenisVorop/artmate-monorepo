@@ -21,6 +21,9 @@ export type ProductPrizeHistoryDTO = Omit<ProductPrizeDTO, "groups" | "orderId">
   usedAt: string;
   products: PrizeProductDTO[];
 };
+export type PendingProductPrizeDTO = Omit<ProductPrizeDTO, "kind" | "groups" | "orderId"> & {
+  kind: "pendingProduct";
+};
 export type PromoPrizeDTO = {
   id: string;
   kind: "promocode";
@@ -39,7 +42,7 @@ export type PromoPrizeDTO = {
   orderId: string | null;
   usedAt: string | null;
 };
-export type AvailablePrizeDTO = ProductPrizeDTO | PromoPrizeDTO;
+export type AvailablePrizeDTO = ProductPrizeDTO | PendingProductPrizeDTO | PromoPrizeDTO;
 export type PrizeHistoryDTO = ProductPrizeHistoryDTO | PromoPrizeDTO;
 export type MyPrizesDTO = { available: AvailablePrizeDTO[]; history: PrizeHistoryDTO[] };
 export type CreatePrizeOrderInput = {

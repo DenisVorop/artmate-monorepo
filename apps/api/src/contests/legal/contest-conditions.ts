@@ -28,15 +28,19 @@ export function legalReadiness(
   const prizes = contestPrizes(contest);
   if (
     !prizes.length ||
-    (contest.prizeMode === "PLACES" && prizes.length !== contest.winnersCount)
+    (contest.prizeMode === "PLACES" &&
+      prizes.reduce((sum, prize) => sum + prize.winnersCount, 0) !==
+        contest.winnersCount)
   )
     errors.push("Настройте приз для каждого места");
   for (const prize of prizes) {
     if (
       !prize.prize.trim() ||
-      (!prizeProductGroups(prize).length && !prize.prizePromoTerms)
+      (!prize.deferredProduct &&
+        !prizeProductGroups(prize).length &&
+        !prize.prizePromoTerms)
     )
-      errors.push("Настройте товары или промокод в призе");
+      errors.push("Укажите товар, промокод или название приза с выдачей позже");
     if (
       prizeProductGroups(prize).some(
         (group) => group.productIds.length < group.quantity,
@@ -113,15 +117,21 @@ export function buildContestConditions(
       ? "После завершения проверки программа случайно перемешивает зафиксированный список одобренных заявок и выбирает победителей без повторов. У всех допущенных заявок равные шансы. Лайки и покупки на результат не влияют. Результат сохраняется и повторным запуском не меняется."
       : `Работы оценивает: ${contest.manualEvaluator}. Критерии и порядок оценки: ${contest.manualCriteria}. При равенстве оценок: ${contest.manualTieBreak}. Решение сохраняется вместе с основаниями выбора.`,
     contest.prizeMode === "PLACES"
-      ? `Число призовых мест: ${contest.winnersCount}. Места распределяются последовательно: первый выбранный участник получает первое место, следующий — второе и так далее. При случайном выборе используется сохранённый порядок перемешанного списка; при оценке работ — порядок, определённый по объявленным критериям. Один человек не может занять несколько мест. Если допущенных работ меньше числа мест, заполняются первые места по порядку; остальные остаются незанятыми. При отсутствии допущенных работ победители не определяются.`
+      ? `Призовых мест — ${contestPrizes(contest).length}, победителей — ${contest.winnersCount}. Победители занимают места по порядку в пределах числа победителей для каждого места. При случайном выборе используется сохранённый порядок перемешанного списка, при оценке работ — порядок по объявленным критериям. Каждый победитель занимает одно место. Если допущенных работ меньше, чем призов, первыми заполняются более высокие места. При отсутствии допущенных работ победители не определяются.`
       : `Число победителей: ${contest.winnersCount}. Все победители получают одинаковые призы, места не распределяются. Если допущенных работ меньше этого числа, выигрывают все допущенные участники. При отсутствии допущенных работ победители не определяются.`,
     "Результаты публикуются на странице конкурса с соблюдением согласия на распространение данных. Приз появляется в разделе «Мои призы» аккаунта победителя.",
   ]);
   const prizes: string[] = [];
   for (const [index, prize] of contestPrizes(contest).entries()) {
     prizes.push(
-      `${contest.prizeMode === "PLACES" ? `${index + 1}-е место` : "Каждому победителю"}: ${prize.prize}.${prize.prizeDetail ? ` ${prize.prizeDetail}` : ""}`,
+      contest.prizeMode === "PLACES"
+        ? `${index + 1}-е место. Число победителей — ${prize.winnersCount}. Приз каждому — ${prize.prize}.${prize.prizeDetail ? ` ${prize.prizeDetail}` : ""}`
+        : `Каждому победителю — ${prize.prize}.${prize.prizeDetail ? ` ${prize.prizeDetail}` : ""}`,
     );
+    if (prize.deferredProduct)
+      prizes.push(
+        "Каждый победитель этого места получит один товар. Когда приз будет готов к выдаче, его можно будет оформить в разделе «Мои призы».",
+      );
     for (const group of prizeProductGroups(prize)) {
       const products = group.productIds.map((id) =>
         albums.find((product) => product.id === id),
@@ -138,7 +148,11 @@ export function buildContestConditions(
     if (prize.prizePromoTerms)
       prizes.push(...promoConditions(prize.prizePromoTerms));
   }
-  if (contestPrizes(contest).some((prize) => prizeProductGroups(prize).length))
+  if (
+    contestPrizes(contest).some(
+      (prize) => prize.deferredProduct || prizeProductGroups(prize).length,
+    )
+  )
     prizes.push(
       "Товары и доставка в доступный ПВЗ Ozon в России оплачиваются организатором. Он оформляет заказ и передаёт его в доставку в течение 30 календарных дней после получения полного выбора товаров, необходимых данных получателя и доступного ПВЗ. Срок обращения за призом не ограничен. Сроки перевозки и хранения зависят от доставки Ozon. Если товара нет, организатор согласует исполнение с победителем; право на приз сохраняется.",
     );

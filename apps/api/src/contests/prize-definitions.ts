@@ -6,6 +6,8 @@ export type ProductPrizeGroup = {
   productIds: string[];
 };
 export type PrizeDefinition = {
+  winnersCount: number;
+  deferredProduct: boolean;
   prize: string;
   prizeDetail: string;
   prizeAlbumQuantity: number | null;
@@ -20,6 +22,8 @@ export function normalizePrize(
   input: Partial<PrizeDefinitionInput>,
 ): PrizeDefinitionInput {
   return {
+    winnersCount: input.winnersCount ?? 1,
+    deferredProduct: input.deferredProduct ?? false,
     prize: input.prize?.trim() ?? "",
     prizeDetail: input.prizeDetail?.trim() ?? "",
     prizeAlbumQuantity: input.prizeAlbumQuantity ?? null,
@@ -45,7 +49,10 @@ export function contestPrizes(
   >,
 ): PrizeDefinition[] {
   return contest.prizeMode === "PLACES"
-    ? (contest.prizePlaces as unknown as PrizeDefinition[])
+    ? (contest.prizePlaces as unknown as PrizeDefinition[]).map((prize) => ({
+        ...normalizePrize(prize),
+        prizePromoTerms: prize.prizePromoTerms,
+      }))
     : [
         {
           ...normalizePrize(contest),
@@ -76,6 +83,16 @@ export function prizeProductGroups(
         ]
       : []),
   ];
+}
+export function boundPrizeProductGroup(binding: {
+  kind: string;
+  productId: string;
+}): ProductPrizeGroup {
+  return {
+    kind: binding.kind === "markers" ? "markers" : "albums",
+    quantity: 1,
+    productIds: [binding.productId],
+  };
 }
 export function readPrizeGroups(value: Prisma.JsonValue): ProductPrizeGroup[] {
   const groups = value as unknown as ProductPrizeGroup[];
@@ -111,7 +128,9 @@ export function prizePresentation(
     mode:
       contest.prizeMode === "PLACES" ? ("places" as const) : ("equal" as const),
     winners: contestPrizes(contest).map((prize, index) => ({
-      ...(contest.prizeMode === "PLACES" ? { place: index + 1 } : {}),
+      ...(contest.prizeMode === "PLACES"
+        ? { place: index + 1, winnersCount: prize.winnersCount }
+        : {}),
       title: prize.prize,
       detail: [
         prize.prizeDetail,

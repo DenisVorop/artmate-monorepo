@@ -4,6 +4,7 @@ import {
   Get,
   Header,
   Param,
+  ParseIntPipe,
   Patch,
   Post,
   Req,
@@ -13,6 +14,7 @@ import { AuthGuard } from "../auth/auth.guard";
 import type { AuthUser } from "../auth/auth.types";
 import { UsersService } from "../users/users.service";
 import {
+  BindContestPrizeProductRequestDTO,
   CreateContestRequestDTO,
   UpdateContestRequestDTO,
 } from "./dto/contest-request.dto";
@@ -47,6 +49,20 @@ export class AdminContestsController {
   ) {
     this.users.assertRole(req.user, "admin");
     return this.contests.update(id, body);
+  }
+  @Post(":id/prize-places/:place/product") bindPrizeProduct(
+    @Param("id") id: string,
+    @Param("place", ParseIntPipe) place: number,
+    @Body() body: BindContestPrizeProductRequestDTO,
+    @Req() req: { user: AuthUser },
+  ) {
+    this.users.assertRole(req.user, "admin");
+    return this.contests.bindPrizeProduct(
+      id,
+      place,
+      body.productId,
+      req.user.id,
+    );
   }
 }
 @Controller("contests")

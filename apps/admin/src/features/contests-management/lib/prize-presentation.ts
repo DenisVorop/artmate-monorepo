@@ -19,20 +19,28 @@ export function toPrizePresentation(
     mode: values.prizeMode === "PLACES" ? "places" : "equal",
     winners:
       values.prizeMode === "PLACES"
-        ? values.prizePlaces.map((prize, index) => ({
-            place: index + 1,
-            title: prize.prize || "Приз не указан",
-            detail: [
-              prize.prizeDetail,
-              prize.hasMarkerPrize &&
-              !prize.prize.toLowerCase().includes("маркер")
-                ? markerPrizeLabel(prize.prizeMarkerQuantity)
-                : "",
-              prize.prizePromoCodeId ? promoLabel(prize.prizePromoCodeId) : "",
-            ]
-              .filter(Boolean)
-              .join(" · "),
-          }))
+        ? values.prizePlaces.map((prize, index) => {
+            const count = Number(prize.winnersCount);
+            return {
+              place: index + 1,
+              winnersCount:
+                Number.isInteger(count) && count > 0 ? count : undefined,
+              title: prize.prize || "Приз не указан",
+              detail: [
+                prize.prizeDetail,
+                !prize.deferredProduct &&
+                prize.hasMarkerPrize &&
+                !prize.prize.toLowerCase().includes("маркер")
+                  ? markerPrizeLabel(prize.prizeMarkerQuantity)
+                  : "",
+                prize.prizePromoCodeId
+                  ? promoLabel(prize.prizePromoCodeId)
+                  : "",
+              ]
+                .filter(Boolean)
+                .join(" · "),
+            };
+          })
         : [
             {
               title: values.prize || "Приз не указан",

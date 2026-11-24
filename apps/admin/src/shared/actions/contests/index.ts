@@ -3,6 +3,7 @@ export {
   getContest,
   createContest,
   updateContest,
+  bindContestPrizeProduct,
   getContestDraw,
   selectContestWinners,
 } from "./contests.actions";

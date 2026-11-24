@@ -56,11 +56,25 @@ export class OrderPrizesService {
   async list(userId: string) {
     await this.issueAwards(userId);
     const promoPrizes = await readPersonalPrizeCodes(this.prisma, userId);
+    // Read pending awards before grants so concurrent issuance can only produce overlap.
+    const pendingAwards = await this.prisma.contestPrizeAward.findMany({
+      where: { userId, deferredProduct: true, productPrize: { is: null } },
+      select: {
+        id: true,
+        title: true,
+        place: true,
+        contestTitle: true,
+        contestSlug: true,
+        awardedAt: true,
+      },
+      orderBy: [{ awardedAt: "desc" }, { id: "desc" }],
+    });
     const grants = await this.prisma.orderPrizeGrant.findMany({
       where: { userId },
       orderBy: [{ awardedAt: "desc" }, { id: "desc" }],
       include: { order: { include: { items: true } } },
     });
+    const issuedAwardIds = new Set(grants.map((grant) => grant.awardId));
     const products = await this.prisma.product.findMany({
       where: {
         id: {
@@ -83,6 +97,17 @@ export class OrderPrizesService {
         ...grants
           .filter((grant) => !grant.orderId)
           .map((grant) => this.mapGrant(grant, products)),
+        ...pendingAwards
+          .filter((award) => !issuedAwardIds.has(award.id))
+          .map((award) => ({
+            id: award.id,
+            kind: "pendingProduct" as const,
+            title: award.title,
+            award: mapPrizeAwardLabel(award),
+            contestTitle: award.contestTitle,
+            contestSlug: award.contestSlug,
+            awardedAt: award.awardedAt.toISOString(),
+          })),
         ...promoPrizes.filter((p) =>
           ["available", "upcoming", "reserved"].includes(p.status),
         ),

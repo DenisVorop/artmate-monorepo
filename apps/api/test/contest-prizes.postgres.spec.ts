@@ -202,6 +202,9 @@ describe(
       await db.contestPrizeAward.deleteMany({
         where: { draw: { contestId: { in: contestIds } } },
       });
+      await db.contestPrizeProductBinding.deleteMany({
+        where: { contestId: { in: contestIds } },
+      });
       await db.contestDrawWinner.deleteMany({
         where: { draw: { contestId: { in: contestIds } } },
       });
@@ -894,6 +897,7 @@ describe(
       prizeMode: "EQUAL" | "PLACES",
       participationId: string | null,
       winnerPromoId: string | null = null,
+      deferThirdPlace = false,
     ) {
       const category = await db.productCategory.upsert({
         where: { slug: "markery" },
@@ -929,7 +933,9 @@ describe(
       const places = [
         place("Маркеры", [], [marker.id], winnerPromoId),
         place("Котики", [productIds[0]!], []),
-        place("Альбом на выбор", productIds.slice(1, 3), [], winnerPromoId),
+        deferThirdPlace
+          ? { ...place("Новый альбом Artmate", [], []), deferredProduct: true }
+          : place("Альбом на выбор", productIds.slice(1, 3), [], winnerPromoId),
       ];
       const contest = await contests.create({
         slug: `ranked-${uid()}`,
@@ -1131,6 +1137,79 @@ describe(
       assert.match(text, /Приз за участие/);
       assert.match(text, /Маркеры/);
     });
+
+    it("keeps one deferred prize visible until its free order can be claimed", async () => {
+      const { contest, entries } = await configuredContest(
+        "PLACES",
+        null,
+        null,
+        true,
+      );
+      const roster = await draws.getAdmin(contest.id);
+      await draws.selectManual(contest.id, owner, {
+        rosterToken: roster.rosterToken!,
+        entryIds: [entries[1]!.id, entries[2]!.id, entries[0]!.id],
+      });
+      const award = await db.contestPrizeAward.findFirstOrThrow({
+        where: { draw: { contestId: contest.id }, userId: owner },
+      });
+      const [pending] = (await prizes.list(owner)).available.filter(
+        (prize) => prize.contestSlug === contest.slug,
+      );
+      assert.deepEqual(pending, {
+        id: award.id,
+        kind: "pendingProduct",
+        title: "Новый альбом Artmate",
+        award: { kind: "place", place: 3 },
+        contestTitle: contest.title,
+        contestSlug: contest.slug,
+        awardedAt: award.awardedAt.toISOString(),
+      });
+      assert.ok(
+        !(await prizes.list(other)).available.some((p) => p.id === award.id),
+      );
+      const claim = { ...input(), productIds: [productIds[0]!] };
+      assert.equal((await http(`/${award.id}`, owner)).status, 404);
+      assert.equal(
+        (await http(`/${award.id}/order`, owner, claim)).status,
+        404,
+      );
+
+      const [, duringBinding] = await Promise.all([
+        contests.bindPrizeProduct(contest.id, 3, productIds[0]!, owner),
+        Promise.all(Array.from({ length: 6 }, () => prizes.list(owner))),
+      ]);
+      for (const list of duringBinding) {
+        const matching = list.available.filter(
+          (prize) => prize.contestSlug === contest.slug,
+        );
+        assert.deepEqual(
+          matching.map((prize) => prize.id),
+          [award.id],
+        );
+      }
+      const [ready] = (await prizes.list(owner)).available.filter(
+        (prize) => prize.contestSlug === contest.slug,
+      );
+      assert.ok(ready?.kind === "products");
+      assert.equal(ready.id, award.id);
+      assert.equal(ready.title, pending.title);
+      assert.deepEqual(ready.award, pending.award);
+      assert.deepEqual(
+        ready.groups.flatMap((group) => group.products.map(({ id }) => id)),
+        claim.productIds,
+      );
+      assert.equal(
+        await db.orderPrizeGrant.count({ where: { awardId: award.id } }),
+        1,
+      );
+      const order = await prizes.redeem(owner, ready.id, claim);
+      assert.equal(Number(order.total), 0);
+      const list = await prizes.list(owner);
+      assert.ok(!list.available.some((prize) => prize.id === award.id));
+      assert.ok(list.history.some((prize) => prize.id === award.id));
+    });
+
     it("keeps automatic draw order stable and enforces independent quotas in a mixed free order", async () => {
       const { contest, marker } = await configuredContest("EQUAL", null);
       const results = await Promise.all(

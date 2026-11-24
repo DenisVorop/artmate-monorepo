@@ -4,34 +4,37 @@ import { createRequire } from "node:module";
 import { test } from "node:test";
 const require = createRequire(import.meta.url),
   ts = require("typescript");
-const source = await readFile(
-  new URL(
-    "../src/features/contests-management/lib/form-values.ts",
-    import.meta.url,
-  ),
-  "utf8",
-);
-const compiled = ts.transpileModule(source, {
-  compilerOptions: {
-    module: ts.ModuleKind.CommonJS,
-    target: ts.ScriptTarget.ES2022,
-  },
-}).outputText;
-const loaded = { exports: {} };
-new Function("require", "exports", compiled)(
-  (id) =>
-    id === "@repo/ui/contest-design"
-      ? { contestAppearances: { none: {}, "new-year": {}, autumn: {} } }
-      : require(id),
-  loaded.exports,
-);
+async function loadTypeScript(path) {
+  const source = await readFile(new URL(path, import.meta.url), "utf8");
+  const compiled = ts.transpileModule(source, {
+    compilerOptions: {
+      module: ts.ModuleKind.CommonJS,
+      target: ts.ScriptTarget.ES2022,
+    },
+  }).outputText;
+  const loaded = { exports: {} };
+  new Function("require", "exports", compiled)(
+    (id) =>
+      id === "@repo/ui/contest-design"
+        ? { contestAppearances: { none: {}, "new-year": {}, autumn: {} } }
+        : require(id),
+    loaded.exports,
+  );
+  return loaded.exports;
+}
 const {
   contestFormSchema,
   toMoscowInput,
   fromMoscowInput,
   toContestInput,
   toContestForm,
-} = loaded.exports;
+  defaultPrizePlace,
+} = await loadTypeScript(
+  "../src/features/contests-management/lib/form-values.ts",
+);
+const { rankedSelectionGroups } = await loadTypeScript(
+  "../src/features/contest-results/lib/selection-form.ts",
+);
 const values = {
   prizeMode: "EQUAL",
   prizePlaces: [],
@@ -159,6 +162,7 @@ test("ranked prizes validate each place and require a participation code", () =>
     prizeDetail: "",
     prizePlaces: [
       {
+        ...defaultPrizePlace(),
         prize: "Три альбома",
         prizeDetail: "",
         hasMarkerPrize: false,
@@ -170,6 +174,7 @@ test("ranked prizes validate each place and require a participation code", () =>
         prizePromoCodeId: null,
       },
       {
+        ...defaultPrizePlace(),
         prize: "Скидка 20%",
         prizeDetail: "",
         hasMarkerPrize: false,
@@ -213,19 +218,28 @@ test("ranked prizes validate each place and require a participation code", () =>
     prizePromoTerms: null,
     participationPromoTerms: null,
     prizePlaces: input.prizePlaces.map((prize) => ({
-      ...prize,
+      prize: prize.prize,
+      prizeDetail: prize.prizeDetail,
+      prizeAlbumQuantity: prize.prizeAlbumQuantity,
+      prizeAlbumIds: prize.prizeAlbumIds,
+      prizeMarkerQuantity: prize.prizeMarkerQuantity,
+      prizeMarkerIds: prize.prizeMarkerIds,
+      prizePromoCodeId: prize.prizePromoCodeId,
       prizePromoTerms: null,
     })),
     id: "contest",
     version: 1,
   });
   assert.equal(reopened.prizePlaces[0].hasAlbumPrize, true);
+  assert.equal(reopened.prizePlaces[0].winnersCount, 1);
+  assert.equal(reopened.prizePlaces[0].deferredProduct, false);
   assert.equal(reopened.hasParticipationPrize, true);
   assert.equal(toContestInput(reopened).winnersCount, 2);
 });
 
 test("inactive prize settings do not block switching back to equal prizes", () => {
   const inactive = {
+    ...defaultPrizePlace(),
     prize: "",
     prizeDetail: "",
     hasMarkerPrize: false,
@@ -282,6 +296,7 @@ test("marker prizes validate quantities and choices independently from albums", 
       false,
     );
   const place = {
+    ...defaultPrizePlace(),
     prize: "Альбом и маркеры",
     prizeDetail: "",
     hasAlbumPrize: true,
@@ -315,5 +330,125 @@ test("marker prizes validate quantities and choices independently from albums", 
       prizePlaces: [{ ...place, hasAlbumPrize: false, prizeAlbumIds: [] }],
     }).success,
     true,
+  );
+});
+
+test("ranked groups retain quotas and support a text prize and multiple promo-only groups", () => {
+  const promoOnly = {
+    ...defaultPrizePlace(),
+    hasAlbumPrize: false,
+  };
+  const draft = {
+    ...values,
+    prizeMode: "PLACES",
+    prizePlaces: [
+      {
+        ...defaultPrizePlace(),
+        prize: "Набор маркеров",
+        hasAlbumPrize: false,
+        hasMarkerPrize: true,
+        prizeMarkerIds: ["marker"],
+      },
+      {
+        ...defaultPrizePlace(),
+        prize: "Альбом на выбор",
+        prizeAlbumIds: ["album"],
+        winnersCount: 3,
+      },
+      {
+        ...defaultPrizePlace(),
+        prize: "Новый альбом Artmate",
+        deferredProduct: true,
+        winnersCount: 3,
+      },
+      {
+        ...promoOnly,
+        prize: "Промокод на 20%",
+        prizePromoCodeId: "promo-20",
+        winnersCount: 3,
+      },
+      {
+        ...promoOnly,
+        prize: "Промокод на 15%",
+        prizePromoCodeId: "promo-15",
+        winnersCount: 10,
+      },
+    ],
+    hasParticipationPrize: true,
+    participationPromoCodeId: "participation-15",
+  };
+  const input = toContestInput(contestFormSchema.parse(draft));
+  assert.equal(input.winnersCount, 20);
+  assert.deepEqual(
+    input.prizePlaces.map(({ winnersCount }) => winnersCount),
+    [1, 3, 3, 3, 10],
+  );
+  assert.deepEqual(input.prizePlaces[2], {
+    winnersCount: 3,
+    deferredProduct: true,
+    prize: "Новый альбом Artmate",
+    prizeDetail: "",
+    prizeAlbumQuantity: null,
+    prizeAlbumIds: [],
+    prizeMarkerQuantity: null,
+    prizeMarkerIds: [],
+    prizePromoCodeId: null,
+  });
+  for (const [index, code] of [
+    [3, "promo-20"],
+    [4, "promo-15"],
+  ]) {
+    assert.equal(input.prizePlaces[index].prizeAlbumQuantity, null);
+    assert.equal(input.prizePlaces[index].prizeMarkerQuantity, null);
+    assert.equal(input.prizePlaces[index].prizePromoCodeId, code);
+  }
+  assert.equal(input.participationPromoCodeId, "participation-15");
+  const saved = {
+    ...input,
+    prizePlaces: input.prizePlaces.map((place) => ({
+      ...place,
+      prizePromoTerms: null,
+      boundProductId: null,
+    })),
+  };
+  assert.deepEqual(
+    toContestInput(contestFormSchema.parse(toContestForm(saved))),
+    input,
+  );
+  for (const counts of [
+    [0, 1],
+    [1.5, 1],
+    [80, 21],
+  ]) {
+    assert.equal(
+      contestFormSchema.safeParse({
+        ...draft,
+        prizePlaces: draft.prizePlaces.slice(0, 2).map((place, index) => ({
+          ...place,
+          winnersCount: counts[index],
+        })),
+      }).success,
+      false,
+    );
+  }
+});
+
+test("manual selection fills each place up to its quota and truncates the last available group", () => {
+  const groups = rankedSelectionGroups(
+    [
+      { place: 1, title: "Маркеры", winnersCount: 1 },
+      { place: 2, title: "Альбом", winnersCount: 3 },
+      { place: 3, title: "Новинка", winnersCount: 3 },
+      { place: 4, title: "Промокод", winnersCount: 10 },
+    ],
+    6,
+  );
+  assert.deepEqual(
+    groups.map(({ place, slots }) => [place, slots]),
+    [
+      [1, [0]],
+      [2, [1, 2, 3]],
+      [3, [4, 5]],
+    ],
   );
 });

@@ -26,6 +26,7 @@ import {
   SelectItem,
 } from "@/shared/ui";
 import {
+  rankedSelectionGroups,
   selectionFormSchema,
   toSelectionInput,
   type SelectionFormValues,
@@ -226,6 +227,8 @@ function SelectionForm({
     data.contest.id,
   );
   const count = Math.min(data.contest.winnersCount, data.candidates.length);
+  const groups = rankedSelectionGroups(data.contest.prizes, count);
+  const places = groups.flatMap(({ place, slots }) => slots.map(() => place));
   const error = form.formState.errors.root?.message;
   async function publish() {
     if (!confirmation) return;
@@ -277,81 +280,12 @@ function SelectionForm({
             name="entryIds"
             render={({ field }) =>
               data.contest.prizeMode === "PLACES" ? (
-                <div className="space-y-4">
-                  {data.contest.prizes.slice(0, count).map((prize, index) => {
-                    const candidate = data.candidates.find(
-                      (candidate) => candidate.entryId === field.value[index],
-                    );
-                    return (
-                      <Card key={prize.place}>
-                        <CardContent className="space-y-3 pt-5">
-                          <Label
-                            htmlFor={`place-${prize.place}`}
-                            className="flex items-center gap-2"
-                          >
-                            <ContestPlaceIcon
-                              place={prize.place}
-                              className="size-6"
-                            />
-                            {prize.place}-е место · {prize.title}
-                          </Label>
-                          <Select
-                            value={field.value[index] || "none"}
-                            onValueChange={(value) => {
-                              const ids = [...field.value];
-                              ids[index] = value === "none" ? "" : value;
-                              field.onChange(ids);
-                            }}
-                          >
-                            <SelectTrigger
-                              id={`place-${prize.place}`}
-                              className="min-h-11 w-full"
-                            >
-                              <SelectValue placeholder="Выберите работу" />
-                            </SelectTrigger>
-                            <SelectContent>
-                              <SelectItem value="none">
-                                Выберите работу
-                              </SelectItem>
-                              {data.candidates.map((candidate) => (
-                                <SelectItem
-                                  key={candidate.entryId}
-                                  value={candidate.entryId}
-                                  disabled={
-                                    field.value.includes(candidate.entryId) &&
-                                    field.value[index] !== candidate.entryId
-                                  }
-                                >
-                                  {candidate.work.author} ·{" "}
-                                  {candidate.work.albumTitle}
-                                </SelectItem>
-                              ))}
-                            </SelectContent>
-                          </Select>
-                          {candidate && (
-                            <div className="flex items-center gap-4">
-                              <Image
-                                src={candidate.work.image}
-                                alt={candidate.work.title}
-                                width={88}
-                                height={88}
-                                unoptimized
-                                className="size-22 rounded-lg bg-muted object-contain"
-                              />
-                              <Link
-                                href={routes.contestEntry(candidate.entryId)}
-                                target="_blank"
-                                className="text-sm underline"
-                              >
-                                Посмотреть заявку
-                              </Link>
-                            </div>
-                          )}
-                        </CardContent>
-                      </Card>
-                    );
-                  })}
-                </div>
+                <RankedWinnerPicker
+                  groups={groups}
+                  candidates={data.candidates}
+                  selected={field.value}
+                  onChange={field.onChange}
+                />
               ) : (
                 <div className="grid gap-4 sm:grid-cols-2 xl:grid-cols-3">
                   {data.candidates.map((candidate) => {
@@ -487,11 +421,11 @@ function SelectionForm({
             </AlertDialogDescription>
           </AlertDialogHeader>
           {confirmation && confirmation.entryIds.length > 0 && (
-            <ul className="space-y-2">
+            <ul className="max-h-60 space-y-2 overflow-y-auto">
               {confirmation.entryIds.map((id, index) => (
                 <li key={id}>
                   {data.contest.prizeMode === "PLACES" &&
-                    `${index + 1}-е место — `}
+                    `${places[index]}-е место — `}
                   {data.candidates.find((candidate) => candidate.entryId === id)
                     ?.work.author ?? "Участник"}
                 </li>
@@ -511,5 +445,95 @@ function SelectionForm({
         </AlertDialogContent>
       </AlertDialog>
     </>
+  );
+}
+
+function RankedWinnerPicker({
+  groups,
+  candidates,
+  selected,
+  onChange,
+}: {
+  groups: ReturnType<typeof rankedSelectionGroups>;
+  candidates: ContestDrawData["candidates"];
+  selected: string[];
+  onChange: (entryIds: string[]) => void;
+}) {
+  return (
+    <div className="space-y-4">
+      {groups.map(({ place, title, slots }) => (
+        <Card key={place}>
+          <CardContent className="space-y-4 pt-5">
+            <h4 className="flex items-center gap-2 font-medium">
+              <ContestPlaceIcon place={place} className="size-6" />
+              {place}-е место · {title}
+            </h4>
+            {slots.map((index, position) => {
+              const controlId = `place-${place}-winner-${position + 1}`;
+              const selectedId = selected[index];
+              const candidate = candidates.find(
+                (item) => item.entryId === selectedId,
+              );
+              return (
+                <div className="space-y-2" key={controlId}>
+                  <Label htmlFor={controlId}>
+                    <span className="sr-only">{place}-е место · </span>
+                    {slots.length > 1 ? `Работа ${position + 1}` : "Работа"}
+                  </Label>
+                  <Select
+                    value={selectedId || "none"}
+                    onValueChange={(value) =>
+                      onChange(
+                        selected.map((id, slot) =>
+                          slot === index ? (value === "none" ? "" : value) : id,
+                        ),
+                      )
+                    }
+                  >
+                    <SelectTrigger id={controlId} className="min-h-11 w-full">
+                      <SelectValue placeholder="Выберите работу" />
+                    </SelectTrigger>
+                    <SelectContent>
+                      <SelectItem value="none">Выберите работу</SelectItem>
+                      {candidates.map((item) => (
+                        <SelectItem
+                          key={item.entryId}
+                          value={item.entryId}
+                          disabled={
+                            selected.includes(item.entryId) &&
+                            selectedId !== item.entryId
+                          }
+                        >
+                          {item.work.author} · {item.work.albumTitle}
+                        </SelectItem>
+                      ))}
+                    </SelectContent>
+                  </Select>
+                  {candidate && (
+                    <div className="flex items-center gap-4">
+                      <Image
+                        src={candidate.work.image}
+                        alt={candidate.work.title}
+                        width={88}
+                        height={88}
+                        unoptimized
+                        className="size-22 rounded-lg bg-muted object-contain"
+                      />
+                      <Link
+                        href={routes.contestEntry(candidate.entryId)}
+                        target="_blank"
+                        className="text-sm underline"
+                      >
+                        Посмотреть заявку
+                      </Link>
+                    </div>
+                  )}
+                </div>
+              );
+            })}
+          </CardContent>
+        </Card>
+      ))}
+    </div>
   );
 }

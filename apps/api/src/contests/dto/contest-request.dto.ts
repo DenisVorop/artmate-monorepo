@@ -23,6 +23,8 @@ const trim = ({ value }: { value: unknown }) =>
   typeof value === "string" ? value.trim() : value;
 
 export class ContestPlacePrizeRequestDTO {
+  @IsOptional() @IsInt() @Min(1) @Max(100) winnersCount?: number;
+  @IsOptional() @IsBoolean() deferredProduct?: boolean;
   @Transform(trim) @IsString() @IsNotEmpty() @MaxLength(200) prize!: string;
   @Transform(trim) @IsString() @MaxLength(1000) prizeDetail!: string;
   @IsOptional() @IsInt() @Min(1) @Max(20) prizeAlbumQuantity?: number | null;
@@ -168,4 +170,12 @@ export class UpdateContestRequestDTO extends CreateContestRequestDTO {
   @IsInt()
   @Min(1)
   version!: number;
+}
+
+export class BindContestPrizeProductRequestDTO {
+  @Transform(trim)
+  @IsString()
+  @IsNotEmpty()
+  @MaxLength(32)
+  productId!: string;
 }

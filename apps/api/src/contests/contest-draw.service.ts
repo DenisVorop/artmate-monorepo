@@ -13,7 +13,11 @@ import {
   publicContestEntryWhere,
 } from "./contest-entry-read-model";
 import { contestDrawInclude, mapContestDraw } from "./contest-draw-read-model";
-import { contestPrizes, prizeProductGroups } from "./prize-definitions";
+import {
+  boundPrizeProductGroup,
+  contestPrizes,
+  prizeProductGroups,
+} from "./prize-definitions";
 import type { ManualContestDrawRequestDTO } from "./dto/contest-draw-request.dto";
 
 @Injectable()
@@ -71,13 +75,13 @@ export class ContestDrawService {
           },
         });
         if (existing) {
+          const ranked = contest.prizeMode === "PLACES";
+          const previous = ranked
+            ? existing.selectionOrder
+            : existing.winners.map((winner) => winner.entryId).sort();
           if (
-            JSON.stringify(existing.winners.map((winner) => winner.entryId)) !==
-            JSON.stringify(
-              contest.prizeMode === "PLACES"
-                ? input.entryIds
-                : [...input.entryIds].sort(),
-            )
+            JSON.stringify(previous) !==
+            JSON.stringify(ranked ? input.entryIds : [...input.entryIds].sort())
           )
             throw new ConflictException(
               "Результат уже опубликован. Изменить победителей нельзя",
@@ -225,7 +229,30 @@ export class ContestDrawService {
   ) {
     const entries = new Map(roster.eligible.map((entry) => [entry.id, entry]));
     const definitions = contestPrizes(contest);
-    const selected = order.slice(0, contest.winnersCount);
+    const ranked = contest.prizeMode === "PLACES";
+    const slots = ranked
+      ? definitions.flatMap((prize, index) =>
+          Array.from({ length: prize.winnersCount }, () => ({
+            place: index + 1,
+            prize,
+          })),
+        )
+      : [];
+    const selected = order
+      .slice(0, contest.winnersCount)
+      .map((entryId, index) => ({
+        entryId,
+        ...(ranked ? slots[index]! : { place: null, prize: definitions[0]! }),
+      }));
+    const bindings = await tx.contestPrizeProductBinding.findMany({
+      where: { contestId: contest.id },
+    });
+    const boundGroups = new Map(
+      bindings.map((binding) => [
+        binding.place,
+        boundPrizeProductGroup(binding),
+      ]),
+    );
     const draw = await tx.contestDraw.create({
       data: {
         createdAt: new Date(),
@@ -239,44 +266,48 @@ export class ContestDrawService {
         selectionOrder: order,
         algorithm: actorId ? "manual-v1" : "crypto-fisher-yates-v1",
         winners: {
-          create: selected.map((id, index) => ({
-            place: contest.prizeMode === "PLACES" ? index + 1 : null,
-            entryId: id,
-            entryVersion: entries.get(id)!.version,
-            revision: entries.get(id)!.revision,
+          create: selected.map(({ entryId, place }) => ({
+            place,
+            entryId,
+            entryVersion: entries.get(entryId)!.version,
+            revision: entries.get(entryId)!.revision,
           })),
         },
       },
       include: { winners: true },
     });
+    const winnerIds = new Map(
+      draw.winners.map((winner) => [winner.entryId, winner.id]),
+    );
     const awards: Prisma.ContestPrizeAwardCreateManyInput[] = selected.map(
-      (id, index) => {
-        const definition =
-          definitions[contest.prizeMode === "PLACES" ? index : 0]!;
+      ({ entryId, place, prize }) => {
+        const boundGroup =
+          prize.deferredProduct && place !== null
+            ? boundGroups.get(place)
+            : undefined;
         return {
           id: randomBytes(16).toString("hex"),
           drawId: draw.id,
-          entryId: id,
-          userId: entries.get(id)!.userId,
-          winnerId: draw.winners.find((winner) => winner.entryId === id)!.id,
+          entryId,
+          userId: entries.get(entryId)!.userId,
+          winnerId: winnerIds.get(entryId)!,
           kind: "WINNER",
-          place: contest.prizeMode === "PLACES" ? index + 1 : null,
-          title: definition.prize,
+          place,
+          title: prize.prize,
           contestTitle: contest.title,
           contestSlug: contest.slug,
           awardedAt: draw.createdAt,
-          productGroups: prizeProductGroups(
-            definition,
-          ) as unknown as Prisma.InputJsonValue,
+          deferredProduct: prize.deferredProduct,
+          productGroups: boundGroup ? [boundGroup] : prizeProductGroups(prize),
           promoTerms:
-            (definition.prizePromoTerms as unknown as Prisma.InputJsonValue) ??
+            (prize.prizePromoTerms as unknown as Prisma.InputJsonValue) ??
             Prisma.DbNull,
         };
       },
     );
     if (contest.participationPromoTerms)
       for (const entry of roster.eligible) {
-        if (selected.includes(entry.id)) continue;
+        if (winnerIds.has(entry.id)) continue;
         awards.push({
           id: randomBytes(16).toString("hex"),
           drawId: draw.id,
@@ -319,6 +350,7 @@ export class ContestDrawService {
       prizeMode: contest.prizeMode,
       prizes: contestPrizes(contest).map((prize, index) => ({
         place: index + 1,
+        winnersCount: prize.winnersCount,
         title: prize.prize,
       })),
       winnersCount: contest.winnersCount,

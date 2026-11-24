@@ -13,18 +13,29 @@ import { formatPromoCodeValue, usePromoCodes } from "@/entities/promocodes";
 import type { Contest } from "@/entities/contest";
 import { Button, Checkbox, Input, Label, Textarea } from "@/shared/ui";
 import { RadioGroup, RadioGroupItem } from "@/shared/ui/radio-group";
-import { defaultPrizePlace, type ContestFormValues } from "../lib/form-values";
+import {
+  defaultPrizePlace,
+  totalPrizeWinners,
+  type ContestFormValues,
+} from "../lib/form-values";
 import { toPrizePresentation } from "../lib/prize-presentation";
 import { ProductPrizeFields } from "./product-prize-fields";
 import { PromoPrizeFields } from "./promo-prize-fields";
+import { DeferredPrizeBinding } from "./deferred-prize-binding";
 
 type Props = {
   form: UseFormReturn<ContestFormValues>;
   locked: boolean;
   contest?: Contest;
+  onBindProduct: (place: number, productId: string) => void;
 };
 
-export function ContestPrizeFields({ form, locked, contest }: Props) {
+export function ContestPrizeFields({
+  form,
+  locked,
+  contest,
+  onBindProduct,
+}: Props) {
   const mode = useWatch({ control: form.control, name: "prizeMode" });
   const participation = useWatch({
     control: form.control,
@@ -66,7 +77,12 @@ export function ContestPrizeFields({ form, locked, contest }: Props) {
         )}
       />
       {mode === "PLACES" ? (
-        <PlaceFields form={form} locked={locked} contest={contest} />
+        <PlaceFields
+          form={form}
+          locked={locked}
+          contest={contest}
+          onBindProduct={onBindProduct}
+        />
       ) : (
         <div className="space-y-5">
           <PrizeTextFields form={form} locked={locked} />
@@ -126,12 +142,13 @@ export function ContestPrizeFields({ form, locked, contest }: Props) {
   );
 }
 
-function PlaceFields({ form, locked, contest }: Props) {
+function PlaceFields({ form, locked, contest, onBindProduct }: Props) {
   const { fields, append, remove } = useFieldArray({
     control: form.control,
     name: "prizePlaces",
   });
   const places = useWatch({ control: form.control, name: "prizePlaces" });
+  const totalWinners = totalPrizeWinners(places);
   return (
     <div className="space-y-3">
       <ol className="space-y-3">
@@ -143,6 +160,9 @@ function PlaceFields({ form, locked, contest }: Props) {
                 <span className="min-w-0 flex-1">
                   <span className="block text-xs text-muted-foreground">
                     {index + 1}-е место
+                    {(places[index]?.winnersCount ?? 0) > 0
+                      ? ` · победителей: ${places[index]?.winnersCount}`
+                      : ""}
                   </span>
                   <span className="mt-1 block font-semibold break-words">
                     {places[index]?.prize || "Укажите приз"}
@@ -159,23 +179,77 @@ function PlaceFields({ form, locked, contest }: Props) {
                 />
               </summary>
               <div className="space-y-5 border-t p-4 sm:p-5">
+                <div className="space-y-2">
+                  <Label htmlFor={`contest-place-${index}-winners`}>
+                    Число победителей
+                  </Label>
+                  <Input
+                    id={`contest-place-${index}-winners`}
+                    type="number"
+                    min={1}
+                    max={100}
+                    readOnly={locked}
+                    {...form.register(`prizePlaces.${index}.winnersCount`)}
+                    aria-invalid={Boolean(
+                      form.formState.errors.prizePlaces?.[index]?.winnersCount,
+                    )}
+                  />
+                  <Error
+                    message={
+                      form.formState.errors.prizePlaces?.[index]?.winnersCount
+                        ?.message
+                    }
+                  />
+                </div>
                 <PrizeTextFields
                   form={form}
                   locked={locked}
                   placeIndex={index}
                 />
-                <ProductPrizeFields
-                  form={form}
-                  locked={locked}
-                  placeIndex={index}
-                  kind="albums"
-                />
-                <ProductPrizeFields
-                  form={form}
-                  locked={locked}
-                  placeIndex={index}
-                  kind="markers"
-                />
+                {!locked && (
+                  <Controller
+                    control={form.control}
+                    name={`prizePlaces.${index}.deferredProduct`}
+                    render={({ field }) => (
+                      <Label className="min-h-11">
+                        <Checkbox
+                          checked={field.value}
+                          onCheckedChange={(checked) =>
+                            field.onChange(checked === true)
+                          }
+                        />
+                        Товар появится позже
+                      </Label>
+                    )}
+                  />
+                )}
+                {places[index]?.deferredProduct ? (
+                  contest?.publishedAt && (
+                    <DeferredPrizeBinding
+                      place={index + 1}
+                      boundProductId={
+                        contest.prizePlaces[index]?.boundProductId ?? null
+                      }
+                      needsSave={form.formState.isDirty}
+                      onBindProduct={onBindProduct}
+                    />
+                  )
+                ) : (
+                  <>
+                    <ProductPrizeFields
+                      form={form}
+                      locked={locked}
+                      placeIndex={index}
+                      kind="albums"
+                    />
+                    <ProductPrizeFields
+                      form={form}
+                      locked={locked}
+                      placeIndex={index}
+                      kind="markers"
+                    />
+                  </>
+                )}
                 <PromoPrizeFields
                   form={form}
                   locked={locked}
@@ -200,6 +274,11 @@ function PlaceFields({ form, locked, contest }: Props) {
           </li>
         ))}
       </ol>
+      {Number.isInteger(totalWinners) && totalWinners > 0 && (
+        <p className="text-sm text-muted-foreground">
+          Всего победителей · {totalWinners}
+        </p>
+      )}
       <Error message={form.formState.errors.prizePlaces?.root?.message} />
       {!locked && (
         <Button

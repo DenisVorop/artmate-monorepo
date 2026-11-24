@@ -17,6 +17,8 @@ export type PromoPrizeTerms = {
   endsAt: string | null;
 };
 export type ContestPlacePrizeInput = {
+  winnersCount: number;
+  deferredProduct: boolean;
   prize: string;
   prizeDetail: string;
   prizeAlbumQuantity: number | null;
@@ -55,6 +57,7 @@ export type ContestInput = {
 export type Contest = Omit<ContestInput, "prizePlaces"> & {
   prizePlaces: (ContestPlacePrizeInput & {
     prizePromoTerms: PromoPrizeTerms | null;
+    boundProductId: string | null;
   })[];
   participationPromoTerms: PromoPrizeTerms | null;
   id: string;
@@ -87,7 +90,7 @@ export type ContestDrawData = {
     | "winnersCount"
     | "drawAt"
     | "prizeMode"
-  > & { prizes: { place: number; title: string }[] };
+  > & { prizes: { place: number; title: string; winnersCount: number }[] };
   candidates: { entryId: string; version: number; work: ContestWork }[];
   pendingCount: number;
   rosterToken: string | null;

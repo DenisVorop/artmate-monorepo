@@ -2,7 +2,12 @@ import { Trophy } from "lucide-react";
 
 export type ContestPrizePresentation = {
   mode: "equal" | "places";
-  winners: { place?: number; title: string; detail?: string }[];
+  winners: {
+    place?: number;
+    winnersCount?: number;
+    title: string;
+    detail?: string;
+  }[];
   participation?: { title: string; detail?: string };
 };
 
@@ -44,6 +49,15 @@ export function ContestPlaceIcon({
   );
 }
 
+const winnerCountPluralRules = new Intl.PluralRules("ru");
+
+function formatWinnerCount(count: number) {
+  const form = winnerCountPluralRules.select(count);
+  if (form === "one") return `${count} победитель`;
+  if (form === "few") return `${count} победителя`;
+  return `${count} победителей`;
+}
+
 export function ContestPrizeList({
   prizes,
 }: {
@@ -55,6 +69,9 @@ export function ContestPrizeList({
           (a, b) => (a.place ?? Infinity) - (b.place ?? Infinity),
         )
       : prizes.winners;
+  const showWinnerCounts =
+    prizes.mode === "places" &&
+    winners.some(({ winnersCount = 1 }) => winnersCount > 1);
   return (
     <div className="space-y-3">
       <ol className="divide-y divide-stone-200/80">
@@ -73,6 +90,8 @@ export function ContestPrizeList({
               {prizes.mode === "places" && prize.place !== undefined && (
                 <p className="text-xs font-medium text-stone-500">
                   {prize.place}-е место
+                  {showWinnerCounts &&
+                    ` · ${formatWinnerCount(prize.winnersCount ?? 1)}`}
                 </p>
               )}
               <p

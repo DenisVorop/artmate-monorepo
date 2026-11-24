@@ -29,6 +29,8 @@ const required = (max: number) =>
     .min(1, "Заполните поле")
     .max(max, `Не больше ${max} символов`);
 export const prizePlaceSchema = z.object({
+  winnersCount: z.coerce.number(),
+  deferredProduct: z.boolean(),
   prize: z.string().trim().max(200),
   prizeDetail: z.string().trim().max(1000),
   hasMarkerPrize: z.boolean(),
@@ -41,6 +43,8 @@ export const prizePlaceSchema = z.object({
 });
 export function defaultPrizePlace(quantity = 1) {
   return {
+    winnersCount: 1,
+    deferredProduct: false,
     prize: `${quantity} ${quantity === 1 ? "альбом" : quantity < 5 ? "альбома" : "альбомов"} на выбор`,
     prizeDetail: "",
     hasMarkerPrize: false,
@@ -71,6 +75,10 @@ export function productPrizeTitle(value: {
   }
   return parts.length ? `${parts.join(" и ")} на выбор` : "";
 }
+export function totalPrizeWinners(places: readonly { winnersCount: number }[]) {
+  return places.reduce((total, place) => total + Number(place.winnersCount), 0);
+}
+
 export const contestFormSchema = z
   .object({
     title: required(160),
@@ -152,7 +160,23 @@ export const contestFormSchema = z
           path: ["prizePlaces"],
           message: "Добавьте призовое место",
         });
+      if (totalPrizeWinners(values.prizePlaces) > 100)
+        ctx.addIssue({
+          code: "custom",
+          path: ["prizePlaces", "root"],
+          message: "Во всех местах вместе может быть не больше 100 победителей",
+        });
       values.prizePlaces.forEach((place, index) => {
+        if (
+          !Number.isInteger(place.winnersCount) ||
+          place.winnersCount < 1 ||
+          place.winnersCount > 100
+        )
+          ctx.addIssue({
+            code: "custom",
+            path: ["prizePlaces", index, "winnersCount"],
+            message: "Укажите от 1 до 100 победителей",
+          });
         if (!place.prize)
           ctx.addIssue({
             code: "custom",
@@ -160,6 +184,7 @@ export const contestFormSchema = z
             message: "Укажите приз",
           });
         if (
+          !place.deferredProduct &&
           place.hasAlbumPrize &&
           (!Number.isInteger(place.prizeAlbumQuantity) ||
             place.prizeAlbumQuantity < 1 ||
@@ -171,6 +196,7 @@ export const contestFormSchema = z
             message: "Укажите от 1 до 20 альбомов",
           });
         if (
+          !place.deferredProduct &&
           !place.hasAlbumPrize &&
           !place.hasMarkerPrize &&
           !place.prizePromoCodeId
@@ -178,9 +204,10 @@ export const contestFormSchema = z
           ctx.addIssue({
             code: "custom",
             path: ["prizePlaces", index, "prize"],
-            message: "Выберите товары или промокод",
+            message: "Выберите товар, промокод или отложенную привязку товара",
           });
         if (
+          !place.deferredProduct &&
           place.hasAlbumPrize &&
           new Set(place.prizeAlbumIds).size < place.prizeAlbumQuantity
         )
@@ -195,11 +222,12 @@ export const contestFormSchema = z
       values.prizeMode === "PLACES"
         ? values.prizePlaces.map((place, index) => ({
             value: place,
+            deferred: place.deferredProduct,
             path: ["prizePlaces", index] as (string | number)[],
           }))
-        : [{ value: values, path: [] as (string | number)[] }];
-    for (const { value, path } of markerPrizes) {
-      if (!value.hasMarkerPrize) continue;
+        : [{ value: values, deferred: false, path: [] as (string | number)[] }];
+    for (const { value, deferred, path } of markerPrizes) {
+      if (deferred || !value.hasMarkerPrize) continue;
       if (
         !Number.isInteger(value.prizeMarkerQuantity) ||
         value.prizeMarkerQuantity < 1 ||
@@ -316,6 +344,8 @@ export const defaultContestValues: ContestFormValues = {
   published: false,
 };
 function prizeForm(prize: {
+  winnersCount?: number;
+  deferredProduct?: boolean;
   prize: string;
   prizeDetail: string;
   prizeAlbumQuantity: number | null;
@@ -327,6 +357,8 @@ function prizeForm(prize: {
   return {
     ...defaultPrizePlace(),
     ...prize,
+    winnersCount: prize.winnersCount ?? 1,
+    deferredProduct: prize.deferredProduct ?? false,
     hasAlbumPrize: prize.prizeAlbumQuantity !== null,
     prizeAlbumQuantity: prize.prizeAlbumQuantity ?? 1,
     hasMarkerPrize: prize.prizeMarkerQuantity !== null,
@@ -350,15 +382,17 @@ export function toContestForm(contest: Contest): ContestFormValues {
   };
 }
 function prizeInput(values: ContestFormValues["prizePlaces"][number]) {
+  const hasAlbumPrize = !values.deferredProduct && values.hasAlbumPrize;
+  const hasMarkerPrize = !values.deferredProduct && values.hasMarkerPrize;
   return {
+    winnersCount: values.winnersCount,
+    deferredProduct: values.deferredProduct,
     prize: values.prize,
     prizeDetail: values.prizeDetail,
-    prizeAlbumQuantity: values.hasAlbumPrize ? values.prizeAlbumQuantity : null,
-    prizeAlbumIds: values.hasAlbumPrize ? values.prizeAlbumIds : [],
-    prizeMarkerQuantity: values.hasMarkerPrize
-      ? values.prizeMarkerQuantity
-      : null,
-    prizeMarkerIds: values.hasMarkerPrize ? values.prizeMarkerIds : [],
+    prizeAlbumQuantity: hasAlbumPrize ? values.prizeAlbumQuantity : null,
+    prizeAlbumIds: hasAlbumPrize ? values.prizeAlbumIds : [],
+    prizeMarkerQuantity: hasMarkerPrize ? values.prizeMarkerQuantity : null,
+    prizeMarkerIds: hasMarkerPrize ? values.prizeMarkerIds : [],
     prizePromoCodeId: values.prizePromoCodeId,
   };
 }
@@ -408,7 +442,7 @@ export function toContestInput(
         : [],
     winnersCount:
       values.prizeMode === "PLACES"
-        ? values.prizePlaces.length
+        ? totalPrizeWinners(values.prizePlaces)
         : values.winnersCount,
     selectionMode: values.selectionMode,
     manualCriteria: values.manualCriteria,
