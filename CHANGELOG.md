@@ -1,5 +1,12 @@
 # Changelog
 
+## [0.64.0](https://github.com/DenisVorop/artmate-monorepo/compare/v0.63.0...v0.64.0) (2026-11-24)
+
+
+### Features
+
+* **contests:** add ranked prize awards ([0e67608](https://github.com/DenisVorop/artmate-monorepo/commit/0e676083430b144c3ace6829c8a2204d3740e79e))
+
 ## [0.63.0](https://github.com/DenisVorop/artmate-monorepo/compare/v0.62.1...v0.63.0) (2026-11-22)
 
 
