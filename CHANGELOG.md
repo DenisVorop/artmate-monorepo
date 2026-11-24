@@ -1,5 +1,12 @@
 # Changelog
 
+## [0.65.0](https://github.com/DenisVorop/artmate-monorepo/compare/v0.64.0...v0.65.0) (2026-11-24)
+
+
+### Features
+
+* **contests:** group winners by prize place ([3e78f84](https://github.com/DenisVorop/artmate-monorepo/commit/3e78f840b8f30450f42586f19af05b48e5a74312))
+
 ## [0.64.0](https://github.com/DenisVorop/artmate-monorepo/compare/v0.63.0...v0.64.0) (2026-11-24)
 
 
