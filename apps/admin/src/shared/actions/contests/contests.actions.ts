@@ -45,6 +45,16 @@ export async function updateContest(
     body: JSON.stringify(input),
   });
 }
+export async function bindContestPrizeProduct(
+  id: string,
+  place: number,
+  productId: string,
+) {
+  return request<Contest>(
+    `/admin/contests/${encodeURIComponent(id)}/prize-places/${place}/product`,
+    { method: "POST", body: JSON.stringify({ productId }) },
+  );
+}
 async function request<T>(path: string, init: RequestInit = {}) {
   const token = (await cookies()).get("artmate_access_token")?.value;
   const response = await fetch(

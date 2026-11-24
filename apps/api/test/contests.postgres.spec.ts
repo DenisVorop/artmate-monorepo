@@ -395,6 +395,82 @@ describe(
         "published place definitions are immutable",
       );
     });
+    it("saves and edits a private draft with three grouped places and a future prize", async () => {
+      const current = await create();
+      const album = {
+        prize: "Альбом Artmate на выбор",
+        prizeDetail: "",
+        prizeAlbumQuantity: 1,
+        prizeAlbumIds: [albumId],
+      };
+      const response = await request(
+        `/admin/contests/${current.id}`,
+        {
+          ...valid(),
+          slug: current.slug,
+          version: current.version,
+          winnersCount: 7,
+          prizeMode: "PLACES",
+          prizePlaces: [
+            album,
+            { ...album, winnersCount: 3 },
+            {
+              prize: "Новый альбом Artmate",
+              prizeDetail: "",
+              winnersCount: 3,
+              deferredProduct: true,
+            },
+          ],
+        },
+        "admin",
+        "PATCH",
+      );
+      assert.equal(response.status, 200, await response.clone().text());
+      const draft = (await response.json()) as {
+        stage: string;
+        published: boolean;
+        winnersCount: number;
+        prizePlaces: {
+          prize: string;
+          winnersCount: number;
+          deferredProduct: boolean;
+          boundProductId: string | null;
+        }[];
+      };
+      assert.equal(draft.stage, "draft");
+      assert.equal(draft.published, false);
+      assert.equal(draft.winnersCount, 7);
+      assert.deepEqual(
+        draft.prizePlaces.map((prize) => prize.winnersCount),
+        [1, 3, 3],
+      );
+      assert.equal(draft.prizePlaces[2]?.prize, "Новый альбом Artmate");
+      assert.equal(draft.prizePlaces[2]?.deferredProduct, true);
+      assert.equal(draft.prizePlaces[2]?.boundProductId, null);
+      const bindingPath = `/admin/contests/${current.id}/prize-places/3/product`;
+      assert.equal(
+        (await request(bindingPath, { productId: albumId }, "customer")).status,
+        403,
+      );
+      assert.equal(
+        (
+          await request(
+            bindingPath,
+            { productId: albumId },
+            "admin",
+            "POST",
+            false,
+          )
+        ).status,
+        403,
+      );
+      assert.equal(
+        (await request(bindingPath, { productId: albumId })).status,
+        400,
+      );
+      assert.equal((await request(`/contests/${current.slug}`)).status, 404);
+    });
+
     it("allows only one concurrent edit of the same version", async () => {
       const saved = await create();
       const change = (title: string) =>

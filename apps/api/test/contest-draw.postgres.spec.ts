@@ -24,6 +24,7 @@ import { ContestDrawService } from "../src/contests/contest-draw.service";
 import { ContestAdminGuard } from "../src/contests/contest-entries.controller";
 import { ContestEntriesService } from "../src/contests/contest-entries.service";
 import { ContestsService } from "../src/contests/contests.service";
+import { ContestPromoPrizesService } from "../src/promocodes/contest-promo-prizes.service";
 import { UserPhotoMediaService } from "../src/user-photos/user-photo-media.service";
 import { ContestPhotoStorageService } from "../src/contests/contest-photo-storage.service";
 
@@ -44,6 +45,7 @@ describe(
       productId: string;
     const contestIds: string[] = [],
       userIds: string[] = [];
+    const promoTemplateIds: string[] = [];
     const id = () => randomBytes(16).toString("hex");
     before(async () => {
       const parsed = new URL(databaseUrl!);
@@ -66,6 +68,8 @@ describe(
             title: "Альбом",
             price: 100000,
             status: "PUBLISHED",
+            isOzonDeliveryAvailable: true,
+            images: { create: { url: "https://example.test/prize.webp" } },
           },
         })
       ).id;
@@ -118,6 +122,12 @@ describe(
       await app?.close();
       if (!db) return;
       const where = { contestId: { in: contestIds } };
+      await db.promoCode.deleteMany({
+        where: { prizeAward: { draw: where } },
+      });
+      await db.promoCode.deleteMany({
+        where: { id: { in: promoTemplateIds } },
+      });
       await db.contestPrizeAward.deleteMany({ where: { draw: where } });
       await db.contestDrawWinner.deleteMany({ where: { draw: where } });
       await db.contestDraw.deleteMany({ where });
@@ -127,7 +137,11 @@ describe(
         await tx.contestEntryRevision.deleteMany({ where: { entry: where } });
         await tx.contestEntry.deleteMany({ where });
       });
-      await db.contest.deleteMany({ where: { id: { in: contestIds } } });
+      await db.contestPrizeProductBinding.deleteMany({ where });
+      // Keep immutable legal evidence in this disposable test database.
+      await db.contest.deleteMany({
+        where: { id: { in: contestIds }, legalDocumentId: null },
+      });
       await db.product.delete({ where: { id: productId } });
       await db.user.deleteMany({ where: { id: { in: userIds } } });
       await db.$disconnect();
@@ -363,6 +377,170 @@ describe(
       assert.equal(
         (await request(pending.id, await input(pending.id, []))).status,
         409,
+      );
+    });
+
+    it("assigns winners by place quota, issues distinct promo-only prizes and binds the deferred product after results", async () => {
+      const template = async (basisPoints: number) => {
+        const saved = await db.promoCode.create({
+          data: {
+            code: `T-${id().toUpperCase()}`,
+            name: `Скидка ${basisPoints / 100}%`,
+            type: "PERCENTAGE",
+            basisPoints,
+          },
+        });
+        promoTemplateIds.push(saved.id);
+        return saved.id;
+      };
+      const twenty = await template(2000);
+      const fifteen = await template(1500);
+      const album = { prizeAlbumQuantity: 1, prizeAlbumIds: [productId] };
+      const saved = await contestsService.create({
+        slug: `draw-${id()}`,
+        title: "Конкурс с группами призёров",
+        description: "Описание",
+        task: "Задание",
+        rules: ["Одна работа"],
+        appearance: "none",
+        prize: "Альбом",
+        prizeDetail: "Призы по местам",
+        prizeMode: "PLACES",
+        prizePlaces: [
+          { prize: "Альбом", prizeDetail: "", ...album },
+          {
+            prize: "Альбом на выбор",
+            prizeDetail: "",
+            winnersCount: 3,
+            ...album,
+          },
+          {
+            prize: "Новый альбом Artmate",
+            prizeDetail: "",
+            winnersCount: 3,
+            deferredProduct: true,
+          },
+          {
+            prize: "Промокод 20%",
+            prizeDetail: "",
+            winnersCount: 2,
+            prizePromoCodeId: twenty,
+          },
+          {
+            prize: "Промокод 15%",
+            prizeDetail: "",
+            winnersCount: 3,
+            prizePromoCodeId: fifteen,
+          },
+        ],
+        winnersCount: 12,
+        participationPromoCodeId: fifteen,
+        selectionMode: "MANUAL",
+        manualEvaluator: "Жюри Artmate",
+        manualCriteria: "Новогоднее оформление",
+        manualTieBreak: "Решение жюри",
+        opensAt: "2020-01-01T00:00:00Z",
+        closesAt: "2020-01-02T00:00:00Z",
+        drawAt: "2020-01-03T00:00:00Z",
+        published: true,
+      });
+      contestIds.push(saved.id);
+      const participants = await Promise.all(
+        Array.from({ length: 13 }, () => entry(saved.id)),
+      );
+      const roster = await draws.getAdmin(saved.id);
+      assert.deepEqual(
+        roster.contest.prizes.map((prize) => prize.winnersCount),
+        [1, 3, 3, 2, 3],
+      );
+      const choice = await input(
+        saved.id,
+        participants.slice(0, 12).map(({ id }) => id),
+      );
+      const attempts = await Promise.all([
+        request(saved.id, choice),
+        request(saved.id, choice),
+      ]);
+      for (const response of attempts)
+        assert.equal(response.status, 201, await response.text());
+
+      const result = (await draws.getAdmin(saved.id)).result!;
+      assert.deepEqual(
+        result.winners.map((winner) => winner.place),
+        [1, 2, 2, 2, 3, 3, 3, 4, 4, 5, 5, 5],
+      );
+      const awarded = await db.contestPrizeAward.findMany({
+        where: { drawId: result.id },
+      });
+      const deferred = awarded.filter((award) => award.deferredProduct);
+      assert.equal(deferred.length, 3);
+      assert.ok(
+        deferred.every(
+          (award) =>
+            award.place === 3 &&
+            Array.isArray(award.productGroups) &&
+            !award.productGroups.length,
+        ),
+      );
+      assert.equal(
+        awarded.filter((award) => award.kind === "PARTICIPATION").length,
+        1,
+      );
+
+      const promoService = new ContestPromoPrizesService(
+        db as unknown as PrismaService,
+      );
+      await Promise.all(
+        participants
+          .slice(7)
+          .map(({ userId }) => promoService.issueAwards(userId)),
+      );
+      const issued = await db.promoCode.findMany({
+        where: { prizeAwardId: { in: awarded.map((award) => award.id) } },
+        include: { prizeAward: true },
+      });
+      assert.deepEqual(
+        issued
+          .map((promo) => [promo.prizeAward?.place ?? 0, promo.basisPoints])
+          .sort(),
+        [
+          [0, 1500],
+          [4, 2000],
+          [4, 2000],
+          [5, 1500],
+          [5, 1500],
+          [5, 1500],
+        ],
+      );
+      assert.ok(
+        issued.every(
+          (promo) =>
+            Array.isArray(promo.prizeAward?.productGroups) &&
+            !promo.prizeAward.productGroups.length,
+        ),
+      );
+
+      const bindings = await Promise.all([
+        contestsService.bindPrizeProduct(saved.id, 3, productId, adminId),
+        contestsService.bindPrizeProduct(saved.id, 3, productId, adminId),
+      ]);
+      for (const binding of bindings) {
+        assert.equal(binding.legalDocumentId, saved.legalDocumentId);
+        assert.equal(binding.prizePlaces[2]?.boundProductId, productId);
+      }
+      const ready = await db.contestPrizeAward.findMany({
+        where: { id: { in: deferred.map((award) => award.id) } },
+      });
+      assert.equal(ready.length, 3);
+      for (const award of ready) {
+        assert.equal(award.title, "Новый альбом Artmate");
+        assert.deepEqual(award.productGroups, [
+          { kind: "albums", quantity: 1, productIds: [productId] },
+        ]);
+      }
+      assert.deepEqual(
+        (await draws.getAdmin(saved.id)).result?.winners,
+        result.winners,
       );
     });
 

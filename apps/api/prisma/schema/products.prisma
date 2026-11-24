@@ -57,6 +57,7 @@ model Product {
   tags                    ProductTagAssignment[]
   coloringCollection      ColoringCollection?
   contestEntryRevisions   ContestEntryRevision[]
+  contestPrizeBindings    ContestPrizeProductBinding[]
   materialSets            MaterialSet[]
   catalogLandingOverrides CatalogLandingProductOverride[]
 

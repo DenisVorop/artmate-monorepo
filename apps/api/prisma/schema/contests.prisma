@@ -37,6 +37,7 @@ model Contest {
   submissions ContestEntrySubmission[]
   entries      ContestEntry[]
   draw         ContestDraw?
+  prizeProductBindings ContestPrizeProductBinding[]
 
   @@index([published, opensAt])
   @@map("contests")
@@ -117,7 +118,7 @@ model ContestDrawWinner {
   entry        ContestEntry @relation(fields: [entryId], references: [id], onDelete: Restrict)
 
   @@unique([drawId, entryId])
-  @@unique([drawId, place])
+  @@index([drawId, place])
   @@map("contest_draw_winners")
 }
 
@@ -201,7 +202,8 @@ model ContestEntrySubmission {
   @@map("contest_entry_submissions")
 }
 
-// Immutable, contest-owned prize publication. Orders and Promocodes consume it independently.
+// Contest-owned prize publication. Product groups for a deferred prize are filled once,
+// when its product is bound. Orders and Promocodes consume the publication independently.
 model ContestPrizeAward {
   id String @id @default(cuid()) @db.VarChar(32)
   drawId String @map("draw_id") @db.VarChar(32)
@@ -214,6 +216,7 @@ model ContestPrizeAward {
   contestTitle String @map("contest_title") @db.VarChar(160)
   contestSlug String @map("contest_slug") @db.VarChar(120)
   productGroups Json @map("product_groups")
+  deferredProduct Boolean @default(false) @map("deferred_product")
   promoTerms Json? @map("promo_terms")
   awardedAt DateTime @map("awarded_at") @db.Timestamptz(3)
   draw ContestDraw @relation(fields: [drawId], references: [id], onDelete: Restrict)
@@ -224,6 +227,21 @@ model ContestPrizeAward {
   @@unique([drawId, entryId])
   @@index([userId, awardedAt])
   @@map("contest_prize_awards")
+}
+
+model ContestPrizeProductBinding {
+  contestId String @map("contest_id") @db.VarChar(32)
+  place Int
+  productId String @map("product_id") @db.VarChar(32)
+  kind String @db.VarChar(16)
+  boundAt DateTime @default(now()) @map("bound_at") @db.Timestamptz(3)
+  boundByUserId String @map("bound_by_user_id")
+  contest Contest @relation(fields: [contestId], references: [id], onDelete: Restrict)
+  product Product @relation(fields: [productId], references: [id], onDelete: Restrict)
+
+  @@id([contestId, place])
+  @@index([productId])
+  @@map("contest_prize_product_bindings")
 }
 
 enum ContestPrizeMode {

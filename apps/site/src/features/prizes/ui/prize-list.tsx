@@ -1,6 +1,7 @@
 import { contestAwardLabel } from "@repo/ui/contest-prizes";
 import Image from "next/image";
 import { routes } from "@/shared/constants";
+import { cn } from "@/shared/lib/utils";
 import {
   Badge,
   Button,
@@ -13,7 +14,7 @@ import {
   TabsTrigger,
 } from "@/shared/ui";
 import { Link } from "@/shared/ui/link";
-import type { ProductPrize, AvailablePrize, PrizeHistoryItem } from "../lib/types";
+import type { AvailablePrize, PrizeHistoryItem } from "../lib/types";
 import { prizeDate } from "../lib/format";
 import { usePrizeListState } from "../lib/ui-state";
 import { PromoPrizeCard } from "./promo-prize-card";
@@ -77,27 +78,34 @@ export function PrizeList({
     </div>
   );
 }
-function ProductPrizeCard({ prize }: { prize: ProductPrize }) {
-  const groups = prize.groups;
-  const covers = groups.flatMap((group) => group.products);
+function ProductPrizeCard({ prize }: { prize: Exclude<AvailablePrize, { kind: "promocode" }> }) {
+  const isReady = prize.kind === "products";
+  const covers = isReady ? prize.groups.flatMap((group) => group.products) : [];
   return (
     <Card className="gap-0 overflow-hidden rounded-2xl border-rose-100 bg-gradient-to-br from-rose-50/70 via-white to-orange-50/70 py-0">
-      <div className="grid h-full grid-cols-[5rem_minmax(0,1fr)] gap-x-4 gap-y-5 p-4 sm:grid-cols-[9rem_minmax(0,1fr)] sm:gap-x-7 sm:p-7">
-        <div
-          aria-hidden="true"
-          className="relative row-span-2 flex items-center justify-center self-center py-3"
-        >
-          {covers.length > 1 && covers[1]?.image && (
-            <div className="absolute inset-y-3 right-0 left-2 rotate-9 overflow-hidden rounded-lg border border-orange-100 bg-orange-50 shadow-sm">
-              <Image src={covers[1].image} alt="" fill sizes="144px" className="object-contain" />
-            </div>
-          )}
-          {covers[0]?.image && (
-            <div className="relative aspect-[3/4] w-full -rotate-5 overflow-hidden rounded-lg bg-white shadow-sm">
-              <Image src={covers[0].image} alt="" fill sizes="144px" className="object-contain" />
-            </div>
-          )}
-        </div>
+      <div
+        className={cn(
+          "grid h-full gap-x-4 gap-y-5 p-4 sm:gap-x-7 sm:p-7",
+          isReady && "grid-cols-[5rem_minmax(0,1fr)] sm:grid-cols-[9rem_minmax(0,1fr)]",
+        )}
+      >
+        {isReady && (
+          <div
+            aria-hidden="true"
+            className="relative row-span-2 flex items-center justify-center self-center py-3"
+          >
+            {covers.length > 1 && covers[1]?.image && (
+              <div className="absolute inset-y-3 right-0 left-2 rotate-9 overflow-hidden rounded-lg border border-orange-100 bg-orange-50 shadow-sm">
+                <Image src={covers[1].image} alt="" fill sizes="144px" className="object-contain" />
+              </div>
+            )}
+            {covers[0]?.image && (
+              <div className="relative aspect-[3/4] w-full -rotate-5 overflow-hidden rounded-lg bg-white shadow-sm">
+                <Image src={covers[0].image} alt="" fill sizes="144px" className="object-contain" />
+              </div>
+            )}
+          </div>
+        )}
         <div className="min-w-0 space-y-3">
           <Badge className="border-0 bg-rose-100 text-rose-800">
             {contestAwardLabel(prize.award) ?? "Ваш приз"}
@@ -108,13 +116,17 @@ function ProductPrizeCard({ prize }: { prize: ProductPrize }) {
             {prizeDate(prize.awardedAt)}
           </time>
         </div>
-        <Button
-          asChild
-          size="lg"
-          className="min-h-12 w-full self-end border-0 bg-gradient-to-r from-rose-500 via-rose-400 to-orange-400 text-white"
-        >
-          <CtaGradientLink href={routes.prizeAlbums(prize.id)}>Выбрать приз</CtaGradientLink>
-        </Button>
+        {isReady ? (
+          <Button
+            asChild
+            size="lg"
+            className="min-h-12 w-full self-end border-0 bg-gradient-to-r from-rose-500 via-rose-400 to-orange-400 text-white"
+          >
+            <CtaGradientLink href={routes.prizeAlbums(prize.id)}>Выбрать приз</CtaGradientLink>
+          </Button>
+        ) : (
+          <p className="self-end text-sm text-muted-foreground">Приз готовится к выдаче</p>
+        )}
       </div>
     </Card>
   );

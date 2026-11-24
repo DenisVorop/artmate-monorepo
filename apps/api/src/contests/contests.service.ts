@@ -27,6 +27,7 @@ import {
 } from "./contest-entry-read-model";
 
 import {
+  boundPrizeProductGroup,
   contestPrizes,
   normalizePrize,
   prizePresentation,
@@ -113,6 +114,7 @@ export class ContestsService {
           await saveContestLegalDocument(tx, contest);
           return this.map(
             await tx.contest.findUniqueOrThrow({ where: { id: contest.id } }),
+            new Map(),
           );
         },
         { timeout: 20_000 },
@@ -217,7 +219,7 @@ export class ContestsService {
             include: { draw: { include: contestDrawInclude } },
           });
           return {
-            ...this.map(saved),
+            ...this.map(saved, await this.boundPrizeProducts(tx, id)),
             entriesCount: await tx.contestEntry.count({
               where: { contestId: id },
             }),
@@ -236,10 +238,80 @@ export class ContestsService {
       this.rethrow(error);
     }
   }
+  async bindPrizeProduct(
+    id: string,
+    place: number,
+    productId: string,
+    actorId: string,
+  ) {
+    await this.prisma.$transaction(async (tx) => {
+      await tx.$queryRaw`SELECT id FROM contests WHERE id = ${id} FOR UPDATE`;
+      const contest = await tx.contest.findUnique({ where: { id } });
+      if (!contest) throw new NotFoundException("Конкурс не найден");
+      if (
+        !contest.publishedAt ||
+        contest.prizeMode !== "PLACES" ||
+        !contestPrizes(contest)[place - 1]?.deferredProduct
+      )
+        throw new BadRequestException("Для этого места нельзя привязать товар");
+
+      const current = await tx.contestPrizeProductBinding.findUnique({
+        where: { contestId_place: { contestId: id, place } },
+      });
+      if (current) {
+        if (current.productId === productId) return;
+        throw new ConflictException("К этому месту уже привязан товар");
+      }
+
+      await tx.$queryRaw`SELECT id FROM products WHERE id = ${productId} FOR SHARE`;
+      const product = await tx.product.findFirst({
+        where: this.prizeCatalogWhere([productId]),
+        select: { id: true, category: { select: { slug: true } } },
+      });
+      if (!product)
+        throw new BadRequestException(
+          "Выберите опубликованный товар с доставкой Ozon",
+        );
+
+      const binding = await tx.contestPrizeProductBinding.create({
+        data: {
+          contestId: id,
+          place,
+          productId: product.id,
+          kind: product.category?.slug === "markery" ? "markers" : "albums",
+          boundByUserId: actorId,
+        },
+      });
+      await tx.contestPrizeAward.updateMany({
+        where: {
+          draw: { contestId: id },
+          place,
+          deferredProduct: true,
+          productGroups: { equals: [] },
+        },
+        data: { productGroups: [boundPrizeProductGroup(binding)] },
+      });
+      await tx.contest.update({
+        where: { id },
+        data: { version: { increment: 1 } },
+      });
+    });
+    return this.getAdmin(id);
+  }
+  private async boundPrizeProducts(
+    db: Pick<Prisma.TransactionClient, "contestPrizeProductBinding">,
+    contestId: string,
+  ) {
+    const bindings = await db.contestPrizeProductBinding.findMany({
+      where: { contestId },
+      select: { place: true, productId: true },
+    });
+    return new Map(bindings.map(({ place, productId }) => [place, productId]));
+  }
   private async mapAdmin(
     contest: Contest & { draw?: ContestDrawRecord | null },
   ) {
-    const [entriesCount, pendingCount] = await Promise.all([
+    const [entriesCount, pendingCount, boundProducts] = await Promise.all([
       this.prisma.contestEntry.count({ where: { contestId: contest.id } }),
       this.prisma.contestEntry.count({
         where: {
@@ -247,8 +319,9 @@ export class ContestsService {
           status: { in: ["PENDING", "CHANGES_REQUESTED"] },
         },
       }),
+      this.boundPrizeProducts(this.prisma, contest.id),
     ]);
-    return { ...this.map(contest), entriesCount, pendingCount };
+    return { ...this.map(contest, boundProducts), entriesCount, pendingCount };
   }
   private async find(id: string) {
     const contest = await this.prisma.contest.findUnique({
@@ -325,16 +398,22 @@ export class ContestsService {
     const definitions = this.inputPrizes(data);
     if (
       !definitions.length ||
-      (data.prizeMode === "PLACES" && definitions.length !== data.winnersCount)
+      (data.prizeMode === "PLACES" &&
+        definitions.reduce((sum, prize) => sum + prize.winnersCount, 0) !==
+          data.winnersCount)
     )
       throw new BadRequestException(
-        "Количество мест должно совпадать с числом победителей",
+        "Проверьте количество победителей на призовых местах",
       );
     if (data.prizeMode === "EQUAL" && data.prizePlaces.length)
       throw new BadRequestException("Уберите места для одинаковых призов");
     const frozen: PrizeDefinition[] = [];
     for (const definition of definitions) {
       const groups = prizeProductGroups(definition);
+      if (definition.deferredProduct && groups.length)
+        throw new BadRequestException(
+          "Для приза с товаром позже очистите выбор товаров",
+        );
       for (const [quantity, ids] of [
         [definition.prizeAlbumQuantity, definition.prizeAlbumIds],
         [definition.prizeMarkerQuantity, definition.prizeMarkerIds],
@@ -351,20 +430,7 @@ export class ContestsService {
         );
       for (const group of groups) {
         const count = await db.product.count({
-          where: {
-            id: { in: group.productIds },
-            status: "PUBLISHED",
-            isOzonDeliveryAvailable: true,
-            images: { some: { url: { not: "" } } },
-            ...(group.kind === "markers"
-              ? { category: { is: { slug: "markery" } } }
-              : {
-                  OR: [
-                    { categoryId: null },
-                    { category: { is: { slug: { not: "markery" } } } },
-                  ],
-                }),
-          },
+          where: this.prizeCatalogWhere(group.productIds, group.kind),
         });
         if (count !== group.productIds.length)
           throw new BadRequestException(
@@ -396,6 +462,26 @@ export class ContestsService {
         (participation as unknown as Prisma.InputJsonValue) ?? Prisma.DbNull,
     };
   }
+  private prizeCatalogWhere(
+    ids: string[],
+    kind?: "albums" | "markers",
+  ): Prisma.ProductWhereInput {
+    return {
+      id: { in: ids },
+      status: "PUBLISHED",
+      isOzonDeliveryAvailable: true,
+      images: { some: { url: { not: "" } } },
+      ...(kind === "markers" ? { category: { is: { slug: "markery" } } } : {}),
+      ...(kind === "albums"
+        ? {
+            OR: [
+              { categoryId: null },
+              { category: { is: { slug: { not: "markery" } } } },
+            ],
+          }
+        : {}),
+    };
+  }
   private async promoPrizeTerms(
     id: string | null,
     drawAt: Date,
@@ -414,7 +500,10 @@ export class ContestsService {
       );
     return mapPromoPrizeTerms(promo);
   }
-  private map(contest: Contest & { draw?: ContestDrawRecord | null }) {
+  private map(
+    contest: Contest & { draw?: ContestDrawRecord | null },
+    boundProducts?: ReadonlyMap<number, string>,
+  ) {
     const now = Date.now();
     const stage: ContestStage = !contest.published
       ? "draft"
@@ -428,7 +517,15 @@ export class ContestsService {
     return {
       ...contest,
       prizePresentation: prizePresentation(contest),
-      prizePlaces: contest.prizeMode === "PLACES" ? contestPrizes(contest) : [],
+      prizePlaces:
+        contest.prizeMode === "PLACES"
+          ? contestPrizes(contest).map((prize, index) => ({
+              ...prize,
+              ...(boundProducts
+                ? { boundProductId: boundProducts.get(index + 1) ?? null }
+                : {}),
+            }))
+          : [],
       legalErrors: legalReadiness(contest),
       legalHref: contest.legalDocumentId
         ? conditionsHref(contest.slug, contest.legalDocumentId)

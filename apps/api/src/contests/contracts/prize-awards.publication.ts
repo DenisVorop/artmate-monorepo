@@ -1,5 +1,5 @@
 import type { Prisma } from "../../generated/prisma/client";
-/** Immutable contest outcome. Consumers own issuance; contestants never write their tables. */
+/** Contests publishes results and prize fulfillment data. Consumers own issuance. */
 export const prizeAwardPublicationSelect = {
   id: true,
   userId: true,
@@ -8,6 +8,7 @@ export const prizeAwardPublicationSelect = {
   title: true,
   contestTitle: true,
   contestSlug: true,
+  deferredProduct: true,
   productGroups: true,
   promoTerms: true,
   awardedAt: true,
@@ -17,6 +18,7 @@ export type PublishedPrizeAward = Prisma.ContestPrizeAwardGetPayload<{
 }>;
 export function mapProductPrizeAward(award: PublishedPrizeAward) {
   return {
+    ...(award.deferredProduct ? { id: award.id } : {}),
     awardId: award.id,
     userId: award.userId,
     title: award.title,

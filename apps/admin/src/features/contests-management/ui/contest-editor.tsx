@@ -35,6 +35,7 @@ import {
 } from "../lib/form-values";
 import { useCreateContest } from "../model/use-create-contest";
 import { useUpdateContest } from "../model/use-update-contest";
+import { useBindContestPrizeProduct } from "../model/use-bind-contest-prize-product";
 import { ContestPrizeFields } from "./prize-fields";
 import { AppearancePreview } from "./appearance-preview";
 
@@ -72,7 +73,8 @@ function EditorForm({ contest }: { contest?: Contest }) {
     router.replace(routes.contest(saved.id)),
   );
   const update = useUpdateContest(contest?.id ?? "");
-  const pending = create.isPending || update.isPending;
+  const binding = useBindContestPrizeProduct(contest?.id ?? "");
+  const pending = create.isPending || update.isPending || binding.isPending;
   const selectionMode = useWatch({ control, name: "selectionMode" });
   const locked =
     Boolean(contest?.publishedAt) ||
@@ -158,6 +160,9 @@ function EditorForm({ contest }: { contest?: Contest }) {
                 form={form}
                 locked={locked}
                 contest={contest}
+                onBindProduct={(place, productId) =>
+                  binding.mutate({ place, productId })
+                }
               />
             </CardContent>
           </Card>
