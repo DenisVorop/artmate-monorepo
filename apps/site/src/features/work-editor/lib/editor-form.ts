@@ -60,8 +60,6 @@ export const workEditorFormSchema = z
       )
       .max(19),
     caption: z.string().trim().max(500, "Не более 500 символов"),
-    publicationConsent: z.boolean(),
-    advertisingConsent: z.boolean(),
   })
   .superRefine((values, context) => {
     values.mappings.forEach((mapping, index) => {
@@ -98,8 +96,8 @@ export function toCreateRevisionInput(
   return {
     photo: values.photo,
     caption: values.caption.trim() || undefined,
-    publicationConsent: values.publicationConsent,
-    advertisingConsent: values.advertisingConsent,
+    publicationConsent: true,
+    advertisingConsent: true,
     materials: tools.map((tool) => ({ toolId: tool.id })),
     symbolMappings: values.mappings
       .filter((mapping) => mapping.materialIndex !== null)

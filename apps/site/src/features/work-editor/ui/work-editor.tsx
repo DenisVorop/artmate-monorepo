@@ -3,18 +3,11 @@
 import { useAnalytics } from "../lib/analytics";
 import { useEffect, useState } from "react";
 import { zodResolver } from "@hookform/resolvers/zod";
-import {
-  Camera,
-  ChevronLeft,
-  ChevronRight,
-  Info,
-  Plus,
-  ShieldCheck,
-  Trash2,
-} from "lucide-react";
+import { Camera, ChevronLeft, ChevronRight, Plus, Trash2 } from "lucide-react";
 import { useRouter } from "next/navigation";
 import { Controller, type FieldErrors, useFieldArray, useForm, useWatch } from "react-hook-form";
 
+import { getCommunityCollectionTitle } from "@/entities/community-work";
 import {
   type WorkshopMarkerColor,
   useMarkerColors,
@@ -23,13 +16,14 @@ import {
 } from "@/entities/workshop";
 import { routes } from "@/shared/constants";
 import {
-  Badge,
   Button,
   Card,
   CardContent,
+  CardFooter,
   DataState,
   Input,
   Label,
+  PageHero,
   Select,
   SelectContent,
   SelectItem,
@@ -37,7 +31,6 @@ import {
   SelectValue,
   Textarea,
 } from "@/shared/ui";
-import { PageTitle } from "@/shared/ui/typography";
 
 import {
   acceptedWorkshopPhotoTypes,
@@ -113,6 +106,7 @@ function EditorForm({
 }) {
   const analytics = useAnalytics();
   const [currentStep, setCurrentStep] = useState(0);
+  const isReviewStep = currentStep === editorSteps.length - 1;
   const [isMaterialsEditorOpen, setIsMaterialsEditorOpen] = useState(
     Boolean(
       data.work?.currentRevision?.materials.length ||
@@ -127,7 +121,7 @@ function EditorForm({
   const defaultValues = getEditorDefaultValues(data);
   const {
     control,
-    formState: { errors },
+    formState: { errors, isSubmitting },
     getValues,
     handleSubmit,
     register,
@@ -161,9 +155,17 @@ function EditorForm({
     },
   });
   const saveTool = useSaveWorkshopTool();
-  const isSaving = createRevision.isPending || saveTool.isPending || toolsQuery.isPending;
+  const isSaving =
+    isSubmitting || createRevision.isPending || saveTool.isPending || toolsQuery.isPending;
   const needsNewPhoto =
     !data.work?.currentRevision || data.work.currentRevision.status === "HIDDEN";
+  const previewRevisionId = needsNewPhoto ? undefined : data.work?.currentRevision?.id;
+  const hasPhoto = Boolean(selectedPhoto || previewRevisionId);
+  const photoAlt = `Фото работы «${data.coloring.title}»`;
+  const isPublished = Boolean(data.work?.isPublicationEnabled && data.work.publishedAt);
+  const caption = values.caption?.trim();
+  const markerCount =
+    values.mappings?.filter((mapping) => mapping.markerNumber?.trim()).length ?? 0;
 
   useEffect(() => {
     if (!selectedPhoto) {
@@ -310,8 +312,8 @@ function EditorForm({
       }
 
       await createRevision.mutate(toCreateRevisionInput(formValues, resolvedTools, officialColors));
-    } catch (error) {
-      setServerError(error instanceof Error ? error.message : "Не удалось сохранить работу");
+    } catch {
+      setServerError("Не удалось отправить. Попробуйте снова.");
     }
   }
 
@@ -329,119 +331,143 @@ function EditorForm({
       setCurrentStep(0);
     } else if (formErrors.materials || formErrors.mappings || formErrors.caption) {
       setCurrentStep(1);
-    } else if (formErrors.publicationConsent || formErrors.advertisingConsent) {
-      setCurrentStep(2);
     }
   }
 
   return (
-    <div className="space-y-6">
-      <header className="space-y-2">
-        <p className="text-sm font-bold tracking-wide text-rose-500 uppercase">
-          {data.collection.title} · Картина {data.coloring.number}
-        </p>
-        <PageTitle>{data.work ? "Обновить работу" : "Добавить работу"}</PageTitle>
-        {data.work?.currentRevision?.status === "PENDING" ? (
-          <p className="max-w-3xl text-stone-600">
-            Работа на проверке. Вы можете заменить фото, изменить подпись или материалы. После
-            отправки модератор проверит обновлённую версию.
-          </p>
-        ) : null}
-        <p className="max-w-3xl text-stone-600">
-          Загрузите фотографию готовой раскраски. Подпись, материалы и номера маркеров
-          можно добавить по желанию.
-        </p>
-        {data.work?.publishedRevision ? (
-          <Badge className="h-auto max-w-full justify-start bg-emerald-100 py-1 text-left leading-snug whitespace-normal text-emerald-800">
-            Опубликованная версия останется видимой, пока новая проходит проверку
-          </Badge>
-        ) : null}
-      </header>
-
-      <EditorStepper
-        currentStep={currentStep}
-        onStepChange={(step) => {
-          if (step === currentStep) return;
-          analytics.stepSelected();
-          setCurrentStep(step);
-        }}
+    <div className="space-y-6 md:space-y-8">
+      <PageHero
+        title={data.work ? "Обновить работу" : "Добавить работу"}
+        breadcrumbs={[
+          { label: "Моя мастерская", href: routes.workshop },
+          {
+            label: getCommunityCollectionTitle(data.collection.title),
+            href: routes.workshopCollection(slug),
+          },
+          { label: `Картина № ${data.coloring.number}` },
+        ]}
+        description={
+          <div className="space-y-2">
+            <p className="font-semibold text-stone-800">{data.coloring.title}</p>
+            {isPublished ? (
+              <p>Опубликованная версия останется видна, пока мы проверяем изменения.</p>
+            ) : data.work?.currentRevision?.status === "PENDING" ? (
+              <p>Работа на проверке. Если внесёте изменения, мы проверим новую версию.</p>
+            ) : null}
+          </div>
+        }
       />
 
       <form
+        className="-mx-4 md:mx-0"
         onSubmit={(event) => {
+          if (!isReviewStep || isSaving) {
+            event.preventDefault();
+            return;
+          }
+
           void handleSubmit(onSubmit, onInvalid)(event);
         }}
       >
-        <Card className="overflow-visible">
-          <CardContent className="p-4 sm:p-6">
+        <Card className="gap-0 rounded-none border-y py-0 ring-0 md:rounded-2xl md:border-y-0 md:ring-1">
+          <EditorStepper
+            currentStep={currentStep}
+            onStepChange={(step) => {
+              if (step === currentStep) return;
+              analytics.stepSelected();
+              setCurrentStep(step);
+            }}
+          />
+          <CardContent className="p-4 sm:p-8">
             {currentStep === 0 ? (
-              <section className="grid gap-6 lg:grid-cols-[minmax(0,1fr)_minmax(18rem,28rem)] lg:items-start">
-                <div className="space-y-4">
-                  <div className="space-y-2">
-                    <Label htmlFor="work-photo">Фото готовой раскраски</Label>
-                    <Controller
-                      name="photo"
-                      control={control}
-                      render={({ field: { onChange, ref } }) => (
+              <section className="grid gap-6 md:grid-cols-[minmax(0,1fr)_minmax(0,0.8fr)] md:items-start md:gap-10">
+                <div className="min-w-0 space-y-4">
+                  <h2 className="font-heading text-lg font-bold sm:text-xl">
+                    Фото готовой раскраски
+                  </h2>
+                  <Controller
+                    name="photo"
+                    control={control}
+                    render={({ field: { onChange, onBlur, ref } }) => (
+                      <div className="relative flex min-h-32 flex-col items-center justify-center gap-2 rounded-xl border border-dashed border-stone-300 bg-stone-50 px-4 py-5 text-center transition-colors focus-within:border-rose-400 focus-within:ring-3 focus-within:ring-rose-200 hover:border-rose-400">
+                        <Camera className="size-5 text-rose-700" aria-hidden="true" />
+                        <Label htmlFor="work-photo" className="text-sm font-bold">
+                          {hasPhoto ? "Заменить фото" : "Выбрать фото"}
+                        </Label>
+                        {selectedPhoto ? (
+                          <p
+                            className="w-full truncate text-sm text-stone-600"
+                            title={selectedPhoto.name}
+                          >
+                            {selectedPhoto.name}
+                          </p>
+                        ) : null}
                         <Input
                           ref={ref}
                           id="work-photo"
                           type="file"
                           accept={acceptedWorkshopPhotoTypes.join(",")}
-                          className="min-h-11 file:mr-3 file:font-bold"
+                          className="absolute inset-0 size-full cursor-pointer opacity-0"
                           aria-invalid={Boolean(errors.photo)}
+                          aria-describedby={
+                            errors.photo ? "work-photo-help work-photo-error" : "work-photo-help"
+                          }
+                          onBlur={onBlur}
                           onChange={(event) => {
                             const photo = event.target.files?.[0];
-                            if (photo) analytics.photoSelected();
+                            if (!photo) return;
+                            analytics.photoSelected();
                             onChange(photo);
                           }}
                         />
-                      )}
-                    />
-                    <p className="text-sm text-stone-500">JPEG, PNG или WebP, не более 10 МиБ.</p>
-                    {errors.photo?.message ? (
-                      <p className="text-sm text-destructive">{errors.photo.message}</p>
-                    ) : null}
-                  </div>
-                  <div className="rounded-2xl bg-rose-50 p-4 text-sm leading-6 text-rose-950">
-                    <Camera className="mb-2 size-5 text-rose-500" aria-hidden="true" />
-                    Снимайте при ровном освещении, чтобы раскраска была хорошо видна.
-                    Фотография сохранится целиком.
-                  </div>
+                      </div>
+                    )}
+                  />
+                  <p id="work-photo-help" className="text-sm text-stone-600">
+                    JPEG, PNG или WebP, до 10 МБ. Снимайте при ровном освещении.
+                  </p>
+                  {errors.photo?.message ? (
+                    <p id="work-photo-error" role="alert" className="text-sm text-destructive">
+                      {errors.photo.message}
+                    </p>
+                  ) : null}
                 </div>
                 <PhotoPreview
                   objectUrl={objectUrl}
-                  revisionId={
-                    data.work?.currentRevision?.status === "HIDDEN"
-                      ? undefined
-                      : data.work?.currentRevision?.id
-                  }
-                  alt={`Предпросмотр работы ${data.coloring.number}`}
+                  revisionId={previewRevisionId}
+                  alt={photoAlt}
+                  example={data.coloring.officialImage}
                 />
               </section>
             ) : null}
 
             {currentStep === 1 ? (
-              <section className="mx-auto max-w-2xl space-y-3">
-                <h2 className="text-xl font-bold">Подпись к работе</h2>
-                <Label htmlFor="work-caption">Необязательно</Label>
+              <section className="space-y-4">
+                <div className="flex flex-wrap items-baseline justify-between gap-x-4 gap-y-1">
+                  <h2 className="font-heading text-lg font-bold sm:text-xl">
+                    <Label htmlFor="work-caption" className="inline font-bold text-inherit">
+                      Подпись к работе
+                    </Label>
+                  </h2>
+                  <p id="work-caption-help" className="text-sm text-stone-600">
+                    Необязательно, до 500 символов
+                  </p>
+                </div>
                 <Textarea
                   id="work-caption"
-                  rows={7}
+                  rows={4}
                   maxLength={500}
-                  placeholder="Расскажите о процессе, бумаге или любимых сочетаниях…"
                   aria-invalid={Boolean(errors.caption)}
+                  aria-describedby={
+                    errors.caption ? "work-caption-help work-caption-error" : "work-caption-help"
+                  }
                   {...register("caption")}
                 />
-                <p className="text-sm text-stone-500">До 500 символов.</p>
                 {errors.caption?.message ? (
-                  <p className="text-sm text-destructive">{errors.caption.message}</p>
+                  <p id="work-caption-error" role="alert" className="text-sm text-destructive">
+                    {errors.caption.message}
+                  </p>
                 ) : null}
-                <div className="rounded-2xl border border-stone-200 bg-stone-50 p-4 text-sm leading-6 text-stone-700">
-                  <Info className="mb-2 size-5 text-rose-500" aria-hidden="true" />
-                  Материалы можно добавить по желанию. Они появятся рядом с опубликованной работой и
-                  помогут другим узнать, какими наборами вы пользовались.
-                </div>
                 <Button
                   type="button"
                   variant="outline"
@@ -460,13 +486,8 @@ function EditorForm({
             ) : null}
 
             {currentStep === 1 && isMaterialsEditorOpen ? (
-              <section id="workshop-materials" className="mt-8 space-y-6 border-t pt-8">
-                <div>
-                  <h2 className="text-xl font-bold">Материалы</h2>
-                  <p className="mt-1 text-sm text-stone-600">
-                    Добавьте наборы, которые использовали в этой работе.
-                  </p>
-                </div>
+              <section id="workshop-materials" className="mt-6 space-y-5 border-t pt-6">
+                <h2 className="font-heading text-lg font-bold sm:text-xl">Материалы</h2>
 
                 {toolsQuery.tools.length > 0 ? (
                   <div className="space-y-2">
@@ -496,146 +517,124 @@ function EditorForm({
                   </div>
                 ) : null}
 
-                {materialFields.length === 0 ? (
-                  <div className="rounded-2xl border border-dashed p-5 text-sm leading-6 text-stone-600">
-                    Материалы пока не добавлены. Выберите сохранённый набор или добавьте новый — ни
-                    один бренд не назначается всем цветам автоматически.
+                {materialFields.length > 0 ? (
+                  <div className="grid gap-4 lg:grid-cols-2">
+                    {materialFields.map((field, index) => {
+                      const material = materials[index];
+                      const materialErrors = errors.materials?.[index];
+
+                      return (
+                        <div key={field.id} className="min-w-0 space-y-4 rounded-xl border p-4">
+                          <div className="flex items-center justify-between gap-3">
+                            <p className="font-semibold">Материал № {index + 1}</p>
+                            <Button
+                              type="button"
+                              variant="ghost"
+                              size="icon-lg"
+                              aria-label={`Удалить материал ${index + 1}`}
+                              onClick={() => deleteMaterial(index)}
+                            >
+                              <Trash2 aria-hidden="true" />
+                            </Button>
+                          </div>
+                          <div className="grid gap-2 sm:grid-cols-2">
+                            <ToolChoice
+                              active={material?.type === "ARTMATE_168"}
+                              title="Artmate 168"
+                              onClick={() => changeMaterialType(index, "ARTMATE_168")}
+                            />
+                            <ToolChoice
+                              active={material?.type === "CUSTOM"}
+                              title="Другой набор"
+                              onClick={() => changeMaterialType(index, "CUSTOM")}
+                            />
+                          </div>
+                          <div className="grid gap-4 sm:grid-cols-2">
+                            <div className="space-y-2">
+                              <Label htmlFor={`material-${index}-brand`}>Бренд</Label>
+                              <Input
+                                id={`material-${index}-brand`}
+                                className="min-h-11"
+                                readOnly={material?.type === "ARTMATE_168"}
+                                aria-invalid={Boolean(materialErrors?.brand)}
+                                {...register(`materials.${index}.brand`)}
+                              />
+                              {materialErrors?.brand?.message ? (
+                                <p className="text-sm text-destructive">
+                                  {materialErrors.brand.message}
+                                </p>
+                              ) : null}
+                            </div>
+                            <div className="space-y-2">
+                              <Label htmlFor={`material-${index}-line`}>Линейка</Label>
+                              <Input
+                                id={`material-${index}-line`}
+                                className="min-h-11"
+                                readOnly={material?.type === "ARTMATE_168"}
+                                aria-invalid={Boolean(materialErrors?.line)}
+                                {...register(`materials.${index}.line`)}
+                              />
+                              {materialErrors?.line?.message ? (
+                                <p className="text-sm text-destructive">
+                                  {materialErrors.line.message}
+                                </p>
+                              ) : null}
+                            </div>
+                          </div>
+                        </div>
+                      );
+                    })}
                   </div>
                 ) : null}
-
-                <div className="grid gap-4 lg:grid-cols-2">
-                  {materialFields.map((field, index) => {
-                    const material = materials[index];
-                    const materialErrors = errors.materials?.[index];
-
-                    return (
-                      <div key={field.id} className="space-y-4 rounded-2xl border p-4">
-                        <div className="flex items-center justify-between gap-3">
-                          <p className="font-heading text-lg font-bold">Материал {index + 1}</p>
-                          <Button
-                            type="button"
-                            variant="ghost"
-                            size="icon-lg"
-                            aria-label={`Удалить материал ${index + 1}`}
-                            onClick={() => deleteMaterial(index)}
-                          >
-                            <Trash2 aria-hidden="true" />
-                          </Button>
-                        </div>
-                        <div className="grid gap-2 sm:grid-cols-2">
-                          <ToolChoice
-                            active={material?.type === "ARTMATE_168"}
-                            title="Artmate 168"
-                            description="Официальный каталог"
-                            onClick={() => changeMaterialType(index, "ARTMATE_168")}
-                          />
-                          <ToolChoice
-                            active={material?.type === "CUSTOM"}
-                            title="Другой набор"
-                            description="Свой бренд и линейка"
-                            onClick={() => changeMaterialType(index, "CUSTOM")}
-                          />
-                        </div>
-                        <div className="grid gap-4 sm:grid-cols-2">
-                          <div className="space-y-2">
-                            <Label htmlFor={`material-${index}-brand`}>Бренд</Label>
-                            <Input
-                              id={`material-${index}-brand`}
-                              className="min-h-11"
-                              readOnly={material?.type === "ARTMATE_168"}
-                              aria-invalid={Boolean(materialErrors?.brand)}
-                              {...register(`materials.${index}.brand`)}
-                            />
-                            {materialErrors?.brand?.message ? (
-                              <p className="text-sm text-destructive">
-                                {materialErrors.brand.message}
-                              </p>
-                            ) : null}
-                          </div>
-                          <div className="space-y-2">
-                            <Label htmlFor={`material-${index}-line`}>Линейка</Label>
-                            <Input
-                              id={`material-${index}-line`}
-                              className="min-h-11"
-                              readOnly={material?.type === "ARTMATE_168"}
-                              aria-invalid={Boolean(materialErrors?.line)}
-                              {...register(`materials.${index}.line`)}
-                            />
-                            {materialErrors?.line?.message ? (
-                              <p className="text-sm text-destructive">
-                                {materialErrors.line.message}
-                              </p>
-                            ) : null}
-                          </div>
-                        </div>
-                      </div>
-                    );
-                  })}
+                <div className="flex flex-wrap items-center gap-3">
+                  <Button
+                    type="button"
+                    variant="outline"
+                    className="min-h-11"
+                    disabled={!canAppendWorkshopMaterial(materialFields.length)}
+                    onClick={addCustomMaterial}
+                  >
+                    <Plus data-icon="inline-start" />
+                    Добавить материал
+                  </Button>
+                  {materials.length > 0 ? (
+                    <Button
+                      type="button"
+                      variant="ghost"
+                      className="min-h-11"
+                      aria-expanded={isMappingEditorOpen}
+                      aria-controls="workshop-symbol-mappings"
+                      onClick={() => {
+                        if (isMappingEditorOpen) analytics.mappingClosed();
+                        else analytics.mappingOpened();
+                        setIsMappingEditorOpen(!isMappingEditorOpen);
+                      }}
+                    >
+                      {isMappingEditorOpen ? "Скрыть номера маркеров" : "Указать номера маркеров"}
+                    </Button>
+                  ) : null}
                 </div>
-                <Button
-                  type="button"
-                  variant="outline"
-                  className="min-h-11"
-                  disabled={!canAppendWorkshopMaterial(materialFields.length)}
-                  onClick={addCustomMaterial}
-                >
-                  <Plus data-icon="inline-start" />
-                  Добавить материал
-                </Button>
                 {typeof errors.materials?.message === "string" ? (
                   <p className="text-sm text-destructive">{errors.materials.message}</p>
                 ) : null}
-                <div className="rounded-2xl border border-blue-200 bg-blue-50 p-4 text-sm leading-6 text-blue-950">
-                  <Info className="mb-2 size-5 text-blue-600" aria-hidden="true" />
-                  <p className="font-bold">Зачем указывать номера маркеров?</p>
-                  <p className="mt-1">
-                    Они помогут другим сопоставить символы картины с использованными оттенками.
-                    Заполнять эти данные необязательно.
-                  </p>
-                </div>
-                <Button
-                  type="button"
-                  variant="outline"
-                  className="min-h-11"
-                  aria-expanded={isMappingEditorOpen}
-                  aria-controls="workshop-symbol-mappings"
-                  onClick={() => {
-                    if (isMappingEditorOpen) analytics.mappingClosed();
-                    else analytics.mappingOpened();
-                    setIsMappingEditorOpen(!isMappingEditorOpen);
-                  }}
-                >
-                  {isMappingEditorOpen
-                    ? "Скрыть соответствия маркеров"
-                    : "Добавить соответствия маркеров"}
-                </Button>
               </section>
             ) : null}
 
-            {currentStep === 1 && isMaterialsEditorOpen && isMappingEditorOpen ? (
-              <section id="workshop-symbol-mappings" className="mt-8 space-y-5 border-t pt-8">
+            {currentStep === 1 &&
+            isMaterialsEditorOpen &&
+            isMappingEditorOpen &&
+            materials.length > 0 ? (
+              <section id="workshop-symbol-mappings" className="mt-6 space-y-5 border-t pt-6">
                 <div>
-                  <h2 className="text-xl font-bold">Соответствие символов</h2>
-                  <p className="mt-1 text-sm text-stone-600">
-                    Можно заполнить только известные номера. Одинаковый номер допустим для
-                    нескольких символов; ведущие нули и буквенные суффиксы сохраняются.
-                  </p>
+                  <h2 className="font-heading text-lg font-bold sm:text-xl">Номера маркеров</h2>
+                  <p className="mt-1 text-sm text-stone-600">Укажите номера, которые знаете.</p>
                 </div>
-                {materials.some((material) => material.type === "ARTMATE_168") ? (
-                  <div className="rounded-xl border border-rose-200 bg-rose-50 p-4">
-                    <p className="font-bold text-rose-950">Каталог Artmate для выбранных цветов</p>
-                    <p className="mt-1 text-sm text-rose-900">
-                      {markerColorsQuery.isPending
-                        ? "Загружаем официальный каталог маркеров…"
-                        : markerColorsQuery.isError
-                          ? "Каталог временно недоступен; номера картины уже подставлены."
-                          : `Загружено ${markerColorsQuery.colors.length} цветов официального каталога.`}
-                    </p>
-                  </div>
-                ) : null}
-                {materials.length === 0 ? (
-                  <p className="rounded-xl border border-amber-200 bg-amber-50 p-4 text-sm text-amber-950">
-                    Сначала добавьте хотя бы один материал выше.
+                {materials.some((material) => material.type === "ARTMATE_168") &&
+                (markerColorsQuery.isPending || markerColorsQuery.isError) ? (
+                  <p role="status" className="text-sm text-stone-600">
+                    {markerColorsQuery.isPending
+                      ? "Загружаем каталог маркеров Artmate…"
+                      : "Каталог маркеров Artmate временно недоступен."}
                   </p>
                 ) : null}
                 <div className="grid gap-3 sm:grid-cols-2 lg:grid-cols-3">
@@ -671,7 +670,6 @@ function EditorForm({
                             render={({ field }) => (
                               <Select
                                 value={field.value === null ? "__none__" : String(field.value)}
-                                disabled={materials.length === 0}
                                 onValueChange={(value) =>
                                   changeMappingMaterial(
                                     index,
@@ -780,152 +778,110 @@ function EditorForm({
               </section>
             ) : null}
 
-            {currentStep === 2 ? (
-              <section className="mx-auto max-w-3xl space-y-5">
-                <div>
-                  <h2 className="text-xl font-bold">Отправка на модерацию</h2>
-                  <p className="mt-1 text-sm text-stone-600">
-                    Все фотографии проверяет модератор. Разрешите публикацию, чтобы после одобрения
-                    работа появилась автоматически — без отдельного действия.
-                  </p>
+            {isReviewStep ? (
+              <section className="grid gap-6 md:grid-cols-[minmax(0,1fr)_minmax(0,0.8fr)] md:items-start md:gap-10">
+                <div className="min-w-0 space-y-4">
+                  <h2 className="font-heading text-lg font-bold sm:text-xl">Проверьте работу</h2>
+                  {caption || values.materials?.length || markerCount ? (
+                    <dl className="space-y-4 text-sm wrap-break-word">
+                      {caption ? (
+                        <div>
+                          <dt className="font-semibold">Подпись</dt>
+                          <dd className="mt-1 whitespace-pre-wrap text-stone-700">{caption}</dd>
+                        </div>
+                      ) : null}
+                      {values.materials?.length ? (
+                        <div>
+                          <dt className="font-semibold">Материалы</dt>
+                          <dd className="mt-1 text-stone-700">
+                            <ul>
+                              {values.materials.map((material, index) => (
+                                <li key={materialFields[index]?.id ?? index}>
+                                  {material?.brand} · {material?.line}
+                                </li>
+                              ))}
+                            </ul>
+                          </dd>
+                        </div>
+                      ) : null}
+                      {markerCount > 0 ? (
+                        <div className="flex flex-wrap gap-x-2">
+                          <dt className="font-semibold">Номера маркеров</dt>
+                          <dd className="text-stone-700">
+                            {markerCount} из {data.coloring.officialRevision.palette.colors.length}
+                          </dd>
+                        </div>
+                      ) : null}
+                    </dl>
+                  ) : (
+                    <p className="text-sm text-stone-600">Подпись и материалы не добавлены.</p>
+                  )}
                 </div>
-                <label className="flex min-h-11 items-start gap-3 rounded-xl border border-emerald-200 bg-emerald-50 p-4 text-sm leading-6 text-emerald-950">
-                  <input
-                    type="checkbox"
-                    className="mt-0.5 size-5 accent-emerald-600"
-                    {...register("publicationConsent", {
-                      onChange: (event) =>
-                        event.target.checked
-                          ? analytics.publicationChecked()
-                          : analytics.publicationUnchecked(),
-                    })}
-                  />
-                  <span>
-                    <strong className="block">Опубликовать работу после модерации</strong>
-                    После одобрения работа появится в открытой мастерской и общей галерее. Если
-                    мастерская закрыта, публикация дождётся её открытия.
-                  </span>
-                </label>
-                <label className="flex min-h-11 items-start gap-3 rounded-xl border border-rose-200 bg-rose-50 p-4 text-sm leading-6 text-rose-950">
-                  <input
-                    type="checkbox"
-                    className="mt-0.5 size-5 accent-rose-500"
-                    {...register("advertisingConsent", {
-                      onChange: (event) =>
-                        event.target.checked
-                          ? analytics.advertisingChecked()
-                          : analytics.advertisingUnchecked(),
-                    })}
-                  />
-                  <span>
-                    Хочу, чтобы моя работа вдохновляла других. Разрешаю Artmate использовать это
-                    фото на сайте, в социальных сетях, рекламе и материалах бренда.
-                  </span>
-                </label>
-              </section>
-            ) : null}
-
-            {currentStep === 3 ? (
-              <section className="grid gap-6 lg:grid-cols-[minmax(18rem,26rem)_minmax(0,1fr)] lg:items-start">
-                <PhotoPreview
-                  objectUrl={objectUrl}
-                  revisionId={
-                    data.work?.currentRevision?.status === "HIDDEN"
-                      ? undefined
-                      : data.work?.currentRevision?.id
-                  }
-                  alt={`Предпросмотр работы ${data.coloring.number}`}
-                />
-                <div className="space-y-5">
-                  <div>
-                    <h2 className="text-xl font-bold">Проверьте данные</h2>
-                    <p className="mt-1 text-sm text-stone-600">
-                      Новая ревизия будет отправлена на модерацию.
-                    </p>
-                  </div>
-                  <dl className="grid gap-3 rounded-2xl bg-stone-50 p-4 sm:grid-cols-2">
-                    <div>
-                      <dt className="text-sm text-stone-500">Материалы</dt>
-                      <dd className="space-y-1 font-bold">
-                        {values.materials?.length
-                          ? values.materials.map((material, index) => (
-                              <span key={`${material?.type}-${index}`} className="block">
-                                {material?.brand} · {material?.line}
-                              </span>
-                            ))
-                          : "Не указаны"}
-                      </dd>
-                    </div>
-                    <div>
-                      <dt className="text-sm text-stone-500">Материал назначен</dt>
-                      <dd className="font-bold">
-                        {values.mappings?.filter((item) => item.materialIndex !== null).length ?? 0}{" "}
-                        из {data.coloring.officialRevision.palette.colors.length}
-                      </dd>
-                    </div>
-                    <div>
-                      <dt className="text-sm text-stone-500">Номер указан</dt>
-                      <dd className="font-bold">
-                        {values.mappings?.filter((item) => item.markerNumber?.trim()).length ?? 0}{" "}
-                        из {data.coloring.officialRevision.palette.colors.length}
-                      </dd>
-                    </div>
-                    <div>
-                      <dt className="text-sm text-stone-500">После модерации</dt>
-                      <dd className="font-bold">
-                        {values.publicationConsent
-                          ? "Опубликовать автоматически"
-                          : "Оставить доступной только вам"}
-                      </dd>
-                    </div>
-                  </dl>
-                  {values.caption ? (
-                    <p className="rounded-xl border p-4">{values.caption}</p>
-                  ) : null}
-                  {serverError ? (
-                    <p role="alert" className="text-sm text-destructive">
-                      {serverError}. Все введённые данные сохранены в форме.
-                    </p>
-                  ) : null}
-                  <Button type="submit" size="lg" className="min-h-11 w-full" disabled={isSaving}>
-                    <ShieldCheck data-icon="inline-start" />
-                    Отправить на модерацию
-                  </Button>
-                </div>
+                <PhotoPreview objectUrl={objectUrl} revisionId={previewRevisionId} alt={photoAlt} />
               </section>
             ) : null}
           </CardContent>
 
-          <div className="flex items-center justify-between gap-3 border-t bg-stone-50 px-4 py-3 sm:px-6">
-            <Button
-              type="button"
-              variant="outline"
-              className="min-h-11"
-              disabled={currentStep === 0 || isSaving}
-              onClick={() => {
-                analytics.stepPrevious();
-                setCurrentStep((step) => Math.max(0, step - 1));
-              }}
-            >
-              <ChevronLeft data-icon="inline-start" />
-              Назад
-            </Button>
-            <span className="text-sm text-stone-500">
-              {currentStep + 1} / {editorSteps.length}
-            </span>
-            <Button
-              type="button"
-              className="min-h-11"
-              disabled={currentStep === editorSteps.length - 1 || isSaving}
-              onClick={() => {
-                analytics.stepNext();
-                setCurrentStep((step) => Math.min(editorSteps.length - 1, step + 1));
-              }}
-            >
-              Далее
-              <ChevronRight data-icon="inline-end" />
-            </Button>
-          </div>
+          <CardFooter className="grid grid-cols-[auto_minmax(0,1fr)] gap-3 rounded-none bg-stone-50 px-4 sm:px-8 sm:py-5 md:rounded-b-2xl">
+            {isReviewStep ? (
+              <div className="col-span-2 space-y-2">
+                {serverError ? (
+                  <p role="alert" className="text-sm text-destructive">
+                    {serverError}
+                  </p>
+                ) : null}
+                <p
+                  id="work-submission-consent"
+                  className="max-w-[68ch] text-xs leading-4 text-stone-700 sm:text-sm sm:leading-5"
+                >
+                  Отправляя фото, вы разрешаете Artmate опубликовать его в галерее и мастерской
+                  после одобрения и использовать на сайте, в соцсетях, рекламе и материалах бренда.
+                </p>
+              </div>
+            ) : null}
+            {currentStep > 0 ? (
+              <Button
+                type="button"
+                variant="outline"
+                size="lg"
+                className="min-h-11 px-3"
+                disabled={isSaving}
+                onClick={() => {
+                  analytics.stepPrevious();
+                  setCurrentStep((step) => Math.max(0, step - 1));
+                }}
+              >
+                <ChevronLeft data-icon="inline-start" />
+                Назад
+              </Button>
+            ) : null}
+            {isReviewStep ? (
+              <Button
+                type="submit"
+                size="lg"
+                className="col-start-2 min-h-11 w-full justify-self-end px-4 sm:w-auto"
+                aria-describedby="work-submission-consent"
+                aria-label="Отправить на модерацию"
+                disabled={isSaving}
+              >
+                <span className="sm:hidden">Отправить</span>
+                <span className="hidden sm:inline">Отправить на модерацию</span>
+              </Button>
+            ) : (
+              <Button
+                type="button"
+                className="col-start-2 min-h-11 justify-self-end px-4"
+                disabled={isSaving}
+                onClick={() => {
+                  analytics.stepNext();
+                  setCurrentStep((step) => Math.min(editorSteps.length - 1, step + 1));
+                }}
+              >
+                Далее
+                <ChevronRight data-icon="inline-end" />
+              </Button>
+            )}
+          </CardFooter>
         </Card>
       </form>
     </div>
@@ -935,24 +891,22 @@ function EditorForm({
 function ToolChoice({
   active,
   title,
-  description,
   onClick,
 }: {
   active: boolean;
   title: string;
-  description: string;
   onClick: () => void;
 }) {
   return (
-    <button
+    <Button
       type="button"
+      variant="outline"
       aria-pressed={active}
       onClick={onClick}
-      className={`min-h-24 rounded-2xl border p-4 text-left focus-visible:ring-3 focus-visible:ring-rose-400 focus-visible:outline-none ${active ? "border-rose-500 bg-rose-50" : "border-stone-200 bg-white"}`}
+      className="min-h-11 aria-pressed:border-rose-300 aria-pressed:bg-rose-50 aria-pressed:text-rose-900"
     >
-      <span className="block font-heading text-lg font-bold">{title}</span>
-      <span className="mt-1 block text-sm text-stone-600">{description}</span>
-    </button>
+      {title}
+    </Button>
   );
 }
 

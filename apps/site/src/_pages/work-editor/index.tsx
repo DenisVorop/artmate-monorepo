@@ -2,8 +2,8 @@ import { WorkEditor } from "@/features/work-editor";
 
 export function WorkEditorPage({ slug, number }: { slug: string; number: number }) {
   return (
-    <main className="bg-[radial-gradient(circle_at_top_left,rgba(251,113,133,0.08),transparent_34rem)]">
-      <div className="container py-6 md:py-10">
+    <main className="bg-stone-100/80 text-stone-900">
+      <div className="container max-w-5xl py-5 max-md:max-w-none md:pt-8 md:pb-14">
         <WorkEditor slug={slug} number={number} />
       </div>
     </main>

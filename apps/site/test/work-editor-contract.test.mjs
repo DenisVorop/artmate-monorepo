@@ -54,8 +54,6 @@ test("editor RHF+Zod contract maps a separate material for every color", async (
       { symbol: "J", materialIndex: 2, markerNumber: "" },
     ],
     caption: "Готовая работа",
-    publicationConsent: true,
-    advertisingConsent: false,
   };
 
   try {
@@ -85,7 +83,7 @@ test("editor RHF+Zod contract maps a separate material for every color", async (
       { toolId: "b".repeat(32) },
       { toolId: "c".repeat(32) },
     ]);
-    assert.equal(dto.advertisingConsent, false);
+    assert.equal(dto.advertisingConsent, true);
     assert.equal(dto.publicationConsent, true);
     assert.equal("intent" in dto, false);
     assert.equal("crop" in dto, false);
@@ -98,6 +96,8 @@ test("editor RHF+Zod contract maps a separate material for every color", async (
     const photoOnlyDto = form.toCreateRevisionInput(photoOnlyValues, [], []);
     assert.deepEqual(photoOnlyDto.materials, []);
     assert.deepEqual(photoOnlyDto.symbolMappings, []);
+    assert.equal(photoOnlyDto.publicationConsent, true);
+    assert.equal(photoOnlyDto.advertisingConsent, true);
 
     assert.equal(
       form.workEditorFormSchema.safeParse({
@@ -177,11 +177,11 @@ test("editor defaults restore mixed material positions from an existing revision
     { symbol: "2", materialIndex: null, markerNumber: "" },
     { symbol: "A", materialIndex: 0, markerNumber: "010" },
   ]);
-  assert.equal(values.advertisingConsent, false);
-  assert.equal(values.publicationConsent, false);
+  assert.equal("advertisingConsent" in values, false);
+  assert.equal("publicationConsent" in values, false);
 });
 
-test("new editor starts without a global brand or inherited advertising consent", async () => {
+test("new editor starts without materials or mappings", async () => {
   const defaults = evaluateTypeScript(
     await readSource("src/features/work-editor/lib/default-values.ts"),
     {},
@@ -204,8 +204,6 @@ test("new editor starts without a global brand or inherited advertising consent"
     { symbol: "1", materialIndex: null, markerNumber: "" },
     { symbol: "A", materialIndex: null, markerNumber: "" },
   ]);
-  assert.equal(values.advertisingConsent, false);
-  assert.equal(values.publicationConsent, false);
 });
 
 test("material helpers preserve per-color choices and enforce the 19 item limit", async () => {
@@ -246,7 +244,8 @@ test("editor UI hides optional materials and marker mappings behind nested contr
   assert.match(editor, /URL\.createObjectURL\(selectedPhoto\)/);
   assert.match(editor, /URL\.revokeObjectURL\(nextUrl\)/);
   assert.match(editor, /accept=\{acceptedWorkshopPhotoTypes\.join/);
-  assert.match(editor, /Материалы можно добавить по желанию/);
+  assert.match(editor, /<PageHero[\s\S]*?routes\.workshopCollection\(slug\)/);
+  assert.match(editor, /example=\{data\.coloring\.officialImage\}/);
   assert.match(editor, /Материал цвета/);
   assert.match(editor, /mappings\.\$\{index\}\.materialIndex/);
   assert.match(editor, /Добавить материал/);
@@ -257,25 +256,37 @@ test("editor UI hides optional materials and marker mappings behind nested contr
   assert.match(editor, /officialMarkerOptions\.map/);
   assert.match(editor, /Отправить на модерацию/);
   assert.doesNotMatch(editor, /Оставить только себе|DRAFT|необязательное согласие/);
-  assert.match(editor, /advertisingConsent/);
-  assert.match(editor, /publicationConsent/);
-  assert.match(editor, /Опубликовать работу после модерации/);
-  assert.match(editor, /работа появится в открытой мастерской и общей галерее/);
-  assert.match(editor, /Хочу, чтобы моя работа вдохновляла других/);
-  assert.match(editor, /Все введённые данные сохранены в форме/);
+  assert.doesNotMatch(editor, /type="checkbox"/);
+  assert.match(
+    editor.replace(/\s+/g, " "),
+    /Отправляя фото, вы разрешаете Artmate опубликовать его в галерее и мастерской после одобрения и использовать на сайте, в соцсетях, рекламе и материалах бренда/,
+  );
+  assert.match(
+    editor,
+    /id="work-submission-consent"[\s\S]*type="submit"[\s\S]*aria-describedby="work-submission-consent"[\s\S]*Отправить на модерацию/,
+  );
+  assert.match(editor, /Не удалось отправить\. Попробуйте снова\./);
   assert.match(editor, /toCreateRevisionInput\(formValues, resolvedTools, officialColors\)/);
   assert.match(editor, /officialColors/);
-  assert.match(editor, /handleSubmit\(onSubmit, onInvalid\)/);
+  assert.match(
+    editor,
+    /if \(!isReviewStep \|\| isSaving\)[\s\S]*handleSubmit\(onSubmit, onInvalid\)/,
+  );
   assert.match(editor, /currentRevision\?\.status === "PENDING"/);
   assert.match(editor, /Добавить материалы/);
   assert.match(editor, /aria-expanded=\{isMaterialsEditorOpen\}/);
   assert.match(editor, /currentStep === 1 && isMaterialsEditorOpen/);
   assert.match(editor, /currentRevision\?\.materials\.length/);
-  assert.match(editor, /Добавить соответствия маркеров/);
-  assert.match(editor, /Скрыть соответствия маркеров/);
-  assert.match(editor, /Заполнять эти данные необязательно/);
+  assert.match(
+    editor,
+    /Добавить материал[\s\S]*?materials\.length > 0 \? \([\s\S]*?Указать номера маркеров/,
+  );
+  assert.match(editor, /Скрыть номера маркеров/);
   assert.match(editor, /aria-expanded=\{isMappingEditorOpen\}/);
-  assert.match(editor, /currentStep === 1 && isMaterialsEditorOpen && isMappingEditorOpen/);
+  assert.match(
+    editor,
+    /currentStep === 1 &&\s*isMaterialsEditorOpen &&\s*isMappingEditorOpen &&\s*materials\.length > 0/,
+  );
   assert.match(editor, /Boolean\(data\.work\?\.currentRevision\?\.symbolMappings\.length\)/);
   assert.equal(editor.match(/setIsMappingEditorOpen\(true\)/g)?.length, 2);
   assert.match(
@@ -283,12 +294,15 @@ test("editor UI hides optional materials and marker mappings behind nested contr
     /formErrors\.materials \|\| formErrors\.mappings[\s\S]*setIsMaterialsEditorOpen\(true\)[\s\S]*formErrors\.mappings[\s\S]*setIsMappingEditorOpen\(true\)[\s\S]*setCurrentStep\(1\)/,
   );
   assert.match(editor, /currentStep === 1[\s\S]*Подпись к работе/);
-  assert.match(editor, /currentStep === 2[\s\S]*Отправка на модерацию/);
-  assert.match(editor, /currentStep === 3[\s\S]*Проверьте данные/);
+  assert.match(editor, /isReviewStep \? \([\s\S]*Проверьте работу/);
   assert.doesNotMatch(`${editor}\n${preview}`, /canvas|getContext\(/i);
   assert.match(preview, /object-contain/);
-  assert.doesNotMatch(`${editor}\n${preview}\n${stepper}`, /CropSlider|crop=|кадрирован|"Кадр"|Повернуть на 90°/);
+  assert.doesNotMatch(
+    `${editor}\n${preview}\n${stepper}`,
+    /CropSlider|crop=|кадрирован|"Кадр"|Повернуть на 90°/,
+  );
   assert.match(stepper, /aria-label="Шаги добавления работы"/);
+  assert.match(stepper, /editorSteps = \["Фото", "Подпись", "Проверка"\]/);
   assert.match(stepper, /min-h-11/);
   assert.doesNotMatch(stepper, /"Материалы"/);
   assert.doesNotMatch(stepper, /"Символы"/);
